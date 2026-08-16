@@ -1,0 +1,31 @@
+{
+  "name": "allybot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Allybot WhatsApp core foundation",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "self-check": "node dist/index.js --self-check",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@cacheable/node-cache": "1.7.5",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "better-sqlite3": "12.4.1",
+    "dotenv": "17.2.1",
+    "pino": "9.9.0",
+    "qrcode-terminal": "0.12.0",
+    "zod": "4.0.17"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "24.3.0",
+    "typescript": "5.9.2"
+  }
+}

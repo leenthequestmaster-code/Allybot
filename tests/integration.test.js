@@ -1,0 +1,120 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import pino from 'pino'
+import { ApplicationFramework } from '../dist/framework/application.js'
+import { diagnosticsPlugin } from '../dist/framework/plugins/diagnostics.js'
+
+const logger = pino({ level: 'silent' })
+const config = { commandPrefix: '!', defaultCooldownMs: 0 }
+
+class FakeCore {
+  isConnected = false
+  userJid = 'bot@s.whatsapp.net'
+  sent = []
+  messages = new Set()
+  groupParticipantListeners = new Set()
+  connections = new Set()
+
+  onMessage(listener) { this.messages.add(listener); return () => this.messages.delete(listener) }
+  onGroupParticipantUpdate(listener) { this.groupParticipantListeners.add(listener); return () => this.groupParticipantListeners.delete(listener) }
+  onConnectionState(listener) { this.connections.add(listener); return () => this.connections.delete(listener) }
+  async sendText(remoteJid, text) { this.sent.push({ remoteJid, text }) }
+  async start() {
+    this.isConnected = true
+    await Promise.all([...this.connections].map((listener) => listener({ status: 'connected', at: Date.now() })))
+  }
+  async close() {
+    this.isConnected = false
+    await Promise.all([...this.connections].map((listener) => listener({ status: 'idle', at: Date.now() })))
+  }
+  async emitMessage(message) {
+    await Promise.all([...this.messages].map((listener) => listener(message)))
+  }
+}
+
+test('ApplicationFramework owns lifecycle and dispatches through WhatsAppPort', async () => {
+  const core = new FakeCore()
+  const app = new ApplicationFramework(config, logger, core)
+  const lifecycle = []
+  app.registerService({
+    name: 'sample-service',
+    initialize() { lifecycle.push('service:init') },
+    shutdown() { lifecycle.push('service:shutdown') },
+  })
+  app.registerPlugin({
+    name: 'sample-plugin',
+    load(context) {
+      lifecycle.push('plugin:load')
+      context.commands.register({
+        name: 'hello',
+        handler: async (commandContext) => commandContext.reply('hello from framework'),
+      })
+    },
+    initialize() { lifecycle.push('plugin:init') },
+    ready() { lifecycle.push('plugin:ready') },
+    unload() { lifecycle.push('plugin:unload') },
+  })
+
+  await app.start()
+  assert.equal(app.state.phase, 'ready')
+  assert.equal(core.isConnected, true)
+  await core.emitMessage({ id: 'm1', remoteJid: 'chat@s.whatsapp.net', text: '!hello', timestamp: Date.now(), fromMe: false })
+  assert.deepEqual(core.sent, [{ remoteJid: 'chat@s.whatsapp.net', text: 'hello from framework' }])
+  await app.stop()
+  assert.equal(app.state.phase, 'stopped')
+  assert.deepEqual(lifecycle, ['service:init', 'plugin:load', 'plugin:init', 'plugin:ready', 'plugin:unload', 'service:shutdown'])
+})
+
+test('A failed command is isolated and framework remains ready for later commands', async () => {
+  const core = new FakeCore()
+  const app = new ApplicationFramework(config, logger, core)
+  let frameworkErrors = 0
+  app.events.on('framework.error', () => { frameworkErrors += 1 })
+  app.registerPlugin({
+    name: 'fault-isolation',
+    load(context) {
+      context.commands.register({ name: 'bad', handler: () => { throw new Error('expected failure') } })
+      context.commands.register({ name: 'good', handler: async (commandContext) => commandContext.reply('still alive') })
+    },
+  })
+
+  await app.start()
+  await core.emitMessage({ id: 'bad', remoteJid: 'chat@s.whatsapp.net', text: '!bad', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'good', remoteJid: 'chat@s.whatsapp.net', text: '!good', timestamp: Date.now(), fromMe: false })
+  assert.equal(app.state.phase, 'ready')
+  assert.equal(frameworkErrors, 1)
+  assert.deepEqual(core.sent, [{ remoteJid: 'chat@s.whatsapp.net', text: 'still alive' }])
+  await app.stop()
+})
+
+test('Diagnostics plugin exposes only a minimal non-sensitive proof command', async () => {
+  const core = new FakeCore()
+  const app = new ApplicationFramework(config, logger, core)
+  app.registerPlugin(diagnosticsPlugin)
+  await app.start()
+  await core.emitMessage({ id: 'diag', remoteJid: 'chat@s.whatsapp.net', text: '!health', timestamp: Date.now(), fromMe: false })
+  assert.equal(core.sent.length, 1)
+  assert.match(core.sent[0].text, /^Allybot framework ready \| connected=true \| services=/)
+  await app.stop()
+})
+
+
+test('Plugin ready hooks follow dependency order', async () => {
+  const core = new FakeCore()
+  const app = new ApplicationFramework(config, logger, core)
+  const readyOrder = []
+
+  app.registerPlugin({
+    name: 'dependent-plugin',
+    dependencies: ['base-plugin'],
+    ready() { readyOrder.push('dependent') },
+  })
+  app.registerPlugin({
+    name: 'base-plugin',
+    ready() { readyOrder.push('base') },
+  })
+
+  await app.start()
+  assert.deepEqual(readyOrder, ['base', 'dependent'])
+  await app.stop()
+})
