@@ -1,0 +1,63 @@
+name: Allybot CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, clean build, and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Verify runtime
+        run: |
+          node --version
+          node -e "const major = Number(process.versions.node.split('.')[0]); if (major !== 22) { console.error('Node.js 22 is required'); process.exit(1); }"
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck source
+        run: npm run typecheck
+
+      - name: Clean build from source
+        run: |
+          rm -rf dist
+          npm run build
+
+      - name: Validate compiled entrypoints
+        run: |
+          set -eu
+          for file in dist/index.js dist/errors.js dist/permissions.js; do
+            test -f "$file"
+            node --check "$file"
+          done
+
+      - name: Run regression suite against compiled runtime
+        run: npm test
+
+      - name: Upload tested release artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allybot-dist-${{ github.sha }}
+          path: |
+            dist/**
+            package.json
+            package-lock.json
+          if-no-files-found: error
+          retention-days: 14
