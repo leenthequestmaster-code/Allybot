@@ -7,6 +7,7 @@ import makeWASocket, {
   jidNormalizedUser,
   proto,
   type BaileysEventMap,
+  type BinaryNode,
   type CacheStore,
   type WASocket,
   type WAMessage,
@@ -36,6 +37,30 @@ function extractMessageText(message: WAMessage['message'] | null | undefined): s
     message?.videoMessage?.caption
   )
   return text ?? undefined
+}
+
+function nativeFlowAdditionalNodes(remoteJid: string) {
+  const nodes: BinaryNode[] = [
+    {
+      tag: 'biz',
+      attrs: {},
+      content: [
+        {
+          tag: 'interactive',
+          attrs: { type: 'native_flow', v: '1' },
+          content: [
+            { tag: 'native_flow', attrs: { v: '9', name: 'mixed' } },
+          ],
+        },
+      ],
+    },
+  ]
+
+  if (!remoteJid.endsWith('@g.us')) {
+    nodes.push({ tag: 'bot', attrs: { biz_bot: '1' } })
+  }
+
+  return nodes
 }
 
 export function extractText(message: WAMessage): string | undefined {
@@ -242,7 +267,10 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     })
 
     await withTimeout(
-      socket.relayMessage(remoteJid, message, { messageId: generateMessageIDV2(socket.user?.id) }),
+      socket.relayMessage(remoteJid, message, {
+        messageId: generateMessageIDV2(socket.user?.id),
+        additionalNodes: nativeFlowAdditionalNodes(remoteJid),
+      }),
       20_000,
       'native quick-reply response',
     )
