@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { CapabilityAwareButtonAdapter } from '../../platform/buttons.js'
 import { TextInteractionAdapter } from '../../platform/interaction.js'
+import type { InteractionMenu } from '../../platform/contracts.js'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 
 type MenuCategory = {
@@ -129,12 +130,26 @@ function renderMainMenu(categories: readonly MenuCategory[], prefix: string): st
   return lines.join('\n')
 }
 
-function renderCategoryMenu(category: MenuCategory, requestedPage: number, prefix: string): string {
-  const { icon, label } = presentationFor(category.name)
+function categoryPage(category: MenuCategory, requestedPage: number): {
+  readonly page: number
+  readonly totalPages: number
+  readonly start: number
+  readonly commands: readonly CommandDefinition[]
+} {
   const totalPages = Math.max(1, Math.ceil(category.commands.length / PAGE_SIZE))
   const page = Math.min(Math.max(requestedPage, 1), totalPages)
   const start = (page - 1) * PAGE_SIZE
-  const pageCommands = category.commands.slice(start, start + PAGE_SIZE)
+  return {
+    page,
+    totalPages,
+    start,
+    commands: category.commands.slice(start, start + PAGE_SIZE),
+  }
+}
+
+function renderCategoryMenu(category: MenuCategory, requestedPage: number, prefix: string): string {
+  const { icon, label } = presentationFor(category.name)
+  const { page, totalPages, start, commands: pageCommands } = categoryPage(category, requestedPage)
   const lines = [
     `𖥦 ׂׅ─── ꫶֗ ୨ ${icon} ୧ ꫶֗ ───ׂׅ`,
     `⿴⃟۪۪⃕᎒⃟ *𝐒𝘂𝗯𝗺𝗲𝗻𝘂: ${label}* ꕤꪆ`,
@@ -182,10 +197,14 @@ function resolveCategory(categories: readonly MenuCategory[], identifier: string
 
 const NATIVE_MENU_EXPIRY_MS = 5 * 60 * 1000
 
+type NativeMenuTarget =
+  | { readonly kind: 'category'; readonly value: string }
+  | { readonly kind: 'command'; readonly value: string }
+
 type ActiveNativeMenu = {
   readonly expiresAt: number
   readonly prefix: string
-  readonly categories: ReadonlyMap<string, string>
+  readonly targets: ReadonlyMap<string, NativeMenuTarget>
 }
 
 export const menuPlugin: Plugin = {
@@ -196,10 +215,11 @@ export const menuPlugin: Plugin = {
     const buttonInteraction = new CapabilityAwareButtonAdapter(textInteraction)
     const activeNativeMenus = new Map<string, ActiveNativeMenu>()
 
-    const sendMainMenu = async (
+    const sendNativeMenu = async (
       commandContext: CommandContext,
-      categories: readonly MenuCategory[],
+      interactionMenu: InteractionMenu,
       fallbackText: string,
+      targets: ReadonlyMap<string, NativeMenuTarget>,
     ): Promise<void> => {
       const sendNativeQuickReplies = commandContext.whatsapp.sendNativeQuickReplies
       if (!sendNativeQuickReplies) {
@@ -207,6 +227,39 @@ export const menuPlugin: Plugin = {
         return
       }
 
+      const rendered = await buttonInteraction.render(interactionMenu, { nativeQuickReply: true })
+      if (rendered.mode !== 'native') {
+        await commandContext.reply(fallbackText)
+        return
+      }
+
+      try {
+        await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
+          ...rendered.payload,
+          footer: `Fallback: ketik ${commandContext.prefix}menu ...`,
+        })
+        activeNativeMenus.set(commandContext.message.remoteJid, {
+          expiresAt: interactionMenu.expiresAt ?? Date.now() + NATIVE_MENU_EXPIRY_MS,
+          prefix: commandContext.prefix,
+          targets,
+        })
+        while (activeNativeMenus.size > 1000) {
+          const oldest = activeNativeMenus.keys().next().value
+          if (!oldest) break
+          activeNativeMenus.delete(oldest)
+        }
+      } catch (error) {
+        activeNativeMenus.delete(commandContext.message.remoteJid)
+        commandContext.logger.warn({ err: error }, 'native menu send failed; using text fallback')
+        await commandContext.reply(fallbackText)
+      }
+    }
+
+    const sendMainMenu = async (
+      commandContext: CommandContext,
+      categories: readonly MenuCategory[],
+      fallbackText: string,
+    ): Promise<void> => {
       const activeCategories = categories.filter((category) => category.commands.length > 0).slice(0, 3)
       if (activeCategories.length === 0) {
         await commandContext.reply(fallbackText)
@@ -214,17 +267,17 @@ export const menuPlugin: Plugin = {
       }
 
       const expiresAt = Date.now() + NATIVE_MENU_EXPIRY_MS
-      const categoryByButtonId = new Map<string, string>()
-      const interactionMenu = {
+      const targets = new Map<string, NativeMenuTarget>()
+      const interactionMenu: InteractionMenu = {
         id: 'menu:main',
         version: 1,
-        kind: 'menu' as const,
+        kind: 'menu',
         title: "Allybot's Menu",
         body: 'Pilih kategori yang ingin dibuka.',
         items: activeCategories.map((category) => {
           const token = randomUUID().replaceAll('-', '').slice(0, 16)
           const buttonId = `menu:${token}:${category.name}`
-          categoryByButtonId.set(buttonId, category.name)
+          targets.set(buttonId, { kind: 'category', value: category.name })
           const presentation = presentationFor(category.name)
           return {
             id: buttonId,
@@ -237,32 +290,7 @@ export const menuPlugin: Plugin = {
         expiresAt,
       }
 
-      const rendered = await buttonInteraction.render(interactionMenu, { nativeQuickReply: true })
-      if (rendered.mode !== 'native') {
-        await commandContext.reply(fallbackText)
-        return
-      }
-
-      try {
-        await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
-          ...rendered.payload,
-          footer: `Fallback: ketik ${commandContext.prefix}menu <angka>`,
-        })
-        activeNativeMenus.set(commandContext.message.remoteJid, {
-          expiresAt,
-          prefix: commandContext.prefix,
-          categories: categoryByButtonId,
-        })
-        while (activeNativeMenus.size > 1000) {
-          const oldest = activeNativeMenus.keys().next().value
-          if (!oldest) break
-          activeNativeMenus.delete(oldest)
-        }
-      } catch (error) {
-        activeNativeMenus.delete(commandContext.message.remoteJid)
-        commandContext.logger.warn({ err: error }, 'native menu send failed; using text fallback')
-        await commandContext.reply(fallbackText)
-      }
+      await sendNativeMenu(commandContext, interactionMenu, fallbackText, targets)
     }
 
     const handleMenu = async ({ args, prefix, reply, ...commandContext }: CommandContext): Promise<void> => {
@@ -290,7 +318,45 @@ export const menuPlugin: Plugin = {
         return
       }
 
-      await reply(renderCategoryMenu(category, parsePage(args[1]), prefix))
+      const requestedPage = parsePage(args[1])
+      const fallbackText = renderCategoryMenu(category, requestedPage, prefix)
+      if (category.commands.length === 0) {
+        await reply(fallbackText)
+        return
+      }
+
+      const { page, commands: pageCommands } = categoryPage(category, requestedPage)
+      const activeCommands = pageCommands.slice(0, 3)
+      if (activeCommands.length === 0) {
+        await reply(fallbackText)
+        return
+      }
+
+      const expiresAt = Date.now() + NATIVE_MENU_EXPIRY_MS
+      const targets = new Map<string, NativeMenuTarget>()
+      const interactionMenu: InteractionMenu = {
+        id: `menu:category:${category.name}:${page}`,
+        version: 1,
+        kind: 'menu',
+        title: `Submenu: ${categoryLabel(category)}`,
+        body: 'Pilih command yang ingin dijalankan.',
+        items: activeCommands.map((command) => {
+          const token = randomUUID().replaceAll('-', '').slice(0, 16)
+          const buttonId = `menu:${token}:command:${command.name}`
+          targets.set(buttonId, { kind: 'command', value: command.name })
+          const presentation = presentationFor(category.name)
+          return {
+            id: buttonId,
+            label: `${presentation.icon} ${command.name}`,
+            description: command.description ?? 'Jalankan command ini.',
+            availability: 'active' as const,
+          }
+        }),
+        fallbackText,
+        expiresAt,
+      }
+
+      await sendNativeMenu({ ...commandContext, args, prefix, reply }, interactionMenu, fallbackText, targets)
     }
 
     context.commands.register({
@@ -325,13 +391,15 @@ export const menuPlugin: Plugin = {
           return
         }
 
-        const category = activeMenu.categories.get(buttonId)
-        if (!category) return
+        const target = activeMenu.targets.get(buttonId)
+        if (!target) return
         activeNativeMenus.delete(message.remoteJid)
+        const text = target.kind === 'category'
+          ? `${activeMenu.prefix}menu-reply ${target.value}`
+          : `${activeMenu.prefix}${target.value}`
         await context.commands.dispatch({
           ...message,
-          senderJid: undefined,
-          text: `${activeMenu.prefix}menu-reply ${category}`,
+          text,
         })
         return
       }

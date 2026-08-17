@@ -208,9 +208,10 @@ test('menu plugin sends native buttons and routes a button callback to the categ
   await events.emit('message.received', message('button-group-selection', 'button@s.whatsapp.net', undefined, {
     buttonId: groupButton.id,
   }))
-  assert.equal(whatsapp.native.length, 1)
-  assert.match(whatsapp.sent[0].text, /GROUP/)
-  assert.match(whatsapp.sent[0].text, /!groupinfo/)
+  assert.equal(whatsapp.native.length, 2)
+  assert.equal(whatsapp.sent.length, 0)
+  assert.match(whatsapp.native[1].payload.body, /GROUP/)
+  assert.match(whatsapp.native[1].payload.buttons[0].title, /groupinfo/)
 })
 
 test('menu plugin falls back to text when the native button sender fails', async () => {
@@ -254,4 +255,52 @@ test('menu plugin renders paginated submenus and unknown-category guidance', asy
   await registry.dispatch(message('menu-unknown', 'unknown@s.whatsapp.net', '!m missing'))
   assert.match(whatsapp.sent[1].text, /tidak ditemukan/)
   assert.match(whatsapp.sent[1].text, /!menu/)
+})
+
+test('menu submenu sends native command buttons and routes selected command', async () => {
+  const whatsapp = fakeWhatsapp({ native: true })
+  const { events, registry } = createRegistry(whatsapp)
+
+  registry.register({
+    name: 'ping',
+    description: 'Check bot latency',
+    category: 'general',
+    handler: async ({ reply }) => reply('pong from submenu'),
+  })
+  registry.register({
+    name: 'groupinfo',
+    description: 'Show group information',
+    category: 'group',
+    handler: async ({ reply }) => reply('group info'),
+  })
+
+  await registry.dispatch(message('submenu-main', 'submenu@s.whatsapp.net', '!menu group'))
+  assert.equal(whatsapp.sent.length, 0)
+  assert.equal(whatsapp.native.length, 1)
+  assert.equal(whatsapp.native[0].payload.buttons.length, 1)
+  assert.match(whatsapp.native[0].payload.buttons[0].title, /groupinfo/)
+
+  await events.emit('message.received', message('submenu-command', 'submenu@s.whatsapp.net', undefined, {
+    buttonId: whatsapp.native[0].payload.buttons[0].id,
+  }))
+  assert.equal(whatsapp.native.length, 1)
+  assert.equal(whatsapp.sent.length, 1)
+  assert.equal(whatsapp.sent[0].text, 'group info')
+})
+
+test('Coming Soon categories remain text-only and do not create non-actionable buttons', async () => {
+  const whatsapp = fakeWhatsapp({ native: true })
+  const { registry } = createRegistry(whatsapp)
+
+  registry.register({
+    name: 'ping',
+    description: 'Check bot latency',
+    category: 'general',
+    handler: async () => {},
+  })
+
+  await registry.dispatch(message('coming-soon', 'coming-soon@s.whatsapp.net', '!menu ai'))
+  assert.equal(whatsapp.native.length, 0)
+  assert.equal(whatsapp.sent.length, 1)
+  assert.match(whatsapp.sent[0].text, /Coming Soon/)
 })
