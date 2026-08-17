@@ -1,4 +1,4 @@
-import type { CommandDefinition, Plugin } from '../contracts.js'
+import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 
 type MenuCategory = {
   readonly name: string
@@ -94,7 +94,8 @@ function renderMainMenu(categories: readonly MenuCategory[], prefix: string): st
   lines.push(
     '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
     `📖◌ㅤ\`\`\`${prefix}help\`\`\``,
-    `> _Ketik nomor kategori melalui ${prefix}menu <angka> atau ${prefix}menu <kategori> untuk memilih sub menu._`,
+    `> _Ketik \`\`\`${prefix}menu <angka>\`\`\` atau \`\`\`${prefix}menu <kategori> untuk memilih sub menu._`,
+    '> _Atau balas pesan menu ini dengan angka kategorinya._',
     '━━━━━━━━━━━━━━━━━━━━',
     '*© Allyssea Roleplay Community*',
   )
@@ -134,6 +135,16 @@ function parsePage(value: string | undefined): number {
   return Math.max(1, Number(value))
 }
 
+function isMainMenuQuote(value: string | undefined): value is string {
+  if (!value) return false
+  return value.includes("𝐀𝗹𝗹𝘆𝗯𝗼𝘁'𝘀 𝐌𝗲𝗻𝘂") && value.includes('Listmenu') && !value.includes('𝐒𝘂𝗯𝗺𝗲𝗻𝘂:')
+}
+
+function prefixFromMenuQuote(value: string, fallback: string): string {
+  const match = value.match(/```([^`\s]+)help```/)
+  return match?.[1] ?? fallback
+}
+
 function resolveCategory(categories: readonly MenuCategory[], identifier: string | undefined): MenuCategory | undefined {
   if (!identifier) return undefined
   if (/^\d+$/.test(identifier)) return categories[Number(identifier) - 1]
@@ -144,6 +155,34 @@ export const menuPlugin: Plugin = {
   name: 'menu',
   version: '0.3.0',
   load(context) {
+    const handleMenu = async ({ args, prefix, reply }: CommandContext): Promise<void> => {
+      const commands = context.commands
+        .list()
+        .filter((command) => command.name !== 'menu' && !command.hidden)
+      const categories = collectCategories(commands)
+      const category = resolveCategory(categories, args[0])
+
+      if (!args[0]) {
+        await reply(renderMainMenu(categories, prefix))
+        return
+      }
+
+      if (!category) {
+        await reply([
+          '𖥦 ׂׅ─── ꫶֗ ୨ 🤖 ୧ ꫶֗ ───ׂׅ',
+          "⿴⃟۪۪⃕᎒⃟ *𝐀𝗹𝗹𝘆𝗯𝗼𝘁'𝘀 𝐌𝗲𝗻𝘂* ꕤꪆ",
+          '',
+          `Kategori *${args[0]}* tidak ditemukan.`,
+          `Ketik \`\`\`${prefix}menu\`\`\` untuk melihat Listmenu.`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'))
+        return
+      }
+
+      await reply(renderCategoryMenu(category, parsePage(args[1]), prefix))
+    }
+
     context.commands.register({
       name: 'menu',
       aliases: ['m', 'help', 'back'],
@@ -152,33 +191,28 @@ export const menuPlugin: Plugin = {
       menuOrder: 1,
       hidden: true,
       cooldownMs: 3000,
-      handler: async ({ args, prefix, reply }) => {
-        const commands = context.commands
-          .list()
-          .filter((command) => command.name !== 'menu' && !command.hidden)
-        const categories = collectCategories(commands)
-        const category = resolveCategory(categories, args[0])
+      handler: handleMenu,
+    })
 
-        if (!args[0]) {
-          await reply(renderMainMenu(categories, prefix))
-          return
-        }
+    context.commands.register({
+      name: 'menu-reply',
+      description: 'Internal menu reply navigation',
+      category: 'system',
+      hidden: true,
+      cooldownMs: 0,
+      handler: handleMenu,
+    })
 
-        if (!category) {
-          await reply([
-            '𖥦 ׂׅ─── ꫶֗ ୨ 🤖 ୧ ꫶֗ ───ׂׅ',
-            "⿴⃟۪۪⃕᎒⃟ *𝐀𝗹𝗹𝘆𝗯𝗼𝘁'𝘀 𝐌𝗲𝗻𝘂* ꕤꪆ",
-            '',
-            `Kategori *${args[0]}* tidak ditemukan.`,
-            `Ketik \`\`\`${prefix}menu\`\`\` untuk melihat Listmenu.`,
-            '━━━━━━━━━━━━━━━━━━━━',
-            '*© Allyssea Roleplay Community*',
-          ].join('\n'))
-          return
-        }
+    context.events.on('message.received', async (message) => {
+      const selection = message.text?.trim()
+      if (message.fromMe || !selection || !/^\d+$/.test(selection) || !isMainMenuQuote(message.quotedText)) return
 
-        await reply(renderCategoryMenu(category, parsePage(args[1]), prefix))
-      },
+      const prefix = prefixFromMenuQuote(message.quotedText, context.config.commandPrefix)
+      await context.commands.dispatch({
+        ...message,
+        senderJid: undefined,
+        text: `${prefix}menu-reply ${selection}`,
+      })
     })
   },
 }

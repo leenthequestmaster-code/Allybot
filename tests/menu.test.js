@@ -23,13 +23,14 @@ function fakeWhatsapp() {
   }
 }
 
-function message(id, remoteJid, text) {
+function message(id, remoteJid, text, options = {}) {
   return {
     id,
     remoteJid,
     text,
     timestamp: Date.now(),
     fromMe: false,
+    ...options,
   }
 }
 
@@ -38,12 +39,12 @@ function createRegistry(whatsapp, prefixResolver) {
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events, undefined, [], prefixResolver)
   menuPlugin.load?.({ logger, config, events, commands: registry, services })
-  return registry
+  return { events, registry }
 }
 
 test('menu plugin renders the decorative main menu and supports numbered categories', async () => {
   const whatsapp = fakeWhatsapp()
-  const registry = createRegistry(whatsapp)
+  const { events, registry } = createRegistry(whatsapp)
 
   registry.register({
     name: 'ping',
@@ -81,7 +82,7 @@ test('menu plugin renders the decorative main menu and supports numbered categor
 
 test('menu plugin follows the effective group prefix while retaining global fallback', async () => {
   const whatsapp = fakeWhatsapp()
-  const registry = createRegistry(whatsapp, (incomingMessage, _services, fallback) => (
+  const { registry } = createRegistry(whatsapp, (incomingMessage, _services, fallback) => (
     incomingMessage.remoteJid.endsWith('@g.us') ? '##' : fallback
   ))
 
@@ -99,7 +100,7 @@ test('menu plugin follows the effective group prefix while retaining global fall
   assert.doesNotMatch(whatsapp.sent[0].text, /!help/)
 
   const fallbackWhatsapp = fakeWhatsapp()
-  const fallbackRegistry = createRegistry(fallbackWhatsapp, (incomingMessage, _services, fallback) => (
+  const { registry: fallbackRegistry } = createRegistry(fallbackWhatsapp, (incomingMessage, _services, fallback) => (
     incomingMessage.remoteJid.endsWith('@g.us') ? '##' : fallback
   ))
   fallbackRegistry.register({
@@ -113,9 +114,57 @@ test('menu plugin follows the effective group prefix while retaining global fall
   assert.match(fallbackWhatsapp.sent[0].text, /##help/)
 })
 
+test('replying with a category number navigates only from a quoted main menu', async () => {
+  const whatsapp = fakeWhatsapp()
+  const { events, registry } = createRegistry(whatsapp)
+
+  registry.register({
+    name: 'ping',
+    description: 'Check bot latency',
+    category: 'general',
+    menuOrder: 1,
+    handler: async () => {},
+  })
+  registry.register({
+    name: 'groupinfo',
+    description: 'Show group information',
+    category: 'group',
+    menuOrder: 1,
+    handler: async () => {},
+  })
+
+  await registry.dispatch(message('reply-menu-main', 'reply@s.whatsapp.net', '!menu'))
+  const mainMenu = whatsapp.sent[0].text
+  assert.match(mainMenu, /Atau balas pesan menu ini dengan angka kategorinya/)
+
+  await events.emit('message.received', message('reply-menu-number', 'reply@s.whatsapp.net', '2', {
+    quotedText: mainMenu,
+    quotedSenderJid: 'bot@s.whatsapp.net',
+  }))
+  assert.match(whatsapp.sent[1].text, /GROUP/)
+  assert.match(whatsapp.sent[1].text, /!groupinfo/)
+
+  const sentBeforePlainNumber = whatsapp.sent.length
+  await events.emit('message.received', message('plain-number', 'reply@s.whatsapp.net', '2'))
+  assert.equal(whatsapp.sent.length, sentBeforePlainNumber)
+
+  const submenu = whatsapp.sent[1].text
+  await events.emit('message.received', message('submenu-number', 'reply@s.whatsapp.net', '1', {
+    quotedText: submenu,
+    quotedSenderJid: 'bot@s.whatsapp.net',
+  }))
+  assert.equal(whatsapp.sent.length, sentBeforePlainNumber)
+
+  await events.emit('message.received', message('out-of-range-number', 'reply@s.whatsapp.net', '9', {
+    quotedText: mainMenu,
+    quotedSenderJid: 'bot@s.whatsapp.net',
+  }))
+  assert.match(whatsapp.sent[2].text, /tidak ditemukan/)
+})
+
 test('menu plugin renders paginated submenus and unknown-category guidance', async () => {
   const whatsapp = fakeWhatsapp()
-  const registry = createRegistry(whatsapp)
+  const { registry } = createRegistry(whatsapp)
 
   for (let index = 1; index <= 10; index += 1) {
     registry.register({
