@@ -2,8 +2,10 @@ import NodeCache from '@cacheable/node-cache'
 import makeWASocket, {
   Browsers,
   DisconnectReason,
+  generateMessageIDV2,
   makeCacheableSignalKeyStore,
   jidNormalizedUser,
+  proto,
   type BaileysEventMap,
   type CacheStore,
   type WASocket,
@@ -11,6 +13,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import qrcode from 'qrcode-terminal'
 import type { AppConfig } from './config.js'
+import type { NativeQuickReplyPayload, NativeQuickReplyTransport } from './platform/buttons.js'
 import type {
   CoreConnectionState,
   CoreConnectionStatus,
@@ -35,8 +38,35 @@ function extractMessageText(message: WAMessage['message'] | null | undefined): s
   return text ?? undefined
 }
 
-function extractText(message: WAMessage): string | undefined {
+export function extractText(message: WAMessage): string | undefined {
   return extractMessageText(message.message)
+}
+
+export function extractButtonId(message: WAMessage): string | undefined {
+  const content = message.message as unknown as Record<string, unknown> | null | undefined
+  const buttonsResponse = content?.buttonsResponseMessage as Record<string, unknown> | null | undefined
+  const templateResponse = content?.templateButtonReplyMessage as Record<string, unknown> | null | undefined
+  const listResponse = content?.listResponseMessage as Record<string, unknown> | null | undefined
+  const singleSelectReply = listResponse?.singleSelectReply as Record<string, unknown> | null | undefined
+  const interactiveResponse = content?.interactiveResponseMessage as Record<string, unknown> | null | undefined
+  const nativeFlowResponse = interactiveResponse?.nativeFlowResponseMessage as Record<string, unknown> | null | undefined
+  const paramsJson = nativeFlowResponse?.paramsJson
+
+  const direct = [buttonsResponse?.selectedButtonId, templateResponse?.selectedId, singleSelectReply?.selectedRowId]
+    .find((value): value is string => typeof value === 'string' && value.trim().length > 0)
+  if (direct) return direct.trim()
+
+  if (typeof paramsJson !== 'string' || paramsJson.length > 4096) return undefined
+  try {
+    const parsed = JSON.parse(paramsJson) as unknown
+    if (!parsed || typeof parsed !== 'object') return undefined
+    const candidate = (parsed as Record<string, unknown>).id
+      ?? (parsed as Record<string, unknown>).buttonId
+      ?? (parsed as Record<string, unknown>).selectedId
+    return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate.trim() : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function extractContextInfo(message: WAMessage) {
@@ -130,7 +160,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation:
   }
 }
 
-export class WhatsAppConnection implements WhatsAppPort {
+export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTransport {
   private socket: WASocket | undefined
   private reconnectTimer: NodeJS.Timeout | undefined
   private starting = false
@@ -190,6 +220,32 @@ export class WhatsAppConnection implements WhatsAppPort {
       ? { text, mentions: [...options.mentions], linkPreview: null }
       : { text, linkPreview: null }
     await withTimeout(socket.sendMessage(remoteJid, content), 20000, 'framework text response')
+  }
+
+  async sendNativeQuickReplies(remoteJid: string, payload: NativeQuickReplyPayload): Promise<void> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    if (!remoteJid || payload.buttons.length === 0 || payload.buttons.length > 3) throw new Error('Invalid native quick-reply payload')
+
+    const message = proto.Message.create({
+      interactiveMessage: proto.Message.InteractiveMessage.create({
+        body: proto.Message.InteractiveMessage.Body.create({ text: payload.body }),
+        ...(payload.footer ? { footer: proto.Message.InteractiveMessage.Footer.create({ text: payload.footer }) } : {}),
+        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+          messageVersion: 1,
+          buttons: payload.buttons.map((button) => proto.Message.InteractiveMessage.NativeFlowMessage.NativeFlowButton.create({
+            name: 'quick_reply',
+            buttonParamsJson: JSON.stringify({ display_text: button.title, id: button.id }),
+          })),
+        }),
+      }),
+    })
+
+    await withTimeout(
+      socket.relayMessage(remoteJid, message, { messageId: generateMessageIDV2(socket.user?.id) }),
+      20_000,
+      'native quick-reply response',
+    )
   }
 
   async getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata> {
@@ -494,6 +550,7 @@ export class WhatsAppConnection implements WhatsAppPort {
         extractMentionedJids(message).map((jid) => normalizeContactJid(jid, resolvePnForLid)),
       ))]
       const text = extractText(message)
+      const buttonId = extractButtonId(message)
       const quotedText = extractQuotedText(message)
       const rawQuotedSenderJid = extractQuotedSenderJid(message)
       const quotedSenderJid = rawQuotedSenderJid
@@ -508,6 +565,7 @@ export class WhatsAppConnection implements WhatsAppPort {
         ...(senderJid ? { senderJid } : {}),
         ...(mentionedJids.length > 0 ? { mentionedJids } : {}),
         ...(text ? { text } : {}),
+        ...(buttonId ? { buttonId } : {}),
         ...(quotedText ? { quotedText } : {}),
         ...(quotedSenderJid ? { quotedSenderJid } : {}),
         ...(groupName ? { groupName } : {}),

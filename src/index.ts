@@ -7,6 +7,7 @@ import { createAfkPlugin } from './framework/plugins/afk.js'
 import { menuPlugin } from './framework/plugins/menu.js'
 import { createWelcomeLeavePlugin } from './framework/plugins/welcome-leave.js'
 import { groupPlugin } from './framework/plugins/group.js'
+import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-mission.js'
 import { createLogger } from './logger.js'
 import { createPermissionResolver } from './permissions.js'
 import { SqliteStorage } from './storage.js'
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
       commandPrefix: config.COMMAND_PREFIX,
       defaultCooldownMs: config.DEFAULT_COMMAND_COOLDOWN_MS,
       botOwnerJid: config.BOT_OWNER_JID,
+      databasePath: config.DATABASE_PATH,
     },
     logger,
     whatsapp,
@@ -50,6 +52,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(menuPlugin)
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(groupPlugin)
+  framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(createAfkPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework)
   await lifecycle.start()

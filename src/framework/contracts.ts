@@ -15,6 +15,7 @@ export interface CoreMessage {
   readonly senderJid?: string
   readonly mentionedJids?: readonly string[]
   readonly text?: string
+  readonly buttonId?: string
   readonly quotedText?: string
   readonly quotedSenderJid?: string
   readonly groupName?: string
@@ -75,6 +76,7 @@ export interface FrameworkConfig {
   readonly commandPrefix: string
   readonly defaultCooldownMs: number
   readonly botOwnerJid?: string
+  readonly databasePath?: string
 }
 
 export interface CommandContext {

@@ -12,6 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
     "self-check": "node dist/index.js --self-check",
+    "verify:platform": "node scripts/verify-platform.mjs",
     "test": "node --test"
   },
   "dependencies": {

@@ -39,12 +39,19 @@ jobs:
           rm -rf dist
           npm run build
 
+      - name: Verify platform source-dist parity and repository hygiene
+        run: npm run verify:platform
+
+      - name: Validate compiled JavaScript
+        run: |
+          set -eu
+          find dist -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
       - name: Validate compiled entrypoints
         run: |
           set -eu
           for file in dist/index.js dist/errors.js dist/permissions.js; do
             test -f "$file"
-            node --check "$file"
           done
 
       - name: Run regression suite against compiled runtime

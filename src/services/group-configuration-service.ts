@@ -78,6 +78,18 @@ export interface GroupConfigurationSnapshot {
   readonly timezone?: GroupTimezoneRecord
 }
 
+export interface GroupSetupPatch {
+  readonly groupJid: string
+  readonly updatedBy: string
+  readonly rules?: string
+  readonly welcome?: string
+  readonly leave?: string
+  readonly prefix?: string
+  readonly language?: string
+  readonly timezone?: string
+  readonly updatedAt?: number
+}
+
 type GroupRulesRow = {
   group_jid: string
   rules: string
@@ -424,6 +436,23 @@ export class GroupConfigurationService implements Service {
       language: this.getLanguage(groupJid),
       timezone: this.getTimezone(groupJid),
     }
+  }
+
+  applySetup(patch: GroupSetupPatch): GroupConfigurationSnapshot {
+    const normalizedGroupJid = patch.groupJid.trim()
+    const normalizedUpdatedBy = patch.updatedBy.trim()
+    if (!normalizedGroupJid || !normalizedUpdatedBy) throw new Error('Group setup identity cannot be empty')
+    const updatedAt = patch.updatedAt ?? Date.now()
+    const apply = this.database().transaction(() => {
+      if (patch.rules !== undefined) this.setRules(normalizedGroupJid, patch.rules, normalizedUpdatedBy, updatedAt)
+      if (patch.welcome !== undefined) this.setWelcome(normalizedGroupJid, patch.welcome, normalizedUpdatedBy, updatedAt)
+      if (patch.leave !== undefined) this.setLeave(normalizedGroupJid, patch.leave, normalizedUpdatedBy, updatedAt)
+      if (patch.prefix !== undefined) this.setPrefix(normalizedGroupJid, patch.prefix, normalizedUpdatedBy, updatedAt)
+      if (patch.language !== undefined) this.setLanguage(normalizedGroupJid, patch.language, normalizedUpdatedBy, updatedAt)
+      if (patch.timezone !== undefined) this.setTimezone(normalizedGroupJid, patch.timezone, normalizedUpdatedBy, updatedAt)
+    })
+    apply()
+    return this.getSettings(normalizedGroupJid)
   }
 
   private recordRulesHistory(
