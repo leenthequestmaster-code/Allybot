@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto'
+import { CapabilityAwareButtonAdapter } from '../../platform/buttons.js'
+import { TextInteractionAdapter } from '../../platform/interaction.js'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 
 type MenuCategory = {
@@ -177,11 +180,92 @@ function resolveCategory(categories: readonly MenuCategory[], identifier: string
   return categories.find((category) => category.name === identifier.toLowerCase())
 }
 
+const NATIVE_MENU_EXPIRY_MS = 5 * 60 * 1000
+
+type ActiveNativeMenu = {
+  readonly expiresAt: number
+  readonly prefix: string
+  readonly categories: ReadonlyMap<string, string>
+}
+
 export const menuPlugin: Plugin = {
   name: 'menu',
   version: '0.3.0',
   load(context) {
-    const handleMenu = async ({ args, prefix, reply }: CommandContext): Promise<void> => {
+    const textInteraction = new TextInteractionAdapter()
+    const buttonInteraction = new CapabilityAwareButtonAdapter(textInteraction)
+    const activeNativeMenus = new Map<string, ActiveNativeMenu>()
+
+    const sendMainMenu = async (
+      commandContext: CommandContext,
+      categories: readonly MenuCategory[],
+      fallbackText: string,
+    ): Promise<void> => {
+      const sendNativeQuickReplies = commandContext.whatsapp.sendNativeQuickReplies
+      if (!sendNativeQuickReplies) {
+        await commandContext.reply(fallbackText)
+        return
+      }
+
+      const activeCategories = categories.filter((category) => category.commands.length > 0).slice(0, 3)
+      if (activeCategories.length === 0) {
+        await commandContext.reply(fallbackText)
+        return
+      }
+
+      const expiresAt = Date.now() + NATIVE_MENU_EXPIRY_MS
+      const categoryByButtonId = new Map<string, string>()
+      const interactionMenu = {
+        id: 'menu:main',
+        version: 1,
+        kind: 'menu' as const,
+        title: "Allybot's Menu",
+        body: 'Pilih kategori yang ingin dibuka.',
+        items: activeCategories.map((category) => {
+          const token = randomUUID().replaceAll('-', '').slice(0, 16)
+          const buttonId = `menu:${token}:${category.name}`
+          categoryByButtonId.set(buttonId, category.name)
+          const presentation = presentationFor(category.name)
+          return {
+            id: buttonId,
+            label: `${presentation.icon} ${categoryLabel(category)}`,
+            description: `${category.commands.length} command tersedia`,
+            availability: 'active' as const,
+          }
+        }),
+        fallbackText: `Atau ketik ${commandContext.prefix}menu <angka> untuk melihat semua kategori.`,
+        expiresAt,
+      }
+
+      const rendered = await buttonInteraction.render(interactionMenu, { nativeQuickReply: true })
+      if (rendered.mode !== 'native') {
+        await commandContext.reply(fallbackText)
+        return
+      }
+
+      try {
+        await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
+          ...rendered.payload,
+          footer: `Fallback: ketik ${commandContext.prefix}menu <angka>`,
+        })
+        activeNativeMenus.set(commandContext.message.remoteJid, {
+          expiresAt,
+          prefix: commandContext.prefix,
+          categories: categoryByButtonId,
+        })
+        while (activeNativeMenus.size > 1000) {
+          const oldest = activeNativeMenus.keys().next().value
+          if (!oldest) break
+          activeNativeMenus.delete(oldest)
+        }
+      } catch (error) {
+        activeNativeMenus.delete(commandContext.message.remoteJid)
+        commandContext.logger.warn({ err: error }, 'native menu send failed; using text fallback')
+        await commandContext.reply(fallbackText)
+      }
+    }
+
+    const handleMenu = async ({ args, prefix, reply, ...commandContext }: CommandContext): Promise<void> => {
       const commands = context.commands
         .list()
         .filter((command) => command.name !== 'menu' && !command.hidden)
@@ -189,7 +273,7 @@ export const menuPlugin: Plugin = {
       const category = resolveCategory(categories, args[0])
 
       if (!args[0]) {
-        await reply(renderMainMenu(categories, prefix))
+        await sendMainMenu({ ...commandContext, args, prefix, reply }, categories, renderMainMenu(categories, prefix))
         return
       }
 
@@ -230,8 +314,30 @@ export const menuPlugin: Plugin = {
     })
 
     context.events.on('message.received', async (message) => {
+      if (message.fromMe) return
+
+      const buttonId = message.buttonId?.trim()
+      if (buttonId) {
+        const activeMenu = activeNativeMenus.get(message.remoteJid)
+        if (!activeMenu) return
+        if (Date.now() >= activeMenu.expiresAt) {
+          activeNativeMenus.delete(message.remoteJid)
+          return
+        }
+
+        const category = activeMenu.categories.get(buttonId)
+        if (!category) return
+        activeNativeMenus.delete(message.remoteJid)
+        await context.commands.dispatch({
+          ...message,
+          senderJid: undefined,
+          text: `${activeMenu.prefix}menu-reply ${category}`,
+        })
+        return
+      }
+
       const selection = message.text?.trim()
-      if (message.fromMe || !selection || !/^\d+$/.test(selection) || !isMainMenuQuote(message.quotedText)) return
+      if (!selection || !/^\d+$/.test(selection) || !isMainMenuQuote(message.quotedText)) return
 
       const prefix = prefixFromMenuQuote(message.quotedText, context.config.commandPrefix)
       await context.commands.dispatch({

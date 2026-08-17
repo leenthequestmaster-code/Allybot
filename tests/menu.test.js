@@ -9,11 +9,12 @@ import { menuPlugin } from '../dist/framework/plugins/menu.js'
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
 
-function fakeWhatsapp() {
-  return {
+function fakeWhatsapp({ native = false, nativeFailure = false } = {}) {
+  const transport = {
     isConnected: true,
     userJid: 'bot@s.whatsapp.net',
     sent: [],
+    native: [],
     onMessage() { return () => {} },
     onGroupParticipantUpdate() { return () => {} },
     onConnectionState() { return () => {} },
@@ -21,6 +22,13 @@ function fakeWhatsapp() {
     async start() {},
     async close() {},
   }
+  if (native) {
+    transport.sendNativeQuickReplies = async function sendNativeQuickReplies(remoteJid, payload) {
+      this.native.push({ remoteJid, payload })
+      if (nativeFailure) throw new Error('native transport unavailable')
+    }
+  }
+  return transport
 }
 
 function message(id, remoteJid, text, options = {}) {
@@ -164,6 +172,62 @@ test('replying with a category number navigates only from a quoted main menu', a
     quotedSenderJid: 'bot@s.whatsapp.net',
   }))
   assert.match(whatsapp.sent[2].text, /tidak ditemukan/)
+})
+
+test('menu plugin sends native buttons and routes a button callback to the category submenu', async () => {
+  const whatsapp = fakeWhatsapp({ native: true })
+  const { events, registry } = createRegistry(whatsapp)
+
+  registry.register({
+    name: 'ping',
+    description: 'Check bot latency',
+    category: 'general',
+    handler: async () => {},
+  })
+  registry.register({
+    name: 'groupinfo',
+    description: 'Show group information',
+    category: 'group',
+    handler: async () => {},
+  })
+  registry.register({
+    name: 'diagnostics',
+    description: 'Show diagnostics',
+    category: 'system',
+    handler: async () => {},
+  })
+
+  await registry.dispatch(message('button-menu-main', 'button@s.whatsapp.net', '!menu'))
+  assert.equal(whatsapp.sent.length, 0)
+  assert.equal(whatsapp.native.length, 1)
+  assert.equal(whatsapp.native[0].payload.type, 'native_quick_reply')
+  assert.equal(whatsapp.native[0].payload.buttons.length, 3)
+
+  const groupButton = whatsapp.native[0].payload.buttons.find((button) => button.title.includes('GROUP'))
+  assert.ok(groupButton)
+  await events.emit('message.received', message('button-group-selection', 'button@s.whatsapp.net', undefined, {
+    buttonId: groupButton.id,
+  }))
+  assert.equal(whatsapp.native.length, 1)
+  assert.match(whatsapp.sent[0].text, /GROUP/)
+  assert.match(whatsapp.sent[0].text, /!groupinfo/)
+})
+
+test('menu plugin falls back to text when the native button sender fails', async () => {
+  const whatsapp = fakeWhatsapp({ native: true, nativeFailure: true })
+  const { registry } = createRegistry(whatsapp)
+
+  registry.register({
+    name: 'ping',
+    description: 'Check bot latency',
+    category: 'general',
+    handler: async () => {},
+  })
+
+  await registry.dispatch(message('button-fallback', 'fallback@s.whatsapp.net', '!menu'))
+  assert.equal(whatsapp.native.length, 1)
+  assert.equal(whatsapp.sent.length, 1)
+  assert.match(whatsapp.sent[0].text, /Listmenu/)
 })
 
 test('menu plugin renders paginated submenus and unknown-category guidance', async () => {

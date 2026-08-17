@@ -66,6 +66,12 @@ export interface WhatsAppPort {
   onGroupParticipantUpdate(listener: (event: CoreGroupParticipantUpdate) => Promise<void> | void): () => void
   onConnectionState(listener: (event: CoreConnectionState) => Promise<void> | void): () => void
   sendText(remoteJid: string, text: string, options?: WhatsAppSendOptions): Promise<void>
+  sendNativeQuickReplies?(remoteJid: string, payload: {
+    readonly type: 'native_quick_reply'
+    readonly body: string
+    readonly footer?: string
+    readonly buttons: readonly { readonly id: string; readonly title: string }[]
+  }): Promise<void>
   getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata>
   getGroupInviteLink(groupJid: string): Promise<string | undefined>
   start(): Promise<void>
