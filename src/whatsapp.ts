@@ -110,7 +110,7 @@ function formatPingResponse(receivedAt: number): string {
     `⡇╌ Latency: ${latencyMs} ms`,
     `⡇╌ Uptime: ${formatUptime(process.uptime())}`,
     '° ° ──────────── · · ·',
-    '≛⃞🪷 LINK: https://chat.whatsapp.com/BorVqQe2qDP5dgEsDOPirq',
+    '≛⃞🪷 COMMUNITY: Allyssea Roleplay Community',
     '─────────────────',
     '© Allyssea Roleplay Community',
   ].join('\n')
@@ -187,8 +187,8 @@ export class WhatsAppConnection implements WhatsAppPort {
     const socket = this.socket
     if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
     const content = options?.mentions?.length
-      ? { text, mentions: [...options.mentions] }
-      : { text }
+      ? { text, mentions: [...options.mentions], linkPreview: null }
+      : { text, linkPreview: null }
     await withTimeout(socket.sendMessage(remoteJid, content), 20000, 'framework text response')
   }
 
@@ -467,7 +467,10 @@ export class WhatsAppConnection implements WhatsAppPort {
 
       try {
         await withTimeout(
-          socket.sendMessage(message.key.remoteJid, { text: formatPingResponse(receivedAt) }),
+          socket.sendMessage(message.key.remoteJid, {
+            text: formatPingResponse(receivedAt),
+            linkPreview: null,
+          }),
           20000,
           'core ping response',
         )

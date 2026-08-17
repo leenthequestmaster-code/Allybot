@@ -49,3 +49,31 @@ test('WhatsAppConnection skips socket creation in maintenance mode', async () =>
 
   await connection.close()
 })
+
+test('core ping does not expose an invite URL or request a link preview', async () => {
+  const config = loadConfig(baseEnv())
+  const savedMessages = []
+  const sent = []
+  const connection = new WhatsAppConnection(config, {
+    saveMessages(messages) { savedMessages.push(...messages) },
+  }, logger)
+  const socket = {
+    async sendMessage(remoteJid, content) {
+      sent.push({ remoteJid, content })
+      return {}
+    },
+  }
+
+  await connection.handleMessages(socket, {
+    type: 'notify',
+    messages: [{
+      key: { remoteJid: '1234567890@s.whatsapp.net', id: 'ping-1', fromMe: false },
+      message: { conversation: '!ping' },
+    }],
+  }, logger)
+
+  assert.equal(savedMessages.length, 1)
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].content.linkPreview, null)
+  assert.equal(sent[0].content.text.includes('https://chat.whatsapp.com/'), false)
+})
