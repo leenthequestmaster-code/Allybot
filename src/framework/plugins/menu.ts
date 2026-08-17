@@ -14,6 +14,7 @@ type CategoryPresentation = {
 }
 
 const PAGE_SIZE = 8
+const MAIN_MENU_BUTTON_CATEGORY_COUNT = 2
 
 const categoryPresentation: Record<string, CategoryPresentation> = {
   general: { label: 'GENERAL', icon: '🏠' },
@@ -182,10 +183,36 @@ function resolveCategory(categories: readonly MenuCategory[], identifier: string
 
 const NATIVE_MENU_EXPIRY_MS = 5 * 60 * 1000
 
+type MainMenuTarget =
+  | { readonly kind: 'category'; readonly value: string }
+  | { readonly kind: 'page'; readonly value: number }
+
 type ActiveNativeMenu = {
   readonly expiresAt: number
   readonly prefix: string
-  readonly categories: ReadonlyMap<string, string>
+  readonly targets: ReadonlyMap<string, MainMenuTarget>
+}
+
+function mainMenuButtonCategories(categories: readonly MenuCategory[]): MenuCategory[] {
+  return [
+    ...categories.filter((category) => category.commands.length > 0),
+    ...categories.filter((category) => category.commands.length === 0),
+  ]
+}
+
+function mainMenuPage(categories: readonly MenuCategory[], requestedPage: number): {
+  readonly page: number
+  readonly totalPages: number
+  readonly pageCategories: readonly MenuCategory[]
+} {
+  const totalPages = Math.max(1, Math.ceil(categories.length / MAIN_MENU_BUTTON_CATEGORY_COUNT))
+  const page = Math.min(Math.max(requestedPage, 1), totalPages)
+  const start = (page - 1) * MAIN_MENU_BUTTON_CATEGORY_COUNT
+  return {
+    page,
+    totalPages,
+    pageCategories: categories.slice(start, start + MAIN_MENU_BUTTON_CATEGORY_COUNT),
+  }
 }
 
 export const menuPlugin: Plugin = {
@@ -200,6 +227,7 @@ export const menuPlugin: Plugin = {
       commandContext: CommandContext,
       categories: readonly MenuCategory[],
       fallbackText: string,
+      requestedPage = 1,
     ): Promise<void> => {
       const sendNativeQuickReplies = commandContext.whatsapp.sendNativeQuickReplies
       if (!sendNativeQuickReplies) {
@@ -207,32 +235,50 @@ export const menuPlugin: Plugin = {
         return
       }
 
-      const activeCategories = categories.filter((category) => category.commands.length > 0).slice(0, 3)
-      if (activeCategories.length === 0) {
+      const orderedCategories = mainMenuButtonCategories(categories)
+      const { page, totalPages, pageCategories } = mainMenuPage(orderedCategories, requestedPage)
+      if (pageCategories.length === 0) {
         await commandContext.reply(fallbackText)
         return
       }
 
       const expiresAt = Date.now() + NATIVE_MENU_EXPIRY_MS
-      const categoryByButtonId = new Map<string, string>()
+      const targets = new Map<string, MainMenuTarget>()
+      const items = pageCategories.map((category) => {
+        const token = randomUUID().replaceAll('-', '').slice(0, 16)
+        const buttonId = `menu:${token}:${category.name}`
+        targets.set(buttonId, { kind: 'category', value: category.name })
+        const presentation = presentationFor(category.name)
+        return {
+          id: buttonId,
+          label: `${presentation.icon} ${categoryLabel(category)}`,
+          description: category.commands.length > 0
+            ? `${category.commands.length} command tersedia`
+            : 'Coming Soon',
+          availability: 'active' as const,
+        }
+      })
+
+      if (totalPages > 1) {
+        const nextPage = page < totalPages ? page + 1 : 1
+        const token = randomUUID().replaceAll('-', '').slice(0, 16)
+        const buttonId = `menu:${token}:page:${nextPage}`
+        targets.set(buttonId, { kind: 'page', value: nextPage })
+        items.push({
+          id: buttonId,
+          label: 'NEXT',
+          description: `Halaman ${nextPage}/${totalPages}`,
+          availability: 'active' as const,
+        })
+      }
+
       const interactionMenu = {
-        id: 'menu:main',
+        id: `menu:main:${page}`,
         version: 1,
         kind: 'menu' as const,
         title: "Allybot's Menu",
-        body: 'Pilih kategori yang ingin dibuka.',
-        items: activeCategories.map((category) => {
-          const token = randomUUID().replaceAll('-', '').slice(0, 16)
-          const buttonId = `menu:${token}:${category.name}`
-          categoryByButtonId.set(buttonId, category.name)
-          const presentation = presentationFor(category.name)
-          return {
-            id: buttonId,
-            label: `${presentation.icon} ${categoryLabel(category)}`,
-            description: `${category.commands.length} command tersedia`,
-            availability: 'active' as const,
-          }
-        }),
+        body: `Pilih kategori. Halaman ${page}/${totalPages}.`,
+        items,
         fallbackText: `Atau ketik ${commandContext.prefix}menu <angka> untuk melihat semua kategori.`,
         expiresAt,
       }
@@ -251,7 +297,7 @@ export const menuPlugin: Plugin = {
         activeNativeMenus.set(commandContext.message.remoteJid, {
           expiresAt,
           prefix: commandContext.prefix,
-          categories: categoryByButtonId,
+          targets,
         })
         while (activeNativeMenus.size > 1000) {
           const oldest = activeNativeMenus.keys().next().value
@@ -271,9 +317,15 @@ export const menuPlugin: Plugin = {
         .filter((command) => command.name !== 'menu' && !command.hidden)
       const categories = collectCategories(commands)
       const category = resolveCategory(categories, args[0])
+      const fallbackText = renderMainMenu(categories, prefix)
 
       if (!args[0]) {
-        await sendMainMenu({ ...commandContext, args, prefix, reply }, categories, renderMainMenu(categories, prefix))
+        await sendMainMenu({ ...commandContext, args, prefix, reply }, categories, fallbackText)
+        return
+      }
+
+      if (args[0].toLowerCase() === 'page') {
+        await sendMainMenu({ ...commandContext, args, prefix, reply }, categories, fallbackText, parsePage(args[1]))
         return
       }
 
@@ -325,13 +377,16 @@ export const menuPlugin: Plugin = {
           return
         }
 
-        const category = activeMenu.categories.get(buttonId)
-        if (!category) return
+        const target = activeMenu.targets.get(buttonId)
+        if (!target) return
         activeNativeMenus.delete(message.remoteJid)
+        const text = target.kind === 'category'
+          ? `${activeMenu.prefix}menu-reply ${target.value}`
+          : `${activeMenu.prefix}menu-reply page ${target.value}`
         await context.commands.dispatch({
           ...message,
           senderJid: undefined,
-          text: `${activeMenu.prefix}menu-reply ${category}`,
+          text,
         })
         return
       }

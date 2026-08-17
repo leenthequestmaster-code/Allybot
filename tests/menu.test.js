@@ -255,3 +255,50 @@ test('menu plugin renders paginated submenus and unknown-category guidance', asy
   assert.match(whatsapp.sent[1].text, /tidak ditemukan/)
   assert.match(whatsapp.sent[1].text, /!menu/)
 })
+
+test('main native menu paginates categories with NEXT and keeps Coming Soon text-only', async () => {
+  const whatsapp = fakeWhatsapp({ native: true })
+  const { events, registry } = createRegistry(whatsapp)
+
+  registry.register({
+    name: 'ping',
+    description: 'Check bot latency',
+    category: 'general',
+    handler: async () => {},
+  })
+  registry.register({
+    name: 'groupinfo',
+    description: 'Show group information',
+    category: 'group',
+    handler: async () => {},
+  })
+  registry.register({
+    name: 'diagnostics',
+    description: 'Show diagnostics',
+    category: 'system',
+    handler: async () => {},
+  })
+
+  await registry.dispatch(message('paged-menu-main', 'paged@s.whatsapp.net', '!menu'))
+  assert.equal(whatsapp.native[0].payload.buttons.length, 3)
+  assert.equal(whatsapp.native[0].payload.buttons[2].title, 'NEXT')
+
+  await events.emit('message.received', message('paged-menu-next', 'paged@s.whatsapp.net', undefined, {
+    buttonId: whatsapp.native[0].payload.buttons[2].id,
+  }))
+  assert.equal(whatsapp.native.length, 2)
+  assert.equal(whatsapp.sent.length, 0)
+  assert.equal(whatsapp.native[1].payload.buttons.length, 3)
+  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('SYSTEM')))
+  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('AI')))
+  assert.equal(whatsapp.native[1].payload.buttons[2].title, 'NEXT')
+
+  const comingSoonButton = whatsapp.native[1].payload.buttons.find((button) => button.title.includes('AI'))
+  assert.ok(comingSoonButton)
+  await events.emit('message.received', message('paged-coming-soon', 'paged@s.whatsapp.net', undefined, {
+    buttonId: comingSoonButton.id,
+  }))
+  assert.equal(whatsapp.native.length, 2)
+  assert.equal(whatsapp.sent.length, 1)
+  assert.match(whatsapp.sent[0].text, /Coming Soon/)
+})
