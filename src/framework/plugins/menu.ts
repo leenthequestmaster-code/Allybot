@@ -23,7 +23,25 @@ const categoryPresentation: Record<string, CategoryPresentation> = {
   rpg: { label: 'RPG', icon: '⚔️' },
   search: { label: 'SEARCH', icon: '🔎' },
   owner: { label: 'OWNER', icon: '👑' },
+  moderation: { label: 'MODERATION', icon: '🛡️' },
+  media: { label: 'MEDIA', icon: '🎬' },
+  utility: { label: 'UTILITY', icon: '🧰' },
+  economy: { label: 'ECONOMY', icon: '💰' },
 }
+
+const ROADMAP_CATEGORY_NAMES = [
+  'ai',
+  'creativity',
+  'download',
+  'economy',
+  'media',
+  'moderation',
+  'owner',
+  'rpg',
+  'search',
+  'tools',
+  'utility',
+] as const
 
 function normalizeCategory(command: CommandDefinition): string {
   const category = command.category?.trim().toLowerCase()
@@ -44,6 +62,10 @@ function collectCategories(commands: readonly CommandDefinition[]): MenuCategory
     const existing = grouped.get(category)
     if (existing) existing.push(command)
     else grouped.set(category, [command])
+  }
+
+  for (const name of ROADMAP_CATEGORY_NAMES) {
+    if (!grouped.has(name)) grouped.set(name, [])
   }
 
   return [...grouped.entries()]
@@ -86,7 +108,9 @@ function renderMainMenu(categories: readonly MenuCategory[], prefix: string): st
       const { icon } = presentationFor(category.name)
       const commandCount = category.commands.length
       lines.push(
-        `𖥻 ׁ ׅ *${index + 1}.* ${icon} ${categoryLabel(category)} — _${commandCount} command tersedia_`,
+        commandCount > 0
+          ? `𖥻 ׁ ׅ *${index + 1}.* ${icon} ${categoryLabel(category)} — _${commandCount} command tersedia_`
+          : `𖥻 ׁ ׅ *${index + 1}.* ${icon} ${categoryLabel(category)} — _Coming Soon_`,
       )
     }
   }
@@ -116,9 +140,11 @@ function renderCategoryMenu(category: MenuCategory, requestedPage: number, prefi
     '_"Kamu ada di sini~ pilih salah satu ya!"_',
     '',
     `⑅ ⃞📄 *Pilihan* :: ${totalPages > 1 ? `_Halaman ${page}/${totalPages}_` : ''}`.trim(),
-    ...pageCommands.map((command, index) => formatCommand(command, prefix, start + index + 1)),
+    ...(pageCommands.length > 0
+      ? pageCommands.map((command, index) => formatCommand(command, prefix, start + index + 1))
+      : ['🚧 _Coming Soon — command untuk kategori ini belum tersedia._']),
     '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
-    `📖◌ㅤ\`\`\`${prefix}back\`\`\` ㅤkembali ke menu utama`,
+    `📖◌ㅤ\`\`\`${prefix}menu\`\`\` ㅤkembali ke menu utama`,
     `📖◌ㅤ\`\`\`${prefix}help\`\`\` ㅤuntuk bantuan`,
   ]
 
@@ -185,7 +211,7 @@ export const menuPlugin: Plugin = {
 
     context.commands.register({
       name: 'menu',
-      aliases: ['m', 'help', 'back'],
+      aliases: ['m', 'help'],
       description: 'Show Allybot categories and available commands',
       category: 'system',
       menuOrder: 1,

@@ -64,7 +64,7 @@ test('menu plugin renders the decorative main menu and supports numbered categor
   assert.equal(registry.get('menu')?.name, 'menu')
   assert.equal(registry.get('m')?.name, 'menu')
   assert.equal(registry.get('help')?.name, 'menu')
-  assert.equal(registry.get('back')?.name, 'menu')
+  assert.equal(registry.get('back'), undefined)
 
   await registry.dispatch(message('menu-main', 'main@s.whatsapp.net', '!menu'))
   assert.match(whatsapp.sent[0].text, /Listmenu/)
@@ -72,12 +72,16 @@ test('menu plugin renders the decorative main menu and supports numbered categor
   assert.match(whatsapp.sent[0].text, /!help/)
   assert.doesNotMatch(whatsapp.sent[0].text, /!secret/)
 
-  await registry.dispatch(message('menu-numbered', 'numbered@s.whatsapp.net', '!menu 1'))
-  assert.match(whatsapp.sent[1].text, /GENERAL/)
-  assert.match(whatsapp.sent[1].text, /\*1\.\* !ping/)
+  await registry.dispatch(message('menu-roadmap', 'roadmap@s.whatsapp.net', '!menu ai'))
+  assert.match(whatsapp.sent[1].text, /AI/)
+  assert.match(whatsapp.sent[1].text, /Coming Soon/)
 
-  await registry.dispatch(message('menu-back', 'back@s.whatsapp.net', '!back'))
-  assert.match(whatsapp.sent[2].text, /Listmenu/)
+  await registry.dispatch(message('menu-numbered', 'numbered@s.whatsapp.net', '!menu 5'))
+  assert.match(whatsapp.sent[2].text, /GENERAL/)
+  assert.match(whatsapp.sent[2].text, /\*1\.\* !ping/)
+
+  await registry.dispatch(message('menu-main-again', 'back@s.whatsapp.net', '!menu'))
+  assert.match(whatsapp.sent[3].text, /Listmenu/)
 })
 
 test('menu plugin follows the effective group prefix while retaining global fallback', async () => {
@@ -137,7 +141,7 @@ test('replying with a category number navigates only from a quoted main menu', a
   const mainMenu = whatsapp.sent[0].text
   assert.match(mainMenu, /Atau balas pesan menu ini dengan angka kategorinya/)
 
-  await events.emit('message.received', message('reply-menu-number', 'reply@s.whatsapp.net', '2', {
+  await events.emit('message.received', message('reply-menu-number', 'reply@s.whatsapp.net', '6', {
     quotedText: mainMenu,
     quotedSenderJid: 'bot@s.whatsapp.net',
   }))
@@ -155,7 +159,7 @@ test('replying with a category number navigates only from a quoted main menu', a
   }))
   assert.equal(whatsapp.sent.length, sentBeforePlainNumber)
 
-  await events.emit('message.received', message('out-of-range-number', 'reply@s.whatsapp.net', '9', {
+  await events.emit('message.received', message('out-of-range-number', 'reply@s.whatsapp.net', '99', {
     quotedText: mainMenu,
     quotedSenderJid: 'bot@s.whatsapp.net',
   }))
@@ -180,7 +184,8 @@ test('menu plugin renders paginated submenus and unknown-category guidance', asy
   assert.match(whatsapp.sent[0].text, /Halaman 2\/2/)
   assert.match(whatsapp.sent[0].text, /\*9\.\* !tool9/)
   assert.doesNotMatch(whatsapp.sent[0].text, /\*1\.\* !tool1/)
-  assert.match(whatsapp.sent[0].text, /!back/)
+  assert.match(whatsapp.sent[0].text, /!menu/)
+  assert.doesNotMatch(whatsapp.sent[0].text, /!back/)
 
   await registry.dispatch(message('menu-unknown', 'unknown@s.whatsapp.net', '!m missing'))
   assert.match(whatsapp.sent[1].text, /tidak ditemukan/)
