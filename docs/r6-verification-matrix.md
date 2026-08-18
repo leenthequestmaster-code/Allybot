@@ -17,8 +17,8 @@
 | Type compatibility | `npm run typecheck` | Pass | Pass — local gate |
 | Clean compiled output | `npm run build` + parity | Pass | Pass — local gate |
 | Full regression | `npm test` | No regression | Pass — 145 tests, 0 fail |
-| Artifact hygiene | CI sanitized artifact scan | No secret/session/db/node_modules | Pending CI |
-| Production runtime | Panel deploy/restart/smoke | Stable runtime | Pending deployment |
+| Artifact hygiene | CI sanitized artifact scan + local archive inspection | No secret/session/db/node_modules | Pass |
+| Production runtime | Panel deploy/restart/smoke | Stable runtime | Pass with WhatsApp black-box acceptance deferred |
 
 ## Limitations
 
