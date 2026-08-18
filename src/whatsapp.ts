@@ -531,7 +531,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       const receivedAt = Date.now()
       const timestamp = normalizeMessageTimestamp(message.messageTimestamp)
       const resolvePnForLid = (lid: string) => this.socket?.signalRepository.lidMapping.getPNForLID(lid) ?? Promise.resolve(null)
-      const rawSenderJid = message.key.participantAlt ?? message.key.participant ?? (message.key.fromMe ? undefined : remoteJid)
+      const rawSenderJid = message.key.participantAlt ?? message.key.remoteJidAlt ?? message.key.participant ?? (message.key.fromMe ? undefined : remoteJid)
       const senderJid = rawSenderJid ? await normalizeContactJid(rawSenderJid, resolvePnForLid) : undefined
       const mentionedJids: readonly string[] = [...new Set(await Promise.all(
         extractMentionedJids(message).map((jid) => normalizeContactJid(jid, resolvePnForLid)),
