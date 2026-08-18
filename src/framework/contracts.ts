@@ -53,6 +53,12 @@ export interface WhatsAppSendOptions {
   readonly mentions?: readonly string[]
 }
 
+export interface WhatsAppPollOptions {
+  readonly name: string
+  readonly values: readonly string[]
+  readonly selectableCount: number
+}
+
 export type GroupParticipantRole = 'member' | 'admin' | 'superadmin' | 'unknown'
 
 export interface WhatsAppGroupParticipant {
@@ -82,6 +88,7 @@ export interface WhatsAppPort {
   onGroupParticipantUpdate(listener: (event: CoreGroupParticipantUpdate) => Promise<void> | void): () => void
   onConnectionState(listener: (event: CoreConnectionState) => Promise<void> | void): () => void
   sendText(remoteJid: string, text: string, options?: WhatsAppSendOptions): Promise<void>
+  sendNativePoll?(remoteJid: string, options: WhatsAppPollOptions): Promise<void>
   sendNativeQuickReplies?(remoteJid: string, payload: {
     readonly type: 'native_quick_reply'
     readonly body: string

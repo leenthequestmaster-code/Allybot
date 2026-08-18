@@ -12,6 +12,7 @@ import { groupPlugin } from './framework/plugins/group.js'
 import { createGroupSafetyPlugin } from './framework/plugins/group-safety.js'
 import { createGroupModerationPlugin } from './framework/plugins/group-moderation.js'
 import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-mission.js'
+import { createCollaborationPlugin } from './framework/plugins/collaboration.js'
 import { createLogger } from './logger.js'
 import { createPermissionResolver } from './permissions.js'
 import { SqliteStorage } from './storage.js'
@@ -21,6 +22,7 @@ import { DeveloperModeService } from './services/developer-mode-service.js'
 import { PlatformGuardrailService } from './services/platform-guardrail-service.js'
 import { GroupSafetyService } from './services/group-safety-service.js'
 import { GroupModerationService } from './services/group-moderation-service.js'
+import { CollaborationService } from './services/collaboration-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 
 async function main(): Promise<void> {
@@ -59,6 +61,7 @@ async function main(): Promise<void> {
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
+  framework.registerService(new CollaborationService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(developerModePlugin)
@@ -69,6 +72,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
+  framework.registerPlugin(createCollaborationPlugin(whatsapp))
   framework.registerPlugin(createAfkPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework)
   await lifecycle.start()

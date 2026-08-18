@@ -26,6 +26,7 @@ import type {
   CoreMessage,
   GroupParticipantRole,
   WhatsAppGroupMetadata,
+  WhatsAppPollOptions,
   WhatsAppPort,
   WhatsAppSendOptions,
 } from './framework/contracts.js'
@@ -236,6 +237,30 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       ? { text, mentions: [...options.mentions], linkPreview: null }
       : { text, linkPreview: null }
     await withTimeout(socket.sendMessage(remoteJid, content), 20000, 'framework text response')
+  }
+
+  async sendNativePoll(remoteJid: string, options: WhatsAppPollOptions): Promise<void> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const name = options.name.trim()
+    const values = options.values.map((value) => value.trim())
+    if (!name || name.length > 200 || values.length < 2 || values.length > 12 || values.some((value) => !value || value.length > 100)) {
+      throw new Error('Invalid native poll payload')
+    }
+    if (!Number.isInteger(options.selectableCount) || options.selectableCount < 1 || options.selectableCount > values.length) {
+      throw new Error('Invalid native poll selection count')
+    }
+    await withTimeout(
+      socket.sendMessage(remoteJid, {
+        poll: {
+          name,
+          values,
+          selectableCount: options.selectableCount,
+        },
+      }),
+      20_000,
+      'native poll response',
+    )
   }
 
   async getProfilePictureUrl(jid: string, type: 'preview' | 'image' = 'image', timeoutMs = PROFILE_PICTURE_TIMEOUT_MS): Promise<string | undefined> {
