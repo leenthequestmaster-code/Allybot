@@ -50,7 +50,7 @@ test('WhatsAppConnection skips socket creation in maintenance mode', async () =>
   await connection.close()
 })
 
-test('core ping does not expose an invite URL or request a link preview', async () => {
+test('transport message handling persists messages without bypassing framework ping', async () => {
   const config = loadConfig(baseEnv())
   const savedMessages = []
   const sent = []
@@ -73,7 +73,5 @@ test('core ping does not expose an invite URL or request a link preview', async 
   }, logger)
 
   assert.equal(savedMessages.length, 1)
-  assert.equal(sent.length, 1)
-  assert.equal(sent[0].content.linkPreview, null)
-  assert.equal(sent[0].content.text.includes('https://chat.whatsapp.com/'), false)
+  assert.equal(sent.length, 0)
 })

@@ -1,9 +1,11 @@
 import type { CommandContext, WhatsAppPort } from './framework/contracts.js'
+import type { DeveloperModeService } from './services/developer-mode-service.js'
 
 export const permissionNames = {
   botOwner: 'bot.owner',
   groupAdmin: 'group.admin',
   groupOwner: 'group.owner',
+  developerModeObserver: 'developer.mode.observer',
 } as const
 
 function bareJid(jid: string): string {
@@ -32,6 +34,23 @@ export function createPermissionResolver(
 
     if (permission === permissionNames.botOwner) {
       return isSameJid(senderJid, normalizedBotOwnerJid)
+    }
+
+    if (permission === permissionNames.developerModeObserver) {
+      if (context.message.remoteJid.endsWith('@g.us')) {
+        if (context.services.has('developer-mode')) {
+          context.services.get<DeveloperModeService>('developer-mode').recordBoundaryDenied(senderJid, 'private-chat-only')
+        }
+        return false
+      }
+      if (isSameJid(senderJid, normalizedBotOwnerJid)) return true
+      if (!context.services.has('developer-mode')) return false
+      const developerMode = context.services.get<DeveloperModeService>('developer-mode')
+      try {
+        return developerMode.evaluate(senderJid, 'observer').allowed
+      } catch {
+        return false
+      }
     }
 
     if (!context.message.remoteJid.endsWith('@g.us')) return false

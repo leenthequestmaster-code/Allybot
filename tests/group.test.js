@@ -166,3 +166,49 @@ test('group pagination uses the effective prefix and memberinfo accepts a quoted
   await app.stop()
   rmSync(directory, { recursive: true, force: true })
 })
+
+test('prefix command explains override source and reset path', async () => {
+  const core = new FakeGroupCore()
+  const directory = mkdtempSync(join(tmpdir(), 'allybot-prefix-ux-test-'))
+  const configuration = new GroupConfigurationService(join(directory, 'core.sqlite'), logger)
+  const app = new ApplicationFramework(
+    { commandPrefix: '!', defaultCooldownMs: 0 },
+    logger,
+    core,
+    {
+      prefixResolver: (message, services, fallback) => message.remoteJid.endsWith('@g.us')
+        ? services.get('group-configuration').resolvePrefix(message.remoteJid, fallback)
+        : fallback,
+      permissionResolver: (permission, context) => permission === 'group.admin' && context.message.senderJid === core.metadata.ownerJid,
+    },
+  )
+  app.registerService(configuration)
+  app.registerPlugin(groupPlugin)
+  await app.start()
+  configuration.setPrefix(core.metadata.jid, '##', core.metadata.ownerJid)
+
+  await core.emitMessage({
+    id: 'prefix-status',
+    remoteJid: core.metadata.jid,
+    senderJid: core.metadata.participants[2].jid,
+    text: '##prefix',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[0].text, /Sumber.*Override grup/)
+  assert.match(core.sent[0].text, /Prefix global.*!/)
+  assert.match(core.sent[0].text, /Reset ke global: `##setprefix default`/)
+
+  await core.emitMessage({
+    id: 'prefix-reset',
+    remoteJid: core.metadata.jid,
+    senderJid: core.metadata.ownerJid,
+    text: '##setprefix default',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[1].text, /dikembalikan ke prefix global/)
+
+  await app.stop()
+  rmSync(directory, { recursive: true, force: true })
+})

@@ -19,8 +19,10 @@ export interface CoreMessage {
   readonly quotedText?: string
   readonly quotedSenderJid?: string
   readonly groupName?: string
-  /** Epoch timestamp in milliseconds. */
+  /** Epoch timestamp in milliseconds from the message payload. */
   readonly timestamp: number
+  /** Local adapter arrival time in milliseconds, when available. */
+  readonly receivedAt?: number
   readonly fromMe: boolean
 }
 
@@ -59,8 +61,15 @@ export interface WhatsAppGroupMetadata {
   readonly participants: readonly WhatsAppGroupParticipant[]
 }
 
+export interface RuntimeCacheClearResult {
+  readonly duplicateMessages: number
+  readonly groupNames: number
+  readonly retryCounters: number
+}
+
 export interface WhatsAppPort {
   readonly isConnected: boolean
+  readonly currentStatus?: CoreConnectionStatus
   readonly userJid?: string
   onMessage(listener: (message: CoreMessage) => Promise<void> | void): () => void
   onGroupParticipantUpdate(listener: (event: CoreGroupParticipantUpdate) => Promise<void> | void): () => void
@@ -74,6 +83,7 @@ export interface WhatsAppPort {
   }): Promise<void>
   getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata>
   getGroupInviteLink(groupJid: string): Promise<string | undefined>
+  clearRuntimeCaches?(): RuntimeCacheClearResult
   start(): Promise<void>
   close(): Promise<void>
 }

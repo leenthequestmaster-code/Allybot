@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import pino from 'pino'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { diagnosticsPlugin } from '../dist/framework/plugins/diagnostics.js'
+import { technicalPlugin } from '../dist/framework/plugins/technical.js'
 
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
@@ -12,6 +13,7 @@ class FakeCore {
   userJid = 'bot@s.whatsapp.net'
   sent = []
   messages = new Set()
+  clearRuntimeCaches() { return { duplicateMessages: 3, groupNames: 2, retryCounters: 1 } }
   groupParticipantListeners = new Set()
   connections = new Set()
 
@@ -84,6 +86,39 @@ test('A failed command is isolated and framework remains ready for later command
   assert.equal(app.state.phase, 'ready')
   assert.equal(frameworkErrors, 1)
   assert.deepEqual(core.sent, [{ remoteJid: 'chat@s.whatsapp.net', text: 'still alive' }])
+  await app.stop()
+})
+
+test('Technical commands provide routed ping, safe profile, and owner-only cache clear', async () => {
+  const core = new FakeCore()
+  const app = new ApplicationFramework(
+    { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: 'owner@s.whatsapp.net' },
+    logger,
+    core,
+    {
+      permissionResolver: (permission, context) => permission === 'bot.owner'
+        && context.message.senderJid === 'owner@s.whatsapp.net',
+    },
+  )
+  app.registerPlugin(technicalPlugin)
+  await app.start()
+
+  await core.emitMessage({ id: 'ping', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!ping', timestamp: Date.now() - 20, receivedAt: Date.now() - 15, fromMe: false })
+  assert.match(core.sent[0].text, /Pong.*Allybot aktif/)
+  assert.match(core.sent[0].text, /Latency: \d+ ms/)
+
+  await core.emitMessage({ id: 'profile', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!bprofile', timestamp: Date.now(), fromMe: false })
+  assert.match(core.sent[1].text, /Allybot Profile/)
+  assert.match(core.sent[1].text, /Node\.js/)
+  assert.equal(core.sent[1].text.includes('owner@s.whatsapp.net'), false)
+  assert.equal(core.sent[1].text.includes('databasePath'), false)
+
+  await core.emitMessage({ id: 'clearcache-denied', remoteJid: 'chat@s.whatsapp.net', senderJid: 'stranger@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
+  assert.match(core.sent[2].text, /hanya tersedia untuk owner Allybot/)
+
+  await core.emitMessage({ id: 'clearcache', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
+  assert.match(core.sent[3].text, /Duplicate-message cache: 3 entry/)
+  assert.match(core.sent[3].text, /Auth\/session\/database: tidak disentuh/)
   await app.stop()
 })
 

@@ -19,6 +19,7 @@ import type {
   CoreConnectionState,
   CoreConnectionStatus,
   CoreGroupParticipantUpdate,
+  RuntimeCacheClearResult,
   CoreMessage,
   GroupParticipantRole,
   WhatsAppGroupMetadata,
@@ -141,36 +142,6 @@ function formatQr(qr: string): void {
   qrcode.generate(qr, { small: true })
 }
 
-function formatUptime(seconds: number): string {
-  const totalSeconds = Math.max(0, Math.floor(seconds))
-  const days = Math.floor(totalSeconds / 86400)
-  const hours = Math.floor((totalSeconds % 86400) / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const remainingSeconds = totalSeconds % 60
-  const parts: string[] = []
-  if (days) parts.push(`${days}d`)
-  if (hours || days) parts.push(`${hours}h`)
-  if (minutes || hours || days) parts.push(`${minutes}m`)
-  parts.push(`${remainingSeconds}s`)
-  return parts.join(' ')
-}
-
-function formatPingResponse(receivedAt: number): string {
-  const latencyMs = Math.max(0, Date.now() - receivedAt)
-  return [
-    '🦊 ⑅【 Allybot 】',
-    '─͜──͜──͜─  · ✿ ·  ─͜──͜──͜─',
-    '𖥻 ׁ ׅ 🌸𓏳ᩙ :: "Pong~!! Did someone call for Allybot?"',
-    'ㅤ  ㅤ﹊﹊﹊﹊﹊﹊﹊﹊﹊',
-    `⡇╌ Latency: ${latencyMs} ms`,
-    `⡇╌ Uptime: ${formatUptime(process.uptime())}`,
-    '° ° ──────────── · · ·',
-    '≛⃞🪷 COMMUNITY: Allyssea Roleplay Community',
-    '─────────────────',
-    '© Allyssea Roleplay Community',
-  ].join('\n')
-}
-
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined
   try {
@@ -197,7 +168,6 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private watchdogTimer: NodeJS.Timeout | undefined
   private lastActivityAt = Date.now()
   private readonly seenMessages = new Map<string, number>()
-  private readonly lastReplyAt = new Map<string, number>()
   private readonly groupNameCache = new Map<string, { name: string; expiresAt: number }>()
   private readonly messageListeners = new Set<(message: CoreMessage) => Promise<void> | void>()
   private readonly groupParticipantListeners = new Set<(event: CoreGroupParticipantUpdate) => Promise<void> | void>()
@@ -221,6 +191,19 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
   get userJid(): string | undefined {
     return this.socket?.user?.id
+  }
+
+  clearRuntimeCaches(): RuntimeCacheClearResult {
+    const retryCache = this.retryCounterCache as unknown as NodeCache<unknown>
+    const result = {
+      duplicateMessages: this.seenMessages.size,
+      groupNames: this.groupNameCache.size,
+      retryCounters: retryCache.keys().length,
+    }
+    this.seenMessages.clear()
+    this.groupNameCache.clear()
+    retryCache.flushAll()
+    return result
   }
 
   onMessage(listener: (message: CoreMessage) => Promise<void> | void): () => void {
@@ -522,7 +505,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   private async handleMessages(
-    socket: WASocket,
+    _socket: WASocket,
     upsert: BaileysEventMap['messages.upsert'],
     logger: AppLogger,
   ): Promise<void> {
@@ -533,43 +516,19 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
     if (upsert.type !== 'notify') return
     this.storage.saveMessages(upsert.messages)
-
-    for (const message of upsert.messages) {
-      const receivedAt = Date.now()
-      if (message.key.fromMe || !message.key.remoteJid || !message.key.id) continue
-      const dedupKey = `${message.key.remoteJid}:${message.key.id}`
-      if (this.isDuplicate(dedupKey)) {
-        logger.debug({ remoteJid: message.key.remoteJid }, 'duplicate message ignored')
-        continue
-      }
-      const text = extractText(message)?.trim().toLowerCase()
-      if (text !== '!ping') continue
-      if (this.isRateLimited(message.key.remoteJid)) {
-        logger.warn({ remoteJid: message.key.remoteJid }, 'core ping rate limited')
-        continue
-      }
-
-      try {
-        await withTimeout(
-          socket.sendMessage(message.key.remoteJid, {
-            text: formatPingResponse(receivedAt),
-            linkPreview: null,
-          }),
-          20000,
-          'core ping response',
-        )
-        logger.info({ remoteJid: message.key.remoteJid }, 'core ping response sent')
-      } catch (error) {
-        logger.error({ err: errorMessage(error) }, 'core ping response failed')
-      }
-    }
   }
 
   private async emitMessages(messages: readonly WAMessage[]): Promise<void> {
-    const normalized = (await Promise.all(messages.map(async (message) => {
+    const normalized = (await Promise.all(messages.map(async (message): Promise<CoreMessage | undefined> => {
       const remoteJid = message.key.remoteJid
       const id = message.key.id
       if (!remoteJid || !id) return undefined
+      const dedupKey = `${remoteJid}:${id}`
+      if (this.isDuplicate(dedupKey)) {
+        this.logger.debug({ remoteJid }, 'duplicate message ignored')
+        return undefined
+      }
+      const receivedAt = Date.now()
       const timestamp = normalizeMessageTimestamp(message.messageTimestamp)
       const resolvePnForLid = (lid: string) => this.socket?.signalRepository.lidMapping.getPNForLID(lid) ?? Promise.resolve(null)
       const rawSenderJid = message.key.participantAlt ?? message.key.participant ?? (message.key.fromMe ? undefined : remoteJid)
@@ -598,6 +557,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         ...(quotedSenderJid ? { quotedSenderJid } : {}),
         ...(groupName ? { groupName } : {}),
         timestamp,
+        receivedAt,
         fromMe: Boolean(message.key.fromMe),
       } satisfies CoreMessage
     }))).filter((message): message is CoreMessage => Boolean(message))
@@ -703,17 +663,6 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       const oldest = this.seenMessages.keys().next().value
       if (oldest) this.seenMessages.delete(oldest)
     }
-    return false
-  }
-
-  private isRateLimited(remoteJid: string): boolean {
-    const now = Date.now()
-    const previous = this.lastReplyAt.get(remoteJid) ?? 0
-    for (const [jid, repliedAt] of this.lastReplyAt) {
-      if (now - repliedAt > 10 * 60 * 1000) this.lastReplyAt.delete(jid)
-    }
-    if (now - previous < 3000) return true
-    this.lastReplyAt.set(remoteJid, now)
     return false
   }
 }

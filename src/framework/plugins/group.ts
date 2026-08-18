@@ -504,16 +504,21 @@ export const groupPlugin: Plugin = {
       menuOrder: 18,
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
-        const settings = groupConfiguration(commandContext).getSettings(commandContext.message.remoteJid)
+        const configuration = groupConfiguration(commandContext)
+        const settings = configuration.getSettings(commandContext.message.remoteJid)
+        const override = configuration.getPrefix(commandContext.message.remoteJid)
         await commandContext.reply([
           '⚙️ ⑅【 𝐏𝗿𝗲𝗳𝗶𝘅 𝐆𝗿𝘂𝗽 】',
           '⏜ׄ꤮᷼⌒︵',
           `↳ *Prefix aktif* : \`${commandContext.prefix}\``,
+          `↳ *Sumber* : ${override ? 'Override grup' : 'Prefix global'}`,
+          `↳ *Prefix global* : \`${commandContext.config.commandPrefix}\``,
           `↳ *Language* : ${settings.language?.language ?? 'id'}`,
           '',
           `Gunakan \`${commandContext.prefix}setprefix <simbol>\` untuk mengubahnya.`,
+          `Reset ke global: \`${commandContext.prefix}setprefix default\``,
           ...renderFooter(),
-        ].join('\n'))
+        ].join('\n'), override ? mentionOptions([override.updatedBy]) : undefined)
       },
     })
 
@@ -548,7 +553,11 @@ export const groupPlugin: Plugin = {
           prefix,
           updateActor(commandContext),
         )
-        await commandContext.reply(`✅ Prefix grup berhasil diubah menjadi \`${prefix}\`. Gunakan prefix baru untuk command berikutnya.`)
+        await commandContext.reply([
+          `✅ Prefix grup berhasil diubah menjadi \`${prefix}\`.`,
+          `Gunakan \`${prefix}prefix\` untuk memeriksa statusnya.`,
+          `Reset ke global dengan \`${prefix}setprefix default\`.`,
+        ].join('\n'))
       },
     })
 
