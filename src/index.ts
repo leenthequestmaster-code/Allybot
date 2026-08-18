@@ -16,6 +16,7 @@ import { SqliteStorage } from './storage.js'
 import { AfkService } from './services/afk-service.js'
 import { GroupConfigurationService } from './services/group-configuration-service.js'
 import { DeveloperModeService } from './services/developer-mode-service.js'
+import { PlatformGuardrailService } from './services/platform-guardrail-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 
 async function main(): Promise<void> {
@@ -52,6 +53,7 @@ async function main(): Promise<void> {
   framework.registerService(new AfkService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
+  framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(developerModePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)
