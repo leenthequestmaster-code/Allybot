@@ -15,6 +15,7 @@ import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-m
 import { createCollaborationPlugin } from './framework/plugins/collaboration.js'
 import { createKnowledgePlugin } from './framework/plugins/knowledge.js'
 import { createPersonalizationPlugin } from './framework/plugins/personalization.js'
+import { createScenePlugin } from './framework/plugins/scene.js'
 import { createLogger } from './logger.js'
 import { createPermissionResolver } from './permissions.js'
 import { SqliteStorage } from './storage.js'
@@ -27,6 +28,7 @@ import { GroupModerationService } from './services/group-moderation-service.js'
 import { CollaborationService } from './services/collaboration-service.js'
 import { KnowledgeService } from './services/knowledge-service.js'
 import { PersonalizationService } from './services/personalization-service.js'
+import { SceneService } from './services/scene-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 
 async function main(): Promise<void> {
@@ -68,6 +70,7 @@ async function main(): Promise<void> {
   framework.registerService(new CollaborationService(config.DATABASE_PATH, logger))
   framework.registerService(new KnowledgeService(config.DATABASE_PATH, logger))
   framework.registerService(new PersonalizationService(config.DATABASE_PATH, logger))
+  framework.registerService(new SceneService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(developerModePlugin)
@@ -81,6 +84,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createCollaborationPlugin(whatsapp))
   framework.registerPlugin(createKnowledgePlugin(whatsapp))
   framework.registerPlugin(createPersonalizationPlugin(whatsapp))
+  framework.registerPlugin(createScenePlugin(whatsapp))
   framework.registerPlugin(createAfkPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework)
   await lifecycle.start()
