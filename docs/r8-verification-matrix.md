@@ -19,9 +19,9 @@
 | Clean compiled output | `rm -rf dist && npm run build` | Local gate | Pass |
 | Focused regression | `node --test tests/r8-group-governance.test.js` | 11 tests, 0 failures | Pass |
 | Full regression | `npm test` | 167 tests, 0 failures | Pass |
-| Source-dist parity and CI | `npm run verify:platform` plus CI parity/compiled checks | Local parity pass; CI pending | Pending |
-| Artifact hygiene | CI artifact contains only dist and package manifests | Pending CI artifact | Pending |
-| Panel runtime | Upload, decompress, cleanup, restart, smoke test | Pending R8 delivery | Pending |
+| Source-dist parity and CI | `npm run verify:platform` plus CI parity/compiled checks | Local parity pass; CI run `32171609282` success | Pass |
+| Artifact hygiene | CI artifact contains only dist and package manifests | Sanitized archive SHA256 `3ce1b7441286047343270d92038bf5cbba3e6febf18283bfe345080ae0709b01`; no source/secrets/DB/session | Pass |
+| Panel runtime | Upload, decompress, cleanup, restart, smoke test | HTTP 204 decompress; archive cleanup; runtime online; governance storage log; non-zero metrics | Pass |
 | WhatsApp black-box | Final acceptance after R11 | Explicitly deferred | Deferred |
 
 ## Limitations
