@@ -84,7 +84,6 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number | undefined
       promise,
       new Promise<T>((_, reject) => {
         timer = setTimeout(() => reject(new Error(`Operation timed out: ${operationId}`)), timeoutMs)
-        timer.unref?.()
       }),
     ])
   } finally {
