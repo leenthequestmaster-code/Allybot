@@ -11,6 +11,7 @@ import type { Logger } from 'pino'
 interface PluginRecord {
   plugin: Plugin
   state: 'registered' | 'loaded' | 'initialized' | 'ready' | 'failed'
+  cleanups: Array<() => void>
 }
 
 export class PluginManager {
@@ -28,7 +29,7 @@ export class PluginManager {
     const name = plugin.name.trim()
     if (!/^[a-z][a-z0-9_-]{1,63}$/.test(name)) throw new Error(`Invalid plugin name: ${name}`)
     if (this.plugins.has(name)) throw new Error(`Plugin already registered: ${name}`)
-    this.plugins.set(name, { plugin, state: 'registered' })
+    this.plugins.set(name, { plugin, state: 'registered', cleanups: [] })
   }
 
   list(): readonly { name: string; state: PluginRecord['state'] }[] {
@@ -36,11 +37,11 @@ export class PluginManager {
   }
 
   async loadAndInitialize(): Promise<void> {
-    const context = this.context()
     for (const name of this.resolveOrder()) {
       const record = this.plugins.get(name)
       if (!record) continue
       try {
+        const context = this.context(record)
         await record.plugin.load?.(context)
         record.state = 'loaded'
         await this.events.emit('plugin.loaded', { name })
@@ -48,6 +49,7 @@ export class PluginManager {
         record.state = 'initialized'
       } catch (error) {
         record.state = 'failed'
+        this.cleanup(record)
         this.logger.error({ plugin: name, err: error }, 'plugin load or initialization failed')
         await this.events.emit('plugin.failed', { name, error })
       }
@@ -55,15 +57,15 @@ export class PluginManager {
   }
 
   async ready(): Promise<void> {
-    const context = this.context()
     for (const name of this.resolveOrder()) {
       const record = this.plugins.get(name)
       if (!record || record.state !== 'initialized') continue
       try {
-        await record.plugin.ready?.(context)
+        await record.plugin.ready?.(this.context(record))
         record.state = 'ready'
       } catch (error) {
         record.state = 'failed'
+        this.cleanup(record)
         this.logger.error({ plugin: name, err: error }, 'plugin ready hook failed')
         await this.events.emit('plugin.failed', { name, error })
       }
@@ -71,28 +73,59 @@ export class PluginManager {
   }
 
   async unload(): Promise<void> {
-    const context = this.context()
     const order = this.resolveOrder().reverse()
     for (const name of order) {
       const record = this.plugins.get(name)
-      if (!record || record.state === 'registered' || record.state === 'failed') continue
+      if (!record || record.state === 'registered') continue
       try {
-        await record.plugin.unload?.(context)
+        await record.plugin.unload?.(this.context(record))
       } catch (error) {
         this.logger.error({ plugin: name, err: error }, 'plugin unload hook failed')
       } finally {
+        this.cleanup(record)
         record.state = 'registered'
       }
     }
   }
 
-  private context(): PluginContext {
+  private context(record: PluginRecord): PluginContext {
+    const events: EventBusLike = {
+      on: (name, listener) => this.trackCleanup(record, this.events.on(name, listener)),
+      emit: (name, event) => this.events.emit(name, event),
+    }
+    const commands: CommandRegistryLike = {
+      register: (command) => this.trackCleanup(record, this.commands.register(command)),
+      get: (name) => this.commands.get(name),
+      dispatch: (message) => this.commands.dispatch(message),
+      list: () => this.commands.list(),
+    }
     return {
       logger: this.logger,
       config: this.config,
-      events: this.events,
-      commands: this.commands,
+      events,
+      commands,
       services: this.services,
+    }
+  }
+
+  private trackCleanup(record: PluginRecord, cleanup: () => void): () => void {
+    let active = true
+    const disposer = () => {
+      if (!active) return
+      active = false
+      cleanup()
+    }
+    record.cleanups.push(disposer)
+    return disposer
+  }
+
+  private cleanup(record: PluginRecord): void {
+    for (const cleanup of record.cleanups.splice(0).reverse()) {
+      try {
+        cleanup()
+      } catch (error) {
+        this.logger.warn({ plugin: record.plugin.name, err: error }, 'plugin registration cleanup failed')
+      }
     }
   }
 

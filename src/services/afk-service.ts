@@ -34,6 +34,18 @@ export type AfkLeaderboardEntry = {
   readonly totalDurationMs: number
 }
 
+export const MAX_AFK_REASON_LENGTH = 500
+export const MAX_AFK_CONTEXT_LENGTH = 2_000
+export const MAX_AFK_MENTION_RETENTION = 100
+export const AFK_MENTION_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
+export const AFK_PRESENCE_WRITE_INTERVAL_MS = 60 * 1_000
+
+export interface AfkServiceOptions {
+  readonly presenceWriteIntervalMs?: number
+  readonly mentionRetention?: number
+  readonly mentionRetentionMs?: number
+}
+
 type AfkRow = {
   user_jid: string
   reason: string
@@ -75,11 +87,18 @@ export class AfkService implements Service {
   constructor(
     coreDatabasePath: string,
     private readonly logger: Logger,
+    options: AfkServiceOptions = {},
   ) {
     this.databasePath = join(dirname(coreDatabasePath), 'allybot-afk.sqlite')
+    this.presenceWriteIntervalMs = positiveIntegerOption(options.presenceWriteIntervalMs, AFK_PRESENCE_WRITE_INTERVAL_MS, 'presenceWriteIntervalMs')
+    this.mentionRetention = positiveIntegerOption(options.mentionRetention, MAX_AFK_MENTION_RETENTION, 'mentionRetention')
+    this.mentionRetentionMs = positiveIntegerOption(options.mentionRetentionMs, AFK_MENTION_RETENTION_MS, 'mentionRetentionMs')
   }
 
   private readonly databasePath: string
+  private readonly presenceWriteIntervalMs: number
+  private readonly mentionRetention: number
+  private readonly mentionRetentionMs: number
 
   initialize(_context: ServiceContext): void {
     mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
@@ -88,6 +107,7 @@ export class AfkService implements Service {
     this.db.pragma('synchronous = NORMAL')
     this.db.pragma('busy_timeout = 5000')
     this.migrate()
+    this.pruneMentions(Date.now())
     this.logger.info({ databasePath: this.databasePath }, 'AFK storage initialized')
   }
 
@@ -109,10 +129,12 @@ export class AfkService implements Service {
 
   start(userJid: string, reason: string, startedAt: number): AfkRecord {
     const db = this.database()
+    const normalizedReason = normalizeBoundedText(reason, MAX_AFK_REASON_LENGTH)
+    if (!normalizedReason) throw new Error('AFK reason cannot be empty')
     const existing = this.getActive(userJid)
     if (existing) {
-      db.prepare('UPDATE afk_active SET reason = ? WHERE user_jid = ?').run(reason, userJid)
-      return { ...existing, reason }
+      db.prepare('UPDATE afk_active SET reason = ? WHERE user_jid = ?').run(normalizedReason, userJid)
+      return { ...existing, reason: normalizedReason }
     }
 
     const presence = db
@@ -123,7 +145,7 @@ export class AfkService implements Service {
       db.prepare(
         `INSERT INTO afk_active (user_jid, reason, started_at, last_seen_at, search_count)
          VALUES (?, ?, ?, ?, 0)`,
-      ).run(userJid, reason, startedAt, lastSeenAt)
+      ).run(userJid, normalizedReason, startedAt, lastSeenAt)
       db.prepare(
         `INSERT INTO afk_stats (user_jid, total_afk_count, total_duration_ms, last_ended_at)
          VALUES (?, 1, 0, NULL)
@@ -135,7 +157,7 @@ export class AfkService implements Service {
 
     return {
       userJid,
-      reason,
+      reason: normalizedReason,
       startedAt,
       lastSeenAt,
       searchCount: 0,
@@ -166,13 +188,16 @@ export class AfkService implements Service {
   }
 
   touchPresence(userJid: string, at: number): void {
-    this.database()
-      .prepare(
-        `INSERT INTO afk_presence (user_jid, last_seen_at)
-         VALUES (?, ?)
-         ON CONFLICT(user_jid) DO UPDATE SET last_seen_at = excluded.last_seen_at`,
-      )
-      .run(userJid, at)
+    const db = this.database()
+    const existing = db
+      .prepare('SELECT last_seen_at FROM afk_presence WHERE user_jid = ?')
+      .get(userJid) as { last_seen_at: number } | undefined
+    if (existing && (at <= existing.last_seen_at || at - existing.last_seen_at < this.presenceWriteIntervalMs)) return
+    db.prepare(
+      `INSERT INTO afk_presence (user_jid, last_seen_at)
+       VALUES (?, ?)
+       ON CONFLICT(user_jid) DO UPDATE SET last_seen_at = excluded.last_seen_at`,
+    ).run(userJid, at)
   }
 
   recordMention(
@@ -184,22 +209,61 @@ export class AfkService implements Service {
     messageText?: string,
     quotedText?: string,
   ): boolean {
-    const db = this.database()
-    db.prepare(
-      `INSERT INTO afk_mentions (
-         afk_user_jid, seeker_jid, chat_jid, group_name, message_text, quoted_text, mentioned_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
+    return this.recordMentionWithResult(
       afkUserJid,
       seekerJid,
       chatJid,
-      groupName ?? '',
-      messageText ?? null,
-      quotedText ?? null,
       mentionedAt,
-    )
-    db.prepare('UPDATE afk_active SET search_count = search_count + 1 WHERE user_jid = ?').run(afkUserJid)
-    return true
+      groupName,
+      messageText,
+      quotedText,
+    ) !== undefined
+  }
+
+  recordMentionWithResult(
+    afkUserJid: string,
+    seekerJid: string,
+    chatJid: string,
+    mentionedAt: number,
+    groupName?: string,
+    messageText?: string,
+    quotedText?: string,
+  ): AfkMentionRecord | undefined {
+    const db = this.database()
+    const normalizedGroupName = normalizeBoundedText(groupName, 200)
+    const normalizedMessageText = normalizeBoundedText(messageText, MAX_AFK_CONTEXT_LENGTH)
+    const normalizedQuotedText = normalizeBoundedText(quotedText, MAX_AFK_CONTEXT_LENGTH)
+    const mention = {
+      seekerJid,
+      chatJid,
+      ...(normalizedGroupName ? { groupName: normalizedGroupName } : {}),
+      ...(normalizedMessageText ? { messageText: normalizedMessageText } : {}),
+      ...(normalizedQuotedText ? { quotedText: normalizedQuotedText } : {}),
+      mentionedAt,
+    } satisfies AfkMentionRecord
+    const insert = db.transaction(() => {
+      const result = db.prepare(
+        `INSERT INTO afk_mentions (
+           afk_user_jid, seeker_jid, chat_jid, group_name, message_text, quoted_text, mentioned_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        afkUserJid,
+        mention.seekerJid,
+        mention.chatJid,
+        mention.groupName ?? '',
+        mention.messageText ?? null,
+        mention.quotedText ?? null,
+        mention.mentionedAt,
+      )
+      const updated = db.prepare('UPDATE afk_active SET search_count = search_count + 1 WHERE user_jid = ?').run(afkUserJid)
+      if (updated.changes !== 1) {
+        db.prepare('DELETE FROM afk_mentions WHERE id = ?').run(result.lastInsertRowid)
+        return undefined
+      }
+      this.pruneMentions(Date.now())
+      return mention
+    })
+    return insert()
   }
 
   getMentions(userJid: string): readonly AfkMentionRecord[] {
@@ -208,9 +272,10 @@ export class AfkService implements Service {
         `SELECT seeker_jid, chat_jid, group_name, message_text, quoted_text, mentioned_at
          FROM afk_mentions
          WHERE afk_user_jid = ?
-         ORDER BY mentioned_at DESC`,
+         ORDER BY mentioned_at DESC
+         LIMIT ?`,
       )
-      .all(userJid) as MentionRow[]
+      .all(userJid, this.mentionRetention) as MentionRow[]
     return rows.map((row) => ({
       seekerJid: row.seeker_jid,
       chatJid: row.chat_jid,
@@ -289,6 +354,8 @@ export class AfkService implements Service {
 
       CREATE INDEX IF NOT EXISTS idx_afk_mentions_owner_time
         ON afk_mentions (afk_user_jid, mentioned_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_afk_mentions_time
+        ON afk_mentions (mentioned_at);
 
       CREATE TABLE IF NOT EXISTS afk_stats (
         user_jid TEXT PRIMARY KEY,
@@ -308,4 +375,36 @@ export class AfkService implements Service {
       'UPDATE afk_mentions SET mentioned_at = mentioned_at * 1000 WHERE mentioned_at > 0 AND mentioned_at < 10000000000',
     )
   }
+
+  private pruneMentions(now: number): void {
+    const cutoff = now - this.mentionRetentionMs
+    this.database().prepare('DELETE FROM afk_mentions WHERE mentioned_at < ?').run(cutoff)
+    this.database().prepare(`
+      DELETE FROM afk_mentions
+      WHERE id IN (
+        SELECT id FROM (
+          SELECT id,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY afk_user_jid
+                   ORDER BY mentioned_at DESC, id DESC
+                 ) AS rank
+          FROM afk_mentions
+        )
+        WHERE rank > ?
+      )
+    `).run(this.mentionRetention)
+  }
+}
+
+function normalizeBoundedText(value: string | undefined, maxLength: number): string | undefined {
+  if (value === undefined) return undefined
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (!normalized) return undefined
+  return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized
+}
+
+function positiveIntegerOption(value: number | undefined, fallback: number, name: string): number {
+  const selected = value ?? fallback
+  if (!Number.isSafeInteger(selected) || selected <= 0) throw new Error(`${name} must be a positive safe integer`)
+  return selected
 }

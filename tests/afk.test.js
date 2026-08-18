@@ -8,7 +8,11 @@ import Database from 'better-sqlite3'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { createAfkPlugin } from '../dist/framework/plugins/afk.js'
 import { menuPlugin } from '../dist/framework/plugins/menu.js'
-import { AfkService } from '../dist/services/afk-service.js'
+import {
+  AfkService,
+  MAX_AFK_CONTEXT_LENGTH,
+  MAX_AFK_REASON_LENGTH,
+} from '../dist/services/afk-service.js'
 import { GroupConfigurationService } from '../dist/services/group-configuration-service.js'
 
 const logger = pino({ level: 'silent' })
@@ -125,6 +129,52 @@ test('AFK plugin persists state, forwards every mention privately, and auto-unse
   await app.stop()
 })
 
+test('AFK hardening bounds retention and context and throttles presence writes', (context) => {
+  const directory = mkdtempSync(join(tmpdir(), 'allybot-afk-hardening-'))
+  context.after(() => rmSync(directory, { recursive: true, force: true }))
+
+  const databasePath = join(directory, 'core.sqlite')
+  const afk = new AfkService(databasePath, logger, {
+    mentionRetention: 2,
+    mentionRetentionMs: 1_000_000,
+    presenceWriteIntervalMs: 60_000,
+  })
+  afk.initialize({})
+  const aliceJid = 'alice@s.whatsapp.net'
+  const bobJid = 'bob@s.whatsapp.net'
+  const groupJid = 'roleplay@g.us'
+  const base = Date.now()
+
+  const started = afk.start(aliceJid, 'x'.repeat(MAX_AFK_REASON_LENGTH + 50), base)
+  assert.equal(started.reason.length, MAX_AFK_REASON_LENGTH)
+
+  afk.touchPresence(bobJid, base)
+  afk.touchPresence(bobJid, base + 59_999)
+  const connection = new Database(join(directory, 'allybot-afk.sqlite'))
+  assert.equal(connection.prepare('SELECT last_seen_at FROM afk_presence WHERE user_jid = ?').get(bobJid).last_seen_at, base)
+  afk.touchPresence(bobJid, base + 60_000)
+  assert.equal(connection.prepare('SELECT last_seen_at FROM afk_presence WHERE user_jid = ?').get(bobJid).last_seen_at, base + 60_000)
+
+  const first = afk.recordMentionWithResult(aliceJid, bobJid, groupJid, base + 1, 'Room', 'first')
+  const second = afk.recordMentionWithResult(aliceJid, bobJid, groupJid, base + 2, 'Room', 'second')
+  const third = afk.recordMentionWithResult(
+    aliceJid,
+    bobJid,
+    groupJid,
+    base + 3,
+    'R'.repeat(500),
+    'm'.repeat(MAX_AFK_CONTEXT_LENGTH + 100),
+  )
+  assert.equal(first?.messageText, 'first')
+  assert.equal(second?.messageText, 'second')
+  assert.equal(third?.messageText?.length, MAX_AFK_CONTEXT_LENGTH)
+  assert.equal(afk.getMentions(aliceJid).length, 2)
+  assert.equal(afk.getMentions(aliceJid)[0]?.messageText?.length, MAX_AFK_CONTEXT_LENGTH)
+
+  connection.close()
+  afk.shutdown({})
+})
+
 test('AFK migration converts legacy mention timestamps from seconds to milliseconds', (context) => {
   const directory = mkdtempSync(join(tmpdir(), 'allybot-afk-migration-'))
   context.after(() => rmSync(directory, { recursive: true, force: true }))
@@ -145,7 +195,9 @@ test('AFK migration converts legacy mention timestamps from seconds to milliseco
   ).run('alice@s.whatsapp.net', 'bob@s.whatsapp.net', 'roleplay@g.us', 1_700_000_000)
   legacy.close()
 
-  const afk = new AfkService(join(directory, 'core.sqlite'), logger)
+  const afk = new AfkService(join(directory, 'core.sqlite'), logger, {
+    mentionRetentionMs: 100 * 365 * 24 * 60 * 60 * 1_000,
+  })
   afk.initialize({})
   assert.equal(afk.getMentions('alice@s.whatsapp.net')[0]?.mentionedAt, 1_700_000_000_000)
   afk.shutdown({})

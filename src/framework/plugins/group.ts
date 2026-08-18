@@ -121,6 +121,7 @@ function renderParticipantList(
   title: string,
   nextCommand: 'admins' | 'members',
   page: number,
+  prefix: string,
 ): { text: string; mentions: readonly string[] } {
   const totalPages = Math.max(1, Math.ceil(participants.length / PAGE_SIZE))
   const currentPage = Math.min(Math.max(page, 1), totalPages)
@@ -139,7 +140,7 @@ function renderParticipantList(
       lines.push(`${start + index + 1}. ${userLabel(participant.jid)} — ${participantRoleLabel(participant.role)}`)
     }
   }
-  if (totalPages > 1) lines.push('', `Ketik !${nextCommand} ${currentPage < totalPages ? currentPage + 1 : 1} untuk halaman berikutnya.`)
+  if (totalPages > 1) lines.push('', `Ketik ${prefix}${nextCommand} ${currentPage < totalPages ? currentPage + 1 : 1} untuk halaman berikutnya.`)
   lines.push('', ...renderFooter())
   return { text: lines.join('\n'), mentions: visible.map((participant) => participant.jid) }
 }
@@ -148,8 +149,12 @@ function parsePage(value: string | undefined): number {
   return value && /^\d+$/.test(value) ? Math.max(1, Number(value)) : 1
 }
 
+function memberTargetJid(context: CommandContext): string | undefined {
+  return context.message.mentionedJids?.[0] ?? context.message.quotedSenderJid
+}
+
 function targetJid(context: CommandContext): string | undefined {
-  return context.message.mentionedJids?.[0] ?? context.message.senderJid
+  return memberTargetJid(context) ?? context.message.senderJid
 }
 
 export const groupPlugin: Plugin = {
@@ -203,7 +208,7 @@ export const groupPlugin: Plugin = {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
         const admins = metadata.participants.filter((participant) => participant.role === 'admin' || participant.role === 'superadmin')
-        const result = renderParticipantList(metadata, admins, '𝐆𝗿𝗼𝘂𝗽 𝐀𝗱𝗺𝗶𝗻', 'admins', parsePage(commandContext.args[0]))
+        const result = renderParticipantList(metadata, admins, '𝐆𝗿𝗼𝘂𝗽 𝐀𝗱𝗺𝗶𝗻', 'admins', parsePage(commandContext.args[0]), commandContext.prefix)
         await commandContext.reply(result.text, mentionOptions(result.mentions))
       },
     })
@@ -217,7 +222,7 @@ export const groupPlugin: Plugin = {
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
-        const result = renderParticipantList(metadata, metadata.participants, '𝐆𝗿𝗼𝘂𝗽 𝐌𝗲𝗺𝗯𝗲𝗿', 'members', parsePage(commandContext.args[0]))
+        const result = renderParticipantList(metadata, metadata.participants, '𝐆𝗿𝗼𝘂𝗽 𝐌𝗲𝗺𝗯𝗲𝗿', 'members', parsePage(commandContext.args[0]), commandContext.prefix)
         await commandContext.reply(result.text, mentionOptions(result.mentions))
       },
     })
@@ -229,7 +234,7 @@ export const groupPlugin: Plugin = {
       menuOrder: 6,
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
-        const target = commandContext.message.mentionedJids?.[0]
+        const target = memberTargetJid(commandContext)
         if (!target) {
           await commandContext.reply('Reply atau mention satu member. Contoh: !memberinfo @user')
           return

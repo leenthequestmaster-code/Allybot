@@ -116,3 +116,53 @@ test('group foundation serves read-only metadata and clickable member lists', as
   await app.stop()
   rmSync(directory, { recursive: true, force: true })
 })
+test('group pagination uses the effective prefix and memberinfo accepts a quoted member', async () => {
+  const core = new FakeGroupCore()
+  core.metadata = {
+    ...core.metadata,
+    participants: Array.from({ length: 26 }, (_, index) => ({
+      jid: `628120000${String(index + 1).padStart(3, '0')}@s.whatsapp.net`,
+      role: index === 0 ? 'admin' : 'member',
+    })),
+  }
+  const directory = mkdtempSync(join(tmpdir(), 'allybot-group-ux-test-'))
+  const configuration = new GroupConfigurationService(join(directory, 'core.sqlite'), logger)
+  const app = new ApplicationFramework(
+    { commandPrefix: '!', defaultCooldownMs: 0 },
+    logger,
+    core,
+    {
+      prefixResolver: (message, services, fallback) => message.remoteJid.endsWith('@g.us')
+        ? services.get('group-configuration').resolvePrefix(message.remoteJid, fallback)
+        : fallback,
+    },
+  )
+  app.registerService(configuration)
+  app.registerPlugin(groupPlugin)
+  await app.start()
+  configuration.setPrefix(core.metadata.jid, '##', '628120000001@s.whatsapp.net')
+
+  await core.emitMessage({
+    id: 'members-custom-prefix',
+    remoteJid: core.metadata.jid,
+    senderJid: '628120000003@s.whatsapp.net',
+    text: '##members',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[0].text, /Ketik ##members 2 untuk halaman berikutnya/)
+
+  await core.emitMessage({
+    id: 'memberinfo-quoted',
+    remoteJid: core.metadata.jid,
+    senderJid: '628120000003@s.whatsapp.net',
+    quotedSenderJid: core.metadata.participants[0].jid,
+    text: '##memberinfo',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[1].text, /Admin/)
+
+  await app.stop()
+  rmSync(directory, { recursive: true, force: true })
+})

@@ -284,7 +284,7 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
           .filter((target): target is { targetJid: string; record: AfkRecord } => Boolean(target.record))
 
         await Promise.allSettled(targets.map(async ({ targetJid, record }) => {
-          afk.recordMention(
+          const mention = afk.recordMentionWithResult(
             targetJid,
             senderJid,
             message.remoteJid,
@@ -293,7 +293,7 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
             message.text,
             message.quotedText,
           )
-          const mention = afk.getMentions(targetJid)[0]
+          if (!mention) return
           await whatsapp.sendText(
             message.remoteJid,
             formatMentionNotice(record, now),

@@ -75,6 +75,7 @@ export class CommandRegistry implements CommandRegistryLike {
   }
 
   async dispatch(message: CoreMessage): Promise<boolean> {
+    if (message.fromMe) return false
     const text = message.text?.trim()
     const prefix = this.prefixResolver(message, this.services, this.config.commandPrefix)
     const inputPrefix = [prefix, this.config.commandPrefix].find((candidate, index, candidates) =>
