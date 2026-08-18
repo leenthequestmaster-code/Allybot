@@ -86,3 +86,22 @@ test('WhatsApp adapter profile-picture lookup falls back when upstream returns a
 
   assert.equal(await connection.getProfilePictureUrl('6283197859955@s.whatsapp.net'), undefined)
 })
+
+test('WhatsApp adapter profile-picture failures log only a safe error name', async () => {
+  const logs = []
+  const connection = new WhatsAppConnection({}, {}, {
+    debug(payload, message) { logs.push({ payload, message }) },
+  })
+  connection.socket = {
+    user: { id: 'bot@s.whatsapp.net' },
+    profilePictureUrl: async () => {
+      throw new Error('profile request failed for 6283197859955@s.whatsapp.net token=example-token')
+    },
+  }
+  connection.status = 'connected'
+
+  assert.equal(await connection.getProfilePictureUrl('6283197859955@s.whatsapp.net'), undefined)
+  assert.deepEqual(logs[0].payload, { errorName: 'Error' })
+  assert.equal(JSON.stringify(logs).includes('6283197859955@s.whatsapp.net'), false)
+  assert.equal(JSON.stringify(logs).includes('example-token'), false)
+})

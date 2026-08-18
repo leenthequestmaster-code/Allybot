@@ -269,7 +269,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       })
       return safeUrl
     } catch (error) {
-      this.logger.debug({ err: error }, 'profile picture lookup unavailable')
+      this.logger.debug({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'profile picture lookup unavailable')
       this.profilePictureCache.set(cacheKey, {
         expiresAt: Date.now() + 30_000,
       })

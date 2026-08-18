@@ -98,7 +98,7 @@ export const technicalPlugin: Plugin = {
               return
             }
           } catch (error) {
-            commandContext.logger.debug({ err: error }, 'owner profile image delivery unavailable')
+            commandContext.logger.debug({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'owner profile image delivery unavailable')
           }
         }
         await commandContext.reply(ownerProfileText('tidak tersedia; text fallback digunakan'))

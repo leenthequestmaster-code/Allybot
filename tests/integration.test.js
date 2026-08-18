@@ -190,3 +190,28 @@ test('Public owner profile is available to non-owner callers in a group without 
     await app.stop()
   }
 })
+
+test('Public owner profile image failure uses text fallback without raw error logging', async () => {
+  const commands = []
+  const logs = []
+  technicalPlugin.load({
+    commands: { register(command) { commands.push(command) } },
+  })
+  const owner = commands.find((command) => command.name === 'owner')
+  const replies = []
+  await owner.handler({
+    message: { remoteJid: 'chat@s.whatsapp.net', timestamp: Date.now() },
+    config: { botOwnerJid: '6283197859955@s.whatsapp.net' },
+    prefix: '!',
+    whatsapp: {
+      getProfilePictureUrl: async () => 'https://cdn.example.test/owner.jpg',
+      sendImage: async () => { throw new Error('relay failed for token=example-token') },
+    },
+    logger: { debug(payload, message) { logs.push({ payload, message }) } },
+    reply: async (text) => replies.push(text),
+  })
+
+  assert.match(replies[0], /text fallback digunakan/)
+  assert.deepEqual(logs[0].payload, { errorName: 'Error' })
+  assert.equal(JSON.stringify(logs).includes('example-token'), false)
+})
