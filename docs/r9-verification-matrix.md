@@ -23,7 +23,7 @@
 | Platform parity | `npm run verify:platform` | `Platform parity verified: 16 source modules have compiled output` | Pass |
 | Focused regression | `node --test tests/r9-event.test.js` | 12 tests, 0 failures | Pass |
 | Full regression | `npm test` | 179 tests, 0 failures | Pass |
-| CI parity and artifact | GitHub Actions typecheck/build/parity/regression; sanitized artifact only | CI run `32174244291` success; archive SHA256 `b63e32e235308ff59b82200930585cfe4d07e96ccbf51a93c8afbe12b2803673`; contents limited to dist and package manifests | Pass |
+| CI parity and artifact | GitHub Actions typecheck/build/parity/regression; sanitized artifact only | Implementation CI run `32174244291` success; closeout CI run `32175263206` success; archive SHA256 `b63e32e235308ff59b82200930585cfe4d07e96ccbf51a93c8afbe12b2803673`; contents limited to dist and package manifests | Pass |
 | Panel deployment | Artifact CI commit yang sama, decompress HTTP 204, archive cleanup, restart, `event storage initialized`, smoke | Commit `e9d3ff1`; decompress HTTP 204; archive absent after cleanup; fresh console showed `component:"event" msg:"event storage initialized"`; runtime online | Pass |
 | Startup command integrity | Read-only Panel Startup page after deployment | `clear; neofetch; ulimit -c 0; exec /bin/bash -l` unchanged; Docker image remains NodeJS 22 | Pass |
 | WhatsApp black-box | Final acceptance setelah R11 sesuai roadmap | Explicitly deferred | Deferred |
