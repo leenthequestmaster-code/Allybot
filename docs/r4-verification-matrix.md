@@ -10,11 +10,11 @@
 | Cross-group/short prefix fail closed | `R4 source prefixes are group-scoped...` | Pass | Pass |
 | Sensitive/oversized input rejection | `R4 rejects sensitive-looking...` | Pass | Pass |
 | Plugin default-off/admin/explicit reply | `R4 plugin is default-off...` | Pass | Pass |
-| Type compatibility | `npm run typecheck` | Pass | Pending final gate |
-| Clean compiled output | `npm run build` + parity | Pass | Pending final gate |
-| Full regression | `npm test` | No regression | Pending final gate |
-| Artifact hygiene | CI sanitized artifact scan | No secret/session/db/node_modules | Pending CI |
-| Production runtime | Panel restart/smoke | Stable runtime | Pending deployment |
+| Type compatibility | `npm run typecheck` | Pass | Pass |
+| Clean compiled output | `npm run build` + parity | Pass | Pass |
+| Full regression | `npm test` | No regression | Pass |
+| Artifact hygiene | CI sanitized artifact scan | No secret/session/db/node_modules | Pass |
+| Production runtime | Panel restart/smoke | Stable runtime | Pass with WhatsApp black-box acceptance deferred |
 
 ## Limitation
 
