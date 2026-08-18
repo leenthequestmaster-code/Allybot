@@ -9,6 +9,7 @@ import { createAfkPlugin } from './framework/plugins/afk.js'
 import { menuPlugin } from './framework/plugins/menu.js'
 import { createWelcomeLeavePlugin } from './framework/plugins/welcome-leave.js'
 import { groupPlugin } from './framework/plugins/group.js'
+import { createGroupSafetyPlugin } from './framework/plugins/group-safety.js'
 import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-mission.js'
 import { createLogger } from './logger.js'
 import { createPermissionResolver } from './permissions.js'
@@ -17,6 +18,7 @@ import { AfkService } from './services/afk-service.js'
 import { GroupConfigurationService } from './services/group-configuration-service.js'
 import { DeveloperModeService } from './services/developer-mode-service.js'
 import { PlatformGuardrailService } from './services/platform-guardrail-service.js'
+import { GroupSafetyService } from './services/group-safety-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 
 async function main(): Promise<void> {
@@ -54,12 +56,14 @@ async function main(): Promise<void> {
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
+  framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(developerModePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)
   framework.registerPlugin(menuPlugin)
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(groupPlugin)
+  framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(createAfkPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework)
