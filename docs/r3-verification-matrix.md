@@ -12,11 +12,11 @@
 | Task creator/assignee ownership | `R3 task completion enforces...` | Pass | Pass |
 | Decision group isolation | `R3 decisions are explicit...` | Pass | Pass |
 | Plugin admin gate/default-off/text fallback | `R3 plugin is default-off...` | Pass | Pass |
-| Type compatibility | `npm run typecheck` | Pass | Pending final gate |
-| Deterministic compiled output | `npm run build` + parity | Pass | Pending final gate |
-| Full regression | `npm test` | No regression | Pending final gate |
-| Artifact hygiene | CI sanitized artifact scan | No secret/session/db/node_modules | Pending CI |
-| Production runtime | Panel restart/smoke | Stable online runtime | Pending deployment |
+| Type compatibility | `npm run typecheck` + CI | Pass | Pass |
+| Deterministic compiled output | `npm run build` + CI parity | Pass | Pass |
+| Full regression | `npm test` + CI run `32160899143` | 113 pass, 0 fail, 0 cancelled | Pass |
+| Artifact hygiene | CI artifact `50a3a89` scan | No secret/session/db/node_modules; source module `dist/platform/sessions.*` classified correctly | Pass |
+| Production runtime | Panel extraction/restart/smoke | Runtime online, memory/network non-zero, R3 services initialized | Pass with WhatsApp black-box acceptance deferred |
 
 ## Limitations
 
