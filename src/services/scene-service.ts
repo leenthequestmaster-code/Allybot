@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
@@ -115,6 +115,10 @@ function validateSceneReference(value: string): string {
   const normalized = value.trim()
   if (!isSafeIdentifier(normalized) || normalized.length > 64) throw new Error('scene id must be a safe identifier')
   return normalized
+}
+
+function hashReference(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 16)
 }
 
 function normalizeTitle(value: string): string {
@@ -334,7 +338,7 @@ export class SceneService implements Service {
     `).run(scene.id, userJid, existing?.joinedAt ?? now, now)
     this.database().prepare(`UPDATE scene_consents SET enabled = 0, expires_at = NULL, updated_at = ? WHERE scene_id = ? AND user_jid = ?`).run(now, scene.id, userJid)
     const participant = this.getParticipant(scene.id, userJid) as SceneParticipantRecord
-    this.audit('scene.participant.joined', userJid, groupJid, 'changed', { sceneId: scene.id.slice(0, 8) })
+    this.audit('scene.participant.joined', userJid, groupJid, 'changed', { sceneRefHash: hashReference(scene.id) })
     return participant
   }
 
@@ -349,7 +353,7 @@ export class SceneService implements Service {
     const result = this.database().prepare(`UPDATE scene_participants SET status = 'left', mode = 'ooc', left_at = ?, updated_at = ? WHERE scene_id = ? AND user_jid = ? AND status = 'active'`).run(now, now, scene.id, userJid)
     if (result.changes === 1) {
       this.database().prepare(`UPDATE scene_consents SET enabled = 0, expires_at = NULL, updated_at = ? WHERE scene_id = ? AND user_jid = ?`).run(now, scene.id, userJid)
-      this.audit('scene.participant.left', userJid, groupJid, 'changed', { sceneId: scene.id.slice(0, 8) })
+      this.audit('scene.participant.left', userJid, groupJid, 'changed', { sceneRefHash: hashReference(scene.id) })
     }
     return result.changes === 1
   }
@@ -448,7 +452,7 @@ export class SceneService implements Service {
     const result = this.database().prepare(`UPDATE scene_records SET status = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND group_jid = ? AND status = ? AND revision = ?`).run(target, now, scene.id, groupJid, scene.status, scene.revision)
     if (result.changes !== 1) throw new Error('Scene revision is stale')
     const updated = this.requireScene(groupJid, scene.id)
-    this.audit(eventType, actorJid, groupJid, outcome, { sceneId: scene.id.slice(0, 8) })
+    this.audit(eventType, actorJid, groupJid, outcome, { sceneRefHash: hashReference(scene.id) })
     return updated
   }
 

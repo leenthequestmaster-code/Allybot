@@ -70,6 +70,10 @@ function hashIdentifier(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
 
+function hashReference(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 16)
+}
+
 function normalizeText(value: string, maxLength: number, field: string): string {
   const normalized = value.trim()
   if (!normalized) throw new Error(`${field} must not be empty`)
@@ -220,7 +224,7 @@ export class KnowledgeService implements Service {
       return this.getSource(id, now)
     })()
     if (!record) throw new Error('Failed to create knowledge bookmark')
-    this.audit('knowledge.bookmark.created', input.creatorJid, input.groupJid, 'changed', { sourceId: id, visibility, excerptLength: excerpt.length, retentionMs })
+    this.audit('knowledge.bookmark.created', input.creatorJid, input.groupJid, 'changed', { sourceRefHash: hashReference(id), visibility, excerptLength: excerpt.length, retentionMs })
     return record
   }
 
@@ -262,7 +266,7 @@ export class KnowledgeService implements Service {
     const result = this.database().prepare(`UPDATE knowledge_sources SET status = 'deleted', deleted_at = ?, deleted_by = ?, excerpt = '', excerpt_hash = '' WHERE id = ? AND group_jid = ? AND status = 'active'`).run(now, actorJid, record.id, groupJid)
     if (result.changes !== 1) return undefined
     const deleted = this.getSource(record.id, now)
-    this.audit('knowledge.bookmark.deleted', actorJid, groupJid, 'changed', { sourceId: record.id })
+    this.audit('knowledge.bookmark.deleted', actorJid, groupJid, 'changed', { sourceRefHash: hashReference(record.id) })
     return deleted
   }
 
@@ -275,7 +279,7 @@ export class KnowledgeService implements Service {
     const result = this.database().prepare(`UPDATE knowledge_sources SET status = 'retired' WHERE id = ? AND group_jid = ? AND status = 'active'`).run(record.id, groupJid)
     if (result.changes !== 1) return undefined
     const retired = this.getSource(record.id, now)
-    this.audit('knowledge.bookmark.retired', actorJid, groupJid, 'changed', { sourceId: record.id })
+    this.audit('knowledge.bookmark.retired', actorJid, groupJid, 'changed', { sourceRefHash: hashReference(record.id) })
     return retired
   }
 
