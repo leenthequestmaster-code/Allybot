@@ -113,12 +113,20 @@ test('Technical commands provide routed ping, safe profile, and owner-only cache
   assert.equal(core.sent[1].text.includes('owner@s.whatsapp.net'), false)
   assert.equal(core.sent[1].text.includes('databasePath'), false)
 
+  await core.emitMessage({ id: 'owner-profile', remoteJid: 'chat@s.whatsapp.net', senderJid: 'stranger@s.whatsapp.net', text: '!owner', timestamp: Date.now(), fromMe: false })
+  assert.match(core.sent[2].text, /Allybot Owner Profile/)
+  assert.match(core.sent[2].text, /Status: configured/)
+  assert.match(core.sent[2].text, /Public identity: redacted/)
+  assert.equal(core.sent[2].text.includes('owner@s.whatsapp.net'), false)
+  assert.equal(core.sent[2].text.includes('6283197859955'), false)
+  assert.equal(core.sent[2].text.includes('password'), false)
+
   await core.emitMessage({ id: 'clearcache-denied', remoteJid: 'chat@s.whatsapp.net', senderJid: 'stranger@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
-  assert.match(core.sent[2].text, /hanya tersedia untuk owner Allybot/)
+  assert.match(core.sent[3].text, /hanya tersedia untuk owner Allybot/)
 
   await core.emitMessage({ id: 'clearcache', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
-  assert.match(core.sent[3].text, /Duplicate-message cache: 3 entry/)
-  assert.match(core.sent[3].text, /Auth\/session\/database: tidak disentuh/)
+  assert.match(core.sent[4].text, /Duplicate-message cache: 3 entry/)
+  assert.match(core.sent[4].text, /Auth\/session\/database: tidak disentuh/)
   await app.stop()
 })
 
@@ -152,4 +160,31 @@ test('Plugin ready hooks follow dependency order', async () => {
   await app.start()
   assert.deepEqual(readyOrder, ['base', 'dependent'])
   await app.stop()
+})
+
+test('Public owner profile is available to non-owner callers in a group without identity disclosure', async () => {
+  const core = new FakeCore()
+  const app = new ApplicationFramework(
+    { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: 'owner@s.whatsapp.net' },
+    logger,
+    core,
+  )
+  app.registerPlugin(technicalPlugin)
+  await app.start()
+
+  try {
+    await core.emitMessage({
+      id: 'owner-profile-group',
+      remoteJid: '120363000000000000@g.us',
+      senderJid: 'stranger@s.whatsapp.net',
+      text: '!owner',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    assert.match(core.sent[0].text, /Allybot Owner Profile/)
+    assert.match(core.sent[0].text, /Control plane: protected/)
+    assert.equal(core.sent[0].text.includes('owner@s.whatsapp.net'), false)
+  } finally {
+    await app.stop()
+  }
 })

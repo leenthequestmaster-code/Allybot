@@ -28,6 +28,21 @@ function formatLatency(context: CommandContext): number {
   return Math.max(0, Date.now() - receivedAt)
 }
 
+function ownerProfileText(context: CommandContext): string {
+  return [
+    '👤 *Allybot Owner Profile*',
+    '',
+    '↳ Role: System Owner',
+    `↳ Status: ${context.config.botOwnerJid ? 'configured' : 'not configured'}`,
+    '↳ Control plane: protected',
+    '↳ Public identity: redacted',
+    '↳ Contact details: redacted',
+    '↳ Human online presence: not exposed',
+    '',
+    'Owner JID, phone number, credentials, and private profile data are not exposed by this command.',
+  ].join('\n')
+}
+
 function profileText(context: CommandContext): string {
   return [
     '🤖 *Allybot Profile*',
@@ -63,6 +78,17 @@ export const technicalPlugin: Plugin = {
           `↳ Connection: ${connectionStatus(commandContext)}`,
           `↳ Uptime: ${formatUptime(process.uptime())}`,
         ].join('\n'))
+      },
+    })
+
+    context.commands.register({
+      name: 'owner',
+      description: 'Show the safe public Owner profile and control-plane status',
+      category: 'system',
+      menuOrder: 5,
+      cooldownMs: 3000,
+      handler: async (commandContext) => {
+        await commandContext.reply(ownerProfileText(commandContext))
       },
     })
 
