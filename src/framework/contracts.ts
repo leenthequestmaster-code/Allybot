@@ -99,6 +99,7 @@ export interface WhatsAppPort {
   groupParticipantsUpdate?(groupJid: string, participantJids: readonly string[], action: GroupModerationAction): Promise<readonly WhatsAppGroupParticipantActionResult[]>
   groupSettingUpdate?(groupJid: string, setting: GroupSettingValue): Promise<void>
   getGroupInviteLink(groupJid: string): Promise<string | undefined>
+  groupRevokeInvite?(groupJid: string): Promise<string | undefined>
   clearRuntimeCaches?(): RuntimeCacheClearResult
   getProfilePictureUrl?(jid: string, type?: 'preview' | 'image', timeoutMs?: number): Promise<string | undefined>
   sendImage?(remoteJid: string, imageUrl: string, caption?: string): Promise<void>

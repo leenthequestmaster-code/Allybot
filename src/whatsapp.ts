@@ -424,6 +424,18 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     return code ? `https://chat.whatsapp.com/${code}` : undefined
   }
 
+  async groupRevokeInvite(groupJid: string): Promise<string | undefined> {
+    if (!groupJid.endsWith('@g.us')) throw new Error('group invite revoke is only available for WhatsApp groups')
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    try {
+      return await withTimeout(socket.groupRevokeInvite(groupJid), 20_000, 'group invite revoke')
+    } catch (error) {
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'group invite revoke failed')
+      throw error
+    }
+  }
+
   private async resolveGroupName(remoteJid: string): Promise<string | undefined> {
     if (!remoteJid.endsWith('@g.us')) return undefined
 
