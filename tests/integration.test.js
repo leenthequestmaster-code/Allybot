@@ -115,10 +115,11 @@ test('Technical commands provide routed ping, safe profile, and owner-only cache
 
   await core.emitMessage({ id: 'owner-profile', remoteJid: 'chat@s.whatsapp.net', senderJid: 'stranger@s.whatsapp.net', text: '!owner', timestamp: Date.now(), fromMe: false })
   assert.match(core.sent[2].text, /Allybot Owner Profile/)
-  assert.match(core.sent[2].text, /Status: configured/)
-  assert.match(core.sent[2].text, /Public identity: redacted/)
+  assert.match(core.sent[2].text, /Nama: Vallen/)
+  assert.match(core.sent[2].text, /Status: Owner/)
+  assert.match(core.sent[2].text, /Nomor HP: 083197859955/)
+  assert.match(core.sent[2].text, /text fallback digunakan/)
   assert.equal(core.sent[2].text.includes('owner@s.whatsapp.net'), false)
-  assert.equal(core.sent[2].text.includes('6283197859955'), false)
   assert.equal(core.sent[2].text.includes('password'), false)
 
   await core.emitMessage({ id: 'clearcache-denied', remoteJid: 'chat@s.whatsapp.net', senderJid: 'stranger@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
@@ -183,6 +184,7 @@ test('Public owner profile is available to non-owner callers in a group without 
     })
     assert.match(core.sent[0].text, /Allybot Owner Profile/)
     assert.match(core.sent[0].text, /Control plane: protected/)
+    assert.match(core.sent[0].text, /Nomor HP: 083197859955/)
     assert.equal(core.sent[0].text.includes('owner@s.whatsapp.net'), false)
   } finally {
     await app.stop()

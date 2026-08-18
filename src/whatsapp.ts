@@ -40,6 +40,9 @@ function extractMessageText(message: WAMessage['message'] | null | undefined): s
   return text ?? undefined
 }
 
+const PROFILE_PICTURE_TIMEOUT_MS = 5_000
+const PROFILE_PICTURE_CACHE_TTL_MS = 5 * 60_000
+
 function nativeFlowAdditionalNodes(remoteJid: string) {
   const nodes: BinaryNode[] = [
     {
@@ -169,6 +172,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private lastActivityAt = Date.now()
   private readonly seenMessages = new Map<string, number>()
   private readonly groupNameCache = new Map<string, { name: string; expiresAt: number }>()
+  private readonly profilePictureCache = new Map<string, { url?: string; expiresAt: number }>()
   private readonly messageListeners = new Set<(message: CoreMessage) => Promise<void> | void>()
   private readonly groupParticipantListeners = new Set<(event: CoreGroupParticipantUpdate) => Promise<void> | void>()
   private readonly connectionListeners = new Set<(event: CoreConnectionState) => Promise<void> | void>()
@@ -202,6 +206,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     }
     this.seenMessages.clear()
     this.groupNameCache.clear()
+    this.profilePictureCache.clear()
     retryCache.flushAll()
     return result
   }
@@ -228,6 +233,57 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       ? { text, mentions: [...options.mentions], linkPreview: null }
       : { text, linkPreview: null }
     await withTimeout(socket.sendMessage(remoteJid, content), 20000, 'framework text response')
+  }
+
+  async getProfilePictureUrl(jid: string, type: 'preview' | 'image' = 'image', timeoutMs = PROFILE_PICTURE_TIMEOUT_MS): Promise<string | undefined> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) return undefined
+
+    let normalizedJid: string
+    try {
+      normalizedJid = jidNormalizedUser(jid)
+    } catch {
+      return undefined
+    }
+
+    const cacheKey = `${normalizedJid}:${type}`
+    const cached = this.profilePictureCache.get(cacheKey)
+    if (cached && cached.expiresAt > Date.now()) return cached.url
+    this.profilePictureCache.delete(cacheKey)
+
+    const boundedTimeout = Number.isFinite(timeoutMs)
+      ? Math.max(1_000, Math.min(Math.floor(timeoutMs), 10_000))
+      : PROFILE_PICTURE_TIMEOUT_MS
+
+    try {
+      const url = await withTimeout(
+        socket.profilePictureUrl(normalizedJid, type, boundedTimeout),
+        boundedTimeout,
+        'profile picture lookup',
+      )
+      const parsed = url ? new URL(url) : undefined
+      const safeUrl = parsed?.protocol === 'https:' ? parsed.toString() : undefined
+      this.profilePictureCache.set(cacheKey, {
+        url: safeUrl,
+        expiresAt: Date.now() + PROFILE_PICTURE_CACHE_TTL_MS,
+      })
+      return safeUrl
+    } catch (error) {
+      this.logger.debug({ err: error }, 'profile picture lookup unavailable')
+      this.profilePictureCache.set(cacheKey, {
+        expiresAt: Date.now() + 30_000,
+      })
+      return undefined
+    }
+  }
+
+  async sendImage(remoteJid: string, imageUrl: string, caption?: string): Promise<void> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const parsed = new URL(imageUrl)
+    if (parsed.protocol !== 'https:') throw new Error('Image URL must use HTTPS')
+    const content = caption ? { image: { url: parsed.toString() }, caption } : { image: { url: parsed.toString() } }
+    await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework image response')
   }
 
   async sendNativeQuickReplies(remoteJid: string, payload: NativeQuickReplyPayload): Promise<void> {

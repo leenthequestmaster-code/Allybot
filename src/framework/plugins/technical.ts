@@ -28,18 +28,17 @@ function formatLatency(context: CommandContext): number {
   return Math.max(0, Date.now() - receivedAt)
 }
 
-function ownerProfileText(context: CommandContext): string {
+function ownerProfileText(photoStatus: string): string {
   return [
     '👤 *Allybot Owner Profile*',
     '',
-    '↳ Role: System Owner',
-    `↳ Status: ${context.config.botOwnerJid ? 'configured' : 'not configured'}`,
+    '↳ Nama: Vallen',
+    '↳ Status: Owner',
+    '↳ Nomor HP: 083197859955',
     '↳ Control plane: protected',
-    '↳ Public identity: redacted',
-    '↳ Contact details: redacted',
-    '↳ Human online presence: not exposed',
+    `↳ Foto profil: ${photoStatus}`,
     '',
-    'Owner JID, phone number, credentials, and private profile data are not exposed by this command.',
+    'Profile ini dipublikasikan sesuai otorisasi Owner. Credential, database, session, dan JID internal tetap tidak ditampilkan.',
   ].join('\n')
 }
 
@@ -88,7 +87,21 @@ export const technicalPlugin: Plugin = {
       menuOrder: 5,
       cooldownMs: 3000,
       handler: async (commandContext) => {
-        await commandContext.reply(ownerProfileText(commandContext))
+        const ownerJid = commandContext.config.botOwnerJid
+        const getProfilePictureUrl = commandContext.whatsapp.getProfilePictureUrl
+        const sendImage = commandContext.whatsapp.sendImage
+        if (ownerJid && getProfilePictureUrl && sendImage) {
+          try {
+            const imageUrl = await getProfilePictureUrl(ownerJid, 'image', 5_000)
+            if (imageUrl) {
+              await sendImage(commandContext.message.remoteJid, imageUrl, ownerProfileText('terlampir'))
+              return
+            }
+          } catch (error) {
+            commandContext.logger.debug({ err: error }, 'owner profile image delivery unavailable')
+          }
+        }
+        await commandContext.reply(ownerProfileText('tidak tersedia; text fallback digunakan'))
       },
     })
 

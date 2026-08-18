@@ -47,3 +47,42 @@ test('WhatsApp adapter ignores malformed or oversized native-flow params', () =>
     nativeFlowResponseMessage: { paramsJson: JSON.stringify({ url: 'https://example.test' }) },
   } })), undefined)
 })
+
+test('WhatsApp adapter caches profile-picture lookup and rejects non-HTTPS URLs', async () => {
+  const logger = { debug() {} }
+  const connection = new WhatsAppConnection({}, {}, logger)
+  let calls = 0
+  const sent = []
+  connection.socket = {
+    user: { id: 'bot@s.whatsapp.net' },
+    profilePictureUrl: async () => {
+      calls += 1
+      return 'https://cdn.example.test/owner.jpg'
+    },
+    sendMessage: async (remoteJid, content) => {
+      sent.push({ remoteJid, content })
+      return {}
+    },
+  }
+  connection.status = 'connected'
+
+  assert.equal(await connection.getProfilePictureUrl('6283197859955@s.whatsapp.net'), 'https://cdn.example.test/owner.jpg')
+  assert.equal(await connection.getProfilePictureUrl('6283197859955@s.whatsapp.net'), 'https://cdn.example.test/owner.jpg')
+  assert.equal(calls, 1)
+
+  await connection.sendImage('chat@s.whatsapp.net', 'https://cdn.example.test/owner.jpg', 'Owner Vallen')
+  assert.equal(sent[0].remoteJid, 'chat@s.whatsapp.net')
+  assert.equal(sent[0].content.caption, 'Owner Vallen')
+  await assert.rejects(() => connection.sendImage('chat@s.whatsapp.net', 'http://cdn.example.test/owner.jpg'))
+})
+
+test('WhatsApp adapter profile-picture lookup falls back when upstream returns an unsafe URL', async () => {
+  const connection = new WhatsAppConnection({}, {}, { debug() {} })
+  connection.socket = {
+    user: { id: 'bot@s.whatsapp.net' },
+    profilePictureUrl: async () => 'http://insecure.example.test/owner.jpg',
+  }
+  connection.status = 'connected'
+
+  assert.equal(await connection.getProfilePictureUrl('6283197859955@s.whatsapp.net'), undefined)
+})

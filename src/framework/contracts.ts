@@ -84,6 +84,8 @@ export interface WhatsAppPort {
   getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata>
   getGroupInviteLink(groupJid: string): Promise<string | undefined>
   clearRuntimeCaches?(): RuntimeCacheClearResult
+  getProfilePictureUrl?(jid: string, type?: 'preview' | 'image', timeoutMs?: number): Promise<string | undefined>
+  sendImage?(remoteJid: string, imageUrl: string, caption?: string): Promise<void>
   start(): Promise<void>
   close(): Promise<void>
 }
