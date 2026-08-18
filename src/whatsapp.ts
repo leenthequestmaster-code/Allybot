@@ -19,7 +19,10 @@ import type {
   CoreConnectionState,
   CoreConnectionStatus,
   CoreGroupParticipantUpdate,
+  GroupModerationAction,
+  GroupSettingValue,
   RuntimeCacheClearResult,
+  WhatsAppGroupParticipantActionResult,
   CoreMessage,
   GroupParticipantRole,
   WhatsAppGroupMetadata,
@@ -344,6 +347,47 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       ...(ownerJid ? { ownerJid } : {}),
       ...(description ? { description } : {}),
       participants,
+    }
+  }
+
+  async groupParticipantsUpdate(
+    groupJid: string,
+    participantJids: readonly string[],
+    action: GroupModerationAction,
+  ): Promise<readonly WhatsAppGroupParticipantActionResult[]> {
+    if (!groupJid.endsWith('@g.us')) throw new Error('group participant update is only available for WhatsApp groups')
+    if (participantJids.length < 1 || participantJids.length > 20) throw new Error('group participant update target count is out of bounds')
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+
+    const resolvePnForLid = (lid: string) => socket.signalRepository.lidMapping.getPNForLID(lid)
+    const normalizedJids = [...new Set(await Promise.all(participantJids.map((jid) => normalizeContactJid(jid, resolvePnForLid))))]
+    if (normalizedJids.length === 0) throw new Error('group participant update requires at least one target')
+
+    try {
+      const results = await withTimeout(socket.groupParticipantsUpdate(groupJid, normalizedJids, action), 20_000, 'group participant update')
+      return Promise.all(results.map(async (result, index) => ({
+        participantJid: result.jid
+          ? await normalizeContactJid(result.jid, resolvePnForLid)
+          : normalizedJids[index] ?? 'unknown',
+        status: result.status === '200' ? 'ok' : (typeof result.status === 'string' && result.status ? result.status : 'unknown'),
+      })))
+    } catch (error) {
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'group participant update failed')
+      throw error
+    }
+  }
+
+  async groupSettingUpdate(groupJid: string, setting: GroupSettingValue): Promise<void> {
+    if (!groupJid.endsWith('@g.us')) throw new Error('group setting update is only available for WhatsApp groups')
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+
+    try {
+      await withTimeout(socket.groupSettingUpdate(groupJid, setting), 20_000, 'group setting update')
+    } catch (error) {
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'group setting update failed')
+      throw error
     }
   }
 

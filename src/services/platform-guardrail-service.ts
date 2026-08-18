@@ -396,7 +396,7 @@ export class PlatformGuardrailService implements Service {
 
   private validateGroupAndFeature(groupJid: string, featureId: string): void {
     if (!isJid(groupJid) || !groupJid.endsWith('@g.us')) throw new Error('Feature flag groupJid must be a group JID')
-    validateIdentifier(featureId, 'feature id')
+    validateFeatureIdentifier(featureId, 'feature id')
   }
 
   private database(): Database.Database {
@@ -445,4 +445,8 @@ function mapAuditRow(row: AuditRow): GuardrailAuditRecord {
 
 function validateIdentifier(value: string, field: string): void {
   if (!isSafeIdentifier(value)) throw new Error(`Invalid ${field}: ${value}`)
+}
+
+function validateFeatureIdentifier(value: string, field: string): void {
+  if (!/^[a-z0-9]+(?:[-.][a-z0-9]+)*$/.test(value)) throw new Error(`Invalid ${field}: ${value}`)
 }

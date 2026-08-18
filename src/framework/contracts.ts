@@ -33,6 +33,13 @@ export interface CoreConnectionState {
 }
 
 export type GroupParticipantAction = 'add' | 'remove' | 'promote' | 'demote' | 'modify'
+export type GroupModerationAction = 'add' | 'remove' | 'promote' | 'demote'
+export type GroupSettingValue = 'announcement' | 'not_announcement' | 'locked' | 'unlocked'
+
+export interface WhatsAppGroupParticipantActionResult {
+  readonly participantJid: string
+  readonly status: string
+}
 
 export interface CoreGroupParticipantUpdate {
   readonly groupJid: string
@@ -82,6 +89,8 @@ export interface WhatsAppPort {
     readonly buttons: readonly { readonly id: string; readonly title: string }[]
   }): Promise<void>
   getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata>
+  groupParticipantsUpdate?(groupJid: string, participantJids: readonly string[], action: GroupModerationAction): Promise<readonly WhatsAppGroupParticipantActionResult[]>
+  groupSettingUpdate?(groupJid: string, setting: GroupSettingValue): Promise<void>
   getGroupInviteLink(groupJid: string): Promise<string | undefined>
   clearRuntimeCaches?(): RuntimeCacheClearResult
   getProfilePictureUrl?(jid: string, type?: 'preview' | 'image', timeoutMs?: number): Promise<string | undefined>
