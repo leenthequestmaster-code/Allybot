@@ -18,6 +18,7 @@ import { createPersonalizationPlugin } from './framework/plugins/personalization
 import { createScenePlugin } from './framework/plugins/scene.js'
 import { createCanonPlugin } from './framework/plugins/canon.js'
 import { createGroupGovernancePlugin } from './framework/plugins/group-governance.js'
+import { createEventPlugin } from './framework/plugins/event.js'
 import { createLogger } from './logger.js'
 import { createPermissionResolver } from './permissions.js'
 import { SqliteStorage } from './storage.js'
@@ -33,6 +34,7 @@ import { PersonalizationService } from './services/personalization-service.js'
 import { SceneService } from './services/scene-service.js'
 import { CanonService } from './services/canon-service.js'
 import { GroupGovernanceService } from './services/group-governance-service.js'
+import { EventService } from './services/event-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 
 async function main(): Promise<void> {
@@ -77,6 +79,7 @@ async function main(): Promise<void> {
   framework.registerService(new SceneService(config.DATABASE_PATH, logger))
   framework.registerService(new CanonService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupGovernanceService(config.DATABASE_PATH, logger))
+  framework.registerService(new EventService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(developerModePlugin)
@@ -93,6 +96,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createScenePlugin(whatsapp))
   framework.registerPlugin(createCanonPlugin(whatsapp))
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
+  framework.registerPlugin(createEventPlugin(whatsapp))
   framework.registerPlugin(createAfkPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework)
   await lifecycle.start()
