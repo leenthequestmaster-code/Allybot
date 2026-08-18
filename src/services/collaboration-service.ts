@@ -7,6 +7,7 @@ import type { Service, ServiceContext, WhatsAppPort } from '../framework/contrac
 import { runPlatformOperation } from '../platform/operations.js'
 import { isJid } from '../platform/validation.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
+import { PersonalizationService } from './personalization-service.js'
 
 export type CollaborationPollStatus = 'open' | 'closed' | 'expired'
 export type CollaborationTransportStatus = 'text' | 'native-pending' | 'native-sent' | 'native-failed'
@@ -150,6 +151,8 @@ export class CollaborationService implements Service {
   private readonly logger: Logger
   private db: Database.Database | undefined
   private guardrails: PlatformGuardrailService | undefined
+  private personalization: PersonalizationService | undefined
+  private readonly reminderPolicyAuditKeys = new Set<string>()
   private reminderTimer: NodeJS.Timeout | undefined
   private reminderTransport: WhatsAppPort | undefined
 
@@ -169,6 +172,9 @@ export class CollaborationService implements Service {
 
   initialize(context: ServiceContext): void {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
+    this.personalization = typeof context.services.has === 'function' && context.services.has('personalization')
+      ? context.services.get<PersonalizationService>('personalization')
+      : undefined
     if (this.databasePath !== ':memory:') mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
     this.db = new Database(this.databasePath)
     this.db.pragma('journal_mode = WAL')
@@ -184,6 +190,8 @@ export class CollaborationService implements Service {
     if (this.reminderTimer) clearInterval(this.reminderTimer)
     this.reminderTimer = undefined
     this.reminderTransport = undefined
+    this.personalization = undefined
+    this.reminderPolicyAuditKeys.clear()
     if (this.db?.open) this.db.close()
     this.db = undefined
     this.guardrails = undefined
@@ -421,6 +429,17 @@ export class CollaborationService implements Service {
     let sent = 0
     for (const row of rows) {
       if (!this.isEnabled(row.group_jid)) continue
+      const notification = this.personalization?.evaluateGroupNotification(row.group_jid, now)
+      if (notification && !notification.allowed) {
+        const auditKey = `${row.id}:${notification.reason}`
+        if (!this.reminderPolicyAuditKeys.has(auditKey)) {
+          this.reminderPolicyAuditKeys.add(auditKey)
+          this.audit('collaboration.reminder.limited', row.creator_jid, row.group_jid, 'limited', { reminderId: row.id, reason: notification.reason })
+        }
+        continue
+      }
+      this.reminderPolicyAuditKeys.delete(`${row.id}:quiet-hours`)
+      this.reminderPolicyAuditKeys.delete(`${row.id}:policy-disabled`)
       const claimed = this.database().prepare(`UPDATE collaboration_reminders SET status = 'sent', sent_at = ? WHERE id = ? AND status = 'scheduled'`).run(now, row.id)
       if (claimed.changes !== 1) continue
       const operation = await runPlatformOperation({
@@ -486,7 +505,7 @@ export class CollaborationService implements Service {
     if (!decision.allowed) throw new Error('Collaboration rate limit exceeded')
   }
 
-  private audit(eventType: string, actorJid: string, resourceJid: string, outcome: 'changed' | 'failed' | 'allowed', metadata: Record<string, unknown>): void {
+  private audit(eventType: string, actorJid: string, resourceJid: string, outcome: 'changed' | 'failed' | 'allowed' | 'limited', metadata: Record<string, unknown>): void {
     this.guardrailService().recordAudit({ eventType, namespace: 'allybot', occurredAt: this.clock(), actorJid, resourceJid, outcome, metadata })
   }
 
