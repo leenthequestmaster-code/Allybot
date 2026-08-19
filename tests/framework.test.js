@@ -192,3 +192,40 @@ test('CommandRegistry denies permission before handler execution', async () => {
     text: 'Maaf, kamu belum memiliki izin untuk menggunakan command ini.',
   }])
 })
+
+
+test('ServiceRegistry rejects missing and circular dependencies before initialization', async () => {
+  const missing = new ServiceRegistry(logger)
+  missing.register({ name: 'consumer', dependencies: ['missing-service'], initialize() {} })
+  await assert.rejects(() => missing.initialize({ logger, config }), /Missing service dependency: consumer -> missing-service/)
+
+  const circular = new ServiceRegistry(logger)
+  circular.register({ name: 'alpha', dependencies: ['beta'], initialize() {} })
+  circular.register({ name: 'beta', dependencies: ['alpha'], initialize() {} })
+  await assert.rejects(() => circular.initialize({ logger, config }), /Circular service dependency: alpha/)
+})
+
+test('PluginManager cleans registrations when ready hook fails', async () => {
+  const whatsapp = fakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const commands = new CommandRegistry(config, logger, whatsapp, services, events)
+  const manager = new PluginManager(logger, config, events, commands, services)
+
+  manager.register({
+    name: 'ready-failure',
+    load(context) {
+      context.commands.register({ name: 'ready-failure-command', handler: async () => {} })
+    },
+    ready() {
+      throw new Error('ready failed')
+    },
+  })
+
+  await manager.loadAndInitialize()
+  await manager.ready()
+  assert.equal(manager.list()[0].state, 'failed')
+  assert.equal(commands.get('ready-failure-command'), undefined)
+  await manager.unload()
+  assert.equal(manager.list()[0].state, 'registered')
+})

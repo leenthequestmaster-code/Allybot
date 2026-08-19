@@ -101,6 +101,9 @@ jobs:
             exit 1
           fi
 
+          node scripts/create-release-manifest.mjs .ci-artifact release-manifest.json
+          test -s .ci-artifact/release-manifest.json
+
           (
             cd .ci-artifact
             find . -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
@@ -188,6 +191,8 @@ jobs:
           test -f stage/dist/permissions.js
           test -f stage/package.json
           test -f stage/package-lock.json
+          test -f stage/release-manifest.json
+          test -s stage/release-manifest.json
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)
           if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o -path '*/node_modules/*' -o -path '*/src/*' -o -path '*/tests/*' \) -print -quit | grep -q .; then

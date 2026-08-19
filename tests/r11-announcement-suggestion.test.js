@@ -313,3 +313,86 @@ test('R11 audit records stay redacted and announcement plugin remains text-first
     closeFixture(fixture)
   }
 })
+
+
+test('R11 concurrent approvals have one CAS winner and no duplicate transition', async () => {
+  const fixture = createFixture()
+  try {
+    await fixture.announcements.setEnabled(groupA, adminJid, true, fixture.whatsapp, fixture.now())
+    const preview = await fixture.announcements.preview({ groupJid: groupA, actorJid: adminJid, body: 'Concurrent approval', targetJids: [userA, userB], correlationId: 'r11-concurrent-approve-preview' }, fixture.whatsapp, fixture.now())
+    const [first, second] = await Promise.all([
+      fixture.announcements.approve({ groupJid: groupA, actorJid: adminJid, announcementId: preview.record.id, expectedRevision: 1, correlationId: 'r11-concurrent-approve-a' }, fixture.whatsapp, fixture.now()),
+      fixture.announcements.approve({ groupJid: groupA, actorJid: adminJid, announcementId: preview.record.id, expectedRevision: 1, correlationId: 'r11-concurrent-approve-b' }, fixture.whatsapp, fixture.now()),
+    ])
+
+    const results = [first, second]
+    assert.equal(results.filter((result) => result.kind === 'completed').length, 1)
+    assert.equal(results.filter((result) => result.kind === 'denied' && result.code === 'stale_operation').length, 1)
+    assert.equal(fixture.announcements.getAnnouncement(preview.record.id)?.revision, 2)
+  } finally {
+    closeFixture(fixture)
+  }
+})
+
+test('R11 concurrent dispatchers claim each target at most once', async () => {
+  const fixture = createFixture()
+  try {
+    await fixture.announcements.setEnabled(groupA, adminJid, true, fixture.whatsapp, fixture.now())
+    const preview = await fixture.announcements.preview({ groupJid: groupA, actorJid: adminJid, body: 'Concurrent dispatch', targetJids: [userA, userB], correlationId: 'r11-concurrent-dispatch-preview' }, fixture.whatsapp, fixture.now())
+    await fixture.announcements.approve({ groupJid: groupA, actorJid: adminJid, announcementId: preview.record.id, expectedRevision: 1, correlationId: 'r11-concurrent-dispatch-approve' }, fixture.whatsapp, fixture.now())
+
+    await Promise.all([
+      fixture.announcements.dispatchDueAnnouncements(fixture.whatsapp, fixture.now()),
+      fixture.announcements.dispatchDueAnnouncements(fixture.whatsapp, fixture.now()),
+    ])
+
+    assert.equal(fixture.whatsapp.sent.length, 2)
+    assert.equal(new Set(fixture.whatsapp.sent.map((item) => item.remoteJid)).size, 2)
+    assert.equal(fixture.announcements.getAnnouncement(preview.record.id)?.status, 'sent')
+  } finally {
+    closeFixture(fixture)
+  }
+})
+
+test('R11 duplicate suggestion requests return in-progress while provider call is still bounded', async () => {
+  let providerCalls = 0
+  let providerStarted = () => {}
+  let releaseProvider = () => {}
+  const providerReady = new Promise((resolve) => { providerStarted = resolve })
+  const providerGate = new Promise((resolve) => { releaseProvider = resolve })
+  const fixture = createFixture({
+    provider: async ({ requestText }) => {
+      providerCalls += 1
+      providerStarted()
+      await providerGate
+      return `Saran bounded untuk ${requestText}.`
+    },
+  })
+
+  try {
+    await enableCoreFeatures(fixture)
+    const context = prepareApprovedContext(fixture)
+    const request = {
+      groupJid: groupA,
+      actorJid: userB,
+      sceneReference: context.scene.id,
+      requestText: 'Bantu concurrency',
+      sourceReferences: [context.source.id],
+      correlationId: 'r11-concurrent-suggestion',
+    }
+
+    const firstPromise = fixture.suggestions.request(request, fixture.now())
+    await providerReady
+    const duplicate = await fixture.suggestions.request({ ...request, requestText: 'Different text' }, fixture.now())
+    assert.equal(duplicate.kind, 'denied')
+    assert.equal(duplicate.code, 'in_progress')
+
+    releaseProvider()
+    const first = await firstPromise
+    assert.equal(first.kind, 'completed')
+    assert.equal(providerCalls, 1)
+  } finally {
+    releaseProvider()
+    closeFixture(fixture)
+  }
+})
