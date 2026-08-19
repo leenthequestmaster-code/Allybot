@@ -3,9 +3,17 @@ name: Allybot CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy_panel:
+        description: Deploy the tested artifact to the configured Pterodactyl server
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   verify:
@@ -25,6 +33,7 @@ jobs:
 
       - name: Verify runtime
         run: |
+          set -euo pipefail
           node --version
           node -e "const major = Number(process.versions.node.split('.')[0]); if (major !== 22) { console.error('Node.js 22 is required'); process.exit(1); }"
 
@@ -36,6 +45,7 @@ jobs:
 
       - name: Clean build from source
         run: |
+          set -euo pipefail
           rm -rf dist
           npm run build
 
@@ -44,12 +54,12 @@ jobs:
 
       - name: Validate compiled JavaScript
         run: |
-          set -eu
+          set -euo pipefail
           find dist -type f -name '*.js' -print0 | xargs -0 -n1 node --check
 
       - name: Validate compiled entrypoints
         run: |
-          set -eu
+          set -euo pipefail
           for file in dist/index.js dist/errors.js dist/permissions.js; do
             test -f "$file"
           done
@@ -58,7 +68,7 @@ jobs:
         run: npm test
 
       - name: Upload tested release artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: allybot-dist-${{ github.sha }}
@@ -68,3 +78,265 @@ jobs:
             package-lock.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Package sanitized deployment archive
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v zip >/dev/null
+          command -v unzip >/dev/null
+          rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
+          mkdir -p .ci-artifact/dist
+          cp -a dist/. .ci-artifact/dist/
+          cp package.json package-lock.json .ci-artifact/
+
+          forbidden_files=$(find .ci-artifact -type f \( \
+            -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o \
+            -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \
+            -path '*/node_modules/*' -o -path '*/src/*' -o -path '*/tests/*' \
+          \) -print)
+          if [ -n "$forbidden_files" ]; then
+            printf '%s\n' "$forbidden_files" >&2
+            exit 1
+          fi
+
+          (
+            cd .ci-artifact
+            find . -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+            zip -qr "../allybot-release-${GITHUB_SHA}.zip" .
+          )
+          sha256sum "allybot-release-${GITHUB_SHA}.zip" > "allybot-release-${GITHUB_SHA}.zip.sha256"
+          unzip -t "allybot-release-${GITHUB_SHA}.zip"
+          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
+            echo 'Forbidden path found in sanitized archive' >&2
+            exit 1
+          fi
+
+      - name: Upload sanitized deployment archive
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allybot-release-${{ github.sha }}
+          path: |
+            allybot-release-${{ github.sha }}.zip
+            allybot-release-${{ github.sha }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish artifact-only status
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        run: |
+          {
+            echo '## Deployment status'
+            echo ''
+            echo '- `artifact_deployed`: not attempted in verify job; artifact is available for the optional Panel job.'
+            echo '- `server_started`: not attempted.'
+            echo '- `bot_online_verified`: not attempted; current Panel autostart is intentionally unchanged.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy_panel:
+    name: Optional Pterodactyl artifact sync
+    needs: verify
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PANEL_DEPLOY_ENABLED == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_panel == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: allybot-panel-production
+      cancel-in-progress: false
+
+    env:
+      PANEL_URL: ${{ vars.PANEL_URL }}
+      PTERODACTYL_SERVER_ID: ${{ vars.PTERODACTYL_SERVER_ID }}
+      PTERODACTYL_API_TOKEN: ${{ secrets.PTERODACTYL_API_TOKEN }}
+      ARCHIVE_NAME: allybot-release-${{ github.sha }}.zip
+
+    steps:
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PANEL_URL"
+          test -n "$PTERODACTYL_SERVER_ID"
+          test -n "$PTERODACTYL_API_TOKEN"
+          case "$PANEL_URL" in
+            https://*) ;;
+            *) echo 'PANEL_URL must use HTTPS' >&2; exit 1 ;;
+          esac
+
+      - name: Download sanitized deployment archive
+        uses: actions/download-artifact@v4
+        with:
+          name: allybot-release-${{ github.sha }}
+          path: .deploy
+
+      - name: Verify local archive and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .deploy
+          sha256sum -c "$ARCHIVE_NAME.sha256"
+          unzip -t "$ARCHIVE_NAME"
+          rm -rf stage
+          mkdir stage
+          unzip -q "$ARCHIVE_NAME" -d stage
+          test -f stage/dist/index.js
+          test -f stage/dist/errors.js
+          test -f stage/dist/permissions.js
+          test -f stage/package.json
+          test -f stage/package-lock.json
+          test -f stage/SHA256SUMS.txt
+          (cd stage && sha256sum -c SHA256SUMS.txt)
+          if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o -path '*/node_modules/*' -o -path '*/src/*' -o -path '*/tests/*' \) -print -quit | grep -q .; then
+            echo 'Forbidden file found in deployment archive' >&2
+            exit 1
+          fi
+
+      - name: Upload archive to Panel
+        id: upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          response=$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer ${PTERODACTYL_API_TOKEN}" \
+            -H 'Accept: Application/vnd.pterodactyl.v1+json' \
+            "${api}/files/upload?directory=%2F")
+          upload_url=$(UPLOAD_RESPONSE="$response" node <<'NODE'
+          const parsed = JSON.parse(process.env.UPLOAD_RESPONSE)
+          const url = parsed?.attributes?.url ?? parsed?.data?.attributes?.url
+          if (typeof url !== 'string' || !url.startsWith('https://')) process.exit(1)
+          process.stdout.write(url)
+          NODE
+          )
+          curl --fail-with-body --silent --show-error \
+            -X POST "$upload_url" \
+            -F "file=@.deploy/${ARCHIVE_NAME}"
+          echo "archive_uploaded=true" >> "$GITHUB_OUTPUT"
+
+      - name: Decompress archive on Panel
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          payload=$(ARCHIVE_NAME="$ARCHIVE_NAME" node <<'NODE'
+          process.stdout.write(JSON.stringify({ root: '/', file: process.env.ARCHIVE_NAME }))
+          NODE
+          )
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${PTERODACTYL_API_TOKEN}" \
+            -H 'Accept: Application/vnd.pterodactyl.v1+json' \
+            -H 'Content-Type: application/json' \
+            --data "$payload" \
+            "${api}/files/decompress"
+
+      - name: Verify deployed files against SHA256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          export API_BASE="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          cd .deploy
+          cat > verify-deployed.mjs <<'NODE'
+          import { createHash } from 'node:crypto'
+          import { readFileSync } from 'node:fs'
+
+          const base = process.env.API_BASE
+          const token = process.env.PTERODACTYL_API_TOKEN
+          const manifest = readFileSync('stage/SHA256SUMS.txt', 'utf8')
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+              const match = line.match(/^([a-f0-9]{64})  (.+)$/)
+              if (!match) throw new Error(`Invalid checksum line: ${line}`)
+              return { expected: match[1], path: match[2].replace(/^\.\//, '') }
+            })
+
+          const failures = []
+          let cursor = 0
+          const worker = async () => {
+            while (true) {
+              const index = cursor++
+              if (index >= manifest.length) return
+              const entry = manifest[index]
+              const url = new URL(`${base}/files/contents`)
+              url.searchParams.set('file', `/${entry.path}`)
+              try {
+                const response = await fetch(url, {
+                  headers: {
+                    Accept: 'text/plain, */*',
+                    Authorization: `Bearer ${token}`,
+                  },
+                  signal: AbortSignal.timeout(20_000),
+                })
+                if (!response.ok) throw new Error(`HTTP ${response.status}`)
+                const bytes = Buffer.from(await response.arrayBuffer())
+                const actual = createHash('sha256').update(bytes).digest('hex')
+                if (actual !== entry.expected) throw new Error(`checksum mismatch: ${actual}`)
+              } catch (error) {
+                failures.push(`${entry.path}: ${error instanceof Error ? error.message : String(error)}`)
+              }
+            }
+          }
+
+          await Promise.all(Array.from({ length: Math.min(6, manifest.length) }, () => worker()))
+          if (failures.length > 0) {
+            for (const failure of failures.slice(0, 20)) console.error(failure)
+            process.exit(1)
+          }
+          console.log(`Verified ${manifest.length} deployed files against SHA256 manifest`)
+          NODE
+          node verify-deployed.mjs
+
+      - name: Remove temporary archive and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          payload=$(ARCHIVE_NAME="$ARCHIVE_NAME" node <<'NODE'
+          process.stdout.write(JSON.stringify({ root: '/', files: [process.env.ARCHIVE_NAME, 'SHA256SUMS.txt'] }))
+          NODE
+          )
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${PTERODACTYL_API_TOKEN}" \
+            -H 'Accept: Application/vnd.pterodactyl.v1+json' \
+            -H 'Content-Type: application/json' \
+            --data "$payload" \
+            "${api}/files/delete"
+
+      - name: Publish artifact sync status
+        run: |
+          {
+            echo '## Deployment status'
+            echo ''
+            echo '- `artifact_deployed`: verified by remote SHA256 manifest.'
+            echo '- `server_started`: not attempted; power state is not mutated by default.'
+            echo '- `bot_online_verified`: not attempted; `.bash_profile` and Startup Command remain unchanged.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deployment-summary:
+    name: Deployment summary
+    if: always()
+    needs: [verify, deploy_panel]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize gates
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          DEPLOY_RESULT: ${{ needs.deploy_panel.result }}
+        run: |
+          {
+            echo '## CI/CD gate summary'
+            echo ''
+            echo "- verify: ${VERIFY_RESULT}"
+            echo "- optional Panel artifact sync: ${DEPLOY_RESULT}"
+            if [ "$DEPLOY_RESULT" = 'skipped' ]; then
+              echo '- Panel deployment was not enabled; no external mutation was attempted.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$VERIFY_RESULT" = success
