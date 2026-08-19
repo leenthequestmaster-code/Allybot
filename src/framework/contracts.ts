@@ -112,7 +112,6 @@ export interface FrameworkConfig {
   readonly defaultCooldownMs: number
   readonly botOwnerJid?: string
   readonly databasePath?: string
-  readonly aiCommandsEnabled?: boolean
 }
 
 export interface CommandContext {

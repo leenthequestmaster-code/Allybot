@@ -20,7 +20,6 @@
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "better-sqlite3": "12.4.1",
     "dotenv": "17.2.1",
-    "groq-sdk": "^1.5.0",
     "pino": "9.9.0",
     "qrcode-terminal": "0.12.0",
     "zod": "4.0.17"
