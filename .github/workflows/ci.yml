@@ -214,7 +214,7 @@ jobs:
           )
           curl --fail-with-body --silent --show-error \
             -X POST "$upload_url" \
-            -F "file=@.deploy/${ARCHIVE_NAME}"
+            -F "files=@.deploy/${ARCHIVE_NAME}"
           echo "archive_uploaded=true" >> "$GITHUB_OUTPUT"
 
       - name: Decompress archive on Panel
