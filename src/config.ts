@@ -28,6 +28,7 @@ const envSchema = z.object({
   COMMAND_PREFIX: z.string().min(1).max(4).default('!'),
   DEFAULT_COMMAND_COOLDOWN_MS: positiveInt.default(3000),
   DIAGNOSTICS_ENABLED: booleanFromEnv.default(false),
+  AI_COMMANDS_ENABLED: booleanFromEnv.default(false),
 })
 
 export type AppConfig = z.infer<typeof envSchema>
@@ -62,5 +63,6 @@ export function publicConfig(config: AppConfig) {
     commandPrefix: config.COMMAND_PREFIX,
     defaultCommandCooldownMs: config.DEFAULT_COMMAND_COOLDOWN_MS,
     diagnosticsEnabled: config.DIAGNOSTICS_ENABLED,
+    aiCommandsEnabled: config.AI_COMMANDS_ENABLED,
   }
 }
