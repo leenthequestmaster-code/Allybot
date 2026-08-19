@@ -1,6 +1,6 @@
 import Groq from 'groq-sdk'
 
-const GROQ_MODEL = 'llama-3.1-8b-instant'
+const GROQ_MODEL = 'openai/gpt-oss-20b'
 const MAX_TOKENS = 100
 const DEFAULT_TIMEOUT_MS = 15_000
 
