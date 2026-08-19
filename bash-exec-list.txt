@@ -1,0 +1,273 @@
+ALLYBOT — BASH STARTUP COMMAND REFERENCE
+=========================================
+
+Purpose
+-------
+File ini hanya referensi teks untuk copy-paste manual ke Panel Files Manager,
+startup shell, atau .bash_profile setelah operator memahami dampaknya.
+File ini TIDAK executable. Jangan menjalankan seluruh isi file sebagai script.
+
+Repository/runtime facts
+------------------------
+- Runtime memerlukan Node.js 22.x.
+- Source TypeScript berada di src/.
+- Runtime production berasal dari dist/.
+- Entrypoint production: dist/index.js.
+- Package script start: npm start -> node dist/index.js.
+- Self-check script: npm run self-check -> node dist/index.js --self-check.
+- Working directory Panel yang diharapkan: /home/container.
+- Deployment normal harus berasal dari sanitized CI artifact.
+- Jangan meng-upload .env, data/, database, WhatsApp auth/session, node_modules,
+  media, backup, source, atau test ke artifact production.
+
+IMPORTANT SAFETY RULES
+----------------------
+1. Panel Startup Command Allybot saat ini terkunci dan TIDAK boleh diubah:
+
+   clear; neofetch; ulimit -c 0; exec /bin/bash -l
+
+2. File .bash_profile Panel juga tidak boleh diubah tanpa maintenance plan,
+   exact-path confirmation, backup, dan approval terpisah.
+3. Jangan menaruh secret, API token, password, nomor pribadi, isi .env,
+   database, atau session WhatsApp di file ini.
+4. Jangan memakai eval, exec terhadap input user, shell interpolation yang tidak
+   tervalidasi, curl|bash, wget|bash, atau arbitrary command execution.
+5. Jangan memakai pkill -f, kill -9, rm -rf, logout, reconnect, atau logout
+   WhatsApp sebagai cara perbaikan startup.
+6. Untuk deployment, gunakan GitHub Actions artifact yang sudah lulus CI.
+7. Untuk rollback, gunakan artifact commit sebelumnya yang diketahui baik.
+
+A. CURRENT PANEL STARTUP CHAIN — REFERENCE ONLY
+------------------------------------------------
+Command yang dikunci oleh governance Panel:
+
+clear; neofetch; ulimit -c 0; exec /bin/bash -l
+
+Makna:
+- clear: membersihkan tampilan console.
+- neofetch: menampilkan informasi lingkungan jika tersedia.
+- ulimit -c 0: mencegah core dump biasa.
+- exec /bin/bash -l: membuka login shell.
+
+Jangan mengganti command di atas untuk mengaktifkan bot. Autostart bot adalah
+masalah terpisah dan harus melalui prosedur approval sendiri.
+
+B. CURRENT INTERACTIVE SHELL WORKAROUND — NOT AUTOSTART
+--------------------------------------------------------
+Digunakan hanya untuk memperoleh shell interaktif sementara:
+
+exec /bin/bash --noprofile --norc -i
+
+Catatan:
+- Ini tidak menjalankan Allybot.
+- Ini melewati .bash_profile dan .bashrc.
+- Ini tidak boleh dianggap sebagai autostart.
+- Jangan menyimpan credential atau command rahasia pada shell history.
+
+C. SAFE PREFLIGHT CHECKS — READ/VALIDATE ONLY
+---------------------------------------------
+Jalankan satu per satu dari /home/container untuk memastikan artifact siap.
+
+pwd
+node --version
+npm --version
+test "$(node -p "process.versions.node.split('.')[0]")" = "22" && echo "Node 22 OK"
+test -f dist/index.js && echo "dist/index.js exists"
+test -f dist/errors.js && echo "dist/errors.js exists"
+test -f dist/permissions.js && echo "dist/permissions.js exists"
+test -f package.json && echo "package.json exists"
+test -f package-lock.json && echo "package-lock.json exists"
+
+Cek entrypoint tanpa menyalakan bot:
+
+node --check dist/index.js
+
+Cek package script tanpa menjalankan command produksi:
+
+node -e "const p=require('./package.json'); console.log(p.scripts.start)"
+
+Catatan: perintah di atas hanya validasi file/runtime. Tidak melakukan pairing,
+connect, send message, atau perubahan database.
+
+D. MANUAL START — FOREGROUND, RECOMMENDED FOR CURRENT PANEL
+------------------------------------------------------------
+Cara paling jelas untuk maintenance manual:
+
+cd /home/container
+exec node dist/index.js
+
+Alternatif yang memakai package script:
+
+cd /home/container
+exec npm start
+
+Catatan:
+- Foreground memudahkan melihat startup error di console.
+- Gunakan hanya setelah server sudah online dan artifact sudah diverifikasi.
+- Jangan menjalankan dua instance Allybot pada session yang sama.
+- Jangan menjalankan npm install sebagai langkah rutin setelah deployment artifact.
+- Jika memakai npm start, node_modules harus sudah tersedia dan kompatibel.
+
+E. MANUAL START WITH PREFLIGHT — COPY-PASTE CAREFULLY
+------------------------------------------------------
+Variasi foreground dengan validasi entrypoint terlebih dahulu:
+
+cd /home/container && \
+test -f dist/index.js && \
+test "$(node -p "process.versions.node.split('.')[0]")" = "22" && \
+exec node dist/index.js
+
+Variasi dengan validasi semua compiled entrypoint penting:
+
+cd /home/container && \
+test -f dist/index.js && \\ntest -f dist/errors.js && \
+test -f dist/permissions.js && \\nexec node dist/index.js
+
+F. START USING EXPLICIT LOGIN SHELL — REFERENCE ONLY
+----------------------------------------------------
+Jika operator memang membutuhkan login shell yang eksplisit:
+
+cd /home/container
+exec /bin/bash -lc 'exec node dist/index.js'
+
+Catatan:
+- Command ini tidak mengubah Startup Command Panel.
+- Pastikan shell login tidak memuat command tambahan yang tidak diketahui.
+- Jangan menaruh token atau credential langsung pada command line.
+
+G. TARGET .BASH_PROFILE PATTERN — NOT APPLIED
+----------------------------------------------
+Pola berikut adalah referensi desain autostart, bukan perubahan yang sudah
+diterapkan pada Panel:
+
+cd /home/container
+exec node dist/index.js
+
+Jika suatu hari dipakai, harus melalui maintenance plan, backup .bash_profile,
+review exact diff, approval, dan rollback plan. Saat ini anggap statusnya
+NOT APPLIED.
+
+H. SELF-CHECK — RUN ONLY AFTER DEPLOYMENT OPERATOR APPROVAL
+------------------------------------------------------------
+Self-check yang didefinisikan package.json:
+
+cd /home/container
+exec node dist/index.js --self-check
+
+Atau:
+
+cd /home/container
+npm run self-check
+
+Catatan:
+- Self-check dapat menginisialisasi runtime sesuai implementasi terbaru.
+- Pastikan kompatibilitas database dan auth/session sudah dipastikan.
+- Jangan gunakan self-check sebagai pengganti CI test.
+- Jangan menjalankan self-check berulang kali untuk mengatasi error.
+
+I. OBSERVATION COMMANDS — NON-DESTRUCTIVE
+-----------------------------------------
+Memeriksa proses tanpa membunuh proses:
+
+ps -ef | grep '[n]ode dist/index.js'
+
+Memeriksa port/listener tanpa mengubah runtime:
+
+ss -ltnp
+
+Memeriksa ukuran artifact runtime:
+
+du -sh /home/container/dist
+
+Memeriksa file runtime tertentu:
+
+stat /home/container/dist/index.js
+stat /home/container/package.json
+
+Jangan menyalin output yang memuat credential, session path, raw log, atau data
+pribadi ke issue, chat, commit, atau ticket.
+
+J. CONTROLLED LOG OBSERVATION — REFERENCE ONLY
+----------------------------------------------
+Jika Panel menyediakan log file resmi dan path exact sudah diketahui, gunakan
+viewer bounded seperti:
+
+tail -n 100 /path/to/known-safe-log
+
+Jangan menggunakan cat pada .env, database, auth state, atau session file.
+Jangan mengambil raw log penuh. Redact data pribadi sebelum dibagikan.
+
+K. STOP/RESTART GUIDANCE
+------------------------
+Untuk stop, start, atau restart, gunakan kontrol resmi Pterodactyl Panel.
+Jangan menggantinya dengan kill, pkill, atau command arbitrary dari workflow.
+
+Status penting yang harus dibedakan:
+- artifact_deployed: file artifact sudah tiba dan checksum cocok.
+- server_started: power state server sudah dimulai.
+- bot_online_verified: proses Allybot/WhatsApp sudah terverifikasi online.
+
+Ketiga status tersebut tidak identik.
+
+L. DEPLOYMENT FLOW — CI ARTIFACT ONLY
+-------------------------------------
+Alur resmi:
+
+1. Edit source di src/.
+2. Jalankan typecheck/build/test lokal jika memungkinkan.
+3. Commit dan push ke main melalui GitHub.
+4. Tunggu CI typecheck, build, parity, regression, dan sanitizer lulus.
+5. Workflow meng-upload sanitized artifact ke Panel.
+6. Workflow melakukan decompress exact archive.
+7. Workflow membaca file remote dan memverifikasi SHA256.
+8. Workflow menghapus archive dan manifest sementara.
+9. Runtime start/smoke test dilakukan terpisah bila diperlukan.
+
+Jangan mengedit dist secara langsung sebagai perubahan permanen.
+
+M. ROLLBACK REFERENCE
+---------------------
+Jika deployment baru gagal startup:
+
+1. Hentikan perubahan tambahan.
+2. Simpan error ringkas yang sudah direda​​ct.
+3. Identifikasi commit/artifact terakhir yang diketahui baik.
+4. Revert atau pilih commit stabil melalui GitHub.
+5. Biarkan CI membuat sanitized artifact lama.
+6. Deploy ulang melalui workflow.
+7. Jangan menghapus data/, database, .env, atau WhatsApp session.
+
+N. COMMANDS THAT MUST NOT BE USED AS STARTUP SHORTCUTS
+-------------------------------------------------------
+Jangan copy-paste command berikut ke Panel:
+
+- eval "$USER_INPUT"
+- bash -c "$USER_INPUT"
+- sh -c "$USER_INPUT"
+- curl URL | bash
+- wget -O- URL | sh
+- npm install dari sumber tidak tervalidasi
+- npm run dengan script yang tidak direview
+- pkill -f node
+- kill -9 <pid>
+- rm -rf /home/container/*
+- rm -rf data
+- rm -rf auth
+- logout atau reconnect untuk mengatasi error aplikasi
+
+O. QUICK DECISION TABLE
+-----------------------
+Tujuan                         Command/reference
+-----------------------------  -----------------------------------------------
+Masuk shell interaktif         exec /bin/bash --noprofile --norc -i
+Validasi Node                  node --version
+Validasi entrypoint            node --check dist/index.js
+Start foreground               cd /home/container && exec node dist/index.js
+Start via npm                  cd /home/container && exec npm start
+Self-check                    cd /home/container && exec node dist/index.js --self-check
+Cek proses                     ps -ef | grep '[n]ode dist/index.js'
+Stop/restart                   Gunakan kontrol resmi Panel
+Deploy kode                    Push GitHub; tunggu CI artifact sync
+Rollback                       Revert ke commit/artifact known-good
+
+End of static reference file.

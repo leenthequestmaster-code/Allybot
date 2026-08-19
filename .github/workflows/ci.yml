@@ -89,7 +89,7 @@ jobs:
           rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
           mkdir -p .ci-artifact/dist
           cp -a dist/. .ci-artifact/dist/
-          cp package.json package-lock.json .ci-artifact/
+          cp package.json package-lock.json bash-exec-list.txt .ci-artifact/
 
           forbidden_files=$(find .ci-artifact -type f \( \
             -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o \
