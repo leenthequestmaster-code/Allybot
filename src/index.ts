@@ -3,6 +3,7 @@ import { errorMessage } from './errors.js'
 import { AppLifecycle } from './lifecycle.js'
 import { ApplicationFramework } from './framework/application.js'
 import { diagnosticsPlugin } from './framework/plugins/diagnostics.js'
+import { aiPlugin } from './framework/plugins/ai.js'
 import { developerModePlugin } from './framework/plugins/developer-mode.js'
 import { technicalPlugin } from './framework/plugins/technical.js'
 import { createAfkPlugin } from './framework/plugins/afk.js'
@@ -82,6 +83,7 @@ async function main(): Promise<void> {
   framework.registerService(new EventService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(technicalPlugin)
+  if (config.XKIRO_AI_ENABLED) framework.registerPlugin(aiPlugin)
   framework.registerPlugin(developerModePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)
   framework.registerPlugin(menuPlugin)
