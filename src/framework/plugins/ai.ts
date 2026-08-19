@@ -20,6 +20,7 @@ function safeFailureMessage(error: unknown): string {
 
 export interface AiPluginOptions {
   readonly transport?: AiTransport
+  readonly fallbackEnabled?: boolean
 }
 
 export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
@@ -30,6 +31,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
       const handler = createAiHandler({
         transport: options.transport,
         logger: context.logger,
+        fallbackEnabled: options.fallbackEnabled,
       })
 
       context.commands.register({

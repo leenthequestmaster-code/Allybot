@@ -29,6 +29,7 @@ const envSchema = z.object({
   DEFAULT_COMMAND_COOLDOWN_MS: positiveInt.default(3000),
   DIAGNOSTICS_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_ENABLED: booleanFromEnv.default(false),
+  XKIRO_AI_FALLBACK_ENABLED: booleanFromEnv.default(false),
 })
 
 export type AppConfig = z.infer<typeof envSchema>
@@ -64,5 +65,6 @@ export function publicConfig(config: AppConfig) {
     defaultCommandCooldownMs: config.DEFAULT_COMMAND_COOLDOWN_MS,
     diagnosticsEnabled: config.DIAGNOSTICS_ENABLED,
     xkiroAiEnabled: config.XKIRO_AI_ENABLED,
+    xkiroAiFallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED,
   }
 }

@@ -5,6 +5,7 @@ import { ApplicationFramework } from '../dist/framework/application.js'
 import { createAiPlugin } from '../dist/framework/plugins/ai.js'
 import {
   AiHandlerError,
+  AI_SYSTEM_PROMPT,
   FALLBACK_MODEL,
   MAX_AI_INPUT_LENGTH,
   MAX_AI_OUTPUT_LENGTH,
@@ -62,6 +63,7 @@ test('XKIRO handler switches to fallback after primary failure', async () => {
   const calls = []
   const handler = createAiHandler({
     apiKey: 'test-only',
+    fallbackEnabled: true,
     transport: async (input) => {
       calls.push(input)
       if (input.model === PRIMARY_MODEL) throw Object.assign(new Error('provider secret must not be logged'), { status: 429 })
@@ -73,11 +75,26 @@ test('XKIRO handler switches to fallback after primary failure', async () => {
   assert.deepEqual(calls, [request(PRIMARY_MODEL, 'coba fallback'), request(FALLBACK_MODEL, 'coba fallback')])
 })
 
+test('XKIRO handler keeps Qwen fallback disabled by default', async () => {
+  const calls = []
+  const handler = createAiHandler({
+    apiKey: 'test-only',
+    transport: async (input) => {
+      calls.push(input)
+      throw new Error('primary unavailable')
+    },
+  })
+
+  await assert.rejects(handler('Gemini only'), (error) => error.code === 'provider_unavailable')
+  assert.deepEqual(calls, [request(PRIMARY_MODEL, 'Gemini only')])
+})
+
 test('XKIRO handler fails safely after both models fail and redacts raw error', async () => {
   const logs = []
   const secretError = 'provider-secret-not-for-logs'
   const handler = createAiHandler({
     apiKey: 'test-only',
+    fallbackEnabled: true,
     logger: { warn(metadata, message) { logs.push({ metadata, message }) } },
     transport: async () => { throw new Error(secretError) },
   })
@@ -110,6 +127,14 @@ test('XKIRO handler bounds provider output', async () => {
 test('XKIRO config is default-off and can be explicitly enabled', () => {
   assert.equal(loadConfig({}).XKIRO_AI_ENABLED, false)
   assert.equal(loadConfig({ XKIRO_AI_ENABLED: 'true' }).XKIRO_AI_ENABLED, true)
+  assert.equal(loadConfig({}).XKIRO_AI_FALLBACK_ENABLED, false)
+  assert.equal(loadConfig({ XKIRO_AI_FALLBACK_ENABLED: 'true' }).XKIRO_AI_FALLBACK_ENABLED, true)
+})
+
+test('XKIRO system instructions prefer concise answers by default', () => {
+  assert.match(AI_SYSTEM_PROMPT, /jawaban ringkas/i)
+  assert.match(AI_SYSTEM_PROMPT, /1-3 paragraf/i)
+  assert.match(AI_SYSTEM_PROMPT, /daftar panjang/i)
 })
 
 test('AI plugin dispatches !ai and !ally through the ApplicationFramework', async () => {
