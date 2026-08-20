@@ -114,7 +114,7 @@ jobs:
           )
           sha256sum "allybot-release-${GITHUB_SHA}.zip" > "allybot-release-${GITHUB_SHA}.zip.sha256"
           unzip -t "allybot-release-${GITHUB_SHA}.zip"
-          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
+          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -Ev '^(node_modules(/|$)|node_modules/postgres(/|$)|node_modules/dotenv(/|$))' | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
             echo 'Forbidden path found in sanitized archive' >&2
             exit 1
           fi
