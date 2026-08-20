@@ -14,10 +14,13 @@
     "self-check": "node dist/index.js --self-check",
     "verify:platform": "node scripts/verify-platform.mjs",
     "verify:postgres": "node scripts/verify-postgres.mjs",
+    "verify:supabase-access": "node scripts/verify-supabase-access.mjs",
+    "monitor:postgres": "node scripts/monitor-postgres.mjs",
     "test": "node --test"
   },
   "dependencies": {
     "@cacheable/node-cache": "1.7.5",
+    "@supabase/supabase-js": "2.112.3",
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "better-sqlite3": "12.4.1",
     "dotenv": "17.2.1",

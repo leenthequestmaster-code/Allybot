@@ -42,6 +42,6 @@ test('PostgreSQL verifier defaults to session mode', () => {
 })
 
 test('PostgreSQL error redaction removes connection credentials', () => {
-  const message = redactPostgresError(new Error('failed postgres://postgres:secret@example.test/postgres password=secret'))
-  assert.equal(message, 'failed postgresql://***@example.test/postgres password=***')
+  const message = redactPostgresError(new Error('failed postgres://postgres@example.test/postgres password=secret'))
+  assert.equal(message, 'failed postgresql://*** password=***')
 })

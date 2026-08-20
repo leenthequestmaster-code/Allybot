@@ -27,6 +27,27 @@ npm run verify:postgres
 
 Build TypeScript dilakukan oleh CI sebelum artifact dibuat. Pada Panel, command ini langsung menjalankan verifier dari `dist` yang sudah diverifikasi; ia membuat satu client PostgreSQL, menjalankan query read-only `SELECT 1 AS ok LIMIT 1`, memeriksa hasil `1`, lalu menutup client. Command tersebut tidak menjalankan `CREATE`, `ALTER`, `DROP`, `INSERT`, `UPDATE`, `DELETE`, atau migration.
 
+## Periodic read-only monitor
+
+Untuk pengujian berkala di Panel, gunakan command operator berikut setelah artifact hasil CI terpasang:
+
+```bash
+npm run monitor:postgres
+```
+
+Monitor menjalankan pemeriksaan awal segera, lalu mengulanginya setiap lima menit. Setiap pemeriksaan membuat client terbatas, menjalankan query read-only yang sama (`SELECT 1 AS ok LIMIT 1`), menutup client, dan mencetak status ringkas. Monitor tidak aktif otomatis pada startup Allybot; ia hanya berjalan ketika command tersebut dijalankan secara eksplisit.
+
+Interval dan timeout dapat diubah melalui environment berikut:
+
+```env
+POSTGRES_MONITOR_INTERVAL_MS=300000
+POSTGRES_MONITOR_TIMEOUT_MS=15000
+```
+
+`POSTGRES_MONITOR_INTERVAL_MS` menerima nilai 1 sampai 86.400.000 milidetik. `POSTGRES_MONITOR_TIMEOUT_MS` menerima nilai 1 sampai 60.000 milidetik. Nilai default dipilih agar pemeriksaan tidak menghasilkan koneksi paralel atau beban yang tidak perlu. Pemeriksaan yang masih berjalan tidak ditumpuk dengan pemeriksaan berikutnya. `SIGINT` dan `SIGTERM` menghentikan timer serta menutup client secara graceful.
+
+Output sukses berbentuk `POSTGRES_MONITOR=PASS`; kegagalan berbentuk `POSTGRES_MONITOR=FAIL` dengan error yang telah direduksi. URI, password, raw query, dan payload database tidak dicetak.
+
 ## SSL and connection mode
 
 Verifier selalu meminta SSL. Session mode menjadi default karena Allybot adalah process Node.js yang berjalan lama. Transaction mode didukung, tetapi prepared statements dinonaktifkan karena batasan transaction pooler. Direct mode juga diterima jika environment dan network mendukungnya.

@@ -66,6 +66,6 @@ export function createPostgresVerifier(config: PostgresVerificationConfig): {
 export function redactPostgresError(error: unknown): string {
   const message = error instanceof Error ? error.message : 'unknown PostgreSQL verification failure'
   return message
-    .replace(/postgres(?:ql)?:\/\/[^\s@]+@/gi, 'postgresql://***@')
+    .replace(/postgres(?:ql)?:\/\/[^\s'\")]+/gi, 'postgresql://***')
     .replace(/(password|passwd|pwd)\s*[=:]\s*[^\s,;]+/gi, '$1=***')
 }
