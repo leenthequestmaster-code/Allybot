@@ -4,6 +4,7 @@ import pino from 'pino'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { diagnosticsPlugin } from '../dist/framework/plugins/diagnostics.js'
 import { technicalPlugin } from '../dist/framework/plugins/technical.js'
+import { createPermissionResolver } from '../dist/permissions.js'
 
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
@@ -14,6 +15,13 @@ class FakeCore {
   sent = []
   messages = new Set()
   clearRuntimeCaches() { return { duplicateMessages: 3, groupNames: 2, retryCounters: 1 } }
+  async listParticipatingGroups() {
+    return [
+      { jid: '120363000000000001-1111111111@g.us', subject: 'Alpha\nRoom' },
+      { jid: '120363000000000002-2222222222@g.us', subject: 'Beta Room' },
+      { jid: 'not-a-group', subject: 'Should not show' },
+    ]
+  }
   groupParticipantListeners = new Set()
   connections = new Set()
 
@@ -128,6 +136,57 @@ test('Technical commands provide routed ping, safe profile, and owner-only cache
   await core.emitMessage({ id: 'clearcache', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
   assert.match(core.sent[4].text, /Duplicate-message cache: 3 entry/)
   assert.match(core.sent[4].text, /Auth\/session\/database: tidak disentuh/)
+  await app.stop()
+})
+
+test('JID commands are owner/developer-gated, group-scoped, bounded, and text-only', async () => {
+  const core = new FakeCore()
+  const ownerJid = 'owner@s.whatsapp.net'
+  const app = new ApplicationFramework(
+    { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: ownerJid },
+    logger,
+    core,
+    { permissionResolver: createPermissionResolver(core, ownerJid) },
+  )
+  app.registerPlugin(technicalPlugin)
+  await app.start()
+
+  await core.emitMessage({
+    id: 'groupid',
+    remoteJid: '120363000000000000-3333333333@g.us',
+    senderJid: ownerJid,
+    text: '!jid',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[0].text, /JID Grup Saat Ini/)
+  assert.match(core.sent[0].text, /120363000000000000-3333333333@g\.us/)
+
+  await core.emitMessage({
+    id: 'groupid-denied',
+    remoteJid: '120363000000000000-3333333333@g.us',
+    senderJid: 'stranger@s.whatsapp.net',
+    text: '!groupid',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[1].text, /Developer Mode belum aktif/)
+
+  await core.emitMessage({
+    id: 'alljid',
+    remoteJid: ownerJid,
+    senderJid: ownerJid,
+    text: '!alljid',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[2].text, /Semua JID Grup Allybot/)
+  assert.match(core.sent[2].text, /120363000000000001-1111111111@g\.us/)
+  assert.match(core.sent[2].text, /120363000000000002-2222222222@g\.us/)
+  assert.match(core.sent[2].text, /Alpha Room/)
+  assert.equal(core.sent[2].text.includes('Should not show'), false)
+  assert.equal(core.sent[2].text.includes('Alpha\nRoom'), false)
+
   await app.stop()
 })
 

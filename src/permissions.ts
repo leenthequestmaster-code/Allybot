@@ -6,6 +6,7 @@ export const permissionNames = {
   groupAdmin: 'group.admin',
   groupOwner: 'group.owner',
   developerModeObserver: 'developer.mode.observer',
+  developerModeGroupObserver: 'developer.mode.group.observer',
 } as const
 
 function bareJid(jid: string): string {
@@ -36,13 +37,15 @@ export function createPermissionResolver(
       return isSameJid(senderJid, normalizedBotOwnerJid)
     }
 
-    if (permission === permissionNames.developerModeObserver) {
-      if (context.message.remoteJid.endsWith('@g.us')) {
+    if (permission === permissionNames.developerModeObserver || permission === permissionNames.developerModeGroupObserver) {
+      const isGroupChat = context.message.remoteJid.endsWith('@g.us')
+      if (permission === permissionNames.developerModeObserver && isGroupChat) {
         if (context.services.has('developer-mode')) {
           context.services.get<DeveloperModeService>('developer-mode').recordBoundaryDenied(senderJid, 'private-chat-only')
         }
         return false
       }
+      if (permission === permissionNames.developerModeGroupObserver && !isGroupChat) return false
       if (isSameJid(senderJid, normalizedBotOwnerJid)) return true
       if (!context.services.has('developer-mode')) return false
       const developerMode = context.services.get<DeveloperModeService>('developer-mode')

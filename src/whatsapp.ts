@@ -26,6 +26,7 @@ import type {
   CoreMessage,
   GroupParticipantRole,
   WhatsAppGroupMetadata,
+  WhatsAppGroupSummary,
   WhatsAppPollOptions,
   WhatsAppPort,
   WhatsAppSendOptions,
@@ -341,6 +342,20 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       20_000,
       'native quick-reply response',
     )
+  }
+
+  async listParticipatingGroups(): Promise<readonly WhatsAppGroupSummary[]> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+
+    const groups = await withTimeout(socket.groupFetchAllParticipating(), 10_000, 'participating group lookup')
+    return Object.entries(groups)
+      .filter(([jid]) => /^[0-9]+-[0-9]+@g\.us$/.test(jid))
+      .map(([jid, metadata]) => ({
+        jid,
+        subject: metadata.subject?.trim() || 'Unnamed group',
+      }))
+      .sort((left, right) => left.subject.localeCompare(right.subject) || left.jid.localeCompare(right.jid))
   }
 
   async getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata> {

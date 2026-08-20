@@ -35,6 +35,8 @@ export function permissionDenialMessage(permission: string): string {
       return 'Maaf, command ini hanya tersedia untuk owner Allybot.'
     case 'developer.mode.observer':
       return 'Maaf, Developer Mode belum aktif untuk akun ini atau hanya dapat digunakan melalui private chat.'
+    case 'developer.mode.group.observer':
+      return 'Maaf, Developer Mode belum aktif untuk akun ini atau command ini hanya dapat digunakan di dalam grup.'
     default:
       return 'Maaf, kamu belum memiliki izin untuk menggunakan command ini.'
   }

@@ -23,6 +23,54 @@ function chatMode(context: CommandContext): 'private' | 'group' {
   return context.message.remoteJid.endsWith('@g.us') ? 'group' : 'private'
 }
 
+const GROUP_JID_PATTERN = /^[0-9]+-[0-9]+@g\.us$/
+const MAX_GROUP_LIST_ITEMS = 500
+const MAX_GROUP_SUBJECT_LENGTH = 80
+
+function safeGroupSubject(subject: string): string {
+  return subject.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_GROUP_SUBJECT_LENGTH) || 'Unnamed group'
+}
+
+function isGroupJid(jid: string): boolean {
+  return GROUP_JID_PATTERN.test(jid)
+}
+
+function groupIdText(context: CommandContext): string {
+  if (!isGroupJid(context.message.remoteJid)) {
+    return 'Command `!groupid` hanya dapat digunakan di dalam grup.'
+  }
+  return [
+    '🆔 *JID Grup Saat Ini*',
+    '',
+    `↳ Group JID: \`${context.message.remoteJid}\``,
+    '↳ Gunakan JID ini untuk allowlist Neon setelah consent grup ditetapkan.',
+  ].join('\n')
+}
+
+async function allGroupIdsText(context: CommandContext): Promise<string> {
+  const listParticipatingGroups = context.whatsapp.listParticipatingGroups
+  if (!listParticipatingGroups) return 'Fitur daftar grup belum tersedia pada adapter WhatsApp ini.'
+
+  try {
+    const groups = (await listParticipatingGroups.call(context.whatsapp)).filter((group) => isGroupJid(group.jid))
+    const limitedGroups = groups.slice(0, MAX_GROUP_LIST_ITEMS)
+    const lines = limitedGroups.map((group, index) => `${index + 1}. \`${group.jid}\` — ${safeGroupSubject(group.subject)}`)
+    const truncationNote = groups.length > limitedGroups.length
+      ? `\n\n⚠️ Daftar dibatasi hingga ${MAX_GROUP_LIST_ITEMS} grup untuk menjaga ukuran pesan.`
+      : ''
+    return [
+      '📚 *Semua JID Grup Allybot*',
+      '',
+      `↳ Total terdeteksi: ${groups.length}`,
+      ...(lines.length > 0 ? ['', ...lines] : ['', 'Tidak ada grup yang terdeteksi.']),
+      truncationNote,
+    ].join('\n')
+  } catch (error) {
+    context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'participating group lookup failed')
+    return 'Daftar JID grup belum dapat diambil. Pastikan koneksi WhatsApp aktif lalu coba lagi.'
+  }
+}
+
 function formatLatency(context: CommandContext): number {
   const receivedAt = context.message.receivedAt ?? context.message.timestamp
   return Math.max(0, Date.now() - receivedAt)
@@ -114,6 +162,31 @@ export const technicalPlugin: Plugin = {
       cooldownMs: 3000,
       handler: async (commandContext) => {
         await commandContext.reply(profileText(commandContext))
+      },
+    })
+
+    context.commands.register({
+      name: 'groupid',
+      aliases: ['jid'],
+      description: 'Show the current WhatsApp group JID for allowlist setup',
+      category: 'developer',
+      permission: permissionNames.developerModeGroupObserver,
+      hidden: true,
+      cooldownMs: 5_000,
+      handler: async (commandContext) => {
+        await commandContext.reply(groupIdText(commandContext))
+      },
+    })
+
+    context.commands.register({
+      name: 'alljid',
+      description: 'List all WhatsApp group JIDs currently participating',
+      category: 'developer',
+      permission: permissionNames.developerModeObserver,
+      hidden: true,
+      cooldownMs: 10_000,
+      handler: async (commandContext) => {
+        await commandContext.reply(await allGroupIdsText(commandContext))
       },
     })
 

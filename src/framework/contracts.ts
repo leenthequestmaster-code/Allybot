@@ -66,6 +66,11 @@ export interface WhatsAppGroupParticipant {
   readonly role: GroupParticipantRole
 }
 
+export interface WhatsAppGroupSummary {
+  readonly jid: string
+  readonly subject: string
+}
+
 export interface WhatsAppGroupMetadata {
   readonly jid: string
   readonly subject: string
@@ -96,6 +101,7 @@ export interface WhatsAppPort {
     readonly buttons: readonly { readonly id: string; readonly title: string }[]
   }): Promise<void>
   getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata>
+  listParticipatingGroups?(): Promise<readonly WhatsAppGroupSummary[]>
   groupParticipantsUpdate?(groupJid: string, participantJids: readonly string[], action: GroupModerationAction): Promise<readonly WhatsAppGroupParticipantActionResult[]>
   groupSettingUpdate?(groupJid: string, setting: GroupSettingValue): Promise<void>
   getGroupInviteLink(groupJid: string): Promise<string | undefined>
