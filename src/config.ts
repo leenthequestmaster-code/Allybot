@@ -12,6 +12,14 @@ const positiveInt = z
   .transform(Number)
   .refine((value) => value > 0, 'must be greater than zero')
 
+function boundedInt(min: number, max: number) {
+  return z
+    .string()
+    .regex(/^\d+$/, 'must be a positive integer')
+    .transform(Number)
+    .refine((value) => value >= min && value <= max, `must be between ${min} and ${max}`)
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('production'),
   LOG_LEVEL: z.enum(['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
@@ -30,6 +38,17 @@ const envSchema = z.object({
   DIAGNOSTICS_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_FALLBACK_ENABLED: booleanFromEnv.default(false),
+  NEON_ENABLED: booleanFromEnv.default(false),
+  NEON_DATABASE_URL: z.string().min(1).optional(),
+  NEON_POOL_MODE: z.enum(['direct', 'transaction']).default('transaction'),
+  NEON_CHAT_LOG_ENABLED: booleanFromEnv.default(false),
+  NEON_CHAT_LOG_GROUPS: z.string().default(''),
+  NEON_CHAT_LOG_QUEUE_CAPACITY: boundedInt(1, 10_000).default(1000),
+  NEON_CHAT_LOG_MAX_ATTEMPTS: boundedInt(1, 5).default(3),
+  NEON_CHAT_LOG_RETRY_DELAY_MS: boundedInt(50, 5_000).default(250),
+  NEON_CHAT_LOG_MAX_RETRY_DELAY_MS: boundedInt(100, 60_000).default(5_000),
+  NEON_CHAT_LOG_WRITE_TIMEOUT_MS: boundedInt(1_000, 60_000).default(10_000),
+  NEON_CHAT_LOG_DRAIN_TIMEOUT_MS: boundedInt(1_000, 60_000).default(10_000),
 })
 
 export type AppConfig = z.infer<typeof envSchema>
@@ -45,6 +64,21 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   if (parsed.data.PAIRING_ENABLED && !parsed.data.PAIRING_PHONE_NUMBER) {
     throw new Error('PAIRING_PHONE_NUMBER is required when PAIRING_ENABLED=true')
+  }
+  if (parsed.data.NEON_ENABLED && !parsed.data.NEON_DATABASE_URL) {
+    throw new Error('NEON_DATABASE_URL is required when NEON_ENABLED=true')
+  }
+  if (parsed.data.NEON_DATABASE_URL && !/^postgres(?:ql)?:\/\//i.test(parsed.data.NEON_DATABASE_URL)) {
+    throw new Error('NEON_DATABASE_URL must use postgres:// or postgresql://')
+  }
+  if (parsed.data.NEON_CHAT_LOG_ENABLED && !parsed.data.NEON_ENABLED) {
+    throw new Error('NEON_ENABLED must be true when NEON_CHAT_LOG_ENABLED=true')
+  }
+  if (parsed.data.NEON_CHAT_LOG_ENABLED && !parsed.data.NEON_CHAT_LOG_GROUPS.trim()) {
+    throw new Error('NEON_CHAT_LOG_GROUPS is required when NEON_CHAT_LOG_ENABLED=true')
+  }
+  if (parsed.data.NEON_CHAT_LOG_MAX_RETRY_DELAY_MS < parsed.data.NEON_CHAT_LOG_RETRY_DELAY_MS) {
+    throw new Error('NEON_CHAT_LOG_MAX_RETRY_DELAY_MS must be at least NEON_CHAT_LOG_RETRY_DELAY_MS')
   }
 
   return parsed.data
@@ -66,5 +100,7 @@ export function publicConfig(config: AppConfig) {
     diagnosticsEnabled: config.DIAGNOSTICS_ENABLED,
     xkiroAiEnabled: config.XKIRO_AI_ENABLED,
     xkiroAiFallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED,
+    neonEnabled: config.NEON_ENABLED,
+    neonChatLogEnabled: config.NEON_CHAT_LOG_ENABLED,
   }
 }

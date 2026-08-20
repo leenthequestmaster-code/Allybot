@@ -89,7 +89,7 @@ jobs:
           rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
           mkdir -p .ci-artifact/dist .ci-artifact/scripts .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib
           cp -a dist/. .ci-artifact/dist/
-          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/monitor-postgres.mjs .ci-artifact/scripts/
+          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs .ci-artifact/scripts/
           cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
           cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
           cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
@@ -204,6 +204,7 @@ jobs:
           test -s stage/release-manifest.json
           test -f stage/scripts/verify-postgres.mjs
           test -f stage/scripts/verify-supabase-access.mjs
+          test -f stage/scripts/verify-neon.mjs
           test -f stage/scripts/monitor-postgres.mjs
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)

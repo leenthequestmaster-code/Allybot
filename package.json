@@ -15,6 +15,7 @@
     "verify:platform": "node scripts/verify-platform.mjs",
     "verify:postgres": "node scripts/verify-postgres.mjs",
     "verify:supabase-access": "node scripts/verify-supabase-access.mjs",
+    "verify:neon": "node scripts/verify-neon.mjs",
     "monitor:postgres": "node scripts/monitor-postgres.mjs",
     "test": "node --test"
   },

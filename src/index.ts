@@ -44,6 +44,8 @@ import { OnboardingService } from './services/onboarding-service.js'
 import { AnnouncementService } from './services/announcement-service.js'
 import { SuggestionRelayService, type SuggestionProviderInput } from './services/suggestion-relay-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
+import { NeonClientService } from './neon-client.js'
+import { createNeonChatLogPlugin } from './framework/plugins/neon-chat-log.js'
 
 function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input: SuggestionProviderInput) => Promise<string>) | undefined {
   if (!config.XKIRO_AI_ENABLED) return undefined
@@ -110,7 +112,9 @@ async function main(): Promise<void> {
   framework.registerService(new SuggestionRelayService(config.DATABASE_PATH, logger, {
     provider: createSuggestionProvider(config, logger),
   }))
+  framework.registerService(new NeonClientService(logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
+  framework.registerPlugin(createNeonChatLogPlugin(config))
   framework.registerPlugin(technicalPlugin)
   if (config.XKIRO_AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }))
   framework.registerPlugin(developerModePlugin)
