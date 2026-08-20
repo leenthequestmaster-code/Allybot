@@ -163,6 +163,16 @@ test('JID commands are owner/developer-gated, group-scoped, bounded, and text-on
   assert.match(core.sent[0].text, /120363000000000000-3333333333@g\.us/)
 
   await core.emitMessage({
+    id: 'jid-immediate',
+    remoteJid: '120363000000000000-3333333333@g.us',
+    senderJid: ownerJid,
+    text: '!jid',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.match(core.sent[1].text, /JID Grup Saat Ini/)
+
+  await core.emitMessage({
     id: 'groupid-denied',
     remoteJid: '120363000000000000-3333333333@g.us',
     senderJid: 'stranger@s.whatsapp.net',
@@ -170,7 +180,7 @@ test('JID commands are owner/developer-gated, group-scoped, bounded, and text-on
     timestamp: Date.now(),
     fromMe: false,
   })
-  assert.match(core.sent[1].text, /Developer Mode belum aktif/)
+  assert.match(core.sent[2].text, /Developer Mode belum aktif/)
 
   await core.emitMessage({
     id: 'alljid',
@@ -180,12 +190,12 @@ test('JID commands are owner/developer-gated, group-scoped, bounded, and text-on
     timestamp: Date.now(),
     fromMe: false,
   })
-  assert.match(core.sent[2].text, /Semua JID Grup Allybot/)
-  assert.match(core.sent[2].text, /120363000000000001-1111111111@g\.us/)
-  assert.match(core.sent[2].text, /120363000000000002-2222222222@g\.us/)
-  assert.match(core.sent[2].text, /Alpha Room/)
-  assert.equal(core.sent[2].text.includes('Should not show'), false)
-  assert.equal(core.sent[2].text.includes('Alpha\nRoom'), false)
+  assert.match(core.sent[3].text, /Semua JID Grup Allybot/)
+  assert.match(core.sent[3].text, /120363000000000001-1111111111@g\.us/)
+  assert.match(core.sent[3].text, /120363000000000002-2222222222@g\.us/)
+  assert.match(core.sent[3].text, /Alpha Room/)
+  assert.equal(core.sent[3].text.includes('Should not show'), false)
+  assert.equal(core.sent[3].text.includes('Alpha\nRoom'), false)
 
   await app.stop()
 })

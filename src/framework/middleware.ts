@@ -25,7 +25,7 @@ export function composeMiddleware(
   }
 }
 
-export function permissionDenialMessage(permission: string): string {
+export function permissionDenialMessage(permission: string, context?: CommandContext): string {
   switch (permission) {
     case 'group.admin':
       return 'Maaf, command ini hanya dapat digunakan oleh admin grup.'
@@ -34,9 +34,13 @@ export function permissionDenialMessage(permission: string): string {
     case 'bot.owner':
       return 'Maaf, command ini hanya tersedia untuk owner Allybot.'
     case 'developer.mode.observer':
-      return 'Maaf, Developer Mode belum aktif untuk akun ini atau hanya dapat digunakan melalui private chat.'
+      return context?.message.remoteJid.endsWith('@g.us')
+        ? 'Maaf, Developer Mode hanya dapat digunakan melalui private chat.'
+        : 'Maaf, Developer Mode belum aktif untuk akun ini.'
     case 'developer.mode.group.observer':
-      return 'Maaf, Developer Mode belum aktif untuk akun ini atau command ini hanya dapat digunakan di dalam grup.'
+      return context && !context.message.remoteJid.endsWith('@g.us')
+        ? 'Maaf, command ini hanya dapat digunakan di dalam grup.'
+        : 'Maaf, Developer Mode belum aktif untuk akun ini.'
     default:
       return 'Maaf, kamu belum memiliki izin untuk menggunakan command ini.'
   }
@@ -51,7 +55,7 @@ export function createPermissionMiddleware(
     if (!allowed) {
       const permission = command.permission
       context.logger.warn({ command: command.name, permission }, 'command permission denied')
-      await context.reply(permissionDenialMessage(permission))
+      await context.reply(permissionDenialMessage(permission, context))
       return
     }
     await next()

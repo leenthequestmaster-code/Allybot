@@ -172,7 +172,7 @@ export const technicalPlugin: Plugin = {
       category: 'developer',
       permission: permissionNames.developerModeGroupObserver,
       hidden: true,
-      cooldownMs: 5_000,
+      cooldownMs: 0,
       handler: async (commandContext) => {
         await commandContext.reply(groupIdText(commandContext))
       },
