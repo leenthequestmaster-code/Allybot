@@ -13,6 +13,7 @@ const forbiddenPath = /(^|\/)(?:\.env|.*\.(?:sqlite|db|pem|key)|creds\.json|cred
 const allowedPath = (path) => path === 'package.json'
   || path === 'package-lock.json'
   || path === 'bash-exec-list.txt'
+  || path === 'scripts/verify-postgres.mjs'
   || path.startsWith('dist/')
 
 function listFiles(directory) {
@@ -48,7 +49,7 @@ const manifest = {
   nodeVersion: process.version,
   packageVersion: typeof packageJson.version === 'string' ? packageJson.version : 'unknown',
   packageLockSha256: sha256(packageLockPath),
-  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt'],
+  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs'],
   files: entries,
 }
 

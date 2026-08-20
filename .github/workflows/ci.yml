@@ -87,8 +87,9 @@ jobs:
           command -v zip >/dev/null
           command -v unzip >/dev/null
           rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
-          mkdir -p .ci-artifact/dist
+          mkdir -p .ci-artifact/dist .ci-artifact/scripts
           cp -a dist/. .ci-artifact/dist/
+          cp scripts/verify-postgres.mjs .ci-artifact/scripts/
           cp package.json package-lock.json bash-exec-list.txt .ci-artifact/
 
           forbidden_files=$(find .ci-artifact -type f \( \
@@ -193,6 +194,7 @@ jobs:
           test -f stage/package-lock.json
           test -f stage/release-manifest.json
           test -s stage/release-manifest.json
+          test -f stage/scripts/verify-postgres.mjs
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)
           if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o -path '*/node_modules/*' -o -path '*/src/*' -o -path '*/tests/*' \) -print -quit | grep -q .; then
