@@ -52,6 +52,9 @@ jobs:
       - name: Verify platform source-dist parity and repository hygiene
         run: npm run verify:platform
 
+      - name: Validate Neon chat-log migration offline
+        run: npm run verify:neon-schema
+
       - name: Validate compiled JavaScript
         run: |
           set -euo pipefail
@@ -87,9 +90,10 @@ jobs:
           command -v zip >/dev/null
           command -v unzip >/dev/null
           rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
-          mkdir -p .ci-artifact/dist .ci-artifact/scripts .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib
+          mkdir -p .ci-artifact/dist .ci-artifact/scripts .ci-artifact/migrations/neon .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib
           cp -a dist/. .ci-artifact/dist/
-          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs .ci-artifact/scripts/
+          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs .ci-artifact/scripts/
+          cp migrations/neon/0001_whatsapp_chat_logs.sql .ci-artifact/migrations/neon/
           cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
           cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
           cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
@@ -206,6 +210,8 @@ jobs:
           test -f stage/scripts/verify-supabase-access.mjs
           test -f stage/scripts/verify-neon.mjs
           test -f stage/scripts/monitor-postgres.mjs
+          test -f stage/scripts/verify-neon-chat-log-migration.mjs
+          test -f stage/migrations/neon/0001_whatsapp_chat_logs.sql
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)
           if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' \) -o -path 'stage/src/*' -o -path 'stage/tests/*' \) -print -quit | grep -q .; then

@@ -17,6 +17,8 @@ const allowedPath = (path) => path === 'package.json'
   || path === 'scripts/verify-supabase-access.mjs'
   || path === 'scripts/verify-neon.mjs'
   || path === 'scripts/monitor-postgres.mjs'
+  || path === 'scripts/verify-neon-chat-log-migration.mjs'
+  || path.startsWith('migrations/neon/')
   || path.startsWith('dist/')
   || path.startsWith('node_modules/postgres/')
   || path.startsWith('node_modules/dotenv/')
@@ -59,7 +61,7 @@ const manifest = {
   nodeVersion: process.version,
   packageVersion: typeof packageJson.version === 'string' ? packageJson.version : 'unknown',
   packageLockSha256: sha256(packageLockPath),
-  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'scripts/verify-supabase-access.mjs', 'scripts/verify-neon.mjs', 'scripts/monitor-postgres.mjs',
+  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'scripts/verify-supabase-access.mjs', 'scripts/verify-neon.mjs', 'scripts/monitor-postgres.mjs', 'scripts/verify-neon-chat-log-migration.mjs', 'migrations/neon/**',
  'node_modules/postgres/**', 'node_modules/dotenv/**', 'node_modules/@supabase/**', 'node_modules/buffer/**', 'node_modules/ws/**', 'node_modules/iceberg-js/**', 'node_modules/tslib/**'],
   files: entries,
 }

@@ -16,6 +16,7 @@
     "verify:postgres": "node scripts/verify-postgres.mjs",
     "verify:supabase-access": "node scripts/verify-supabase-access.mjs",
     "verify:neon": "node scripts/verify-neon.mjs",
+    "verify:neon-schema": "node scripts/verify-neon-chat-log-migration.mjs",
     "monitor:postgres": "node scripts/monitor-postgres.mjs",
     "test": "node --test"
   },
