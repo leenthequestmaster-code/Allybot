@@ -22,11 +22,10 @@ POSTGRES_POOL_MODE=session
 ## Verification command
 
 ```bash
-npm ci
 npm run verify:postgres
 ```
 
-Command tersebut melakukan build TypeScript, membuat satu client PostgreSQL, menjalankan query read-only `SELECT 1 AS ok LIMIT 1`, memeriksa hasil `1`, lalu menutup client. Command tersebut tidak menjalankan `CREATE`, `ALTER`, `DROP`, `INSERT`, `UPDATE`, `DELETE`, atau migration.
+Build TypeScript dilakukan oleh CI sebelum artifact dibuat. Pada Panel, command ini langsung menjalankan verifier dari `dist` yang sudah diverifikasi; ia membuat satu client PostgreSQL, menjalankan query read-only `SELECT 1 AS ok LIMIT 1`, memeriksa hasil `1`, lalu menutup client. Command tersebut tidak menjalankan `CREATE`, `ALTER`, `DROP`, `INSERT`, `UPDATE`, `DELETE`, atau migration.
 
 ## SSL and connection mode
 

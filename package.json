@@ -13,7 +13,7 @@
     "start": "node dist/index.js",
     "self-check": "node dist/index.js --self-check",
     "verify:platform": "node scripts/verify-platform.mjs",
-    "verify:postgres": "npm run build && node scripts/verify-postgres.mjs",
+    "verify:postgres": "node scripts/verify-postgres.mjs",
     "test": "node --test"
   },
   "dependencies": {
