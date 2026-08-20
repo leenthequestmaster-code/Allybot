@@ -9,12 +9,14 @@ if (!root || root === resolve('/')) throw new Error('A non-root artifact directo
 const outputPath = resolve(root, outputRelative)
 if (!outputPath.startsWith(`${root}${sep}`)) throw new Error('Manifest output must remain inside artifact directory')
 
-const forbiddenPath = /(^|\/)(?:\.env|.*\.(?:sqlite|db|pem|key)|creds\.json|credentials\.json|node_modules|src|tests)(?:\/|$)/i
+const forbiddenPath = /(^|\/)(?:\.env|.*\.(?:sqlite|db|pem|key)|creds\.json|credentials\.json)(?:\/|$)/i
 const allowedPath = (path) => path === 'package.json'
   || path === 'package-lock.json'
   || path === 'bash-exec-list.txt'
   || path === 'scripts/verify-postgres.mjs'
   || path.startsWith('dist/')
+  || path.startsWith('node_modules/postgres/')
+  || path.startsWith('node_modules/dotenv/')
 
 function listFiles(directory) {
   const files = []
@@ -49,7 +51,7 @@ const manifest = {
   nodeVersion: process.version,
   packageVersion: typeof packageJson.version === 'string' ? packageJson.version : 'unknown',
   packageLockSha256: sha256(packageLockPath),
-  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs'],
+  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'node_modules/postgres/**', 'node_modules/dotenv/**'],
   files: entries,
 }
 
