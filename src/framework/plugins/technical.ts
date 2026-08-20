@@ -1,5 +1,6 @@
 import type { CommandContext, Plugin } from '../contracts.js'
 import { permissionNames } from '../../permissions.js'
+import { isGroupJid } from '../../platform/validation.js'
 
 function formatUptime(seconds: number): string {
   const totalSeconds = Math.max(0, Math.floor(seconds))
@@ -20,19 +21,14 @@ function connectionStatus(context: CommandContext): string {
 }
 
 function chatMode(context: CommandContext): 'private' | 'group' {
-  return context.message.remoteJid.endsWith('@g.us') ? 'group' : 'private'
+  return isGroupJid(context.message.remoteJid) ? 'group' : 'private'
 }
 
-const GROUP_JID_PATTERN = /^[0-9]+-[0-9]+@g\.us$/
 const MAX_GROUP_LIST_ITEMS = 500
 const MAX_GROUP_SUBJECT_LENGTH = 80
 
 function safeGroupSubject(subject: string): string {
   return subject.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_GROUP_SUBJECT_LENGTH) || 'Unnamed group'
-}
-
-function isGroupJid(jid: string): boolean {
-  return GROUP_JID_PATTERN.test(jid)
 }
 
 function groupIdText(context: CommandContext): string {

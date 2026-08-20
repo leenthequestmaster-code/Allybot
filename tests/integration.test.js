@@ -4,6 +4,7 @@ import pino from 'pino'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { diagnosticsPlugin } from '../dist/framework/plugins/diagnostics.js'
 import { technicalPlugin } from '../dist/framework/plugins/technical.js'
+import { groupPlugin } from '../dist/framework/plugins/group.js'
 import { createPermissionResolver } from '../dist/permissions.js'
 
 const logger = pino({ level: 'silent' })
@@ -93,7 +94,10 @@ test('A failed command is isolated and framework remains ready for later command
   await core.emitMessage({ id: 'good', remoteJid: 'chat@s.whatsapp.net', text: '!good', timestamp: Date.now(), fromMe: false })
   assert.equal(app.state.phase, 'ready')
   assert.equal(frameworkErrors, 1)
-  assert.deepEqual(core.sent, [{ remoteJid: 'chat@s.whatsapp.net', text: 'still alive' }])
+  assert.deepEqual(core.sent, [
+    { remoteJid: 'chat@s.whatsapp.net', text: 'Maaf, command tidak dapat diproses saat ini. Silakan coba lagi.' },
+    { remoteJid: 'chat@s.whatsapp.net', text: 'still alive' },
+  ])
   await app.stop()
 })
 
@@ -153,18 +157,18 @@ test('JID commands are owner/developer-gated, group-scoped, bounded, and text-on
 
   await core.emitMessage({
     id: 'groupid',
-    remoteJid: '120363000000000000-3333333333@g.us',
+    remoteJid: '120363000000000000@g.us',
     senderJid: ownerJid,
-    text: '!jid',
+    text: '!groupid',
     timestamp: Date.now(),
     fromMe: false,
   })
   assert.match(core.sent[0].text, /JID Grup Saat Ini/)
-  assert.match(core.sent[0].text, /120363000000000000-3333333333@g\.us/)
+  assert.match(core.sent[0].text, /120363000000000000@g\.us/)
 
   await core.emitMessage({
     id: 'jid-immediate',
-    remoteJid: '120363000000000000-3333333333@g.us',
+    remoteJid: '120363000000000000@g.us',
     senderJid: ownerJid,
     text: '!jid',
     timestamp: Date.now(),
@@ -174,7 +178,7 @@ test('JID commands are owner/developer-gated, group-scoped, bounded, and text-on
 
   await core.emitMessage({
     id: 'groupid-denied',
-    remoteJid: '120363000000000000-3333333333@g.us',
+    remoteJid: '120363000000000000@g.us',
     senderJid: 'stranger@s.whatsapp.net',
     text: '!groupid',
     timestamp: Date.now(),
@@ -197,6 +201,18 @@ test('JID commands are owner/developer-gated, group-scoped, bounded, and text-on
   assert.equal(core.sent[3].text.includes('Should not show'), false)
   assert.equal(core.sent[3].text.includes('Alpha\nRoom'), false)
 
+  await app.stop()
+})
+
+test('Technical and Group Foundation plugins load together without command collisions', async () => {
+  const core = new FakeCore()
+  const app = new ApplicationFramework(config, logger, core)
+  app.registerPlugin(technicalPlugin)
+  app.registerPlugin(groupPlugin)
+  await app.start()
+  assert.equal(app.state.phase, 'ready')
+  assert.ok(app.commands.get('groupinfo'))
+  assert.ok(app.commands.get('groupid'))
   await app.stop()
 })
 

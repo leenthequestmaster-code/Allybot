@@ -7,6 +7,7 @@ import pino from 'pino'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { groupPlugin } from '../dist/framework/plugins/group.js'
 import { GroupConfigurationService } from '../dist/services/group-configuration-service.js'
+import { isGroupJid } from '../dist/platform/validation.js'
 
 const logger = pino({ level: 'silent' })
 
@@ -132,7 +133,7 @@ test('group pagination uses the effective prefix and memberinfo accepts a quoted
     logger,
     core,
     {
-      prefixResolver: (message, services, fallback) => message.remoteJid.endsWith('@g.us')
+      prefixResolver: (message, services, fallback) => isGroupJid(message.remoteJid)
         ? services.get('group-configuration').resolvePrefix(message.remoteJid, fallback)
         : fallback,
     },
@@ -176,7 +177,7 @@ test('prefix command explains override source and reset path', async () => {
     logger,
     core,
     {
-      prefixResolver: (message, services, fallback) => message.remoteJid.endsWith('@g.us')
+      prefixResolver: (message, services, fallback) => isGroupJid(message.remoteJid)
         ? services.get('group-configuration').resolvePrefix(message.remoteJid, fallback)
         : fallback,
       permissionResolver: (permission, context) => permission === 'group.admin' && context.message.senderJid === core.metadata.ownerJid,

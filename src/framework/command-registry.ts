@@ -40,8 +40,8 @@ export class CommandRegistry implements CommandRegistryLike {
   ) {
     this.middleware = composeMiddleware([
       createPermissionMiddleware(permissionResolver),
-      createCooldownMiddleware(),
       validationMiddleware,
+      createCooldownMiddleware(),
       ...extraMiddleware,
     ])
   }
@@ -89,6 +89,7 @@ export class CommandRegistry implements CommandRegistryLike {
     const command = this.get(token ?? '')
     if (!command) return false
 
+    let replyAttempted = false
     const context: CommandContext = {
       message,
       args,
@@ -98,7 +99,10 @@ export class CommandRegistry implements CommandRegistryLike {
       logger: this.logger.child({ command: command.name, messageId: message.id }),
       services: this.services,
       whatsapp: this.whatsapp,
-      reply: (replyText, options?: WhatsAppSendOptions) => this.whatsapp.sendText(message.remoteJid, replyText, options),
+      reply: async (replyText, options?: WhatsAppSendOptions) => {
+        replyAttempted = true
+        await this.whatsapp.sendText(message.remoteJid, replyText, options)
+      },
     }
 
     await this.events.emit('command.before', { command: command.name, context })
@@ -107,6 +111,13 @@ export class CommandRegistry implements CommandRegistryLike {
       await this.events.emit('command.executed', { command: command.name, context })
     } catch (error) {
       context.logger.error({ err: error }, 'command execution failed')
+      if (!replyAttempted) {
+        try {
+          await context.reply('Maaf, command tidak dapat diproses saat ini. Silakan coba lagi.')
+        } catch (fallbackError) {
+          context.logger.warn({ err: fallbackError }, 'command failure fallback reply failed')
+        }
+      }
       await this.events.emit('command.failed', { command: command.name, context, error })
       await this.events.emit('framework.error', { source: `command:${command.name}`, error })
     }

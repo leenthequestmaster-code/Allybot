@@ -34,6 +34,7 @@ import type {
 import { AllybotError, errorMessage, statusCodeFromError } from './errors.js'
 import type { AppLogger } from './logger.js'
 import { SqliteStorage } from './storage.js'
+import { isGroupJid } from './platform/validation.js'
 
 function extractMessageText(message: WAMessage['message'] | null | undefined): string | undefined {
   const text = (
@@ -65,7 +66,7 @@ function nativeFlowAdditionalNodes(remoteJid: string) {
     },
   ]
 
-  if (!remoteJid.endsWith('@g.us')) {
+  if (!isGroupJid(remoteJid)) {
     nodes.push({ tag: 'bot', attrs: { biz_bot: '1' } })
   }
 
@@ -350,7 +351,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
     const groups = await withTimeout(socket.groupFetchAllParticipating(), 10_000, 'participating group lookup')
     return Object.entries(groups)
-      .filter(([jid]) => /^[0-9]+-[0-9]+@g\.us$/.test(jid))
+      .filter(([jid]) => isGroupJid(jid))
       .map(([jid, metadata]) => ({
         jid,
         subject: metadata.subject?.trim() || 'Unnamed group',
@@ -359,7 +360,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata> {
-    if (!groupJid.endsWith('@g.us')) throw new Error('group metadata is only available for WhatsApp groups')
+    if (!isGroupJid(groupJid)) throw new Error('group metadata is only available for WhatsApp groups')
     const socket = this.socket
     if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
 
@@ -395,7 +396,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     participantJids: readonly string[],
     action: GroupModerationAction,
   ): Promise<readonly WhatsAppGroupParticipantActionResult[]> {
-    if (!groupJid.endsWith('@g.us')) throw new Error('group participant update is only available for WhatsApp groups')
+    if (!isGroupJid(groupJid)) throw new Error('group participant update is only available for WhatsApp groups')
     if (participantJids.length < 1 || participantJids.length > 20) throw new Error('group participant update target count is out of bounds')
     const socket = this.socket
     if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
@@ -419,7 +420,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async groupSettingUpdate(groupJid: string, setting: GroupSettingValue): Promise<void> {
-    if (!groupJid.endsWith('@g.us')) throw new Error('group setting update is only available for WhatsApp groups')
+    if (!isGroupJid(groupJid)) throw new Error('group setting update is only available for WhatsApp groups')
     const socket = this.socket
     if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
 
@@ -432,7 +433,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async getGroupInviteLink(groupJid: string): Promise<string | undefined> {
-    if (!groupJid.endsWith('@g.us')) throw new Error('group invite link is only available for WhatsApp groups')
+    if (!isGroupJid(groupJid)) throw new Error('group invite link is only available for WhatsApp groups')
     const socket = this.socket
     if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
     const code = await withTimeout(socket.groupInviteCode(groupJid), 10_000, 'group invite link lookup')
@@ -440,7 +441,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async groupRevokeInvite(groupJid: string): Promise<string | undefined> {
-    if (!groupJid.endsWith('@g.us')) throw new Error('group invite revoke is only available for WhatsApp groups')
+    if (!isGroupJid(groupJid)) throw new Error('group invite revoke is only available for WhatsApp groups')
     const socket = this.socket
     if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
     try {
@@ -452,7 +453,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   private async resolveGroupName(remoteJid: string): Promise<string | undefined> {
-    if (!remoteJid.endsWith('@g.us')) return undefined
+    if (!isGroupJid(remoteJid)) return undefined
 
     const cached = this.groupNameCache.get(remoteJid)
     if (cached && cached.expiresAt > Date.now()) return cached.name

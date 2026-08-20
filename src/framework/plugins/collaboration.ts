@@ -7,6 +7,7 @@ import type {
   WhatsAppPort,
 } from '../../framework/contracts.js'
 import { permissionNames } from '../../permissions.js'
+import { isGroupJid } from '../../platform/validation.js'
 import {
   CollaborationService,
   type CollaborationPollStatus,
@@ -17,7 +18,7 @@ import {
 } from '../../services/collaboration-service.js'
 
 function groupJid(message: CoreMessage): string | undefined {
-  return message.remoteJid.endsWith('@g.us') ? message.remoteJid : undefined
+  return isGroupJid(message.remoteJid) ? message.remoteJid : undefined
 }
 
 function actorJid(message: CoreMessage, whatsapp: WhatsAppPort): string | undefined {

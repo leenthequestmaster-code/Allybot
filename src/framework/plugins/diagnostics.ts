@@ -1,4 +1,5 @@
 import type { CommandContext, Plugin } from '../contracts.js'
+import { isGroupJid } from '../../platform/validation.js'
 
 function formatUptime(seconds: number): string {
   const totalSeconds = Math.max(0, Math.floor(seconds))
@@ -44,7 +45,7 @@ function detailedDiagnostics(context: CommandContext): string {
     `node=${process.versions.node}`,
     `arch=${process.arch}`,
     `platform=${process.platform}`,
-    `mode=${context.message.remoteJid.endsWith('@g.us') ? 'group' : 'private'}`,
+    `mode=${isGroupJid(context.message.remoteJid) ? 'group' : 'private'}`,
   ].join(' | ')
 }
 

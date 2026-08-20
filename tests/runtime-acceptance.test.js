@@ -148,7 +148,7 @@ test('runtime acceptance rejects fromMe, unknown, and invalid commands without h
   await whatsapp.emitMessage(message({ id: 'reject-validation', text: '!validated' }))
 
   assert.equal(executions, 0)
-  assert.deepEqual(whatsapp.sentTexts, [])
+  assert.deepEqual(whatsapp.sentTexts, [{ remoteJid: 'chat@s.whatsapp.net', text: 'invalid input' }])
   await framework.stop()
 })
 

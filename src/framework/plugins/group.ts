@@ -5,6 +5,7 @@ import type {
   WhatsAppGroupParticipant,
 } from '../contracts.js'
 import { permissionNames } from '../../permissions.js'
+import { isGroupJid } from '../../platform/validation.js'
 import {
   GroupConfigurationService,
   MAX_GROUP_MESSAGE_LENGTH,
@@ -26,7 +27,7 @@ function mentionOptions(jids: readonly string[]) {
 }
 
 function isGroup(context: CommandContext): boolean {
-  return context.message.remoteJid.endsWith('@g.us')
+  return isGroupJid(context.message.remoteJid)
 }
 
 async function requireGroup(context: CommandContext): Promise<boolean> {
@@ -161,17 +162,6 @@ export const groupPlugin: Plugin = {
   name: 'group-foundation',
   version: '0.1.0',
   load(context) {
-    context.commands.register({
-      name: 'groupid',
-      description: 'Show the current WhatsApp group ID',
-      category: 'group',
-      menuOrder: 1,
-      handler: async (commandContext) => {
-        if (!(await requireGroup(commandContext))) return
-        await commandContext.reply(`Group ID grup ini:\n${commandContext.message.remoteJid}`)
-      },
-    })
-
     context.commands.register({
       name: 'groupinfo',
       aliases: ['ginfo'],

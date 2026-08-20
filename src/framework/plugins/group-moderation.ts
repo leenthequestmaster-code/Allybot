@@ -8,12 +8,13 @@ import type {
   WhatsAppPort,
 } from '../contracts.js'
 import { GroupModerationService } from '../../services/group-moderation-service.js'
+import { isGroupJid } from '../../platform/validation.js'
 
 const ACTIONS: readonly GroupModerationAction[] = ['add', 'remove', 'promote', 'demote']
 const SETTINGS: readonly GroupSettingValue[] = ['announcement', 'not_announcement', 'locked', 'unlocked']
 
 function groupJid(message: CoreMessage): string | undefined {
-  return message.remoteJid.endsWith('@g.us') ? message.remoteJid : undefined
+  return isGroupJid(message.remoteJid) ? message.remoteJid : undefined
 }
 
 function actorJid(message: CoreMessage, whatsapp: WhatsAppPort): string | undefined {

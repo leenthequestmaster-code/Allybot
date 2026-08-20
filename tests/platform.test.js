@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { InMemoryFeatureRegistry, TextInteractionAdapter } from '../dist/platform/index.js'
+import { InMemoryFeatureRegistry, TextInteractionAdapter, isGroupJid } from '../dist/platform/index.js'
 
 const feature = (overrides = {}) => ({
   id: 'utility-menu',
@@ -25,6 +25,14 @@ const menu = (overrides = {}) => ({
   ],
   fallbackText: 'Balas dengan angka.',
   ...overrides,
+})
+
+test('canonical group Jid validation accepts supported WhatsApp group formats', () => {
+  assert.equal(isGroupJid('120363000000000000@g.us'), true)
+  assert.equal(isGroupJid('120363000000000000-1234567890@g.us'), true)
+  assert.equal(isGroupJid('6283197859955@s.whatsapp.net'), false)
+  assert.equal(isGroupJid('group@g.us'), true)
+  assert.equal(isGroupJid('not-a-jid'), false)
 })
 
 test('platform registry rejects duplicate ids and unregisters deterministically', () => {

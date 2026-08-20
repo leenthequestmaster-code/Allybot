@@ -82,7 +82,58 @@ test('CommandRegistry supports alias, validation, cooldown, and reply context', 
   assert.equal(await registry.dispatch(message), true)
   assert.equal(await registry.dispatch({ ...message, id: 'm2' }), true)
   assert.equal(await registry.dispatch({ ...message, id: 'm3', text: '!validated' }), true)
-  assert.deepEqual(whatsapp.sent, [{ remoteJid: 'chat@s.whatsapp.net', text: 'hello bob' }])
+  assert.deepEqual(whatsapp.sent, [
+    { remoteJid: 'chat@s.whatsapp.net', text: 'hello bob' },
+    { remoteJid: 'chat@s.whatsapp.net', text: 'missing argument' },
+  ])
+})
+
+test('Invalid command input does not consume the command cooldown', async () => {
+  const whatsapp = fakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  registry.register({
+    name: 'validated-cooldown',
+    cooldownMs: 10_000,
+    validate: (context) => context.args.length === 0 ? 'Format: `!validated-cooldown <nilai>`' : undefined,
+    handler: async (context) => context.reply('valid input'),
+  })
+
+  await registry.dispatch({ id: 'invalid-cooldown', remoteJid: 'chat@s.whatsapp.net', text: '!validated-cooldown', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'valid-cooldown', remoteJid: 'chat@s.whatsapp.net', text: '!validated-cooldown ok', timestamp: Date.now(), fromMe: false })
+
+  assert.deepEqual(whatsapp.sent, [
+    { remoteJid: 'chat@s.whatsapp.net', text: 'Format: `!validated-cooldown <nilai>`' },
+    { remoteJid: 'chat@s.whatsapp.net', text: 'valid input' },
+  ])
+})
+
+test('CommandRegistry sends a safe fallback when a handler fails before replying', async () => {
+  const whatsapp = fakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  registry.register({ name: 'boom', handler: async () => { throw new Error('private internal detail') } })
+  registry.register({ name: 'partial-boom', handler: async (context) => { await context.reply('partial response'); throw new Error('after reply') } })
+
+  await registry.dispatch({ id: 'boom', remoteJid: 'chat@s.whatsapp.net', text: '!boom', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'partial-boom', remoteJid: 'chat@s.whatsapp.net', text: '!partial-boom', timestamp: Date.now(), fromMe: false })
+
+  assert.deepEqual(whatsapp.sent, [
+    { remoteJid: 'chat@s.whatsapp.net', text: 'Maaf, command tidak dapat diproses saat ini. Silakan coba lagi.' },
+    { remoteJid: 'chat@s.whatsapp.net', text: 'partial response' },
+  ])
+})
+
+test('CommandRegistry rejects duplicate command names and aliases', () => {
+  const whatsapp = fakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  registry.register({ name: 'groupid', aliases: ['jid'], handler: async () => {} })
+  assert.throws(() => registry.register({ name: 'groupid', handler: async () => {} }), /Command name already registered: groupid/)
+  assert.throws(() => registry.register({ name: 'other', aliases: ['jid'], handler: async () => {} }), /Command name already registered: jid/)
 })
 
 test('CommandRegistry ignores commands from the bot itself', async () => {

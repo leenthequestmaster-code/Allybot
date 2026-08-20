@@ -13,6 +13,7 @@ import {
 } from '../../platform/group-setup.js'
 import { MissionEngine, SqliteMissionStore } from '../../platform/mission.js'
 import type { GroupConfigurationService } from '../../services/group-configuration-service.js'
+import { isGroupJid } from '../../platform/validation.js'
 
 const INITIAL_PROMPT = 'Group Setup Mission dimulai. Kirim aturan grup, atau ketik `skip` untuk melewati.'
 
@@ -55,7 +56,7 @@ export function createGroupSetupMissionPlugin(whatsapp: WhatsAppPort): Plugin {
         cooldownMs: 3_000,
         handler: async (commandContext) => {
           const groupJid = commandContext.message.remoteJid
-          if (!groupJid.endsWith('@g.us')) {
+          if (!isGroupJid(groupJid)) {
             await commandContext.reply('Group Setup Mission hanya dapat digunakan di dalam grup.')
             return
           }
@@ -112,7 +113,7 @@ export function createGroupSetupMissionPlugin(whatsapp: WhatsAppPort): Plugin {
 
   async function handleMissionMessage(message: CoreMessage, prefix: string, logger: { warn(fields: Record<string, unknown>, message: string): void }): Promise<void> {
     const currentEngine = engine
-    if (!currentEngine || message.fromMe || !message.remoteJid.endsWith('@g.us') || !message.senderJid) return
+    if (!currentEngine || message.fromMe || !isGroupJid(message.remoteJid) || !message.senderJid) return
     const current = currentEngine.findActive({ definitionId: GROUP_SETUP_MISSION_ID, remoteJid: message.remoteJid, actorJid: message.senderJid, now: Date.now() })
     if (!current) return
 

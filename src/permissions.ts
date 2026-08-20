@@ -1,4 +1,5 @@
 import type { CommandContext, WhatsAppPort } from './framework/contracts.js'
+import { isGroupJid } from './platform/validation.js'
 import type { DeveloperModeService } from './services/developer-mode-service.js'
 
 export const permissionNames = {
@@ -38,7 +39,7 @@ export function createPermissionResolver(
     }
 
     if (permission === permissionNames.developerModeObserver || permission === permissionNames.developerModeGroupObserver) {
-      const isGroupChat = context.message.remoteJid.endsWith('@g.us')
+      const isGroupChat = isGroupJid(context.message.remoteJid)
       if (permission === permissionNames.developerModeObserver && isGroupChat) {
         if (context.services.has('developer-mode')) {
           context.services.get<DeveloperModeService>('developer-mode').recordBoundaryDenied(senderJid, 'private-chat-only')
@@ -56,7 +57,7 @@ export function createPermissionResolver(
       }
     }
 
-    if (!context.message.remoteJid.endsWith('@g.us')) return false
+    if (!isGroupJid(context.message.remoteJid)) return false
 
     const metadata = await whatsapp.getGroupMetadata(context.message.remoteJid)
     const sender = metadata.participants.find((participant) => isSameJid(participant.jid, senderJid))

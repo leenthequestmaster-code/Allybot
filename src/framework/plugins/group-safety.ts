@@ -1,12 +1,13 @@
 import type { CoreMessage, Plugin, ServiceRegistryLike, WhatsAppGroupMetadata, WhatsAppPort } from '../contracts.js'
 import { permissionNames } from '../../permissions.js'
+import { isGroupJid } from '../../platform/validation.js'
 import { GroupSafetyService, type ModerationCaseRecord, type WarningRecord } from '../../services/group-safety-service.js'
 
 const LINK_PATTERN = /(?:https?:\/\/|www\.)[^\s<>]+/i
 const MAX_RENDERED_REASON = 160
 
 function groupJid(message: CoreMessage): string | undefined {
-  return message.remoteJid.endsWith('@g.us') ? message.remoteJid : undefined
+  return isGroupJid(message.remoteJid) ? message.remoteJid : undefined
 }
 
 function actorJid(message: CoreMessage, whatsapp: WhatsAppPort): string | undefined {

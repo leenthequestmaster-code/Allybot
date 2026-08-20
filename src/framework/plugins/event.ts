@@ -1,8 +1,9 @@
 import type { CoreMessage, Plugin, ServiceRegistryLike, WhatsAppPort } from '../contracts.js'
 import { EventService, type EventPhaseInput } from '../../services/event-service.js'
+import { isGroupJid } from '../../platform/validation.js'
 
 function groupJid(message: CoreMessage): string | undefined {
-  return message.remoteJid.endsWith('@g.us') ? message.remoteJid : undefined
+  return isGroupJid(message.remoteJid) ? message.remoteJid : undefined
 }
 
 function actorJid(message: CoreMessage, whatsapp: WhatsAppPort): string | undefined {

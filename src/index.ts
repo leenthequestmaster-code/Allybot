@@ -26,6 +26,7 @@ import { suggestionRelayPlugin } from './framework/plugins/suggestion-relay.js'
 import { createAiHandler, MAX_AI_INPUT_LENGTH } from './ai-handler.js'
 import { createLogger, type AppLogger } from './logger.js'
 import { createPermissionResolver } from './permissions.js'
+import { isGroupJid } from './platform/validation.js'
 import { SqliteStorage } from './storage.js'
 import { AfkService } from './services/afk-service.js'
 import { GroupConfigurationService } from './services/group-configuration-service.js'
@@ -90,7 +91,7 @@ async function main(): Promise<void> {
     whatsapp,
     {
       permissionResolver: createPermissionResolver(whatsapp, config.BOT_OWNER_JID),
-      prefixResolver: (message, services, fallback) => message.remoteJid.endsWith('@g.us')
+      prefixResolver: (message, services, fallback) => isGroupJid(message.remoteJid)
         ? services.get<GroupConfigurationService>('group-configuration').resolvePrefix(message.remoteJid, fallback)
         : fallback,
     },

@@ -3,6 +3,7 @@ import type {
   MiddlewareContext,
   CommandContext,
 } from './contracts.js'
+import { isGroupJid } from '../platform/validation.js'
 
 export type PermissionResolver = (
   permission: string,
@@ -34,11 +35,11 @@ export function permissionDenialMessage(permission: string, context?: CommandCon
     case 'bot.owner':
       return 'Maaf, command ini hanya tersedia untuk owner Allybot.'
     case 'developer.mode.observer':
-      return context?.message.remoteJid.endsWith('@g.us')
+      return context && isGroupJid(context.message.remoteJid)
         ? 'Maaf, Developer Mode hanya dapat digunakan melalui private chat.'
         : 'Maaf, Developer Mode belum aktif untuk akun ini.'
     case 'developer.mode.group.observer':
-      return context && !context.message.remoteJid.endsWith('@g.us')
+      return context && !isGroupJid(context.message.remoteJid)
         ? 'Maaf, command ini hanya dapat digunakan di dalam grup.'
         : 'Maaf, Developer Mode belum aktif untuk akun ini.'
     default:
@@ -88,6 +89,7 @@ export const validationMiddleware: CommandMiddleware = async ({ command, context
   const error = command.validate?.(context)
   if (error) {
     context.logger.debug({ command: command.name, validationError: error }, 'command validation failed')
+    await context.reply(error)
     return
   }
   await next()

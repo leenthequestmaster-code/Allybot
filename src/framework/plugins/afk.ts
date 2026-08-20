@@ -8,6 +8,7 @@ import type {
 } from '../../services/afk-service.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
 import { AfkService } from '../../services/afk-service.js'
+import { isGroupJid } from '../../platform/validation.js'
 
 const DEFAULT_REASON = 'Tidak ada alasan.'
 
@@ -58,7 +59,7 @@ function messageSnippet(value: string): string {
 
 function mentionSourceLines(mention: AfkMentionRecord): string[] {
   const lines = [
-    `↳ *Grup* : ${mention.groupName || (mention.chatJid.endsWith('@g.us') ? mention.chatJid : 'Personal')}`,
+    `↳ *Grup* : ${mention.groupName || (isGroupJid(mention.chatJid) ? mention.chatJid : 'Personal')}`,
   ]
   if (mention.messageText) lines.push(`↳ *Pesan* : ${messageSnippet(mention.messageText)}`)
   if (mention.quotedText) lines.push(`↳ *Reply* : ${messageSnippet(mention.quotedText)}`)
@@ -257,7 +258,7 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
         const now = message.timestamp || Date.now()
         const ownAfk = afk.getActive(senderJid)
 
-        const prefix = message.remoteJid.endsWith('@g.us')
+        const prefix = isGroupJid(message.remoteJid)
           ? groupConfiguration.resolvePrefix(message.remoteJid, context.config.commandPrefix)
           : context.config.commandPrefix
 

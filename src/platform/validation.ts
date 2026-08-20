@@ -10,6 +10,10 @@ export function isJid(value: string): boolean {
   return /^[^\s@]+@[^\s@]+$/.test(value)
 }
 
+export function isGroupJid(value: string): boolean {
+  return isJid(value) && value.endsWith('@g.us')
+}
+
 export function normalizeText(value: string | undefined): string | undefined {
   const normalized = value?.trim()
   return normalized || undefined
