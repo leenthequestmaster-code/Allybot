@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { createPostgresVerifier, readPostgresVerificationConfig, redactPostgresError } from '../dist/postgres-verifier.js'
 
 const config = readPostgresVerificationConfig()
