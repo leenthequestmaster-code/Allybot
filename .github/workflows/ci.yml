@@ -267,13 +267,11 @@ jobs:
 
           const failures = []
           let cursor = 0
-          const worker = async () => {
-            while (true) {
-              const index = cursor++
-              if (index >= manifest.length) return
-              const entry = manifest[index]
-              const url = new URL(`${base}/files/contents`)
-              url.searchParams.set('file', `/${entry.path}`)
+          const retryableStatuses = new Set([429, 500, 502, 503, 504])
+          const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+          const fetchFile = async (url) => {
+            for (let attempt = 0; attempt < 5; attempt += 1) {
+              let delay = Math.min(500 * 2 ** attempt, 10_000)
               try {
                 const response = await fetch(url, {
                   headers: {
@@ -282,8 +280,33 @@ jobs:
                   },
                   signal: AbortSignal.timeout(20_000),
                 })
-                if (!response.ok) throw new Error(`HTTP ${response.status}`)
-                const bytes = Buffer.from(await response.arrayBuffer())
+                if (response.ok) return Buffer.from(await response.arrayBuffer())
+                if (!retryableStatuses.has(response.status) || attempt === 4) {
+                  throw new Error(`HTTP ${response.status}`)
+                }
+                const retryAfter = Number(response.headers.get('retry-after'))
+                if (Number.isFinite(retryAfter) && retryAfter > 0) {
+                  delay = Math.min(retryAfter * 1000, 10_000)
+                }
+              } catch (error) {
+                if (attempt === 4) throw error
+                if (error instanceof Error && /^HTTP \d+$/.test(error.message) && !/^HTTP (429|5\d\d)$/.test(error.message)) {
+                  throw error
+                }
+              }
+              await sleep(delay)
+            }
+            throw new Error('request retry limit reached')
+          }
+          const worker = async () => {
+            while (true) {
+              const index = cursor++
+              if (index >= manifest.length) return
+              const entry = manifest[index]
+              const url = new URL(`${base}/files/contents`)
+              url.searchParams.set('file', `/${entry.path}`)
+              try {
+                const bytes = await fetchFile(url)
                 const actual = createHash('sha256').update(bytes).digest('hex')
                 if (actual !== entry.expected) throw new Error(`checksum mismatch: ${actual}`)
               } catch (error) {
@@ -292,7 +315,7 @@ jobs:
             }
           }
 
-          await Promise.all(Array.from({ length: Math.min(6, manifest.length) }, () => worker()))
+          await Promise.all(Array.from({ length: Math.min(2, manifest.length) }, () => worker()))
           if (failures.length > 0) {
             for (const failure of failures.slice(0, 20)) console.error(failure)
             process.exit(1)
