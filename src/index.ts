@@ -47,6 +47,7 @@ import { SuggestionRelayService, type SuggestionProviderInput } from './services
 import { WhatsAppConnection } from './whatsapp.js'
 import { NeonClientService } from './neon-client.js'
 import { createNeonChatLogPlugin } from './framework/plugins/neon-chat-log.js'
+import { UpstashRedisService } from './upstash-redis.js'
 
 function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input: SuggestionProviderInput) => Promise<string>) | undefined {
   if (!config.XKIRO_AI_ENABLED) return undefined
@@ -114,6 +115,7 @@ async function main(): Promise<void> {
     provider: createSuggestionProvider(config, logger),
   }))
   framework.registerService(new NeonClientService(logger))
+  framework.registerService(new UpstashRedisService(logger, { env: process.env }))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(createNeonChatLogPlugin(config))
   framework.registerPlugin(technicalPlugin)

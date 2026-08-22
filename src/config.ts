@@ -49,6 +49,12 @@ const envSchema = z.object({
   NEON_CHAT_LOG_MAX_RETRY_DELAY_MS: boundedInt(100, 60_000).default(5_000),
   NEON_CHAT_LOG_WRITE_TIMEOUT_MS: boundedInt(1_000, 60_000).default(10_000),
   NEON_CHAT_LOG_DRAIN_TIMEOUT_MS: boundedInt(1_000, 60_000).default(10_000),
+  UPSTASH_REDIS_ENABLED: booleanFromEnv.default(false),
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+  UPSTASH_REDIS_TIMEOUT_MS: boundedInt(1_000, 10_000).default(5_000),
+  UPSTASH_REDIS_MAX_ATTEMPTS: boundedInt(1, 3).default(2),
+  UPSTASH_REDIS_RETRY_DELAY_MS: boundedInt(50, 2_000).default(100),
 })
 
 export type AppConfig = z.infer<typeof envSchema>
@@ -80,6 +86,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (parsed.data.NEON_CHAT_LOG_MAX_RETRY_DELAY_MS < parsed.data.NEON_CHAT_LOG_RETRY_DELAY_MS) {
     throw new Error('NEON_CHAT_LOG_MAX_RETRY_DELAY_MS must be at least NEON_CHAT_LOG_RETRY_DELAY_MS')
   }
+  if (parsed.data.UPSTASH_REDIS_ENABLED) {
+    if (!parsed.data.UPSTASH_REDIS_REST_URL) throw new Error('UPSTASH_REDIS_REST_URL is required when UPSTASH_REDIS_ENABLED=true')
+    if (!parsed.data.UPSTASH_REDIS_REST_TOKEN) throw new Error('UPSTASH_REDIS_REST_TOKEN is required when UPSTASH_REDIS_ENABLED=true')
+    if (!/^https:\/\//i.test(parsed.data.UPSTASH_REDIS_REST_URL)) throw new Error('UPSTASH_REDIS_REST_URL must use https://')
+  }
 
   return parsed.data
 }
@@ -102,5 +113,6 @@ export function publicConfig(config: AppConfig) {
     xkiroAiFallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED,
     neonEnabled: config.NEON_ENABLED,
     neonChatLogEnabled: config.NEON_CHAT_LOG_ENABLED,
+    upstashRedisEnabled: config.UPSTASH_REDIS_ENABLED,
   }
 }
