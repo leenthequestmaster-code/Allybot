@@ -34,6 +34,7 @@ import type {
 import { AllybotError, errorMessage, statusCodeFromError } from './errors.js'
 import type { AppLogger } from './logger.js'
 import { SqliteStorage } from './storage.js'
+import type { UpstashRedisService } from './upstash-redis.js'
 import { isGroupJid } from './platform/validation.js'
 
 function extractMessageText(message: WAMessage['message'] | null | undefined): string | undefined {
@@ -187,6 +188,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     private readonly config: AppConfig,
     private readonly storage: SqliteStorage,
     private readonly logger: AppLogger,
+    private readonly redis?: UpstashRedisService,
   ) {
     this.retryCounterCache = new NodeCache({ stdTTL: 300, useClones: false }) as unknown as CacheStore
   }
@@ -458,13 +460,24 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const cached = this.groupNameCache.get(remoteJid)
     if (cached && cached.expiresAt > Date.now()) return cached.name
 
+    if (this.redis?.isEnabled) {
+      const sharedName = await this.redis.cacheGet<string>('group-name', remoteJid)
+      if (sharedName) {
+        this.groupNameCache.set(remoteJid, { name: sharedName, expiresAt: Date.now() + 300_000 })
+        return sharedName
+      }
+    }
+
     const socket = this.socket
     if (!socket) return undefined
 
     try {
       const metadata = await withTimeout(socket.groupMetadata(remoteJid), 10_000, 'group metadata lookup')
       const name = metadata.subject?.trim()
-      if (name) this.groupNameCache.set(remoteJid, { name, expiresAt: Date.now() + 300_000 })
+      if (name) {
+        this.groupNameCache.set(remoteJid, { name, expiresAt: Date.now() + 300_000 })
+        if (this.redis?.isEnabled) await this.redis.cacheSet('group-name', remoteJid, name, 300)
+      }
       return name || undefined
     } catch (error) {
       this.logger.debug({ err: errorMessage(error), remoteJid }, 'group metadata lookup failed')
@@ -677,7 +690,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       const id = message.key.id
       if (!remoteJid || !id) return undefined
       const dedupKey = `${remoteJid}:${id}`
-      if (this.isDuplicate(dedupKey)) {
+      if (await this.isDuplicate(dedupKey)) {
         this.logger.debug({ remoteJid }, 'duplicate message ignored')
         return undefined
       }
@@ -805,17 +818,31 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     this.scheduleReconnect('watchdog_closed_socket')
   }
 
-  private isDuplicate(key: string): boolean {
+  private async isDuplicate(key: string): Promise<boolean> {
     const now = Date.now()
     for (const [oldKey, seenAt] of this.seenMessages) {
       if (now - seenAt > 10 * 60 * 1000) this.seenMessages.delete(oldKey)
     }
     if (this.seenMessages.has(key)) return true
+
+    if (this.redis?.isEnabled) {
+      const remembered = await this.redis.rememberOnce('message-dedupe', key, 600)
+      if (remembered === true) {
+        this.rememberLocally(key, now)
+        return false
+      }
+      if (remembered === false) return true
+    }
+
+    this.rememberLocally(key, now)
+    return false
+  }
+
+  private rememberLocally(key: string, now: number): void {
     this.seenMessages.set(key, now)
     if (this.seenMessages.size > 5000) {
       const oldest = this.seenMessages.keys().next().value
       if (oldest) this.seenMessages.delete(oldest)
     }
-    return false
   }
 }

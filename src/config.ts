@@ -53,8 +53,10 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
   UPSTASH_REDIS_TIMEOUT_MS: boundedInt(1_000, 10_000).default(5_000),
+  UPSTASH_REDIS_OPERATION_TIMEOUT_MS: boundedInt(100, 2_000).default(1_000),
   UPSTASH_REDIS_MAX_ATTEMPTS: boundedInt(1, 3).default(2),
   UPSTASH_REDIS_RETRY_DELAY_MS: boundedInt(50, 2_000).default(100),
+  UPSTASH_REDIS_KEY_PREFIX: z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,39}$/i).default('allybot:v1'),
 })
 
 export type AppConfig = z.infer<typeof envSchema>

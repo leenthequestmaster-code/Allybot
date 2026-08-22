@@ -80,7 +80,8 @@ async function main(): Promise<void> {
     return
   }
 
-  const whatsapp = new WhatsAppConnection(config, storage, logger)
+  const redis = new UpstashRedisService(logger, { env: process.env })
+  const whatsapp = new WhatsAppConnection(config, storage, logger, redis)
   const framework = new ApplicationFramework(
     {
       commandPrefix: config.COMMAND_PREFIX,
@@ -115,7 +116,7 @@ async function main(): Promise<void> {
     provider: createSuggestionProvider(config, logger),
   }))
   framework.registerService(new NeonClientService(logger))
-  framework.registerService(new UpstashRedisService(logger, { env: process.env }))
+  framework.registerService(redis)
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(createNeonChatLogPlugin(config))
   framework.registerPlugin(technicalPlugin)

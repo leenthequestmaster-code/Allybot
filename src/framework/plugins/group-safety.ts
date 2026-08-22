@@ -332,7 +332,7 @@ async function inspectMessage(logger: { info(fields: Record<string, unknown>, me
   if (!safety.isDryRun(group)) return
 
   const linkDetected = LINK_PATTERN.test(text)
-  const spamAllowed = safety.consumeAntiSpam(group, sender, message.receivedAt ?? message.timestamp)
+  const spamAllowed = await safety.consumeAntiSpamDistributed(group, sender, message.receivedAt ?? message.timestamp)
   if (!linkDetected && spamAllowed) return
 
   let metadata: WhatsAppGroupMetadata
@@ -345,11 +345,11 @@ async function inspectMessage(logger: { info(fields: Record<string, unknown>, me
   if (isAdmin(metadata, sender)) return
 
   const detectionNow = message.receivedAt ?? message.timestamp
-  if (linkDetected && safety.shouldCreateDryRunCase(group, sender, 'anti-link', detectionNow)) {
+  if (linkDetected && await safety.shouldCreateDryRunCaseDistributed(group, sender, 'anti-link', detectionNow)) {
     const result = safety.reportCase(group, sender, sender, 'anti-link', 'Link terdeteksi pada mode dry-run.', message.id, text, detectionNow)
     if (result.created) logger.info({ caseId: result.record.id, ruleId: 'anti-link' }, 'group safety dry-run case created')
   }
-  if (!spamAllowed && safety.shouldCreateDryRunCase(group, sender, 'anti-spam', detectionNow)) {
+  if (!spamAllowed && await safety.shouldCreateDryRunCaseDistributed(group, sender, 'anti-spam', detectionNow)) {
     const result = safety.reportCase(group, sender, sender, 'anti-spam', 'Burst pesan terdeteksi pada mode dry-run.', message.id, text, detectionNow)
     if (result.created) logger.info({ caseId: result.record.id, ruleId: 'anti-spam' }, 'group safety dry-run case created')
   }

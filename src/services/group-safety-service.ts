@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { Logger } from 'pino'
+import type { UpstashRedisService } from '../upstash-redis.js'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { isJid } from '../platform/validation.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
@@ -136,6 +137,7 @@ export class GroupSafetyService implements Service {
   private readonly logger: Logger
   private db: Database.Database | undefined
   private guardrails: PlatformGuardrailService | undefined
+  private redis: UpstashRedisService | undefined
   private readonly dryRunCaseWindows = new Map<string, number>()
 
   constructor(databasePath: string, logger: Logger, options: GroupSafetyOptions = {}) {
@@ -152,6 +154,9 @@ export class GroupSafetyService implements Service {
 
   initialize(context: ServiceContext): void {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
+    this.redis = typeof context.services.has === 'function' && context.services.has('upstash-redis')
+      ? context.services.get<UpstashRedisService>('upstash-redis')
+      : undefined
     if (this.databasePath !== ':memory:') mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
     this.db = new Database(this.databasePath)
     this.db.pragma('journal_mode = WAL')
@@ -167,6 +172,7 @@ export class GroupSafetyService implements Service {
     if (this.db?.open) this.db.close()
     this.db = undefined
     this.guardrails = undefined
+    this.redis = undefined
     this.dryRunCaseWindows.clear()
   }
 
@@ -366,6 +372,27 @@ export class GroupSafetyService implements Service {
     validateGroupJid(groupJid)
     validateJid(senderJid, 'spam sender')
     return this.guardrailService().consumeRate(ANTI_SPAM_PROFILE_ID, hashText(`${groupJid}:${senderJid}`), { actorJid: senderJid, resourceJid: groupJid }, now).allowed
+  }
+
+  async shouldCreateDryRunCaseDistributed(groupJid: string, targetJid: string, ruleId: string, now = this.clock()): Promise<boolean> {
+    validateGroupJid(groupJid)
+    validateJid(targetJid, 'dry-run target')
+    validateId(ruleId, 'dry-run rule id')
+    if (this.redis?.isEnabled) {
+      const remembered = await this.redis.rememberOnce('dry-run-case', `${groupJid}:${targetJid}:${ruleId}`, 10)
+      if (remembered !== undefined) return remembered
+    }
+    return this.shouldCreateDryRunCase(groupJid, targetJid, ruleId, now)
+  }
+
+  async consumeAntiSpamDistributed(groupJid: string, senderJid: string, now = this.clock()): Promise<boolean> {
+    validateGroupJid(groupJid)
+    validateJid(senderJid, 'spam sender')
+    if (this.redis?.isEnabled) {
+      const decision = await this.redis.consumeFixedWindow('group-safety-spam', `${groupJid}:${senderJid}`, 5, 10_000, now)
+      if (decision !== undefined) return decision.allowed
+    }
+    return this.consumeAntiSpam(groupJid, senderJid, now)
   }
 
   shouldCreateDryRunCase(groupJid: string, targetJid: string, ruleId: string, now = this.clock()): boolean {
