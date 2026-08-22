@@ -316,17 +316,22 @@ jobs:
             }
             throw new Error('request retry limit reached')
           }
+          const verifyEntry = async (entry) => {
+            const url = new URL(`${base}/files/contents`)
+            url.searchParams.set('file', `/${entry.path}`)
+            const bytes = await fetchFile(url)
+            return createHash('sha256').update(bytes).digest('hex')
+          }
+
+          const mismatches = []
           const worker = async () => {
             while (true) {
               const index = cursor++
               if (index >= manifest.length) return
               const entry = manifest[index]
-              const url = new URL(`${base}/files/contents`)
-              url.searchParams.set('file', `/${entry.path}`)
               try {
-                const bytes = await fetchFile(url)
-                const actual = createHash('sha256').update(bytes).digest('hex')
-                if (actual !== entry.expected) throw new Error(`checksum mismatch: ${actual}`)
+                const actual = await verifyEntry(entry)
+                if (actual !== entry.expected) mismatches.push({ entry, actual })
               } catch (error) {
                 failures.push(`${entry.path}: ${error instanceof Error ? error.message : String(error)}`)
               }
@@ -334,6 +339,19 @@ jobs:
           }
 
           await Promise.all(Array.from({ length: Math.min(2, manifest.length) }, () => worker()))
+          for (let attempt = 1; attempt <= 4 && mismatches.length > 0; attempt += 1) {
+            await sleep(Math.min(2_000 * 2 ** (attempt - 1), 10_000))
+            const pending = mismatches.splice(0)
+            for (const { entry } of pending) {
+              try {
+                const actual = await verifyEntry(entry)
+                if (actual !== entry.expected) mismatches.push({ entry, actual })
+              } catch (error) {
+                failures.push(`${entry.path}: ${error instanceof Error ? error.message : String(error)}`)
+              }
+            }
+          }
+          for (const { entry, actual } of mismatches) failures.push(`${entry.path}: checksum mismatch: ${actual}`)
           if (failures.length > 0) {
             for (const failure of failures.slice(0, 20)) console.error(failure)
             process.exit(1)
