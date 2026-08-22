@@ -90,23 +90,25 @@ jobs:
           command -v zip >/dev/null
           command -v unzip >/dev/null
           rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
-          mkdir -p .ci-artifact/dist .ci-artifact/scripts .ci-artifact/migrations/neon .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib
+          mkdir -p .ci-artifact/dist .ci-artifact/scripts .ci-artifact/migrations/neon .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/@upstash .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib .ci-artifact/node_modules/uncrypto
           cp -a dist/. .ci-artifact/dist/
-          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs .ci-artifact/scripts/
+          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs scripts/verify-upstash-redis.mjs .ci-artifact/scripts/
           cp migrations/neon/0001_whatsapp_chat_logs.sql .ci-artifact/migrations/neon/
           cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
           cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
           cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
+          cp -a node_modules/@upstash/. .ci-artifact/node_modules/@upstash/
           cp -a node_modules/buffer/. .ci-artifact/node_modules/buffer/
           cp -a node_modules/ws/. .ci-artifact/node_modules/ws/
           cp -a node_modules/iceberg-js/. .ci-artifact/node_modules/iceberg-js/
           cp -a node_modules/tslib/. .ci-artifact/node_modules/tslib/
+          cp -a node_modules/uncrypto/. .ci-artifact/node_modules/uncrypto/
           cp package.json package-lock.json bash-exec-list.txt .ci-artifact/
 
           forbidden_files=$(find .ci-artifact -type f \( \
             -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o \
             -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \
-            \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' \) -o \
+            \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/@upstash/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' ! -path '*/node_modules/uncrypto/*' \) -o \
             -path '.ci-artifact/src/*' -o -path '.ci-artifact/tests/*' \
           \) -print)
           if [ -n "$forbidden_files" ]; then
@@ -124,7 +126,7 @@ jobs:
           )
           sha256sum "allybot-release-${GITHUB_SHA}.zip" > "allybot-release-${GITHUB_SHA}.zip.sha256"
           unzip -t "allybot-release-${GITHUB_SHA}.zip"
-          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -Ev '^(node_modules(/|$)|node_modules/(postgres|dotenv|@supabase|buffer|ws|iceberg-js|tslib)(/|$))' | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
+          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -Ev '^(node_modules(/|$)|node_modules/(postgres|dotenv|@supabase|@upstash|buffer|ws|iceberg-js|tslib|uncrypto)(/|$))' | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
             echo 'Forbidden path found in sanitized archive' >&2
             exit 1
           fi
@@ -211,10 +213,11 @@ jobs:
           test -f stage/scripts/verify-neon.mjs
           test -f stage/scripts/monitor-postgres.mjs
           test -f stage/scripts/verify-neon-chat-log-migration.mjs
+          test -f stage/scripts/verify-upstash-redis.mjs
           test -f stage/migrations/neon/0001_whatsapp_chat_logs.sql
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)
-          if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' \) -o -path 'stage/src/*' -o -path 'stage/tests/*' \) -print -quit | grep -q .; then
+          if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/@upstash/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' ! -path '*/node_modules/uncrypto/*' \) -o -path 'stage/src/*' -o -path 'stage/tests/*' \) -print -quit | grep -q .; then
             echo 'Forbidden file found in deployment archive' >&2
             exit 1
           fi
