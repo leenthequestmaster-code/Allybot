@@ -136,6 +136,18 @@ test('CommandRegistry rejects duplicate command names and aliases', () => {
   assert.throws(() => registry.register({ name: 'other', aliases: ['jid'], handler: async () => {} }), /Command name already registered: jid/)
 })
 
+test('CommandRegistry accepts safe numeric-leading command names', async () => {
+  const whatsapp = fakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  registry.register({ name: '8ball', aliases: ['8b'], handler: async (context) => context.reply('ok') })
+
+  assert.equal(await registry.dispatch({ id: 'numeric-command', remoteJid: 'chat@s.whatsapp.net', text: '!8ball', timestamp: Date.now(), fromMe: false }), true)
+  assert.deepEqual(whatsapp.sent, [{ remoteJid: 'chat@s.whatsapp.net', text: 'ok' }])
+  assert.throws(() => registry.register({ name: '8 ball', handler: async () => {} }), /Invalid command name/)
+})
+
 test('CommandRegistry ignores commands from the bot itself', async () => {
   const whatsapp = fakeWhatsapp()
   const events = new EventBus(logger)

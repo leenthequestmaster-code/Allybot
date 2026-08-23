@@ -48,7 +48,7 @@ export class CommandRegistry implements CommandRegistryLike {
 
   register(command: CommandDefinition): () => void {
     const name = normalizeName(command.name)
-    if (!/^[a-z][a-z0-9_-]{0,63}$/.test(name)) {
+    if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(name)) {
       throw new Error(`Invalid command name: ${command.name}`)
     }
     const aliases = (command.aliases ?? []).map(normalizeName)

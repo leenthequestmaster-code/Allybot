@@ -23,6 +23,7 @@ import { createEventPlugin } from './framework/plugins/event.js'
 import { onboardingPlugin } from './framework/plugins/onboarding.js'
 import { createAnnouncementPlugin } from './framework/plugins/announcement.js'
 import { suggestionRelayPlugin } from './framework/plugins/suggestion-relay.js'
+import { utilityPlugin } from './framework/plugins/utility.js'
 import { createAiHandler, MAX_AI_INPUT_LENGTH } from './ai-handler.js'
 import { createLogger, type AppLogger } from './logger.js'
 import { createPermissionResolver } from './permissions.js'
@@ -139,6 +140,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(onboardingPlugin)
   framework.registerPlugin(createAnnouncementPlugin(whatsapp))
   framework.registerPlugin(suggestionRelayPlugin)
+  framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework)
   await lifecycle.start()

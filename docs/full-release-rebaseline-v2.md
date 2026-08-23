@@ -1,0 +1,101 @@
+# Allybot Full Release Re-baseline v2
+
+**Tanggal:** 23 Agustus 2026  
+**Status:** Working execution baseline setelah koreksi definisi full release oleh pengguna  
+**Source of truth:** Source runtime, test suite, CI artifact, dan kontrak produk yang disetujui.
+
+## 1. Perubahan definisi release
+
+Snapshot sebelumnya hanya layak disebut **curated release with caveat**. Itu tidak memenuhi maksud pengguna karena sebagian kontingen yang sudah direncanakan belum diisi dan `!menu` masih berorientasi button-only.
+
+Untuk baseline baru ini, **full release** berarti surface general Allybot yang telah direncanakan harus memiliki implementasi nyata, command contract, permission, validation, persistence atau batas data yang jelas, failure behavior, test, dokumentasi, dan artifact deployment. Menu juga harus menjadi **semi-button**: pesan teks yang informatif menjadi sumber penjelasan, sementara tombol menjadi navigasi cepat. Tombol tidak menggantikan command yang membutuhkan input berulang atau parameter.
+
+Full release tidak berarti menyalin seluruh baris katalog kemungkinan secara membabi buta. Command yang membutuhkan provider, binary, credential, data model besar, atau acceptance yang belum tersedia tetap masuk batch dengan guardrail dan status yang jujur. RPG penuh, World Database besar, Mission Platform lanjutan, dan Autospam Detection destruktif tetap diperlakukan sebagai track berisiko tinggi yang tidak boleh diselundupkan ke general release tanpa kontrak baru.
+
+## 2. Repository ground truth
+
+| Evidence | Observed fact | Consequence |
+|---|---|---|
+| Plugin source | Terdapat 22 file plugin aktif di `src/framework/plugins`. | Surface sudah modular; ekspansi harus mengikuti plugin/service boundary yang ada. |
+| Command registration | Terdapat 101 pemanggilan `context.commands.register`. | Banyak capability nyata sudah ada tetapi belum seluruhnya dipetakan ke menu dan release surface. |
+| Product catalog | `command-catalog.md` memiliki 512 baris dan berisi ide/backlog, bukan source of truth runtime. | Catalog harus direkonsiliasi dengan source, bukan langsung diimplementasikan seluruhnya. |
+| Runtime composition | `src/index.ts` mendaftarkan Group, Moderation, Governance, Collaboration, Knowledge, Personalization, Scene, Canon, Event, Onboarding, Announcement, AI, dan diagnostics secara modular. | Prioritas pertama adalah mengisi dan mengekspos kontingen existing sebelum menambah sistem baru. |
+| Storage | SQLite WAL tetap primary runtime store; service domain sudah terpisah. | Fitur baru harus memakai service SQLite yang bounded; tidak ada migrasi PostgreSQL umum. |
+| External state | Neon consent-aware untuk chat-log dan Redis optional untuk operational state. | Jangan memakai Neon/Redis sebagai generic domain database. |
+| Feature flags | AI, diagnostics, Neon, Redis, dan beberapa domain workflow memakai default-off atau per-group gate. | “Sudah diimplementasikan” dan “aktif pada semua grup” adalah status yang berbeda. |
+| Delivery | CI artifact-only telah lulus checksum dan Panel sync. | Setiap vertical slice tetap wajib melalui CI, sanitized artifact, checksum, dan controlled reload/canary. |
+
+## 3. Kontingen yang sudah nyata tetapi belum sepenuhnya diperlakukan sebagai release surface
+
+| Kontingen publik | Capability yang sudah terlihat di source | Status re-baseline |
+|---|---|---|
+| `GROUP` | Group info, member/admin listing, rules, rules history, welcome/leave, prefix, language, timezone, role, permissions, group setup, chat-log consent. | Existing; perlu command copy dan menu exposure yang lengkap. |
+| `MODERATION` | Safety mode, warning, warnings, clear warning, report, cases, case, claim, appeal, guarded moderation action, group mode, status. | Existing; perlu consistency check, output copy, dan acceptance per operation. |
+| `GOVERNANCE` | Retcon proposal, moderator handoff, continuity, join requests, join approval/rejection, invite inspection/revoke. | Existing dan cukup kaya; perlu ditempatkan sebagai subsection Moderation. |
+| `COMMUNITY / PRODUCTIVITY` | Announcement, onboarding, collaboration status/toggle, poll/vote, reminders, tasks, decisions, agenda. | Existing; perlu diekspos sebagai Community/Group workflow, bukan dianggap Coming Soon. |
+| `EVENT` | Multi-phase event, calendar, create/publish/join/leave/status/recap/phase/pause/resume/close, poll/location text fallback. | Existing; perlu dipetakan sebagai subsection Community dan diuji dengan scheduler/recovery. |
+| `ROLEPLAY / KNOWLEDGE` | Scene lifecycle, IC/OOC, consent, Canon/Lore, explicit quote/bookmark/source/forget/export. | Existing; perlu semi-button navigation dan copy yang mudah dipahami. |
+| `PERSONAL` | AFK, personalization status/toggle, preferences, language/timezone, quiet, notification, verbosity, format. | Existing; perlu memisahkan personal command dari admin group policy pada menu. |
+| `TOOLS / SYSTEM / AI` | Ping, health/diag, bot profile/owner profile, AI query, suggestion relay, cache control. | Partial; AI/diagnostics tetap feature-gated dan harus diberi status availability. |
+| `FUN` | Belum ada plugin fun umum yang mendaftarkan `random`, `choose`, `flip`, `roll`, atau command serupa. | Gap nyata; menjadi batch implementasi awal setelah menu semi-button. |
+
+## 4. Gap fitur general yang harus diisi
+
+### Wave A — discoverability and utility
+
+Wave ini menyelesaikan menu semi-button informatif, command index/search yang bounded, dan utility ringan yang tidak membutuhkan provider eksternal. Kandidat prioritas adalah `!commands`, `!searchcmd`, `!about`, `!version`, `!privacy`, `!support`, `!calc`, `!convert`, `!time`, `!date`, `!random`, `!choose`, `!flip`, dan `!roll`. Ekspresi matematika harus memakai parser terbatas, bukan eval atau shell. Semua output harus memiliki batas panjang dan cooldown yang sesuai.
+
+### Wave B — community workflow completion
+
+Wave ini mengangkat Collaboration, Event, Onboarding, Announcement, Knowledge, dan Personalization menjadi capability yang mudah ditemukan. Perubahan utamanya adalah mapping menu, command copy Indonesia, help per domain, status feature-gate yang jelas, dan recovery tests untuk reminder/event. Tidak boleh membuat wrapper yang hanya meniru fitur native WhatsApp tanpa persistence, lifecycle, audit, atau consent value.
+
+### Wave C — safe moderation completion
+
+Wave ini menyelesaikan jalur yang sudah memiliki service dan command tetapi belum memiliki acceptance yang seragam: warning/case/appeal, guarded moderation action, join request, invite safety, retcon, handoff, dan continuity. Tindakan eksternal harus tetap admin-gated, bot-admin checked, idempotent bila relevan, dan tidak berubah menjadi mass messaging atau auto-kick tanpa explicit policy.
+
+### Wave D — roleplay social completion
+
+Wave ini mengisi general roleplay tanpa RPG: profile karakter bounded, mood/status sosial yang consent-aware, emote atau scene helper yang tidak menyimpan passive full-chat memory, serta sinkronisasi Canon/Lore/Knowledge. Semua data tetap group-scoped atau user-owned, dengan delete/forget policy dan audit history yang tidak dihapus sembarangan.
+
+### Wave E — media and AI utility
+
+Wave ini hanya memasukkan media operation yang memiliki runtime dependency, ukuran/durasi limit, cleanup, dan artifact allowlist yang terverifikasi. AI tetap direct-request, bounded, rate-limited, provider-failure-safe, dan default-off bila credential/provider belum terpasang. Download eksternal dan converter besar tidak boleh digabung ke satu batch tanpa provider, license, timeout, dan resource evidence.
+
+### Wave F — optional high-risk tracks
+
+RPG economy/combat, World Database PostgreSQL, Mission Platform orchestration, Autospam Detection aktif, distributed queue workflow, dan multi-instance worker memiliki kontrak data, concurrency, recovery, dan operational burden yang berbeda. Track ini akan dipersiapkan sebagai PRD/alpha terpisah; tidak disamarkan sebagai general feature selesai hanya demi menaikkan jumlah command.
+
+## 5. Urutan implementasi baru
+
+| Urutan | Slice | Exit criteria |
+|---:|---|---|
+| R4 | Menu semi-button + utility index/fun dasar | Informative text + buttons, text fallback, numbered navigation, actor visibility, `!commands`/`!searchcmd`, utility safety tests. |
+| R5 | Community/Productivity/Event exposure and recovery | Existing workflows tampil dan terdokumentasi; scheduler restart/idempotency tests pass; no duplicate reminder/event action. |
+| R6 | Moderation/Governance completion | Negative permission tests, bot-admin recheck, case/audit invariants, safe failure and rollback. |
+| R7 | Roleplay social completion | User/group tenancy, consent, history, deletion/forget semantics, scene/canon/knowledge integration. |
+| R8 | Media/AI bounded utilities | Dependency/artifact review, resource limits, timeout, cleanup, provider failure tests, default-off behavior. |
+| R9 | Full surface reconciliation | Catalog/source/menu/help/docs parity; no command listed as ready without implementation. |
+| R10 | Recovery and deployment rehearsal | CI artifact, checksum, controlled reload, dependency outage fallback, SQLite recovery, rollback rehearsal. |
+| R11 | Final release decision | All selected Must slices pass; status is `completed` only if required live acceptance exists, otherwise explicit caveat. |
+
+## 6. Hard constraints
+
+Perubahan tetap harus mempertahankan command sebagai primary interface. Semi-button hanya memperpendek navigasi dan tidak boleh memaksa pengguna memilih tombol untuk fitur yang membutuhkan teks, target, alasan, judul, durasi, atau parameter berulang. Tidak ada arbitrary shell, SQL, eval, exec, passive full-chat memory, raw PII logging, secret exposure, mass broadcast, atau destructive moderation tanpa policy dan otorisasi.
+
+Fitur baru harus memakai `import type { Logger } from 'pino'` jika mengimpor tipe Logger, feature flag default-off ketika external dependency belum siap, audit outcome yang valid, bounded input/output/queue, error class yang aman, dan test negatif untuk permission serta failure modes.
+
+## 7. Open decisions and assumptions
+
+| Item | Current decision | Confidence | Falsifier |
+|---|---|---:|---|
+| Semi-button format | Text body tetap dikirim bersama native quick-reply buttons; fallback text tetap tersedia. | High | Pinned Baileys contract atau live payload menunjukkan body/button incompatibility. |
+| Taxonomy | Delapan kategori produk tetap dipakai; domain internal boleh dipetakan ke subsection. | High | Command surface menjadi terlalu panjang sehingga perlu pagination/subsection tambahan. |
+| Native location/contextInfo | Belum diadopsi; dievaluasi sebagai compatibility spike terpisah. | High | Synthetic contract test dan pinned Baileys types membuktikan payload stabil serta memberi UX nyata. |
+| Default-on versus feature-gated | Domain workflow tetap explicit enable per group bila sudah memakai persistence/scheduler; menu harus menunjukkan statusnya. | High | Produk menetapkan global activation policy baru dengan operational budget. |
+| RPG/World/Mission | Tidak masuk general full-release implementation tanpa PRD delta karena kontrak dan risiko berbeda. | Medium | Pengguna secara eksplisit mengubah scope produk untuk memasukkan track tersebut. |
+
+## 8. Release definition
+
+Full release baru dapat dinyatakan selesai apabila Wave A–E yang dipilih pada scope freeze benar-benar memiliki implementation dan test, semua command yang tampil pada menu berasal dari registry aktual, CI artifact dan Panel deployment lulus, recovery rehearsal selesai, dan residual risk ditulis. Jika acceptance live WhatsApp masih unavailable, status harus `completed_with_caveat`; kata “full release” merujuk pada breadth implementation yang benar-benar dipilih, bukan klaim bahwa semua perilaku Baileys telah diuji.
+
+**Author:** Manus AI

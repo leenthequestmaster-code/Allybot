@@ -106,6 +106,31 @@ function formatCommand(command: CommandDefinition, prefix: string, position: num
   return `𖥻 ׁ ׅ *${position}.* ${prefix}${command.name}${aliases}${accessMarker} — _${description}_`
 }
 
+function renderNativeMainMenuBody(
+  categories: readonly MenuCategory[],
+  page: number,
+  totalPages: number,
+  pageCategories: readonly MenuCategory[],
+  prefix: string,
+): string {
+  const lines = [
+    `📚 *Listmenu* · Halaman ${page}/${totalPages}`,
+    `Kategori pada tombol ini: ${pageCategories.map(categoryLabel).join(' · ')}`,
+    '',
+    ...categories.map((category, index) => {
+      const { icon } = presentationFor(category.name)
+      const availability = category.commands.length > 0
+        ? `${category.commands.length} command tersedia`
+        : 'Coming Soon'
+      return `${index + 1}. ${icon} ${categoryLabel(category)} — _${availability}_`
+    }),
+    '',
+    'Tekan tombol untuk membuka submenu kategori. Tombol hanya untuk navigasi; command tetap diketik sesuai kebutuhan.',
+    `Fallback teks: ketik \`${prefix}menu <angka>\` atau balas menu dengan angka.`,
+  ]
+  return lines.join('\n')
+}
+
 function renderMainMenu(categories: readonly MenuCategory[], prefix: string): string {
   const lines = [
     '𖥦 ׂׅ─── ꫶֗ ୨ 🤖 ୧ ꫶֗ ───ׂׅ',
@@ -316,7 +341,7 @@ export const menuPlugin: Plugin = {
         version: 1,
         kind: 'menu' as const,
         title: "Allybot's Menu",
-        body: `Pilih kategori. Halaman ${page}/${totalPages}.`,
+        body: renderNativeMainMenuBody(categories, page, totalPages, pageCategories, commandContext.prefix),
         items,
         fallbackText: `Atau ketik ${commandContext.prefix}menu <angka> untuk melihat semua kategori.`,
         expiresAt,
@@ -331,7 +356,7 @@ export const menuPlugin: Plugin = {
       try {
         await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
           ...rendered.payload,
-          footer: `Fallback: ketik ${commandContext.prefix}menu <angka>`,
+          footer: `Fallback: ${commandContext.prefix}menu <angka>`,
         })
         activeNativeMenus.set(commandContext.message.remoteJid, {
           expiresAt,
