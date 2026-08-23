@@ -3,6 +3,7 @@ import { CapabilityAwareButtonAdapter } from '../../platform/buttons.js'
 import { TextInteractionAdapter } from '../../platform/interaction.js'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import type { DeveloperModeService } from '../../services/developer-mode-service.js'
+import { commandDescription } from '../command-copy.js'
 
 type MenuCategory = {
   readonly name: string
@@ -102,7 +103,7 @@ function formatCommand(command: CommandDefinition, prefix: string, position: num
     ? ` (${command.aliases.map((alias) => `${prefix}${alias}`).join(', ')})`
     : ''
   const accessMarker = command.permission ? ' 🔒' : ''
-  const description = command.description ?? 'Tidak ada deskripsi.'
+  const description = commandDescription(command)
   return `𖥻 ׁ ׅ *${position}.* ${prefix}${command.name}${aliases}${accessMarker} — _${description}_`
 }
 

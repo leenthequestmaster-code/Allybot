@@ -1,5 +1,6 @@
 import { randomInt } from 'node:crypto'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
+import { commandDescription } from '../command-copy.js'
 
 const MAX_QUERY_LENGTH = 80
 const MAX_REPLY_LENGTH = 3_500
@@ -72,7 +73,7 @@ function commandLine(command: CommandDefinition, prefix: string): string {
     ? ` (${command.aliases.map((alias) => `${prefix}${alias}`).join(', ')})`
     : ''
   const access = command.permission ? ' · admin/khusus' : ''
-  return `• ${prefix}${command.name}${aliases}${access} — ${command.description ?? 'Tanpa deskripsi.'}`
+  return `• ${prefix}${command.name}${aliases}${access} — ${commandDescription(command)}`
 }
 
 function renderCommandList(commands: readonly CommandDefinition[], prefix: string, category?: string): string {
@@ -95,7 +96,7 @@ function renderCommandList(commands: readonly CommandDefinition[], prefix: strin
 function searchCommands(commands: readonly CommandDefinition[], query: string, prefix: string): string {
   const needle = query.toLowerCase()
   const matches = visibleCommands(commands).filter((command) => {
-    const haystack = [command.name, ...(command.aliases ?? []), command.description ?? '', command.category ?? '']
+    const haystack = [command.name, ...(command.aliases ?? []), commandDescription(command), command.category ?? '']
       .join(' ')
       .toLowerCase()
     return haystack.includes(needle)
