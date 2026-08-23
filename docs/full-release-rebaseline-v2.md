@@ -121,3 +121,7 @@ Focused service/plugin tests dan full regression terbaru lulus `285/285`; depend
 ## 12. V2-D checkpoint
 
 V2-D menambah alias untuk workflow yang sudah tersedia: `jajak`, `ingatkan`, `tugas`, `putuskan`, `acara`, `kalender`, `pengumuman`, dan `usul`. Tidak ada schema, dependency, transport, permission, atau service baru. Verification lokal: typecheck/build pass, full regression `285/285`, dan runtime audit high threshold `0 vulnerability`.
+
+## 13. V2-E checkpoint
+
+V2-E mengisi gap retrieval pada kontingen Knowledge melalui `!find`/`!cari`. Search hanya membaca catatan eksplisit yang visible pada grup, mematuhi retention, membatasi query/result, dan tidak membocorkan private record kepada anggota lain. Verification lokal: full regression `286/286`, typecheck/build pass, runtime dependency audit `0 vulnerability`.

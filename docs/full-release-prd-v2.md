@@ -111,3 +111,9 @@ Service, command integration, persistence, ownership, soft-retire, dan audit tes
 V2-D menambahkan alias lokal untuk surface yang sudah memiliki handler matang: `jajak` untuk poll, `ingatkan` untuk reminder, `tugas` untuk task, `putuskan` untuk decision, `acara` untuk event, `kalender` untuk calendar, `pengumuman` untuk announce, dan `usul` untuk suggestion relay. Alias hanya memperbaiki discoverability; consent, admin gate, feature toggle, queue/dispatcher, persistence, dan audit tetap memakai implementation existing.
 
 Full regression setelah V2-D lulus `285/285` dan runtime dependency audit tetap `0 vulnerability`. Artifact sync CI wajib dijalankan pada commit V2-D.
+
+## 15. V2-E knowledge retrieval checkpoint
+
+V2-E menambahkan `!find`/`!cari` untuk mencari explicit knowledge yang sudah dipilih pengguna. Pencarian dibatasi group scope, hanya active records yang belum melewati retention, menghormati group/private visibility, meng-escape wildcard LIKE, membatasi query 80 karakter dan hasil maksimal 25, serta mengaudit panjang query dan jumlah hasil tanpa menyimpan kata pencarian mentah.
+
+R4 service/plugin search tests pass dan full regression checkpoint lokal menjadi `286/286`; runtime dependency audit high threshold tetap `0 vulnerability`. Tidak ada passive capture, Neon transfer baru, atau perubahan public data boundary.
