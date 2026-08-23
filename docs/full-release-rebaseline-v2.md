@@ -117,3 +117,7 @@ Focused alias contract dan full regression terbaru lulus `282/282`; dependency a
 V2-C mengisi kontingen ROLEPLAY general tanpa masuk ke RPG: `!character`/`!char` untuk profil character group-scoped dan `!mood` untuk mood character aktif. Data memiliki owner check, batas profile/name/mood, maksimal tiga character aktif per owner, transactional create, dan soft-retire yang tidak menghapus history. Storage memakai SQLite domain terpisah dan audit metadata hanya memuat panjang data serta hashed reference.
 
 Focused service/plugin tests dan full regression terbaru lulus `285/285`; dependency audit runtime high threshold lulus dengan `0 vulnerability`. File baru berada di `src` dan akan masuk artifact melalui `dist/**`; tidak ada dependency runtime baru sehingga CI/manifest allowlist tidak perlu diubah.
+
+## 12. V2-D checkpoint
+
+V2-D menambah alias untuk workflow yang sudah tersedia: `jajak`, `ingatkan`, `tugas`, `putuskan`, `acara`, `kalender`, `pengumuman`, dan `usul`. Tidak ada schema, dependency, transport, permission, atau service baru. Verification lokal: typecheck/build pass, full regression `285/285`, dan runtime audit high threshold `0 vulnerability`.

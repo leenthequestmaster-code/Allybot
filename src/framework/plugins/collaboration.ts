@@ -166,6 +166,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'poll',
+        aliases: ['jajak'],
         description: 'Create, inspect, or close a collaboration poll',
         category: 'collaboration',
         menuOrder: 4,
@@ -262,6 +263,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'remind',
+        aliases: ['ingatkan'],
         description: 'Schedule a persistent group reminder',
         category: 'collaboration',
         menuOrder: 6,
@@ -320,6 +322,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'task',
+        aliases: ['tugas'],
         description: 'Create a collaboration task',
         category: 'collaboration',
         menuOrder: 9,
@@ -377,6 +380,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'decision',
+        aliases: ['putuskan'],
         description: 'Record an explicit group decision',
         category: 'collaboration',
         menuOrder: 12,

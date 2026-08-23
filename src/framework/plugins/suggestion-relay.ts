@@ -65,7 +65,7 @@ export const suggestionRelayPlugin: Plugin = {
     const suggestions = service(context)
     context.commands.register({
       name: 'suggest',
-      aliases: ['suggestion'],
+      aliases: ['suggestion', 'usul'],
       description: 'Typed suggestion from explicit approved context',
       category: 'ai',
       menuOrder: 85,

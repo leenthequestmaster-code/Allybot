@@ -97,7 +97,7 @@ export function createEventPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'event',
-        aliases: ['events'],
+        aliases: ['events', 'acara'],
         description: 'Event Conductor multi-phase',
         category: 'events',
         menuOrder: 60,
@@ -212,6 +212,7 @@ export function createEventPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'calendar',
+        aliases: ['kalender'],
         description: 'Show event calendar',
         category: 'events',
         menuOrder: 61,

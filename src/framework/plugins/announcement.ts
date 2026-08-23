@@ -73,7 +73,7 @@ export function createAnnouncementPlugin(whatsapp: WhatsAppPort): Plugin {
       announcements.startDispatcher(whatsapp)
       context.commands.register({
         name: 'announce',
-        aliases: ['announcement'],
+        aliases: ['announcement', 'pengumuman'],
         description: 'Explicit-target consent window announcement',
         category: 'community',
         menuOrder: 75,

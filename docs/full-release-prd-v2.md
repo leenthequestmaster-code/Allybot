@@ -105,3 +105,9 @@ V2-C menambahkan roleplay sosial bounded melalui `!character`/`!char` dan `!mood
 Character memakai SQLite domain file terpisah, WAL, busy timeout, transaksi `immediate` pada create untuk menjaga batas concurrent, serta dependency `platform-guardrail` untuk audit. Tidak ada passive chat capture, Neon write, Redis state, atau perubahan schema database utama.
 
 Service, command integration, persistence, ownership, soft-retire, dan audit tests lulus. Full regression checkpoint lokal setelah V2-C: `285/285` pass; runtime dependency audit high threshold: `0 vulnerability`. CI/artifact sync wajib dilakukan pada commit V2-C.
+
+## 14. V2-D community discoverability checkpoint
+
+V2-D menambahkan alias lokal untuk surface yang sudah memiliki handler matang: `jajak` untuk poll, `ingatkan` untuk reminder, `tugas` untuk task, `putuskan` untuk decision, `acara` untuk event, `kalender` untuk calendar, `pengumuman` untuk announce, dan `usul` untuk suggestion relay. Alias hanya memperbaiki discoverability; consent, admin gate, feature toggle, queue/dispatcher, persistence, dan audit tetap memakai implementation existing.
+
+Full regression setelah V2-D lulus `285/285` dan runtime dependency audit tetap `0 vulnerability`. Artifact sync CI wajib dijalankan pada commit V2-D.
