@@ -130,4 +130,10 @@ V2-G menambahkan `!translate`/`!terjemah` dengan format `bahasa | teks` dan `!su
 
 V2-G juga memperluas boundary WhatsAppPort dengan `CoreMediaDescriptor`, `downloadMedia`, dan `sendMedia` yang tetap optional bagi fake/legacy adapter. Baileys pinned `7.0.0-rc14` dipakai melalui adapter; plugin tidak menerima raw WAMessage. Direct, quoted, dan view-once media dipetakan ke metadata aman; download memakai stored message, official re-upload callback, abort timeout, pre-download size guard, MIME checks, fixed-argument ffmpeg tanpa shell, target-specific output cap, dan cleanup. Command yang dirilis adalah `!sticker`/`!stiker`, `!toimg`/`!togambar`, `!togif`/`!gif`, dan `!toaudio`/`!audio`.
 
-Local evidence V2-G: 13 focused media tests pass, real ffmpeg smoke test pada fixture sintetis pass, typecheck/build pass, full regression `302/302` pass, audit high threshold `0 vulnerability`, dan diff check pass. CI/artifact sync masih menjadi gate setelah commit; live WhatsApp media behavior belum diuji dan tetap residual risk.
+Local evidence V2-G: 13 focused media tests pass, real ffmpeg smoke test pada fixture sintetis pass, typecheck/build pass, full regression `302/302` pass, audit high threshold `0 vulnerability`, dan diff check pass. CI/artifact sync run `32640752984` sukses sampai checksum Panel; live WhatsApp media behavior belum diuji dan tetap residual risk.
+
+## 18. V2-H roleplay-social and high-risk boundary checkpoint
+
+V2-H menambahkan `!emote`/`!aksi` sebagai helper roleplay sosial group-only. Input dibatasi 160 karakter, whitespace dinormalisasi, markup presentasi dihapus, dan tidak ada persistence atau passive chat memory. Help Character, menu copy, dan command search tetap menjadi jalur discoverability.
+
+Dokumen `docs/deferred-high-risk-tracks-v2.md` kini menjadi decision brief untuk memisahkan RPG penuh, Mission Platform, World Database besar, active Autospam Detection, dan multi-instance worker. Track tersebut membutuhkan PRD/ADR, state machine, data ownership, concurrency/idempotency, dry-run/canary, kill switch, dan recovery evidence tersendiri; tidak ditampilkan sebagai `READY` pada general release.

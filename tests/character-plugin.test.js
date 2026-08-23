@@ -32,6 +32,22 @@ function message(id, senderJid, text) {
   return { id, remoteJid: group, senderJid, text, timestamp: Date.now(), fromMe: false }
 }
 
+test('Character plugin emote is group-only, bounded, and strips presentation markup', async () => {
+  const whatsapp = fakeWhatsapp()
+  const events = new EventBus(logger)
+  const commands = new CommandRegistry({ commandPrefix: '!', defaultCooldownMs: 0 }, logger, whatsapp, { get() { throw new Error('unused') } }, events)
+  createCharacterPlugin(whatsapp).load?.({ logger, config: { commandPrefix: '!', defaultCooldownMs: 0 }, events, commands, services: { get() { throw new Error('unused') } } })
+
+  await commands.dispatch(message('emote', owner, '!aksi *tersenyum*   lalu melambaikan tangan'))
+  assert.equal(whatsapp.sent[0].text, '🎭 *Aksi:* tersenyum lalu melambaikan tangan')
+
+  await commands.dispatch({ ...message('private-emote', owner, '!emote tersenyum'), remoteJid: owner })
+  assert.match(whatsapp.sent[1].text, /hanya dapat digunakan di dalam grup/)
+
+  await commands.dispatch(message('empty-emote', owner, '!emote'))
+  assert.match(whatsapp.sent[2].text, /Format: !emote/)
+})
+
 test('Character plugin supports text-first roleplay profile workflow with owner checks', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'allybot-character-plugin-'))
   const databasePath = join(directory, 'core.sqlite')

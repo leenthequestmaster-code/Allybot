@@ -19,7 +19,7 @@ function shortId(id: string): string {
 }
 
 function displayText(value: string, maxLength: number): string {
-  return value.replace(/[\\`*_~]/g, '').slice(0, maxLength)
+  return value.replace(/[\\`*_~]/g, '').replace(/\s+/g, ' ').trim().slice(0, maxLength)
 }
 
 function help(prefix: string): string {
@@ -32,6 +32,7 @@ function help(prefix: string): string {
     `• ${prefix}character edit <id> <nama> | <deskripsi> — ubah character milikmu`,
     `• ${prefix}character delete <id> — arsipkan character milikmu`,
     `• ${prefix}mood <suasana> — simpan mood character aktif`,
+    `• ${prefix}emote <aksi> — kirim aksi singkat untuk roleplay`,
     '',
     `Contoh: ${prefix}character create Aruna | Penjaga mercusuar yang tenang.`,
   ].join('\n')
@@ -144,6 +145,26 @@ export function createCharacterPlugin(_whatsapp: WhatsAppPort): Plugin {
           } catch (error) {
             await commandContext.reply(error instanceof Error ? error.message : 'Character ditolak oleh validasi.')
           }
+        },
+      })
+
+      context.commands.register({
+        name: 'emote',
+        aliases: ['aksi'],
+        description: 'Kirim aksi singkat untuk roleplay sosial',
+        category: 'roleplay',
+        menuOrder: 22,
+        handler: async (commandContext) => {
+          if (!groupJid(commandContext.message)) {
+            await commandContext.reply('Command emote hanya dapat digunakan di dalam grup WhatsApp.')
+            return
+          }
+          const action = displayText(commandContext.args.join(' '), 160)
+          if (!action) {
+            await commandContext.reply(`Format: ${commandContext.prefix}emote <aksi singkat>\nContoh: ${commandContext.prefix}emote tersenyum lalu melambaikan tangan.`)
+            return
+          }
+          await commandContext.reply(`🎭 *Aksi:* ${action}`)
         },
       })
 

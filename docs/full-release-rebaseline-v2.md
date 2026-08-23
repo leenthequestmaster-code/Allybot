@@ -136,4 +136,10 @@ V2-G menyelesaikan dua gap Tools/Media yang sebelumnya belum memiliki boundary n
 
 Media kini memiliki `CoreMediaDescriptor` dan optional `WhatsAppPort` media contract yang tidak mengekspos raw Baileys message ke plugin. Adapter memetakan direct, quoted, dan view-once metadata, memakai stored message untuk bounded download stream, re-upload callback resmi Baileys, timeout/abort, pre-download size guard, MIME validation, fixed-argument ffmpeg tanpa shell, output cap, dan cleanup. Command nyata yang tersedia adalah `!sticker`/`!stiker`, `!toimg`/`!togambar`, `!togif`/`!gif`, dan `!toaudio`/`!audio`. `!togif` dikirim sebagai MP4 dengan playback flag karena WhatsApp tidak mengirim file GIF secara langsung.
 
-Verification lokal V2-G: typecheck pass, clean build pass, 13 focused media tests pass, real ffmpeg smoke test pada fixture sintetis pass, full regression `302/302` pass, runtime dependency audit high threshold `0 vulnerability`, dan `git diff --check` pass. CI/artifact sync dan live WhatsApp media acceptance masih merupakan gate berikutnya; tidak ada klaim live transport.
+Verification lokal V2-G: typecheck pass, clean build pass, 13 focused media tests pass, real ffmpeg smoke test pada fixture sintetis pass, full regression `302/302` pass, runtime dependency audit high threshold `0 vulnerability`, dan `git diff --check` pass. CI/artifact sync pada run `32640752984` sukses sampai checksum Panel; live WhatsApp media acceptance masih belum dilakukan dan tidak diklaim.
+
+## 16. V2-H checkpoint
+
+V2-H menyelesaikan roleplay-social text surface dengan `!emote`/`!aksi`. Command ini group-only, menerima aksi singkat maksimal 160 karakter, menormalkan whitespace, menghapus markup presentasi, tidak menyimpan state, tidak menangkap passive chat, dan tidak menampilkan identitas raw pengguna. Help Character juga sudah mencantumkan emote.
+
+Decision brief `docs/deferred-high-risk-tracks-v2.md` memisahkan RPG penuh, Mission Platform, World Database besar, active Autospam Detection, dan multi-instance worker dari general full release. Pemisahan ini disengaja untuk menjaga release surface tetap jujur dan mencegah schema/worker/moderation behavior spekulatif.
