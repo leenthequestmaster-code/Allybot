@@ -36,12 +36,12 @@ Live WhatsApp black-box acceptance dilakukan hanya bila environment acceptance t
 
 | Area | Current evidence | Release implication |
 |---|---|---|
-| Source | `main` berisi core, permission, group, Neon, Redis, dan plugin capability yang sudah diuji | Reconcile source dengan docs dan artifact. |
-| Tests | Baseline terbaru 274 test lulus | Tambahkan test untuk setiap perubahan selanjutnya. |
+| Source | `main` berisi core, permission, group, Neon, Redis, menu v1.0, dan plugin capability yang sudah diuji | Reconcile source dengan docs dan artifact. |
+| Tests | Baseline terbaru 275 test lulus | Tambahkan test untuk setiap perubahan selanjutnya. |
 | Panel | Artifact sync CI terakhir berhasil; proses masih manual dan API lifecycle dapat menunjukkan `starting` | Reload proses diperlukan untuk memuat build terbaru. |
-| Neon | Schema tersedia dan capture aktif; aggregate terbaru menunjukkan 1.023 rows, 5 grup, 1.023 event distinct | Consent dan opt-out harus menjadi release gate. |
+| Neon | Schema tersedia dan capture aktif; aggregate terbaru menunjukkan 1.023 rows, 5 grup, 1.023 event distinct; opt-out committed pada `f26b8ea` dan artifact-synced | Controlled reload dan runtime command evidence tetap menjadi release gate. |
 | Upstash | Health-check pernah `PASS`; operational primitives tersedia | Runtime reload dan canary perlu diverifikasi. |
-| Working tree | Perubahan Neon opt-out masih belum dirilis | Menjadi batch prioritas pertama. |
+| Working tree | Menu v1.0 pada commit `606a0d2`; tree perlu tetap clean setelah dokumentasi | Menjadi input release-readiness dan docs reconciliation. |
 
 ## 6. Scope functional requirements
 
@@ -120,9 +120,9 @@ Minimum gates:
 | Batch | Scope | Exit criteria |
 |---|---|---|
 | R0 | Reconcile baseline, PRD, docs, and working tree | Scope freeze dan risk register tersedia. |
-| R1 | Neon chat-log opt-out release | Tests, commit, CI, artifact, and runtime command verification. |
+| R1 | Neon chat-log opt-out release | **Committed/artifact-synced** pada `f26b8ea`; runtime command verification menunggu controlled reload. |
 | R2 | Redis runtime reload and canary | New build loaded; verifier PASS; fallback and rate-limit path observed. |
-| R3 | Menu v1.0 and command copy reconciliation | Taxonomy, output, fallback, and active command list consistent. |
+| R3 | Menu v1.0 and command copy reconciliation | **Implemented** pada `606a0d2`; taxonomy, actor visibility, output, fallback, dan active command list telah diuji. |
 | R4 | Moderate safe community capability hardening | Only selected commands, with permission and rollback. |
 | R5 | Productivity/media/AI/roleplay slices as separately approved | Each slice has own PRD and gates; no broad speculative batch. |
 | R6 | Full-release rehearsal | Restart, recovery, artifact rollback, dependency outage, and acceptance evidence. |

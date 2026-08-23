@@ -40,7 +40,7 @@
 - **OWNER_AGENT:** BUILD-01
 - **OBJECTIVE:** Rilis command `!chatlog off|on|status|help` dengan group scope dan persisted suppression.
 - **WHY_THIS_TASK_EXISTS:** Consent control adalah release-critical privacy capability.
-- **INPUTS_AND_PROVENANCE:** Existing plugin/test in working tree, guardrail service, command registry.
+- **INPUTS_AND_PROVENANCE:** Existing plugin/test, guardrail service, command registry, commit `f26b8ea`, CI run `32630662155`.
 - **CONSTRAINTS:** Tidak menghapus historical Neon rows; no new Neon schema; audit redaction; admin/Owner only.
 - **ALLOWED_TOOLS:** Source/test/docs edits; local build/tests.
 - **EXPECTED_OUTPUT:** Focused commit-ready code and tests.
@@ -72,10 +72,10 @@
 - **CONSTRAINTS:** Buttons only for `!menu`; submenu text-only; no fictional command.
 - **ALLOWED_TOOLS:** Source/docs/tests, synthetic output fixtures.
 - **EXPECTED_OUTPUT:** Menu decision brief and implementation slice.
-- **ACCEPTANCE_CRITERIA:** Active commands and categories match registry; text fallback works.
+- **ACCEPTANCE_CRITERIA:** Active commands and categories match registry; text fallback works; Developer/Owner visibility is actor-aware.
 - **DEPENDENCIES:** Current command inventory and scope freeze.
-- **DEADLINE_OR_ITERATION_LIMIT:** Design first; implementation only after decision gate.
-- **RISK_ESCALATION_RULE:** If location/contextInfo changes message semantics or client compatibility, isolate as spike.
+- **DEADLINE_OR_ITERATION_LIMIT:** Design first; implementation completed in commit `606a0d2` after focused contract tests.
+- **RISK_ESCALATION_RULE:** If location/contextInfo changes message semantics or client compatibility, isolate as spike; no such experimental transport change is included in this slice.
 
 ## State ledger
 
@@ -83,14 +83,14 @@
 |---|---|
 | `CURRENT_OBJECTIVE` | Full release v1.0 scope, not unlimited catalog completion. |
 | `PRD_VERSION` | `full-release-prd-v1.0` draft baseline. |
-| `ACTIVE_WORKSTREAMS` | Release baseline, Neon opt-out, Redis runtime reload, menu reconciliation. |
+| `ACTIVE_WORKSTREAMS` | Redis runtime reload/canary, documentation reconciliation, recovery rehearsal, and live acceptance limitation. |
 | `AGENT_REGISTRY` | STRAT-01, RES-01, ARCH-01, BUILD-01, RISK-01, VAL-01, REL-01, EDIT-01. |
-| `TASK_QUEUE` | Neon release → Redis reload/canary → menu → release rehearsal. |
+| `TASK_QUEUE` | Controlled runtime reload/canary → docs/runbook reconciliation → recovery rehearsal → release decision. |
 | `DEPENDENCY_GRAPH` | See `meta-orchestrator-dependency-graph.mmd`. |
 | `EVIDENCE_LEDGER` | Repository HEAD, CI run, Panel resource, Neon aggregate, local test output. |
 | `DECISION_LOG` | Full release means curated verified scope; no speculative catalog completion. |
 | `ASSUMPTION_LOG` | Live WhatsApp black-box acceptance environment is unavailable. |
 | `RISK_REGISTER` | See PRD and verification/recovery artifacts. |
-| `VALIDATION_RESULTS` | Baseline: typecheck/build/pass; 274 tests pass; dependency audit 0 high vulnerabilities. |
+| `VALIDATION_RESULTS` | Menu v1.0 focused/full regression: 275 tests pass; typecheck/build pass; CI run `32631329930` artifact sync and SHA-256 verification pass; dependency audit last recorded at 0 high vulnerabilities. |
 | `DELIVERABLE_REGISTRY` | PRD, workspace, docs, source/test commits, sanitized CI artifacts. |
 | `STOP_CONDITION` | Completed-with-caveat only after all feasible gates pass and unknown live behavior is disclosed. |

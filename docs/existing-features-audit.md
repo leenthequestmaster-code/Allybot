@@ -137,11 +137,11 @@ Temuan ini merupakan bagian dari P1 lifecycle, tetapi dampaknya pada Welcome/Lea
 
 ## Temuan prioritas rendah atau keputusan desain
 
-### P3 — Urutan kategori native berbeda dari urutan kategori teks
+### P3 — Prioritas kategori native berbeda dari urutan fallback angka
 
-Menu teks mengurutkan kategori berdasarkan nama, sedangkan native menu memprioritaskan kategori yang memiliki command sebelum kategori Coming Soon. Ini membantu akses fitur aktif, tetapi nomor pada fallback teks tidak selalu memiliki urutan visual yang sama dengan halaman button.
+Menu teks dan fallback angka memakai canonical order taxonomy v1.0, sedangkan native menu memprioritaskan kategori yang memiliki command sebelum kategori Coming Soon agar fitur aktif lebih cepat ditemukan. Tombol membawa target kategori langsung sehingga tidak bergantung pada nomor teks; perbedaan urutan visual tetap merupakan residual UX yang perlu dikonfirmasi pada WhatsApp nyata.
 
-Perlu keputusan UX: apakah prioritas native lebih penting, atau semua presentation harus berbagi urutan kategori yang identik. Jangan mengubah tanpa test snapshot/perilaku dan verifikasi pada WhatsApp nyata.
+Focused contract test sudah memverifikasi pagination, callback target, dan fallback. Jangan mengganti format native atau menambahkan `location`/`contextInfo` tanpa spike kompatibilitas terpisah pada Baileys pinned.
 
 ### P3 — Diagnostics belum mencerminkan health operasional penuh
 

@@ -29,6 +29,7 @@ Bagian ini adalah snapshot status terbaru yang mengalahkan catatan historis di b
 - `!groupid` dengan alias `!jid` untuk membaca group JID pada grup, serta `!alljid` untuk daftar grup yang diikuti bot melalui private chat.
 - Optional Upstash Redis service berbasis `@upstash/redis` dengan health-check, timeout, bounded retry untuk health-check, cache TTL, atomic dedupe, fixed-window rate limit, counter TTL, ownership-safe lock, dan bounded queue primitive.
 - Command control chat-log Neon: `!chatlog off`, `!chatlog on`, `!chatlog status`, dan `!chatlog help`, dengan suppression group-scoped yang dipersistenkan melalui SQLite guardrail state.
+- Menu v1.0 dengan taxonomy `GROUP`, `MODERATION`, `ROLEPLAY`, `PERSONAL`, `TOOLS`, `FUN`, `DEVELOPER`, dan `OWNER`; kategori privileged difilter berdasarkan actor, main menu tetap mendukung native buttons, dan submenu tetap text-only dengan fallback angka.
 
 ### Changed
 
@@ -46,17 +47,19 @@ Bagian ini adalah snapshot status terbaru yang mengalahkan catatan historis di b
 
 - Typecheck: pass.
 - Build: pass.
-- Regression suite: **274/274 pass**.
+- Regression suite: **275/275 pass**.
 - Runtime dependency audit: **0 high-severity vulnerability** pada pemeriksaan terakhir.
 - CI final Redis artifact sync: run `32560698025`, success.
 - Neon aggregate snapshot terbaru: 1.023 rows, 5 distinct groups, 1.023 distinct event keys, tanpa duplikasi terukur.
+- Menu v1.0 focused regression dan full regression setelah perubahan: **275/275 pass**.
+- CI menu artifact sync: run `32631329930`, success; sanitized artifact, SHA-256 verification, dan temporary archive cleanup berhasil.
 
 ### Known limitations
 
 - Proses Allybot pada Panel dijalankan manual; artifact sync tidak otomatis me-restart proses. Runtime terbaru perlu dimuat ulang sebelum behavior Redis dan command opt-out dapat dinyatakan aktif pada process berjalan.
 - Live WhatsApp black-box acceptance belum dilakukan.
 - Counter Redis, distributed lock, dan bounded queue tersedia sebagai primitive; lock/queue belum mengendalikan workflow bisnis production.
-- `!chatlog` opt-out sudah ada di working tree tetapi belum menjadi commit/deployment release pada saat snapshot ini ditulis.
+- `!chatlog` opt-out sudah menjadi commit `f26b8ea` dan artifact deployment melalui CI run `32630662155`; filesystem Panel telah disinkronkan, tetapi proses Node manual masih perlu controlled reload sebelum behavior terbaru dinyatakan aktif di memory.
 
 ## [Unreleased]
 
