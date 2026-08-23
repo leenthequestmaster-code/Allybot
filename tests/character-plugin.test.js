@@ -8,32 +8,19 @@ import { CommandRegistry } from '../dist/framework/command-registry.js'
 import { EventBus } from '../dist/framework/event-bus.js'
 import { createCharacterPlugin } from '../dist/framework/plugins/character.js'
 import { CharacterService } from '../dist/services/character-service.js'
+import { createFakeWhatsapp } from './helpers/fake-whatsapp.js'
 
 const logger = pino({ level: 'silent' })
 const group = '120363000000000000@g.us'
 const owner = '628120000001@s.whatsapp.net'
 const other = '628120000002@s.whatsapp.net'
 
-function fakeWhatsapp() {
-  return {
-    isConnected: true,
-    userJid: 'bot@s.whatsapp.net',
-    sent: [],
-    onMessage() { return () => {} },
-    onGroupParticipantUpdate() { return () => {} },
-    onConnectionState() { return () => {} },
-    async sendText(remoteJid, text) { this.sent.push({ remoteJid, text }) },
-    async start() {},
-    async close() {},
-  }
-}
-
 function message(id, senderJid, text) {
   return { id, remoteJid: group, senderJid, text, timestamp: Date.now(), fromMe: false }
 }
 
 test('Character plugin emote is group-only, bounded, and strips presentation markup', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const commands = new CommandRegistry({ commandPrefix: '!', defaultCooldownMs: 0 }, logger, whatsapp, { get() { throw new Error('unused') } }, events)
   createCharacterPlugin(whatsapp).load?.({ logger, config: { commandPrefix: '!', defaultCooldownMs: 0 }, events, commands, services: { get() { throw new Error('unused') } } })
@@ -55,7 +42,7 @@ test('Character plugin supports text-first roleplay profile workflow with owner 
   const guardrails = { recordAudit(input) { audits.push(input); return input } }
   const service = new CharacterService(databasePath, logger)
   service.initialize({ logger, config: { commandPrefix: '!', defaultCooldownMs: 0 }, services: { get() { return guardrails } } })
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = { get(name) { if (name === 'character') return service; throw new Error(`missing service ${name}`) } }
   const registry = new CommandRegistry({ commandPrefix: '!', defaultCooldownMs: 0 }, logger, whatsapp, services, events)

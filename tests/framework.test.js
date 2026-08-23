@@ -8,25 +8,13 @@ import { EventBus } from '../dist/framework/event-bus.js'
 import { ServiceRegistry } from '../dist/framework/service-registry.js'
 import { CommandRegistry } from '../dist/framework/command-registry.js'
 import { PluginManager } from '../dist/framework/plugin-manager.js'
+import { createFakeWhatsapp } from './helpers/fake-whatsapp.js'
 import { CharacterService } from '../dist/services/character-service.js'
 import { PlatformGuardrailService } from '../dist/services/platform-guardrail-service.js'
 
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
 
-function fakeWhatsapp() {
-  return {
-    isConnected: true,
-    userJid: 'bot@s.whatsapp.net',
-    sent: [],
-    onMessage() { return () => {} },
-    onGroupParticipantUpdate() { return () => {} },
-    onConnectionState() { return () => {} },
-    async sendText(remoteJid, text) { this.sent.push({ remoteJid, text }) },
-    async start() {},
-    async close() {},
-  }
-}
 
 test('EventBus isolates listener failures and emits framework.error', async () => {
   const bus = new EventBus(logger)
@@ -86,7 +74,7 @@ test('CharacterService dependency resolves through the real service registry', a
 })
 
 test('CommandRegistry supports alias, validation, cooldown, and reply context', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -113,7 +101,7 @@ test('CommandRegistry supports alias, validation, cooldown, and reply context', 
 })
 
 test('Invalid command input does not consume the command cooldown', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -134,7 +122,7 @@ test('Invalid command input does not consume the command cooldown', async () => 
 })
 
 test('CommandRegistry sends a safe fallback when a handler fails before replying', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -151,7 +139,7 @@ test('CommandRegistry sends a safe fallback when a handler fails before replying
 })
 
 test('CommandRegistry rejects duplicate command names and aliases', () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -161,7 +149,7 @@ test('CommandRegistry rejects duplicate command names and aliases', () => {
 })
 
 test('CommandRegistry accepts safe numeric-leading command names', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -173,7 +161,7 @@ test('CommandRegistry accepts safe numeric-leading command names', async () => {
 })
 
 test('CommandRegistry ignores commands from the bot itself', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -198,7 +186,7 @@ test('CommandRegistry ignores commands from the bot itself', async () => {
 })
 
 test('PluginManager cleans plugin registrations on unload and supports reload', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const commands = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -237,7 +225,7 @@ test('PluginManager cleans plugin registrations on unload and supports reload', 
 })
 
 test('PluginManager unloads partially loaded failed plugins safely', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const commands = new CommandRegistry(config, logger, whatsapp, services, events)
@@ -263,7 +251,7 @@ test('PluginManager unloads partially loaded failed plugins safely', async () =>
 })
 
 test('CommandRegistry denies permission before handler execution', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const registry = new CommandRegistry(config, logger, whatsapp, services, events, () => false)
@@ -293,7 +281,7 @@ test('ServiceRegistry rejects missing and circular dependencies before initializ
 })
 
 test('PluginManager cleans registrations when ready hook fails', async () => {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const commands = new CommandRegistry(config, logger, whatsapp, services, events)

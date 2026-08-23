@@ -4,26 +4,13 @@ import pino from 'pino'
 import { CommandRegistry } from '../dist/framework/command-registry.js'
 import { EventBus } from '../dist/framework/event-bus.js'
 import { createAiPlugin } from '../dist/framework/plugins/ai.js'
+import { createFakeWhatsapp } from './helpers/fake-whatsapp.js'
 
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
 
-function fakeWhatsapp() {
-  return {
-    isConnected: true,
-    userJid: 'bot@s.whatsapp.net',
-    sent: [],
-    onMessage() { return () => {} },
-    onGroupParticipantUpdate() { return () => {} },
-    onConnectionState() { return () => {} },
-    async sendText(remoteJid, text) { this.sent.push({ remoteJid, text }) },
-    async start() {},
-    async close() {},
-  }
-}
-
 function createHarness() {
-  const whatsapp = fakeWhatsapp()
+  const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)
   const commands = new CommandRegistry(config, logger, whatsapp, { get() { throw new Error('service unavailable') } }, events)
   const prompts = []
