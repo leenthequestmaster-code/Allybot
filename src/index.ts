@@ -17,6 +17,7 @@ import { createCollaborationPlugin } from './framework/plugins/collaboration.js'
 import { createKnowledgePlugin } from './framework/plugins/knowledge.js'
 import { createPersonalizationPlugin } from './framework/plugins/personalization.js'
 import { createScenePlugin } from './framework/plugins/scene.js'
+import { createCharacterPlugin } from './framework/plugins/character.js'
 import { createCanonPlugin } from './framework/plugins/canon.js'
 import { createGroupGovernancePlugin } from './framework/plugins/group-governance.js'
 import { createEventPlugin } from './framework/plugins/event.js'
@@ -39,6 +40,7 @@ import { CollaborationService } from './services/collaboration-service.js'
 import { KnowledgeService } from './services/knowledge-service.js'
 import { PersonalizationService } from './services/personalization-service.js'
 import { SceneService } from './services/scene-service.js'
+import { CharacterService } from './services/character-service.js'
 import { CanonService } from './services/canon-service.js'
 import { GroupGovernanceService } from './services/group-governance-service.js'
 import { EventService } from './services/event-service.js'
@@ -108,6 +110,7 @@ async function main(): Promise<void> {
   framework.registerService(new KnowledgeService(config.DATABASE_PATH, logger))
   framework.registerService(new PersonalizationService(config.DATABASE_PATH, logger))
   framework.registerService(new SceneService(config.DATABASE_PATH, logger))
+  framework.registerService(new CharacterService(config.DATABASE_PATH, logger))
   framework.registerService(new CanonService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupGovernanceService(config.DATABASE_PATH, logger))
   framework.registerService(new EventService(config.DATABASE_PATH, logger))
@@ -134,6 +137,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createKnowledgePlugin(whatsapp))
   framework.registerPlugin(createPersonalizationPlugin(whatsapp))
   framework.registerPlugin(createScenePlugin(whatsapp))
+  framework.registerPlugin(createCharacterPlugin(whatsapp))
   framework.registerPlugin(createCanonPlugin(whatsapp))
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
   framework.registerPlugin(createEventPlugin(whatsapp))

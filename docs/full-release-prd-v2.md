@@ -97,3 +97,11 @@ Verification checkpoint setelah discovery update: typecheck pass, clean build pa
 V2-B menambahkan alias ramah pengguna tanpa mengganti canonical command. Alias yang tersedia antara lain `collabmode`, `pollmode`, `catatan`, `tersimpan`, `exportcatatan`, `cerita`, `adegan`, `moderate`, `takecase`, `handover`, `cekcatatan`, `joinlist`, `prefs`, `balasan`, dan `tanya`. Setiap alias mengarah ke handler, permission, cooldown, validation, audit, dan persistence yang sama dengan command lama.
 
 Contract test alias lulus dan full regression terbaru adalah `282/282` pass. Dependency audit runtime pada high threshold tetap menghasilkan `0 vulnerability`. Alias tidak mengubah database schema, feature flag, transport, atau storage boundary.
+
+## 13. V2-C roleplay social checkpoint
+
+V2-C menambahkan roleplay sosial bounded melalui `!character`/`!char` dan `!mood`. Pengguna dapat membuat, melihat, membuat daftar, mengubah, dan mengarsipkan character miliknya pada scope grup; mood hanya dapat diubah oleh pemilik character aktif. Deskripsi dan nama dibatasi panjangnya, hanya tiga character aktif per pemilik per grup, profile tidak ikut masuk metadata audit, dan pengarsipan mempertahankan row historis sebagai `retired`.
+
+Character memakai SQLite domain file terpisah, WAL, busy timeout, transaksi `immediate` pada create untuk menjaga batas concurrent, serta dependency `platform-guardrail` untuk audit. Tidak ada passive chat capture, Neon write, Redis state, atau perubahan schema database utama.
+
+Service, command integration, persistence, ownership, soft-retire, dan audit tests lulus. Full regression checkpoint lokal setelah V2-C: `285/285` pass; runtime dependency audit high threshold: `0 vulnerability`. CI/artifact sync wajib dilakukan pada commit V2-C.

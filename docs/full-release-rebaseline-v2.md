@@ -111,3 +111,9 @@ Checkpoint lokal setelah slice ini: typecheck dan clean build pass; focused test
 V2-B mengangkat discoverability kontingen existing melalui alias user-friendly yang tetap kompatibel dengan canonical names. Alias telah ditambahkan pada Collaboration, Knowledge, Canon, Scene, Moderation, Governance, Personalization, dan AI; tidak ada perubahan pada permission, data model, atau handler semantics.
 
 Focused alias contract dan full regression terbaru lulus `282/282`; dependency audit runtime high threshold lulus dengan `0 vulnerability`. CI/artifact sync perlu dijalankan setelah commit checkpoint ini.
+
+## 11. V2-C checkpoint
+
+V2-C mengisi kontingen ROLEPLAY general tanpa masuk ke RPG: `!character`/`!char` untuk profil character group-scoped dan `!mood` untuk mood character aktif. Data memiliki owner check, batas profile/name/mood, maksimal tiga character aktif per owner, transactional create, dan soft-retire yang tidak menghapus history. Storage memakai SQLite domain terpisah dan audit metadata hanya memuat panjang data serta hashed reference.
+
+Focused service/plugin tests dan full regression terbaru lulus `285/285`; dependency audit runtime high threshold lulus dengan `0 vulnerability`. File baru berada di `src` dan akan masuk artifact melalui `dist/**`; tidak ada dependency runtime baru sehingga CI/manifest allowlist tidak perlu diubah.

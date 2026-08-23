@@ -110,6 +110,8 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   uptime: 'Lihat lama Allybot berjalan.',
   latency: 'Cek waktu respons Allybot.',
   features: 'Lihat ringkasan fitur yang tersedia.',
+  character: 'Buat dan kelola tokoh untuk roleplay sosial.',
+  mood: 'Atur suasana tokoh yang sedang dipakai.',
   calc: 'Hitung operasi matematika sederhana.',
   convert: 'Konversi satuan dasar.',
   time: 'Lihat waktu pada zona tertentu.',
