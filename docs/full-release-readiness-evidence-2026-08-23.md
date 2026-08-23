@@ -2,7 +2,7 @@
 
 **Tanggal:** 23 Agustus 2026  
 **Status:** Breadth implementation extended; **belum final full-release proven**  
-**HEAD:** `f727e888899960529d72d7a8502cd0d86102234c`  
+**HEAD:** `e2c8ab8c0a57352bc9be8172f5dd03077787d5a4`  
 **Author:** Manus AI
 
 ## Ringkasan keputusan
@@ -32,9 +32,9 @@ Allybot telah bergerak jauh melewati curated release. Surface general yang nyata
 | Dependency audit | **0 vulnerability** | `npm audit --omit=dev --audit-level=high` |
 | Diff hygiene | **Pass** | `git diff --check` |
 | Runtime self-check | **Pass** | Compiled self-check lulus; tidak memulai acceptance WhatsApp. |
-| HEAD parity | **Pass** | `HEAD` dan `origin/main` sama-sama `f727e88`. |
-| CI build/test/artifact | **Pass** | Run `32641124478`; typecheck/build/test dan sanitized artifact upload lulus. |
-| Panel artifact sync | **Pass** | Upload, decompress, per-file SHA-256 manifest verification, dan temporary cleanup lulus pada V2-G/V2-H serta re-run final docs CI. |
+| HEAD parity | **Pass** | `HEAD` dan `origin/main` sama-sama `e2c8ab8`. |
+| CI build/test/artifact | **Pass** | Final run `32641857674`; typecheck/build/test dan sanitized artifact upload lulus. |
+| Panel artifact sync | **Pass** | Upload, decompress, per-file SHA-256 manifest verification, dan temporary cleanup lulus pada final run `32641857674`. |
 | Panel process reload | **Tidak dilakukan pada batch ini** | Tidak ada restart baru tanpa otorisasi operasi yang spesifik. |
 | Live WhatsApp acceptance | **Pending** | Belum ada acceptance account/environment terisolasi. |
 
@@ -72,6 +72,6 @@ Dokumen scope dan keputusan yang harus dipakai maintainer berikutnya adalah:
 2. [Allybot commit `afa2b01`](https://github.com/leenthequestmaster-code/Allybot/commit/afa2b01) — roleplay emote and high-risk boundary checkpoint.
 3. [GitHub Actions run `32640752984`](https://github.com/leenthequestmaster-code/Allybot/actions/runs/32640752984) — media artifact and Panel checksum sync.
 4. [GitHub Actions run `32641124478`](https://github.com/leenthequestmaster-code/Allybot/actions/runs/32641124478) — V2-H artifact and Panel checksum sync.
-5. [GitHub Actions run `32641584522`](https://github.com/leenthequestmaster-code/Allybot/actions/runs/32641584522) — final documentation HEAD CI and repeated artifact checksum sync.
+5. [GitHub Actions run `32641857674`](https://github.com/leenthequestmaster-code/Allybot/actions/runs/32641857674) — final HEAD CI and repeated artifact checksum sync.
 6. [Baileys sending media documentation](https://whiskeysockets-baileys-85.mintlify.app/messages/sending-media) — supported outbound media forms and media caveats.
 7. [Baileys handling messages documentation](https://baileys.wiki/docs/socket/handling-messages/) — inbound message/media shapes.
