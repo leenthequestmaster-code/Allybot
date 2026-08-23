@@ -45,3 +45,17 @@ Dokumentasi resmi Pterodactyl pada URL `https://pterodactyl.io/api/client.html#l
 
 [1]: https://pterodactyl.io/api/client.html#list-files "Pterodactyl API documentation entry point"
 [2]: https://dashflo.net/docs/api/pterodactyl/v1/ "Pterodactyl Client API reference linked by official documentation"
+
+## Final source and verification gate
+
+- Repository tree bersih setelah commit `cd86788`.
+- `HEAD` lokal dan `origin/main` sama: `cd86788ee0a04c56678e4133c829e384e1f3be51`.
+- Recovery rehearsal terfokus: pass.
+- Full regression setelah runbook: 275/275 pass, 0 fail.
+- Runtime dependency audit: 0 vulnerabilities pada threshold high.
+- CI run terakhir: `32632120441`, success; typecheck, clean build, compiled runtime regression, sanitized artifact, SHA-256 verification, dan archive cleanup pass.
+
+## Decision evidence update
+
+- **Observed:** source clean dan synced; CI latest success; controlled restart accepted HTTP 204; resource endpoint HTTP 200; uptime meningkat setelah restart; local self-check pass; recovery rehearsal pass.
+- **Still not established:** live WhatsApp/Baileys black-box behavior dan effective Panel feature flags untuk Neon/Upstash melalui command output. Release status tidak boleh dinaikkan menjadi fully proven production release berdasarkan evidence ini saja.
