@@ -42,11 +42,12 @@ function message(id, remoteJid, text, options = {}) {
   }
 }
 
-function createRegistry(whatsapp, prefixResolver) {
+function createRegistry(whatsapp, prefixResolver, configOverrides = {}) {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
-  const registry = new CommandRegistry(config, logger, whatsapp, services, events, undefined, [], prefixResolver)
-  menuPlugin.load?.({ logger, config, events, commands: registry, services })
+  const effectiveConfig = { ...config, ...configOverrides }
+  const registry = new CommandRegistry(effectiveConfig, logger, whatsapp, services, events, undefined, [], prefixResolver)
+  menuPlugin.load?.({ logger, config: effectiveConfig, events, commands: registry, services })
   return { events, registry }
 }
 
@@ -76,20 +77,44 @@ test('menu plugin renders the decorative main menu and supports numbered categor
 
   await registry.dispatch(message('menu-main', 'main@s.whatsapp.net', '!menu'))
   assert.match(whatsapp.sent[0].text, /Listmenu/)
-  assert.match(whatsapp.sent[0].text, /GENERAL/)
+  assert.match(whatsapp.sent[0].text, /PERSONAL/)
   assert.match(whatsapp.sent[0].text, /!help/)
   assert.doesNotMatch(whatsapp.sent[0].text, /!secret/)
 
   await registry.dispatch(message('menu-roadmap', 'roadmap@s.whatsapp.net', '!menu ai'))
-  assert.match(whatsapp.sent[1].text, /AI/)
+  assert.match(whatsapp.sent[1].text, /TOOLS/)
   assert.match(whatsapp.sent[1].text, /Coming Soon/)
 
-  await registry.dispatch(message('menu-numbered', 'numbered@s.whatsapp.net', '!menu 5'))
-  assert.match(whatsapp.sent[2].text, /GENERAL/)
+  await registry.dispatch(message('menu-numbered', 'numbered@s.whatsapp.net', '!menu 4'))
+  assert.match(whatsapp.sent[2].text, /PERSONAL/)
   assert.match(whatsapp.sent[2].text, /\*1\.\* !ping/)
 
   await registry.dispatch(message('menu-main-again', 'back@s.whatsapp.net', '!menu'))
   assert.match(whatsapp.sent[3].text, /Listmenu/)
+})
+
+test('menu hides Developer and Owner categories from members but shows them to the Owner', async () => {
+  const memberWhatsapp = fakeWhatsapp()
+  const { registry: memberRegistry } = createRegistry(memberWhatsapp)
+  memberRegistry.register({ name: 'developer-help', description: 'Developer command', category: 'developer', handler: async () => {} })
+  memberRegistry.register({ name: 'owner-help', description: 'Owner command', category: 'owner', handler: async () => {} })
+
+  await memberRegistry.dispatch(message('member-menu', 'member@s.whatsapp.net', '!menu'))
+  assert.doesNotMatch(memberWhatsapp.sent[0].text, /DEVELOPER/)
+  assert.doesNotMatch(memberWhatsapp.sent[0].text, /OWNER/)
+
+  const ownerWhatsapp = fakeWhatsapp()
+  const { registry: ownerRegistry } = createRegistry(ownerWhatsapp, undefined, { botOwnerJid: 'owner@s.whatsapp.net' })
+  ownerRegistry.register({ name: 'developer-help', description: 'Developer command', category: 'developer', handler: async () => {} })
+  ownerRegistry.register({ name: 'owner-help', description: 'Owner command', category: 'owner', handler: async () => {} })
+
+  await ownerRegistry.dispatch(message('owner-menu', 'owner-chat@s.whatsapp.net', '!menu', { senderJid: 'owner@s.whatsapp.net' }))
+  assert.match(ownerWhatsapp.sent[0].text, /DEVELOPER/)
+  assert.match(ownerWhatsapp.sent[0].text, /OWNER/)
+  await ownerRegistry.dispatch(message('owner-developer-submenu', 'owner-dev-chat@s.whatsapp.net', '!menu developer', { senderJid: 'owner@s.whatsapp.net:1' }))
+  await ownerRegistry.dispatch(message('owner-owner-submenu', 'owner-owner-chat@s.whatsapp.net', '!menu owner', { senderJid: 'owner@s.whatsapp.net:2' }))
+  assert.match(ownerWhatsapp.sent[1].text, /!developer-help/)
+  assert.match(ownerWhatsapp.sent[2].text, /!owner-help/)
 })
 
 test('menu plugin follows the effective group prefix while retaining global fallback', async () => {
@@ -149,7 +174,7 @@ test('replying with a category number navigates only from a quoted main menu', a
   const mainMenu = whatsapp.sent[0].text
   assert.match(mainMenu, /Atau balas pesan menu ini dengan angka kategorinya/)
 
-  await events.emit('message.received', message('reply-menu-number', 'reply@s.whatsapp.net', '6', {
+  await events.emit('message.received', message('reply-menu-number', 'reply@s.whatsapp.net', '1', {
     quotedText: mainMenu,
     quotedSenderJid: 'bot@s.whatsapp.net',
   }))
@@ -289,11 +314,11 @@ test('main native menu paginates categories with NEXT and keeps Coming Soon text
   assert.equal(whatsapp.native.length, 2)
   assert.equal(whatsapp.sent.length, 0)
   assert.equal(whatsapp.native[1].payload.buttons.length, 3)
-  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('SYSTEM')))
-  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('AI')))
+  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('TOOLS')))
+  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('MODERATION')))
   assert.equal(whatsapp.native[1].payload.buttons[2].title, 'NEXT')
 
-  const comingSoonButton = whatsapp.native[1].payload.buttons.find((button) => button.title.includes('AI'))
+  const comingSoonButton = whatsapp.native[1].payload.buttons.find((button) => button.title.includes('MODERATION'))
   assert.ok(comingSoonButton)
   await events.emit('message.received', message('paged-coming-soon', 'paged@s.whatsapp.net', undefined, {
     buttonId: comingSoonButton.id,

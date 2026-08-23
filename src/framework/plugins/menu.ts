@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { CapabilityAwareButtonAdapter } from '../../platform/buttons.js'
 import { TextInteractionAdapter } from '../../platform/interaction.js'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
+import type { DeveloperModeService } from '../../services/developer-mode-service.js'
 
 type MenuCategory = {
   readonly name: string
@@ -17,39 +18,50 @@ const PAGE_SIZE = 8
 const MAIN_MENU_BUTTON_CATEGORY_COUNT = 2
 
 const categoryPresentation: Record<string, CategoryPresentation> = {
-  general: { label: 'GENERAL', icon: '🏠' },
-  system: { label: 'SYSTEM', icon: '⚙️' },
   group: { label: 'GROUP', icon: '👥' },
-  tools: { label: 'TOOLS', icon: '🔧' },
-  download: { label: 'DOWNLOAD', icon: '📥' },
-  ai: { label: 'AI', icon: '🤖' },
-  creativity: { label: 'CREATIVITY', icon: '🎨' },
-  rpg: { label: 'RPG', icon: '⚔️' },
-  search: { label: 'SEARCH', icon: '🔎' },
-  owner: { label: 'OWNER', icon: '👑' },
   moderation: { label: 'MODERATION', icon: '🛡️' },
-  media: { label: 'MEDIA', icon: '🎬' },
-  utility: { label: 'UTILITY', icon: '🧰' },
-  economy: { label: 'ECONOMY', icon: '💰' },
+  roleplay: { label: 'ROLEPLAY', icon: '🎭' },
+  personal: { label: 'PERSONAL', icon: '🪪' },
+  tools: { label: 'TOOLS', icon: '🧰' },
+  fun: { label: 'FUN', icon: '🎲' },
+  developer: { label: 'DEVELOPER', icon: '🛠️' },
+  owner: { label: 'OWNER', icon: '👑' },
+}
+
+const CATEGORY_ALIASES: Record<string, string> = {
+  ai: 'tools',
+  collaboration: 'group',
+  community: 'group',
+  creativity: 'fun',
+  download: 'tools',
+  economy: 'roleplay',
+  events: 'group',
+  general: 'personal',
+  governance: 'moderation',
+  knowledge: 'roleplay',
+  media: 'tools',
+  personalization: 'personal',
+  rpg: 'roleplay',
+  search: 'tools',
+  system: 'tools',
+  utility: 'tools',
 }
 
 const ROADMAP_CATEGORY_NAMES = [
-  'ai',
-  'creativity',
-  'download',
-  'economy',
-  'media',
+  'group',
   'moderation',
-  'owner',
-  'rpg',
-  'search',
+  'roleplay',
+  'personal',
   'tools',
-  'utility',
+  'fun',
+  'developer',
+  'owner',
 ] as const
 
 function normalizeCategory(command: CommandDefinition): string {
   const category = command.category?.trim().toLowerCase()
-  return category && /^[a-z][a-z0-9_-]{0,31}$/.test(category) ? category : 'general'
+  if (!category || !/^[a-z][a-z0-9_-]{0,31}$/.test(category)) return 'personal'
+  return CATEGORY_ALIASES[category] ?? (category in categoryPresentation ? category : 'tools')
 }
 
 function sortCommands(commands: readonly CommandDefinition[]): CommandDefinition[] {
@@ -74,7 +86,7 @@ function collectCategories(commands: readonly CommandDefinition[]): MenuCategory
 
   return [...grouped.entries()]
     .map(([name, categoryCommands]) => ({ name, commands: sortCommands(categoryCommands) }))
-    .sort((left, right) => left.name.localeCompare(right.name))
+    .sort((left, right) => ROADMAP_CATEGORY_NAMES.indexOf(left.name as typeof ROADMAP_CATEGORY_NAMES[number]) - ROADMAP_CATEGORY_NAMES.indexOf(right.name as typeof ROADMAP_CATEGORY_NAMES[number]))
 }
 
 function presentationFor(category: string): CategoryPresentation {
@@ -178,7 +190,34 @@ function prefixFromMenuQuote(value: string, fallback: string): string {
 function resolveCategory(categories: readonly MenuCategory[], identifier: string | undefined): MenuCategory | undefined {
   if (!identifier) return undefined
   if (/^\d+$/.test(identifier)) return categories[Number(identifier) - 1]
-  return categories.find((category) => category.name === identifier.toLowerCase())
+  const normalized = identifier.toLowerCase()
+  const canonical = CATEGORY_ALIASES[normalized] ?? normalized
+  return categories.find((category) => category.name === canonical)
+}
+
+function normalizeJid(value?: string): string | undefined {
+  if (!value) return undefined
+  const bare = value.split(':')[0]
+  return bare.includes('@') ? bare : `${bare}@s.whatsapp.net`
+}
+
+function isBotOwner(commandContext: Pick<CommandContext, 'message' | 'config'>): boolean {
+  const sender = normalizeJid(commandContext.message.senderJid)
+  const owner = normalizeJid(commandContext.config.botOwnerJid)
+  return Boolean(sender && owner && sender === owner)
+}
+
+function canSeePrivilegedCategory(category: MenuCategory, commandContext: Pick<CommandContext, 'message' | 'config' | 'services'>): boolean {
+  if (category.name === 'owner') return isBotOwner(commandContext)
+  if (category.name !== 'developer') return true
+  if (isBotOwner(commandContext)) return true
+  const sender = commandContext.message.senderJid
+  if (!sender || !commandContext.services.has('developer-mode')) return false
+  try {
+    return commandContext.services.get<DeveloperModeService>('developer-mode').listVisibleActivations(sender, false).length > 0
+  } catch {
+    return false
+  }
 }
 
 const NATIVE_MENU_EXPIRY_MS = 5 * 60 * 1000
@@ -316,6 +355,7 @@ export const menuPlugin: Plugin = {
         .list()
         .filter((command) => command.name !== 'menu' && !command.hidden)
       const categories = collectCategories(commands)
+        .filter((category) => canSeePrivilegedCategory(category, commandContext))
       const category = resolveCategory(categories, args[0])
       const fallbackText = renderMainMenu(categories, prefix)
 
