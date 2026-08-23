@@ -5,6 +5,7 @@ import type { DeveloperModeService } from './services/developer-mode-service.js'
 export const permissionNames = {
   botOwner: 'bot.owner',
   groupAdmin: 'group.admin',
+  groupAdminOrBotOwner: 'group.admin.or.bot.owner',
   groupOwner: 'group.owner',
   developerModeObserver: 'developer.mode.observer',
   developerModeGroupObserver: 'developer.mode.group.observer',
@@ -59,11 +60,13 @@ export function createPermissionResolver(
 
     if (!isGroupJid(context.message.remoteJid)) return false
 
+    if (permission === permissionNames.groupAdminOrBotOwner && isSameJid(senderJid, normalizedBotOwnerJid)) return true
+
     const metadata = await whatsapp.getGroupMetadata(context.message.remoteJid)
     const sender = metadata.participants.find((participant) => isSameJid(participant.jid, senderJid))
     if (!sender) return false
 
-    if (permission === permissionNames.groupAdmin) {
+    if (permission === permissionNames.groupAdmin || permission === permissionNames.groupAdminOrBotOwner) {
       return sender.role === 'admin' || sender.role === 'superadmin'
     }
 

@@ -30,6 +30,8 @@ export function permissionDenialMessage(permission: string, context?: CommandCon
   switch (permission) {
     case 'group.admin':
       return 'Maaf, command ini hanya dapat digunakan oleh admin grup.'
+    case 'group.admin.or.bot.owner':
+      return 'Maaf, command ini hanya dapat digunakan oleh Owner Allybot atau admin grup.'
     case 'group.owner':
       return 'Maaf, command ini hanya dapat digunakan oleh pembuat grup.'
     case 'bot.owner':

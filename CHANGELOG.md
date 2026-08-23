@@ -20,6 +20,44 @@ Setiap entri rilis harus menjelaskan perubahan pengguna, perubahan internal pent
 | `Deprecated` | Fitur yang masih tersedia tetapi akan dihentikan. |
 | `Removed` | Fitur atau behavior yang telah dihapus. |
 
+## Current release candidate snapshot — 2026-08-23
+
+Bagian ini adalah snapshot status terbaru yang mengalahkan catatan historis di bawahnya ketika terdapat perbedaan status deployment. Ini bukan tag release final.
+
+### Added
+
+- `!groupid` dengan alias `!jid` untuk membaca group JID pada grup, serta `!alljid` untuk daftar grup yang diikuti bot melalui private chat.
+- Optional Upstash Redis service berbasis `@upstash/redis` dengan health-check, timeout, bounded retry untuk health-check, cache TTL, atomic dedupe, fixed-window rate limit, counter TTL, ownership-safe lock, dan bounded queue primitive.
+- Command control chat-log Neon: `!chatlog off`, `!chatlog on`, `!chatlog status`, dan `!chatlog help`, dengan suppression group-scoped yang dipersistenkan melalui SQLite guardrail state.
+
+### Changed
+
+- Group JID validation memakai canonical `isGroupJid()` yang menerima format digits-only dan hyphenated.
+- Redis cache/dedupe dan Group Safety shared windows memiliki fallback lokal ketika Redis disabled, timeout, unsupported, atau unavailable.
+- CI artifact verification menunggu eventual consistency setelah decompress Panel dan mengulang hanya file yang checksum-nya belum konvergen.
+
+### Security
+
+- Permission chat-log menggunakan kombinasi Owner Allybot atau admin grup; member biasa ditolak.
+- Redis key memakai namespace dan hash identity; credential, raw JID, isi chat, auth/session, dan raw error tidak ditulis ke log atau artifact.
+- Deployment tetap artifact-only; Startup Command dan `.bash_profile` tidak diubah.
+
+### Verification
+
+- Typecheck: pass.
+- Build: pass.
+- Regression suite: **274/274 pass**.
+- Runtime dependency audit: **0 high-severity vulnerability** pada pemeriksaan terakhir.
+- CI final Redis artifact sync: run `32560698025`, success.
+- Neon aggregate snapshot terbaru: 1.023 rows, 5 distinct groups, 1.023 distinct event keys, tanpa duplikasi terukur.
+
+### Known limitations
+
+- Proses Allybot pada Panel dijalankan manual; artifact sync tidak otomatis me-restart proses. Runtime terbaru perlu dimuat ulang sebelum behavior Redis dan command opt-out dapat dinyatakan aktif pada process berjalan.
+- Live WhatsApp black-box acceptance belum dilakukan.
+- Counter Redis, distributed lock, dan bounded queue tersedia sebagai primitive; lock/queue belum mengendalikan workflow bisnis production.
+- `!chatlog` opt-out sudah ada di working tree tetapi belum menjadi commit/deployment release pada saat snapshot ini ditulis.
+
 ## [Unreleased]
 
 Bagian ini hanya berisi perubahan yang sudah dibuat di source of truth tetapi belum diberi tag release final. Jangan memasukkan ide masa depan ke bagian ini kecuali implementasinya benar-benar sudah dimulai dan statusnya ditulis secara jelas.

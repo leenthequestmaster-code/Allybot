@@ -1,5 +1,7 @@
 # Roadmap Pengembangan Allybot
 
+> **Current status snapshot — 23 Agustus 2026:** Core, Owner/Developer control plane, Group Foundation, behavior-wide hardening, architecture upgrade, Supabase boundaries, Neon client/writer, Neon capture, and Upstash Redis artifact integration have been implemented and verified in their respective batches. The remaining release-critical gaps are runtime reload verification, Neon chat-log opt-out release, documentation reconciliation, menu v1.0 finalization, and isolated live WhatsApp acceptance. Historical milestone paragraphs below are retained for provenance; use the current snapshot and latest CI evidence when wording differs.
+
 Roadmap ini menetapkan arah pengembangan Allybot secara bertahap. Daftar command yang besar tidak dimaksudkan untuk dibuat sekaligus; setiap milestone harus menghasilkan bot yang tetap dapat dijalankan, diuji, dan dipelihara. Nomor versi di bawah adalah rancangan release track, bukan jadwal kalender. Sebuah rilis dianggap siap ketika kriteria selesai dan verifikasinya terpenuhi, bukan karena sudah mencapai tanggal tertentu.
 
 ## Prinsip prioritas
