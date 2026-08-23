@@ -36,8 +36,8 @@ Full release tidak berarti menyalin seluruh baris katalog kemungkinan secara mem
 | `EVENT` | Multi-phase event, calendar, create/publish/join/leave/status/recap/phase/pause/resume/close, poll/location text fallback. | Existing; perlu dipetakan sebagai subsection Community dan diuji dengan scheduler/recovery. |
 | `ROLEPLAY / KNOWLEDGE` | Scene lifecycle, IC/OOC, consent, Canon/Lore, explicit quote/bookmark/source/forget/export. | Existing; perlu semi-button navigation dan copy yang mudah dipahami. |
 | `PERSONAL` | AFK, personalization status/toggle, preferences, language/timezone, quiet, notification, verbosity, format. | Existing; perlu memisahkan personal command dari admin group policy pada menu. |
-| `TOOLS / SYSTEM / AI` | Ping, health/diag, bot profile/owner profile, AI query, suggestion relay, cache control. | Partial; AI/diagnostics tetap feature-gated dan harus diberi status availability. |
-| `FUN` | Belum ada plugin fun umum yang mendaftarkan `random`, `choose`, `flip`, `roll`, atau command serupa. | Gap nyata; menjadi batch implementasi awal setelah menu semi-button. |
+| `TOOLS / SYSTEM / AI` | Ping, health/diag, bot profile/owner profile, AI query, translation/summary direct-request, suggestion relay, cache control. | Implemented with AI provider gate; AI tetap default-off bila provider tidak aktif. |
+| `FUN` | Utility random/choose/flip/roll/8ball dan truth/dare/RPS bounded. | Implemented; tidak memakai storage atau external provider. |
 
 ## 4. Gap fitur general yang harus diisi
 
@@ -59,7 +59,7 @@ Wave ini mengisi general roleplay tanpa RPG: profile karakter bounded, mood/stat
 
 ### Wave E — media and AI utility
 
-Wave ini hanya memasukkan media operation yang memiliki runtime dependency, ukuran/durasi limit, cleanup, dan artifact allowlist yang terverifikasi. AI tetap direct-request, bounded, rate-limited, provider-failure-safe, dan default-off bila credential/provider belum terpasang. Download eksternal dan converter besar tidak boleh digabung ke satu batch tanpa provider, license, timeout, dan resource evidence.
+Wave ini hanya memasukkan media operation yang memiliki runtime dependency, ukuran/durasi limit, cleanup, dan artifact allowlist yang terverifikasi. AI tetap direct-request, bounded, rate-limited, provider-failure-safe, dan default-off bila credential/provider belum terpasang. Download eksternal dan converter besar tidak boleh digabung ke satu batch tanpa provider, license, timeout, dan resource evidence. Bounded transport pertama kini mencakup `!sticker`, `!toimg`, `!togif`, dan `!toaudio`; downloader URL, upscale besar, dan converter arbitrer tetap deferred.
 
 ### Wave F — optional high-risk tracks
 
@@ -128,4 +128,12 @@ V2-E mengisi gap retrieval pada kontingen Knowledge melalui `!find`/`!cari`. Sea
 
 ## 14. V2-F checkpoint
 
-V2-F mengisi FUN dengan `!truth`/`!jujur`, `!dare`/`!tantangan`, dan `!rps`/`!suit`. Prompt statis, input terbatas, output pendek, cooldown tetap aktif, dan tidak ada storage/external API. Local verification: utility tests pass, typecheck/build pass, full regression baseline `286/286`, runtime audit `0 vulnerability`.
+V2-F mengisi FUN dengan `!truth`/`!jujur`, `!dare`/`!tantangan`, dan `!rps`/`!suit`. Prompt statis, input terbatas, output pendek, cooldown tetap aktif, dan tidak ada storage/external API. Local verification: utility tests pass, typecheck/build pass, full regression baseline `286/286`, runtime audit `0 vulnerability`. Commit `2b46b57` telah lulus CI dan sanitized artifact sync pada run `32639218671`.
+
+## 15. V2-G checkpoint
+
+V2-G menyelesaikan dua gap Tools/Media yang sebelumnya belum memiliki boundary nyata. AI kini memiliki `!translate`/`!terjemah` untuk teks explicit dengan format `bahasa | teks` dan `!summarize`/`!ringkas` untuk teks explicit; keduanya tetap memakai provider AI existing, cooldown, batas input/output, safe error, dan tanpa conversation memory. AI tetap hanya terdaftar ketika `XKIRO_AI_ENABLED` aktif.
+
+Media kini memiliki `CoreMediaDescriptor` dan optional `WhatsAppPort` media contract yang tidak mengekspos raw Baileys message ke plugin. Adapter memetakan direct, quoted, dan view-once metadata, memakai stored message untuk bounded download stream, re-upload callback resmi Baileys, timeout/abort, pre-download size guard, MIME validation, fixed-argument ffmpeg tanpa shell, output cap, dan cleanup. Command nyata yang tersedia adalah `!sticker`/`!stiker`, `!toimg`/`!togambar`, `!togif`/`!gif`, dan `!toaudio`/`!audio`. `!togif` dikirim sebagai MP4 dengan playback flag karena WhatsApp tidak mengirim file GIF secara langsung.
+
+Verification lokal V2-G: typecheck pass, clean build pass, 13 focused media tests pass, real ffmpeg smoke test pada fixture sintetis pass, full regression `302/302` pass, runtime dependency audit high threshold `0 vulnerability`, dan `git diff --check` pass. CI/artifact sync dan live WhatsApp media acceptance masih merupakan gate berikutnya; tidak ada klaim live transport.

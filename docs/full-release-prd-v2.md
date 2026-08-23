@@ -26,16 +26,16 @@ Katalog 512 baris tetap menjadi sumber ide dan backlog, bukan daftar implementas
 | M2-05 | Knowledge/Roleplay foundation | Explicit knowledge, quote/bookmark/source/forget/export, Canon/Lore, scene lifecycle, IC/OOC, scene consent, dan command copy yang tidak mengaktifkan passive full-chat memory. |
 | M2-06 | Personal | AFK dan personalization/policy command existing, dengan pemisahan jelas antara preference personal dan policy grup. |
 | M2-07 | Tools/System | Ping, health/diag bila enabled, bot profile, owner profile aman, privacy/support/about/version, bounded command index/search, calculator, unit/time/date utilities. |
-| M2-08 | Fun | `!random`, `!choose`, `!flip`, `!roll`, dan minimal satu response game ringan seperti `!8ball`, semuanya deterministic-boundary atau cryptographically safe random sesuai kebutuhan, input bounded, tanpa external dependency. |
-| M2-09 | AI | `!ai`/`!ally` existing hanya tampil READY jika provider flag dan key tersedia; otherwise tampil FEATURE-GATED. Input/output bounded, rate-limited, no passive memory, safe error. |
-| M2-10 | Media | Hanya command yang dapat dibangun dengan dependency dan resource budget yang benar-benar tersedia. Prioritas awal `!sticker`, `!toimg`, atau `!toaudio` dipilih setelah dependency/runtime audit; tidak boleh menjanjikan converter yang belum memiliki pipeline. |
+| M2-08 | Fun | `!random`, `!choose`, `!flip`, `!roll`, `!truth`, `!dare`, `!rps`, dan `!8ball`, semuanya bounded, input tervalidasi, tanpa external dependency. |
+| M2-09 | AI | `!ai`/`!ally`, `!translate`/`!terjemah`, dan `!summarize`/`!ringkas` hanya tampil ketika provider flag aktif; otherwise feature-gated. Input/output bounded, cooldown, no passive memory, safe error. |
+| M2-10 | Media | `!sticker`, `!toimg`, `!togif`, dan `!toaudio` memakai MediaPort internal, direct/quoted descriptor, size/duration limit, bounded stream, timeout/abort, fixed ffmpeg args, MIME validation, output cap, dan cleanup. URL downloader, upscale, serta converter arbitrer tetap deferred. |
 | M2-11 | Release operations | CI sanitized artifact, checksum, deployment, controlled reload, recovery rehearsal, command/catalog/docs parity, rollback runbook, dan residual-risk decision. |
 
 ## 4. Should and Could
 
 Fitur baru yang bernilai tetapi tidak boleh menghambat Must v2 adalah `!feedback`/`!suggest` bounded, `!messageinfo` safe reply metadata, roleplay `!character`/`!mood`/`!emote`, selective metrics, dan media enhancement. Kandidat ini masuk setelah fondasi existing diangkat ke menu dan memiliki owner/data contract.
 
-`!yt2mp3`, `!tomp3`, `!togif`, `!brat`, `!tomeme`, `!upscale`, `!hd`, downloader social, OCR, transcription, dan TTS memerlukan audit dependency, binary, file-size/duration limit, egress policy, license, cleanup, dan artifact manifest. Mereka tidak akan dipalsukan sebagai command yang sekadar mengirim placeholder.
+`!yt2mp3`, `!tomp3`, `!brat`, `!tomeme`, `!upscale`, `!hd`, downloader social, OCR, transcription, dan TTS memerlukan audit dependency, binary, file-size/duration limit, egress policy, license, cleanup, dan artifact manifest. Mereka tidak akan dipalsukan sebagai command yang sekadar mengirim placeholder. `!togif` dan `!toaudio` sudah keluar dari deferred karena pipeline bounded-nya telah dibuktikan lokal.
 
 ## 5. UX contract menu semi-button
 
@@ -122,4 +122,12 @@ R4 service/plugin search tests pass dan full regression checkpoint lokal menjadi
 
 V2-F memperluas kontingen FUN dengan `!truth`/`!jujur`, `!dare`/`!tantangan`, dan `!rps`/`!suit`. Semua prompt bersifat ringan dan statis; input suit dibatasi pada `batu`, `gunting`, atau `kertas`; tidak ada external provider, user-generated broadcast, atau penyimpanan pesan. Copy layer menu/search menggunakan bahasa Indonesia yang singkat.
 
-Utility/fun focused tests lulus, typecheck/build lulus, dan full regression terakhir tetap `286/286` dengan runtime dependency audit `0 vulnerability`. CI/artifact sync wajib dilakukan pada commit V2-F.
+Utility/fun focused tests lulus, typecheck/build lulus, dan full regression terakhir sebelum V2-G adalah `286/286` dengan runtime dependency audit `0 vulnerability`. CI/artifact sync V2-F sukses pada run `32639218671`.
+
+## 17. V2-G AI/media bounded checkpoint
+
+V2-G menambahkan `!translate`/`!terjemah` dengan format `bahasa | teks` dan `!summarize`/`!ringkas` dengan teks explicit. Keduanya memakai handler AI existing, tanpa conversation memory atau storage baru, dan tetap dikunci oleh `XKIRO_AI_ENABLED`, cooldown, input/output cap, dan safe provider failure.
+
+V2-G juga memperluas boundary WhatsAppPort dengan `CoreMediaDescriptor`, `downloadMedia`, dan `sendMedia` yang tetap optional bagi fake/legacy adapter. Baileys pinned `7.0.0-rc14` dipakai melalui adapter; plugin tidak menerima raw WAMessage. Direct, quoted, dan view-once media dipetakan ke metadata aman; download memakai stored message, official re-upload callback, abort timeout, pre-download size guard, MIME checks, fixed-argument ffmpeg tanpa shell, target-specific output cap, dan cleanup. Command yang dirilis adalah `!sticker`/`!stiker`, `!toimg`/`!togambar`, `!togif`/`!gif`, dan `!toaudio`/`!audio`.
+
+Local evidence V2-G: 13 focused media tests pass, real ffmpeg smoke test pada fixture sintetis pass, typecheck/build pass, full regression `302/302` pass, audit high threshold `0 vulnerability`, dan diff check pass. CI/artifact sync masih menjadi gate setelah commit; live WhatsApp media behavior belum diuji dan tetap residual risk.

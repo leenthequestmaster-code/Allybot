@@ -2,7 +2,9 @@ import NodeCache from '@cacheable/node-cache'
 import makeWASocket, {
   Browsers,
   DisconnectReason,
+  downloadMediaMessage,
   generateMessageIDV2,
+  normalizeMessageContent,
   makeCacheableSignalKeyStore,
   jidNormalizedUser,
   proto,
@@ -24,11 +26,15 @@ import type {
   RuntimeCacheClearResult,
   WhatsAppGroupParticipantActionResult,
   CoreMessage,
+  CoreMediaDescriptor,
+  CoreMediaKind,
   GroupParticipantRole,
   WhatsAppGroupMetadata,
   WhatsAppGroupSummary,
   WhatsAppPollOptions,
   WhatsAppPort,
+  WhatsAppMediaLimits,
+  WhatsAppMediaPayload,
   WhatsAppSendOptions,
 } from './framework/contracts.js'
 import { AllybotError, errorMessage, statusCodeFromError } from './errors.js'
@@ -42,9 +48,57 @@ function extractMessageText(message: WAMessage['message'] | null | undefined): s
     message?.conversation ??
     message?.extendedTextMessage?.text ??
     message?.imageMessage?.caption ??
-    message?.videoMessage?.caption
+    message?.videoMessage?.caption ??
+    message?.documentMessage?.caption
   )
   return text ?? undefined
+}
+
+const MEDIA_DESCRIPTOR_KEYS: readonly [CoreMediaKind, string][] = [
+  ['image', 'imageMessage'],
+  ['video', 'videoMessage'],
+  ['audio', 'audioMessage'],
+  ['document', 'documentMessage'],
+  ['sticker', 'stickerMessage'],
+]
+const MEDIA_DOWNLOAD_MAX_BYTES = 3 * 1024 * 1024
+const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
+const MEDIA_SEND_MAX_BYTES = 4 * 1024 * 1024
+
+function finiteMediaNumber(value: unknown): number | undefined {
+  const number = Number(value)
+  return Number.isSafeInteger(number) && number > 0 ? number : undefined
+}
+
+function defaultMimeType(kind: CoreMediaKind): string {
+  switch (kind) {
+    case 'image': return 'image/jpeg'
+    case 'video': return 'video/mp4'
+    case 'audio': return 'audio/ogg; codecs=opus'
+    case 'document': return 'application/octet-stream'
+    case 'sticker': return 'image/webp'
+  }
+}
+
+function mediaDescriptorFromContent(content: WAMessage['message'] | null | undefined, quoted = false): CoreMediaDescriptor | undefined {
+  const normalized = normalizeMessageContent(content) ?? content
+  if (!normalized) return undefined
+  for (const [kind, key] of MEDIA_DESCRIPTOR_KEYS) {
+    const candidate = (normalized as unknown as Record<string, unknown>)[key]
+    if (!candidate || typeof candidate !== 'object') continue
+    const value = candidate as Record<string, unknown>
+    const descriptor: CoreMediaDescriptor = {
+      kind,
+      ...(typeof value.mimetype === 'string' && value.mimetype.trim() ? { mimeType: value.mimetype.trim().toLowerCase() } : {}),
+      ...(finiteMediaNumber(value.fileLength) ? { sizeBytes: finiteMediaNumber(value.fileLength) } : {}),
+      ...(finiteMediaNumber(value.width) ? { width: finiteMediaNumber(value.width) } : {}),
+      ...(finiteMediaNumber(value.height) ? { height: finiteMediaNumber(value.height) } : {}),
+      ...(finiteMediaNumber(value.seconds) ? { durationSeconds: finiteMediaNumber(value.seconds) } : {}),
+      ...(quoted ? { quoted: true } : {}),
+    }
+    return descriptor
+  }
+  return undefined
 }
 
 const PROFILE_PICTURE_TIMEOUT_MS = 5_000
@@ -106,10 +160,14 @@ export function extractButtonId(message: WAMessage): string | undefined {
 }
 
 function extractContextInfo(message: WAMessage) {
+  const normalized = normalizeMessageContent(message.message) ?? message.message
   return (
-    message.message?.extendedTextMessage?.contextInfo ??
-    message.message?.imageMessage?.contextInfo ??
-    message.message?.videoMessage?.contextInfo
+    normalized?.extendedTextMessage?.contextInfo ??
+    normalized?.imageMessage?.contextInfo ??
+    normalized?.videoMessage?.contextInfo ??
+    normalized?.audioMessage?.contextInfo ??
+    normalized?.documentMessage?.contextInfo ??
+    normalized?.stickerMessage?.contextInfo
   )
 }
 
@@ -316,6 +374,109 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     if (parsed.protocol !== 'https:') throw new Error('Image URL must use HTTPS')
     const content = caption ? { image: { url: parsed.toString() }, caption } : { image: { url: parsed.toString() } }
     await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework image response')
+  }
+
+  async downloadMedia(message: CoreMessage, source: 'direct' | 'quoted', limits: WhatsAppMediaLimits): Promise<WhatsAppMediaPayload> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    if (!Number.isSafeInteger(limits.maxBytes) || limits.maxBytes < 1 || limits.maxBytes > MEDIA_DOWNLOAD_MAX_BYTES) {
+      throw new Error('Media download byte limit is out of bounds')
+    }
+    const content = await this.storage.getMessage({ remoteJid: message.remoteJid, id: message.id })
+    if (!content) throw new Error('Media source is no longer available')
+    const currentMessage: WAMessage = {
+      key: { remoteJid: message.remoteJid, id: message.id },
+      message: content,
+    }
+    const mediaContent = source === 'direct'
+      ? content
+      : (normalizeMessageContent(extractContextInfo(currentMessage)?.quotedMessage) ?? undefined)
+    if (!mediaContent) throw new Error('Quoted media source is no longer available')
+    const descriptor = mediaDescriptorFromContent(mediaContent, source === 'quoted')
+    if (!descriptor) throw new Error('Unsupported media source')
+    if (descriptor.sizeBytes !== undefined && descriptor.sizeBytes > limits.maxBytes) throw new Error('Media source exceeds byte limit')
+
+    const quotedContext = source === 'quoted' ? extractContextInfo(currentMessage) : undefined
+    const rawMessage: WAMessage = {
+      key: {
+        remoteJid: message.remoteJid,
+        id: source === 'quoted' && quotedContext?.stanzaId ? quotedContext.stanzaId : message.id,
+        ...(source === 'quoted' && quotedContext?.participant ? { participant: quotedContext.participant } : {}),
+      },
+      message: mediaContent,
+    }
+    const timeoutMs = Number.isFinite(limits.timeoutMs)
+      ? Math.max(1_000, Math.min(Math.floor(limits.timeoutMs as number), MEDIA_DOWNLOAD_TIMEOUT_MS))
+      : MEDIA_DOWNLOAD_TIMEOUT_MS
+    const controller = new AbortController()
+    const operation = (async (): Promise<WhatsAppMediaPayload> => {
+      const stream = await downloadMediaMessage(
+        rawMessage,
+        'stream',
+        { options: { signal: controller.signal } },
+        { reuploadRequest: (stale) => socket.updateMediaMessage(stale), logger: this.logger },
+      )
+      const chunks: Buffer[] = []
+      let total = 0
+      for await (const chunk of stream) {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        total += buffer.length
+        if (total > limits.maxBytes) throw new Error('Media download exceeded byte limit')
+        chunks.push(buffer)
+      }
+      return {
+        kind: descriptor.kind,
+        data: Buffer.concat(chunks, total),
+        mimeType: descriptor.mimeType ?? defaultMimeType(descriptor.kind),
+        ...(descriptor.durationSeconds ? { durationSeconds: descriptor.durationSeconds } : {}),
+      }
+    })()
+    try {
+      return await withTimeout(operation, timeoutMs, 'media download')
+    } finally {
+      controller.abort()
+    }
+  }
+
+  async sendMedia(remoteJid: string, payload: WhatsAppMediaPayload): Promise<void> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const data = Buffer.from(payload.data)
+    if (!remoteJid || data.length === 0 || data.length > MEDIA_SEND_MAX_BYTES) throw new Error('Media payload is out of bounds')
+    const mimeType = payload.mimeType.trim().toLowerCase()
+    if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(mimeType)) throw new Error('Invalid media MIME type')
+    if (payload.caption && payload.caption.length > 1_000) throw new Error('Media caption is too long')
+    let content:
+      | { sticker: Buffer; mimetype?: string; isAnimated?: boolean }
+      | { image: Buffer; mimetype?: string; caption?: string }
+      | { video: Buffer; mimetype?: string; caption?: string; gifPlayback?: boolean }
+      | { audio: Buffer; mimetype?: string }
+      | { document: Buffer; mimetype: string; fileName?: string; caption?: string }
+    switch (payload.kind) {
+      case 'sticker':
+        if (mimeType !== 'image/webp') throw new Error('Sticker payload must be image/webp')
+        content = { sticker: data, mimetype: mimeType, ...(payload.isAnimated ? { isAnimated: true } : {}) }
+        break
+      case 'image':
+        if (!mimeType.startsWith('image/')) throw new Error('Image payload MIME mismatch')
+        content = { image: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}) }
+        break
+      case 'video':
+        if (!mimeType.startsWith('video/')) throw new Error('Video payload MIME mismatch')
+        content = { video: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}), ...(payload.gifPlayback ? { gifPlayback: true } : {}) }
+        break
+      case 'audio':
+        if (!mimeType.startsWith('audio/')) throw new Error('Audio payload MIME mismatch')
+        content = { audio: data, mimetype: mimeType }
+        break
+      case 'document':
+        if (!payload.fileName || !/^[a-zA-Z0-9][a-zA-Z0-9._ -]{0,99}$/.test(payload.fileName)) throw new Error('Document filename is invalid')
+        content = { document: data, mimetype: mimeType, fileName: payload.fileName, ...(payload.caption ? { caption: payload.caption } : {}) }
+        break
+      default:
+        throw new Error('Unsupported media kind')
+    }
+    await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework media response')
   }
 
   async sendNativeQuickReplies(remoteJid: string, payload: NativeQuickReplyPayload): Promise<void> {
@@ -705,6 +866,8 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       const text = extractText(message)
       const buttonId = extractButtonId(message)
       const quotedText = extractQuotedText(message)
+      const media = mediaDescriptorFromContent(message.message)
+      const quotedMedia = mediaDescriptorFromContent(extractContextInfo(message)?.quotedMessage, true)
       const rawQuotedSenderJid = extractQuotedSenderJid(message)
       const quotedSenderJid = rawQuotedSenderJid
         ? await normalizeContactJid(rawQuotedSenderJid, resolvePnForLid)
@@ -721,6 +884,8 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         ...(buttonId ? { buttonId } : {}),
         ...(quotedText ? { quotedText } : {}),
         ...(quotedSenderJid ? { quotedSenderJid } : {}),
+        ...(media ? { media } : {}),
+        ...(quotedMedia ? { quotedMedia } : {}),
         ...(groupName ? { groupName } : {}),
         timestamp,
         receivedAt,

@@ -9,6 +9,16 @@ export type CoreConnectionStatus =
   | 'stopping'
   | 'failed'
 
+export type CoreMediaKind = 'image' | 'video' | 'audio' | 'document' | 'sticker'
+export interface CoreMediaDescriptor {
+  readonly kind: CoreMediaKind
+  readonly mimeType?: string
+  readonly sizeBytes?: number
+  readonly width?: number
+  readonly height?: number
+  readonly durationSeconds?: number
+  readonly quoted?: boolean
+}
 export interface CoreMessage {
   readonly id: string
   readonly remoteJid: string
@@ -18,6 +28,8 @@ export interface CoreMessage {
   readonly buttonId?: string
   readonly quotedText?: string
   readonly quotedSenderJid?: string
+  readonly media?: CoreMediaDescriptor
+  readonly quotedMedia?: CoreMediaDescriptor
   readonly groupName?: string
   /** Epoch timestamp in milliseconds from the message payload. */
   readonly timestamp: number
@@ -51,6 +63,21 @@ export interface CoreGroupParticipantUpdate {
 
 export interface WhatsAppSendOptions {
   readonly mentions?: readonly string[]
+}
+export type WhatsAppMediaSource = 'direct' | 'quoted'
+export interface WhatsAppMediaLimits {
+  readonly maxBytes: number
+  readonly timeoutMs?: number
+}
+export interface WhatsAppMediaPayload {
+  readonly kind: CoreMediaKind
+  readonly data: Uint8Array
+  readonly mimeType: string
+  readonly caption?: string
+  readonly fileName?: string
+  readonly isAnimated?: boolean
+  readonly durationSeconds?: number
+  readonly gifPlayback?: boolean
 }
 
 export interface WhatsAppPollOptions {
@@ -109,6 +136,8 @@ export interface WhatsAppPort {
   clearRuntimeCaches?(): RuntimeCacheClearResult
   getProfilePictureUrl?(jid: string, type?: 'preview' | 'image', timeoutMs?: number): Promise<string | undefined>
   sendImage?(remoteJid: string, imageUrl: string, caption?: string): Promise<void>
+  downloadMedia?(message: CoreMessage, source: WhatsAppMediaSource, limits: WhatsAppMediaLimits): Promise<WhatsAppMediaPayload>
+  sendMedia?(remoteJid: string, payload: WhatsAppMediaPayload): Promise<void>
   start(): Promise<void>
   close(): Promise<void>
 }
