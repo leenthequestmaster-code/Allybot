@@ -62,6 +62,17 @@ function renderList(records: readonly KnowledgeRecord[]): string {
     : 'Belum ada bookmark aktif yang terlihat pada scope ini.'
 }
 
+function renderSearch(records: readonly KnowledgeRecord[], query: string, prefix: string): string {
+  if (records.length === 0) return `Tidak ada catatan yang cocok dengan kata *${query}* pada scope kamu.`
+  return [
+    `🔎 *Hasil catatan: ${query}*`,
+    '',
+    ...records.map((record) => `• ${shortId(record.id)} — ${record.title} [${record.visibility}]\n  ${record.excerpt.slice(0, 180)}${record.excerpt.length > 180 ? '...' : ''}`),
+    '',
+    `Detail: ${prefix}source <id>`,
+  ].join('\n')
+}
+
 function exportText(records: readonly KnowledgeRecord[]): string {
   return records.length
     ? ['# Allybot Knowledge Export', '', ...records.map((record) => `## ${record.title} [${shortId(record.id)}]\n${record.excerpt}`)].join('\n\n')
@@ -216,11 +227,35 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
       })
 
       context.commands.register({
+        name: 'find',
+        aliases: ['cari'],
+        description: 'Search explicit knowledge visible in the group',
+        category: 'knowledge',
+        menuOrder: 8,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext)
+          if (!group || !requireEnabled(commandContext, group)) return
+          const actor = actorJid(commandContext.message, whatsapp)
+          const query = commandContext.args.join(' ').trim()
+          if (!actor || !query) {
+            await commandContext.reply(`Format: ${commandContext.prefix}find <kata pencarian>`)
+            return
+          }
+          try {
+            const records = knowledge(commandContext).searchSources(group, actor, query)
+            await commandContext.reply(renderSearch(records, query.slice(0, 80), commandContext.prefix))
+          } catch (error) {
+            await commandContext.reply(error instanceof Error ? error.message : 'Pencarian catatan ditolak oleh validasi.')
+          }
+        },
+      })
+
+      context.commands.register({
         name: 'knowledgeexport',
         aliases: ['knowexport', 'exportcatatan'],
         description: 'Export visible explicit knowledge records',
         category: 'knowledge',
-        menuOrder: 8,
+        menuOrder: 9,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
           if (!group || !requireEnabled(commandContext, group)) return

@@ -283,6 +283,21 @@ export class KnowledgeService implements Service {
     return retired
   }
 
+  searchSources(groupJid: string, actorJid: string, query: string, limit = 10, now = this.clock()): readonly KnowledgeRecord[] {
+    validateGroupJid(groupJid)
+    this.requireEnabled(groupJid)
+    this.retireExpired(now)
+    validateJid(actorJid, 'knowledge reader')
+    const normalizedQuery = query.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()
+    if (!normalizedQuery || normalizedQuery.length > 80) throw new Error('Kata pencarian harus berisi 1-80 karakter')
+    const safeLimit = validateLimit(limit, Math.min(this.maxListLimit, 25))
+    const escaped = normalizedQuery.replace(/[\\%_]/g, '\\$&')
+    const rows = this.database().prepare(`SELECT * FROM knowledge_sources WHERE group_jid = ? AND status = 'active' AND retention_until > ? AND (lower(title) LIKE lower(?) ESCAPE '\\' OR lower(excerpt) LIKE lower(?) ESCAPE '\\') ORDER BY created_at DESC LIMIT ?`).all(groupJid, now, `%${escaped}%`, `%${escaped}%`, safeLimit) as KnowledgeRow[]
+    const records = rows.map(mapRecord).filter((record) => isVisible(record, actorJid))
+    this.audit('knowledge.search', actorJid, groupJid, 'allowed', { queryLength: normalizedQuery.length, resultCount: records.length })
+    return records
+  }
+
   exportSources(groupJid: string, actorJid: string, now = this.clock()): readonly KnowledgeRecord[] {
     const records = this.listSources(groupJid, actorJid, 'active', MAX_EXPORT_RECORDS, now)
     this.audit('knowledge.export.created', actorJid, groupJid, 'allowed', { recordCount: records.length })

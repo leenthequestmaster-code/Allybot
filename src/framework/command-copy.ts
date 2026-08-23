@@ -64,6 +64,7 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   source: 'Baca satu catatan berdasarkan ID.',
   forget: 'Hapus catatan milikmu.',
   knowledgeexport: 'Keluarkan catatan yang memang boleh dilihat.',
+  find: 'Cari catatan yang memang boleh dilihat.',
   canon: 'Kelola catatan cerita yang disepakati.',
   setcanon: 'Nyalakan atau matikan catatan cerita grup.',
   lore: 'Lihat informasi cerita yang sudah disetujui.',

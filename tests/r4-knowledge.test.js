@@ -90,6 +90,22 @@ test('R4 private visibility is creator-only while group visibility is readable b
   }
 })
 
+test('R4 search is group-scoped, visibility-aware, and escapes LIKE wildcards', () => {
+  const fixture = createFixture()
+  try {
+    fixture.knowledge.setEnabled(groupA, true, adminJid, fixture.now())
+    fixture.knowledge.setEnabled(groupB, true, adminJid, fixture.now())
+    const privateRecord = fixture.knowledge.createBookmark({ groupJid: groupA, creatorJid: memberJid, title: 'Private scene', excerpt: 'private only', visibility: 'private', now: fixture.now() })
+    const visibleRecord = fixture.knowledge.createBookmark({ groupJid: groupA, creatorJid: memberJid, title: 'Scene 100% rule', excerpt: 'Use the scene marker', visibility: 'group', now: fixture.now() })
+    assert.deepEqual(new Set(fixture.knowledge.searchSources(groupA, memberJid, 'scene').map((record) => record.id)), new Set([visibleRecord.id, privateRecord.id]))
+    assert.equal(fixture.knowledge.searchSources(groupA, otherMemberJid, 'scene').some((record) => record.id === privateRecord.id), false)
+    assert.equal(fixture.knowledge.searchSources(groupA, otherMemberJid, '100%').length, 1)
+    assert.equal(fixture.knowledge.searchSources(groupB, otherMemberJid, 'scene').length, 0)
+  } finally {
+    closeFixture(fixture)
+  }
+})
+
 test('R4 retention retires expired records and excludes them from active lookup', () => {
   const fixture = createFixture()
   try {
@@ -216,6 +232,8 @@ test('R4 plugin is default-off, admin-gated, explicit-reply-only, and has text f
     assert.match(core.sent.at(-1).text, /Only this reply is captured/)
     await core.emitMessage(groupMessage('member-list', memberJid, '!bookmarks'))
     assert.match(core.sent.at(-1).text, /Scene rule/)
+    await core.emitMessage(groupMessage('member-search', memberJid, '!find Only this'))
+    assert.match(core.sent.at(-1).text, /Only this reply is captured/)
   } finally {
     await app.stop()
     cleanupDatabase(databasePath)
