@@ -125,6 +125,28 @@ test('R9 default-off blocks persistence mutations and isolates groups', async ()
   }
 })
 
+test('R9 listEvents prefetches complete bounded records without crossing group scope', async () => {
+  const fixture = createFixture()
+  try {
+    const first = createDraft(fixture)
+    const second = createDraft(fixture)
+    fixture.events.publishEvent(groupA, first.id, creatorJid, fixture.now())
+    fixture.events.joinEvent(groupA, first.id, userA, fixture.now())
+    fixture.events.setEnabled(groupB, true, adminJid, fixture.now())
+    const otherGroupEvent = createDraft(fixture, groupB)
+    const listed = fixture.events.listEvents(groupA, 25, fixture.now())
+
+    assert.equal(listed.length, 2)
+    assert.deepEqual(new Set(listed.map((event) => event.id)), new Set([first.id, second.id]))
+    assert.equal(listed.every((event) => event.groupJid === groupA), true)
+    assert.equal(listed.find((event) => event.id === first.id)?.phases.length, 2)
+    assert.equal(listed.find((event) => event.id === first.id)?.participantCount, 1)
+    assert.equal(fixture.events.listEvents(groupB, 25, fixture.now()).some((event) => event.id === otherGroupEvent.id), true)
+  } finally {
+    await closeFixture(fixture)
+  }
+})
+
 test('R9 lifecycle uses creator authorization and CAS state transitions', async () => {
   const fixture = createFixture()
   try {

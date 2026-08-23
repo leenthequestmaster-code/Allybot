@@ -421,7 +421,7 @@ export class EventService implements Service {
     validateGroupJid(groupJid)
     if (!Number.isInteger(limit) || limit < 1 || limit > this.maxListLimit) throw new Error('Invalid event list limit')
     const rows = this.database().prepare(`SELECT * FROM events WHERE group_jid = ? AND status <> 'closed' ORDER BY start_at ASC, id ASC LIMIT ?`).all(groupJid, limit) as EventRow[]
-    return rows.map((row) => this.mapEvent(row, now))
+    return this.mapEvents(rows, now)
   }
 
   getParticipants(groupJid: string, eventId: string, limit = this.maxListLimit, now = this.clock()): readonly { participantRef: string; joinedAt: number }[] {
@@ -633,10 +633,24 @@ export class EventService implements Service {
     })
   }
 
-  private mapEvent(row: EventRow, _now: number): EventRecord {
-    const phases = this.database().prepare(`SELECT * FROM event_phases WHERE event_id = ? ORDER BY phase_order ASC LIMIT ?`).all(row.id, this.maxPhases) as PhaseRow[]
-    const count = this.database().prepare(`SELECT COUNT(*) AS count FROM event_participants WHERE event_id = ? AND status = 'joined'`).get(row.id) as { count: number }
-    return {
+  private mapEvent(row: EventRow, now: number): EventRecord {
+    return this.mapEvents([row], now)[0] as EventRecord
+  }
+
+  private mapEvents(rows: readonly EventRow[], _now: number): readonly EventRecord[] {
+    if (rows.length === 0) return []
+    const placeholders = rows.map(() => '?').join(', ')
+    const eventIds = rows.map((row) => row.id)
+    const phases = this.database().prepare(`SELECT id, event_id, phase_order, title, description, start_at, end_at, status, revision FROM (SELECT id, event_id, phase_order, title, description, start_at, end_at, status, revision, ROW_NUMBER() OVER (PARTITION BY event_id ORDER BY phase_order ASC) AS phase_rank FROM event_phases WHERE event_id IN (${placeholders})) WHERE phase_rank <= ? ORDER BY event_id ASC, phase_order ASC`).all(...eventIds, this.maxPhases) as PhaseRow[]
+    const participantCounts = this.database().prepare(`SELECT event_id, COUNT(*) AS count FROM event_participants WHERE event_id IN (${placeholders}) AND status = 'joined' GROUP BY event_id`).all(...eventIds) as Array<{ event_id: string; count: number }>
+    const phasesByEvent = new Map<string, PhaseRow[]>()
+    for (const phase of phases) {
+      const entries = phasesByEvent.get(phase.event_id) ?? []
+      if (entries.length < this.maxPhases) entries.push(phase)
+      phasesByEvent.set(phase.event_id, entries)
+    }
+    const countsByEvent = new Map(participantCounts.map((row) => [row.event_id, row.count]))
+    return rows.map((row) => ({
       id: row.id,
       groupJid: row.group_jid,
       creatorJid: row.creator_jid,
@@ -653,9 +667,9 @@ export class EventService implements Service {
       ...(row.location_latitude === null ? {} : { locationLatitude: row.location_latitude }),
       ...(row.location_longitude === null ? {} : { locationLongitude: row.location_longitude }),
       ...(row.poll_id === null ? {} : { pollId: row.poll_id }),
-      phases: phases.map(mapPhase),
-      participantCount: count.count,
-    }
+      phases: (phasesByEvent.get(row.id) ?? []).map(mapPhase),
+      participantCount: countsByEvent.get(row.id) ?? 0,
+    }))
   }
 
   private migrate(): void {
