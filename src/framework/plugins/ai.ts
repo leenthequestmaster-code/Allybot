@@ -36,7 +36,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
       context.commands.register({
         name: 'ai',
-        aliases: ['ally'],
+        aliases: ['ally', 'tanya'],
         description: 'Ask Allybot AI without conversation memory',
         category: 'ai',
         menuOrder: 1,

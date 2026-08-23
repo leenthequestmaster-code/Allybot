@@ -105,3 +105,9 @@ Full release baru dapat dinyatakan selesai apabila Wave A–E yang dipilih pada 
 V2-A sudah mengisi slice pertama setelah re-baseline. Menu native kini semi-button dengan body informatif, command fallback, dan pagination. Utility/fun plugin baru mendaftarkan command discovery, status, privacy/support, calculator terbatas, konversi, waktu/tanggal, random, choose, coin flip, dice, dan 8ball. Registry command diperluas secara aman untuk nama numeric-leading seperti `8ball` dengan karakter tetap dibatasi.
 
 Checkpoint lokal setelah slice ini: typecheck dan clean build pass; focused tests pass; full regression `280/280` pass; runtime dependency audit high threshold pass dengan 0 vulnerability. Commit source utama V2-A adalah `d932d51`, dan localization/copy checkpoint adalah `b899996`; commit discovery lanjutan menunggu validasi final/CI.
+
+## 10. V2-B checkpoint
+
+V2-B mengangkat discoverability kontingen existing melalui alias user-friendly yang tetap kompatibel dengan canonical names. Alias telah ditambahkan pada Collaboration, Knowledge, Canon, Scene, Moderation, Governance, Personalization, dan AI; tidak ada perubahan pada permission, data model, atau handler semantics.
+
+Focused alias contract dan full regression terbaru lulus `282/282`; dependency audit runtime high threshold lulus dengan `0 vulnerability`. CI/artifact sync perlu dijalankan setelah commit checkpoint ini.

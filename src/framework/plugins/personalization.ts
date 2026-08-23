@@ -149,7 +149,7 @@ export function createPersonalizationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'myprefs',
-        aliases: ['mypreferences'],
+        aliases: ['mypreferences', 'prefs'],
         description: 'Show effective and personal preferences',
         category: 'personalization',
         menuOrder: 3,
@@ -251,6 +251,7 @@ export function createPersonalizationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'verbosity',
+        aliases: ['balasan'],
         description: 'Set personal response verbosity',
         category: 'personalization',
         menuOrder: 9,

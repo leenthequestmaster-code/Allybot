@@ -124,6 +124,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'setcollab',
+        aliases: ['collabmode'],
         description: 'Enable or disable Collaboration per group',
         category: 'collaboration',
         menuOrder: 2,
@@ -144,6 +145,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'setnativepoll',
+        aliases: ['pollmode'],
         description: 'Enable optional native poll presentation',
         category: 'collaboration',
         menuOrder: 3,

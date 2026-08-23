@@ -89,6 +89,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'setknowledge',
+        aliases: ['catatan'],
         description: 'Enable or disable explicit knowledge capture',
         category: 'knowledge',
         menuOrder: 2,
@@ -158,6 +159,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'bookmarks',
+        aliases: ['tersimpan'],
         description: 'List explicit bookmarks visible in the group',
         category: 'knowledge',
         menuOrder: 5,
@@ -215,7 +217,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'knowledgeexport',
-        aliases: ['knowexport'],
+        aliases: ['knowexport', 'exportcatatan'],
         description: 'Export visible explicit knowledge records',
         category: 'knowledge',
         menuOrder: 8,

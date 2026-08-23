@@ -141,6 +141,7 @@ export function createGroupGovernancePlugin(_whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'handoff',
+        aliases: ['handover'],
         description: 'Manage bounded moderator handoff',
         category: 'governance',
         menuOrder: 51,
@@ -178,6 +179,7 @@ export function createGroupGovernancePlugin(_whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'continuity',
+        aliases: ['cekcatatan'],
         description: 'Check bounded governance continuity',
         category: 'governance',
         menuOrder: 52,
@@ -194,6 +196,7 @@ export function createGroupGovernancePlugin(_whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'joinrequests',
+        aliases: ['joinlist'],
         description: 'List bounded group join requests',
         category: 'governance',
         menuOrder: 53,

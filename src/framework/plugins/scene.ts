@@ -149,6 +149,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'setscene',
+        aliases: ['adegan'],
         description: 'Enable or disable Scene per group',
         category: 'roleplay',
         menuOrder: 2,

@@ -150,6 +150,7 @@ export function createCanonPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'setcanon',
+        aliases: ['cerita'],
         description: 'Enable or disable Canon per group',
         category: 'roleplay',
         menuOrder: 8,

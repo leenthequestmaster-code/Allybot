@@ -67,6 +67,7 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
     load(context) {
       context.commands.register({
         name: 'modaction',
+        aliases: ['moderate'],
         description: 'Run a guarded participant moderation action',
         category: 'moderation',
         menuOrder: 20,

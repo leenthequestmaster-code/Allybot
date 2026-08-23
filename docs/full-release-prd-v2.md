@@ -91,3 +91,9 @@ V2-A telah diimplementasikan bertahap pada commit `d932d51` dan `b899996`. Main 
 Surface baru yang benar-benar terdaftar adalah `!commands`, `!searchcmd`, `!about`, `!version`, `!privacy`, `!support`, `!status`, `!uptime`, `!features`, `!calc`, `!convert`, `!time`, `!date`, `!random`, `!choose`, `!flip`, `!roll`/`!dice`, dan `!8ball`. Calculator menggunakan parser aritmetika terbatas; tidak ada `eval`, shell, atau arbitrary code execution. Permainan dibatasi pada input, rentang, jumlah opsi, dan cooldown.
 
 Verification checkpoint setelah discovery update: typecheck pass, clean build pass, menu/utility tests pass, full regression `280/280` pass, dan runtime dependency audit pada high threshold `0 vulnerability`. CI/artifact deployment berikutnya tetap wajib dijalankan setelah commit checkpoint ini.
+
+## 12. V2-B compatibility checkpoint
+
+V2-B menambahkan alias ramah pengguna tanpa mengganti canonical command. Alias yang tersedia antara lain `collabmode`, `pollmode`, `catatan`, `tersimpan`, `exportcatatan`, `cerita`, `adegan`, `moderate`, `takecase`, `handover`, `cekcatatan`, `joinlist`, `prefs`, `balasan`, dan `tanya`. Setiap alias mengarah ke handler, permission, cooldown, validation, audit, dan persistence yang sama dengan command lama.
+
+Contract test alias lulus dan full regression terbaru adalah `282/282` pass. Dependency audit runtime pada high threshold tetap menghasilkan `0 vulnerability`. Alias tidak mengubah database schema, feature flag, transport, atau storage boundary.

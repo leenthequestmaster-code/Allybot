@@ -239,6 +239,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'claimcase',
+        aliases: ['takecase'],
         description: 'Claim an open safety case',
         category: 'moderation',
         menuOrder: 9,
