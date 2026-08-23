@@ -123,6 +123,9 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   roll: 'Lempar dadu, misalnya 2d6.',
   dice: 'Lempar dadu, misalnya 2d6.',
   '8ball': 'Minta jawaban hiburan secara acak.',
+  truth: 'Dapatkan pertanyaan truth ringan.',
+  dare: 'Dapatkan tantangan ringan yang aman.',
+  rps: 'Main batu gunting kertas melawan Allybot.',
 }
 
 export function commandDescription(command: CommandDefinition): string {

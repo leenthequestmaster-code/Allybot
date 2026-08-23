@@ -9,6 +9,24 @@ const MAX_COMMAND_LIST = 60
 const UTILITY_COOLDOWN_MS = 1_000
 const FUN_COOLDOWN_MS = 1_500
 
+const TRUTH_PROMPTS = [
+  'Apa hal kecil yang paling membuatmu senang minggu ini?',
+  'Apa kebiasaan yang sedang ingin kamu perbaiki?',
+  'Siapa yang paling sering membuatmu tertawa di grup ini?',
+  'Apa keputusan sederhana yang ternyata paling membantu?',
+  'Apa satu hal yang ingin kamu pelajari?',
+] as const
+
+const DARE_PROMPTS = [
+  'Kirim satu pujian yang tulus kepada anggota grup.',
+  'Tulis satu kalimat hanya dengan tiga kata.',
+  'Gunakan emoji yang jarang kamu pakai untuk menggambarkan harimu.',
+  'Bagikan rekomendasi lagu tanpa menjelaskan alasannya.',
+  'Ucapkan terima kasih kepada seseorang di grup.',
+] as const
+
+const RPS_CHOICES = ['batu', 'gunting', 'kertas'] as const
+
 const EIGHT_BALL_ANSWERS = [
   'Bisa jadi.',
   'Kemungkinannya cukup besar.',
@@ -527,10 +545,49 @@ export const utilityPlugin: Plugin = {
     })
 
     context.commands.register({
+      name: 'truth',
+      aliases: ['jujur'],
+      description: 'Dapatkan pertanyaan truth ringan',
+      category: 'fun',
+      menuOrder: 14,
+      cooldownMs: FUN_COOLDOWN_MS,
+      handler: async (commandContext) => commandContext.reply(`🗣️ *Truth:* ${randomChoice(TRUTH_PROMPTS)}`),
+    })
+
+    context.commands.register({
+      name: 'dare',
+      aliases: ['tantangan'],
+      description: 'Dapatkan tantangan ringan yang aman',
+      category: 'fun',
+      menuOrder: 15,
+      cooldownMs: FUN_COOLDOWN_MS,
+      handler: async (commandContext) => commandContext.reply(`🎯 *Dare:* ${randomChoice(DARE_PROMPTS)}`),
+    })
+
+    context.commands.register({
+      name: 'rps',
+      aliases: ['suit'],
+      description: 'Main batu gunting kertas melawan Allybot',
+      category: 'fun',
+      menuOrder: 16,
+      cooldownMs: FUN_COOLDOWN_MS,
+      handler: async (commandContext) => {
+        const player = commandContext.args[0]?.toLowerCase()
+        if (!RPS_CHOICES.includes(player as typeof RPS_CHOICES[number])) {
+          await commandContext.reply(usage(commandContext, 'rps', '<batu|gunting|kertas>'))
+          return
+        }
+        const bot = randomChoice(RPS_CHOICES)
+        const result = player === bot ? 'Seri.' : (player === 'batu' && bot === 'gunting') || (player === 'gunting' && bot === 'kertas') || (player === 'kertas' && bot === 'batu') ? 'Kamu menang.' : 'Allybot menang.'
+        await commandContext.reply(`✊ *Suit*\nKamu: ${player}\nAllybot: ${bot}\n\n*${result}*`)
+      },
+    })
+
+    context.commands.register({
       name: '8ball',
       description: 'Jawab pertanyaan dengan permainan delapan bola',
       category: 'fun',
-      menuOrder: 14,
+      menuOrder: 17,
       cooldownMs: FUN_COOLDOWN_MS,
       handler: async (commandContext) => {
         const question = boundText(commandContext.args.join(' '), 120)

@@ -118,4 +118,17 @@ test('fun commands stay within bounded ranges and reject malformed dice', async 
 
   await registry.dispatch(message(12, '!8ball apakah aman?'))
   assert.match(whatsapp.sent[4].text, /apakah aman\?/)
+
+  await registry.dispatch(message(13, '!truth'))
+  assert.match(whatsapp.sent[5].text, /Truth:/)
+
+  await registry.dispatch(message(14, '!dare'))
+  assert.match(whatsapp.sent[6].text, /Dare:/)
+
+  await registry.dispatch(message(15, '!rps batu'))
+  assert.match(whatsapp.sent[7].text, /Kamu: batu/)
+  assert.match(whatsapp.sent[7].text, /Allybot:/)
+
+  await registry.dispatch(message(16, '!rps laser'))
+  assert.match(whatsapp.sent[8].text, /Format:/)
 })

@@ -125,3 +125,7 @@ V2-D menambah alias untuk workflow yang sudah tersedia: `jajak`, `ingatkan`, `tu
 ## 13. V2-E checkpoint
 
 V2-E mengisi gap retrieval pada kontingen Knowledge melalui `!find`/`!cari`. Search hanya membaca catatan eksplisit yang visible pada grup, mematuhi retention, membatasi query/result, dan tidak membocorkan private record kepada anggota lain. Verification lokal: full regression `286/286`, typecheck/build pass, runtime dependency audit `0 vulnerability`.
+
+## 14. V2-F checkpoint
+
+V2-F mengisi FUN dengan `!truth`/`!jujur`, `!dare`/`!tantangan`, dan `!rps`/`!suit`. Prompt statis, input terbatas, output pendek, cooldown tetap aktif, dan tidak ada storage/external API. Local verification: utility tests pass, typecheck/build pass, full regression baseline `286/286`, runtime audit `0 vulnerability`.

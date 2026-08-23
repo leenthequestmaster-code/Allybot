@@ -117,3 +117,9 @@ Full regression setelah V2-D lulus `285/285` dan runtime dependency audit tetap 
 V2-E menambahkan `!find`/`!cari` untuk mencari explicit knowledge yang sudah dipilih pengguna. Pencarian dibatasi group scope, hanya active records yang belum melewati retention, menghormati group/private visibility, meng-escape wildcard LIKE, membatasi query 80 karakter dan hasil maksimal 25, serta mengaudit panjang query dan jumlah hasil tanpa menyimpan kata pencarian mentah.
 
 R4 service/plugin search tests pass dan full regression checkpoint lokal menjadi `286/286`; runtime dependency audit high threshold tetap `0 vulnerability`. Tidak ada passive capture, Neon transfer baru, atau perubahan public data boundary.
+
+## 16. V2-F fun expansion checkpoint
+
+V2-F memperluas kontingen FUN dengan `!truth`/`!jujur`, `!dare`/`!tantangan`, dan `!rps`/`!suit`. Semua prompt bersifat ringan dan statis; input suit dibatasi pada `batu`, `gunting`, atau `kertas`; tidak ada external provider, user-generated broadcast, atau penyimpanan pesan. Copy layer menu/search menggunakan bahasa Indonesia yang singkat.
+
+Utility/fun focused tests lulus, typecheck/build lulus, dan full regression terakhir tetap `286/286` dengan runtime dependency audit `0 vulnerability`. CI/artifact sync wajib dilakukan pada commit V2-F.
