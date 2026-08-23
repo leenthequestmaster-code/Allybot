@@ -77,7 +77,7 @@ function toRecord(row: CharacterRow): CharacterRecord {
 
 export class CharacterService implements Service {
   readonly name = 'character'
-  readonly dependencies = ['platform-guardrail'] as const
+  readonly dependencies = ['platform-guardrails'] as const
 
   private db: Database.Database | undefined
   private guardrails: PlatformGuardrailService | undefined
@@ -95,7 +95,7 @@ export class CharacterService implements Service {
     this.db.pragma('journal_mode = WAL')
     this.db.pragma('synchronous = NORMAL')
     this.db.pragma('busy_timeout = 5000')
-    this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrail')
+    this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
     this.migrate()
     this.logger.info({ databasePath: this.databasePath }, 'character storage initialized')
   }

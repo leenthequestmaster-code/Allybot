@@ -1,10 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import pino from 'pino'
 import { EventBus } from '../dist/framework/event-bus.js'
 import { ServiceRegistry } from '../dist/framework/service-registry.js'
 import { CommandRegistry } from '../dist/framework/command-registry.js'
 import { PluginManager } from '../dist/framework/plugin-manager.js'
+import { CharacterService } from '../dist/services/character-service.js'
+import { PlatformGuardrailService } from '../dist/services/platform-guardrail-service.js'
 
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
@@ -59,6 +64,25 @@ test('ServiceRegistry initializes dependencies and shuts them down in reverse or
   await registry.initialize({ logger, config })
   await registry.shutdown({ logger, config })
   assert.deepEqual(events, ['database:init', 'cache:init', 'cache:shutdown', 'database:shutdown'])
+})
+
+test('CharacterService dependency resolves through the real service registry', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'allybot-service-registry-'))
+  const databasePath = join(directory, 'core.sqlite')
+  const registry = new ServiceRegistry(logger)
+  const guardrails = new PlatformGuardrailService(databasePath, logger)
+  const character = new CharacterService(databasePath, logger)
+  registry.register(character)
+  registry.register(guardrails)
+
+  try {
+    await registry.initialize({ logger, config })
+    assert.equal(registry.has('platform-guardrails'), true)
+    assert.deepEqual(character.dependencies, ['platform-guardrails'])
+  } finally {
+    await registry.shutdown({ logger, config })
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('CommandRegistry supports alias, validation, cooldown, and reply context', async () => {
