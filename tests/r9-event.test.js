@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import pino from 'pino'
+import Database from 'better-sqlite3'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { createEventPlugin } from '../dist/framework/plugins/event.js'
 import { EventService } from '../dist/services/event-service.js'
@@ -65,12 +66,12 @@ class EventCore {
   async emitMessage(message) { await Promise.all([...this.messages].map((listener) => listener(message))) }
 }
 
-function createFixture({ withCollaboration = false } = {}) {
+function createFixture({ withCollaboration = false, maxParticipants } = {}) {
   const databasePath = tempDatabase()
   let now = initialNow
   const guardrails = new PlatformGuardrailService(databasePath, logger, { clock: () => now, maxHotAuditRecords: 500 })
   const collaboration = withCollaboration ? new CollaborationService(databasePath, logger, { clock: () => now }) : undefined
-  const events = new EventService(databasePath, logger, { clock: () => now, dispatcherIntervalMs: 1_000 })
+  const events = new EventService(databasePath, logger, { clock: () => now, dispatcherIntervalMs: 1_000, ...(maxParticipants === undefined ? {} : { maxParticipants }) })
   const services = {
     get(name) {
       if (name === 'platform-guardrails') return guardrails
@@ -210,6 +211,47 @@ test('R9 participant join leave is explicit, idempotent, bounded, and group-scop
     fixture.events.setEnabled(groupB, true, adminJid, fixture.now())
     assert.throws(() => fixture.events.joinEvent(groupB, event.id, userB), /not found/i)
   } finally {
+    await closeFixture(fixture)
+  }
+})
+
+test('R9 rejoin is rejected when the event reaches capacity', async () => {
+  const fixture = createFixture({ maxParticipants: 1 })
+  try {
+    const event = createDraft(fixture)
+    fixture.events.publishEvent(groupA, event.id, creatorJid)
+    assert.equal(fixture.events.joinEvent(groupA, event.id, userA), true)
+    assert.equal(fixture.events.leaveEvent(groupA, event.id, userA), true)
+    assert.equal(fixture.events.joinEvent(groupA, event.id, userB), true)
+    assert.throws(() => fixture.events.joinEvent(groupA, event.id, userA), /participant limit reached/i)
+    assert.equal(fixture.events.getEvent(groupA, event.id).participantCount, 1)
+  } finally {
+    await closeFixture(fixture)
+  }
+})
+
+test('R9 stale phase revision rolls back the event transition', async () => {
+  const fixture = createFixture()
+  const triggerDatabase = new Database(fixture.databasePath)
+  try {
+    const event = createDraft(fixture)
+    fixture.events.publishEvent(groupA, event.id, creatorJid)
+    triggerDatabase.exec(`
+      CREATE TRIGGER stale_phase_revision
+      AFTER UPDATE OF revision ON events
+      WHEN NEW.id = '${event.id}'
+      BEGIN
+        UPDATE event_phases SET revision = revision + 100
+        WHERE event_id = NEW.id AND phase_order = 2;
+      END
+    `)
+    const result = fixture.events.setPhase(groupA, event.id, creatorJid, 2)
+    assert.equal(result.status, 'published')
+    assert.equal(result.phases[0].status, 'scheduled')
+    assert.equal(result.phases[1].status, 'scheduled')
+    assert.equal(result.phases[1].revision, 0)
+  } finally {
+    triggerDatabase.close()
     await closeFixture(fixture)
   }
 })

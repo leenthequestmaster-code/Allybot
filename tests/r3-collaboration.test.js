@@ -76,6 +76,19 @@ test('R3 poll lifecycle is group-scoped, expires, and uses CAS close', () => {
   }
 })
 
+test('R3 poll origin key is idempotent and payload-bound', () => {
+  const fixture = createFixture()
+  try {
+    fixture.collaboration.setEnabled(groupA, true, adminJid, fixture.now())
+    const first = fixture.collaboration.createPoll(groupA, memberJid, 'Origin?', ['A', 'B'], 1, fixture.now(), 'event-poll-origin-1')
+    const duplicate = fixture.collaboration.createPoll(groupA, memberJid, 'Origin?', ['A', 'B'], 1, fixture.now(), 'event-poll-origin-1')
+    assert.equal(duplicate.id, first.id)
+    assert.throws(() => fixture.collaboration.createPoll(groupA, memberJid, 'Different?', ['A', 'B'], 1, fixture.now(), 'event-poll-origin-1'), /different request/i)
+  } finally {
+    closeFixture(fixture)
+  }
+})
+
 test('R3 vote is idempotent per voter and does not accept cross-group access', () => {
   const fixture = createFixture()
   try {

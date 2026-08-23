@@ -78,7 +78,7 @@ function ownerProfileText(photoStatus: string): string {
     '',
     '↳ Nama: Vallen',
     '↳ Status: Owner',
-    '↳ Nomor HP: 083197859955',
+    '↳ Kontak owner: tidak dipublikasikan di command umum',
     '↳ Control plane: protected',
     `↳ Foto profil: ${photoStatus}`,
     '',

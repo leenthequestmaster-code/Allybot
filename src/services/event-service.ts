@@ -16,7 +16,7 @@ type AuditOutcome = 'allowed' | 'denied' | 'changed' | 'failed' | 'limited' | 'o
 export type EventStatus = 'draft' | 'published' | 'active' | 'paused' | 'closed'
 export type EventPhaseStatus = 'scheduled' | 'active' | 'completed' | 'skipped'
 export type EventOperationStatus = 'planned' | 'running' | 'succeeded' | 'failed'
-export type EventOperationType = 'event_activate' | 'phase_start' | 'phase_complete' | 'event_close' | 'manual_transition'
+export type EventOperationType = 'event_activate' | 'phase_start' | 'phase_complete' | 'event_close' | 'manual_transition' | 'poll_link'
 
 export interface EventPhaseInput {
   readonly order: number
@@ -124,11 +124,13 @@ interface EventOperationRow {
   created_at: number
   updated_at: number
   outcome_code: string
+  result_ref: string | null
 }
 
 interface CollaborationPollService {
   isEnabled(groupJid: string): boolean
-  createPoll(groupJid: string, creatorJid: string, question: string, options: readonly string[], selectableCount?: number, now?: number): { id: string }
+  createPoll(groupJid: string, creatorJid: string, question: string, options: readonly string[], selectableCount?: number, now?: number, originKey?: string): { id: string }
+  closePoll(groupJid: string, pollId: string, actorJid: string, now?: number): { status: string } | undefined
 }
 
 const DEFAULT_MAX_TEXT_LENGTH = 500
@@ -330,43 +332,60 @@ export class EventService implements Service {
     const operationId = this.operationId(event.id, 'manual_transition', phase.id, String(phaseOrder))
     const claimed = this.claimOperation(operationId, eventRow, 'manual_transition', phase.id, now)
     if (!claimed) return this.getEvent(groupJid, event.id, now)
-    const changed = this.transaction(() => {
-      const eventUpdate = this.database().prepare(`UPDATE events SET status = CASE WHEN status = 'published' THEN 'active' ELSE status END, revision = revision + 1, updated_at = ? WHERE id = ? AND group_jid = ? AND status IN ('published', 'active', 'paused') AND revision = ?`).run(now, event.id, groupJid, eventRow.revision)
-      if (eventUpdate.changes !== 1) return false
-      const update = this.database().prepare(`
-        UPDATE event_phases SET status = CASE WHEN phase_order < ? THEN 'completed' WHEN phase_order = ? THEN 'active' ELSE 'scheduled' END, revision = revision + 1
-        WHERE event_id = ? AND revision = revision
-      `).run(phaseOrder, phaseOrder, event.id)
-      if (update.changes === 0) throw new Error('Phase update failed')
-      return true
-    })
-    this.finishOperation(operationId, changed ? 'succeeded' : 'failed', changed ? 'changed' : 'stale', now)
-    this.audit(changed ? 'event.phase.changed' : 'event.phase.stale', actorJid, groupJid, changed ? 'changed' : 'failed', { phaseOrder })
-    return this.getEvent(groupJid, event.id, now)
+    let phaseChangedConcurrently = false
+    try {
+      const changed = this.transaction(() => {
+        const eventUpdate = this.database().prepare(`UPDATE events SET status = CASE WHEN status = 'published' THEN 'active' ELSE status END, revision = revision + 1, updated_at = ? WHERE id = ? AND group_jid = ? AND status IN ('published', 'active', 'paused') AND revision = ?`).run(now, event.id, groupJid, eventRow.revision)
+        if (eventUpdate.changes !== 1) return false
+        const update = this.database().prepare(`
+          UPDATE event_phases SET status = CASE WHEN phase_order < ? THEN 'completed' WHEN phase_order = ? THEN 'active' ELSE 'scheduled' END, revision = revision + 1
+          WHERE event_id = ? AND id = ? AND revision = ?
+        `).run(phaseOrder, phaseOrder, event.id, phase.id, phase.revision)
+        if (update.changes !== 1) {
+          phaseChangedConcurrently = true
+          throw new Error('Event phase changed concurrently; retry')
+        }
+        return true
+      })
+      this.finishOperation(operationId, changed ? 'succeeded' : 'failed', changed ? 'changed' : 'stale', now)
+      this.audit(changed ? 'event.phase.changed' : 'event.phase.stale', actorJid, groupJid, changed ? 'changed' : 'failed', { phaseOrder })
+      return this.getEvent(groupJid, event.id, now)
+    } catch (error) {
+      this.finishOperation(operationId, 'failed', 'stale', now)
+      this.audit('event.phase.stale', actorJid, groupJid, 'failed', { phaseOrder })
+      if (phaseChangedConcurrently) return this.getEvent(groupJid, event.id, now)
+      throw error
+    }
   }
 
   joinEvent(groupJid: string, eventId: string, participantJid: string, now = this.clock()): boolean {
     this.requireEnabled(groupJid)
     validateJid(participantJid, 'event participant')
-    const event = this.requireEvent(groupJid, eventId, now)
-    if (!['published', 'active', 'paused'].includes(event.status)) throw new Error('Event is not accepting participants')
-    const existing = this.database().prepare(`SELECT status FROM event_participants WHERE event_id = ? AND user_jid = ?`).get(event.id, participantJid) as { status: string } | undefined
-    if (!existing) {
-      const count = this.database().prepare(`SELECT COUNT(*) AS count FROM event_participants WHERE event_id = ? AND status = 'joined'`).get(event.id) as { count: number }
-      if (count.count >= this.maxParticipants) {
-        this.audit('event.participant.limited', participantJid, groupJid, 'limited', { limit: this.maxParticipants })
-        throw new Error('Event participant limit reached')
+    type JoinResult = { readonly kind: 'joined' | 'rejoined' | 'duplicate' | 'limited'; readonly count: number }
+    const result = this.transaction<JoinResult>(() => {
+      const event = this.requireEvent(groupJid, eventId, now)
+      if (!['published', 'active', 'paused'].includes(event.status)) throw new Error('Event is not accepting participants')
+      const existing = this.database().prepare(`SELECT status FROM event_participants WHERE event_id = ? AND user_jid = ?`).get(event.id, participantJid) as { status: string } | undefined
+      if (existing?.status === 'joined') return { kind: 'duplicate', count: this.activeParticipantCount(event.id) }
+      const count = this.activeParticipantCount(event.id)
+      if (count >= this.maxParticipants) return { kind: 'limited', count }
+      if (existing?.status === 'left') {
+        const update = this.database().prepare(`UPDATE event_participants SET status = 'joined', joined_at = ?, left_at = NULL, revision = revision + 1 WHERE event_id = ? AND user_jid = ? AND status = 'left'`).run(now, event.id, participantJid)
+        if (update.changes !== 1) throw new Error('Event participant changed concurrently; retry')
+        return { kind: 'rejoined', count: count + 1 }
       }
       this.database().prepare(`INSERT INTO event_participants (event_id, user_jid, status, joined_at, left_at, revision) VALUES (?, ?, 'joined', ?, NULL, 0)`).run(event.id, participantJid, now)
-      this.audit('event.participant.joined', participantJid, groupJid, 'changed', { participantCount: count.count + 1 })
-      return true
+      return { kind: 'joined', count: count + 1 }
+    })
+    if (result.kind === 'limited') {
+      this.audit('event.participant.limited', participantJid, groupJid, 'limited', { limit: this.maxParticipants })
+      throw new Error('Event participant limit reached')
     }
-    if (existing.status === 'joined') {
+    if (result.kind === 'duplicate') {
       this.audit('event.participant.join_duplicate', participantJid, groupJid, 'allowed', {})
       return false
     }
-    this.database().prepare(`UPDATE event_participants SET status = 'joined', joined_at = ?, left_at = NULL, revision = revision + 1 WHERE event_id = ? AND user_jid = ? AND status = 'left'`).run(now, event.id, participantJid)
-    this.audit('event.participant.rejoined', participantJid, groupJid, 'changed', {})
+    this.audit(`event.participant.${result.kind}`, participantJid, groupJid, 'changed', { participantCount: result.count })
     return true
   }
 
@@ -402,11 +421,35 @@ export class EventService implements Service {
     this.requireCreator(event, actorJid)
     if (!this.collaboration || !this.collaboration.isEnabled(groupJid)) throw new Error('Collaboration poll is unavailable for this group')
     if (event.pollId) return event
-    const poll = this.collaboration.createPoll(groupJid, actorJid, question, options, 1, now)
-    const result = this.database().prepare(`UPDATE events SET poll_id = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND group_jid = ? AND poll_id IS NULL AND revision = ?`).run(poll.id, now, event.id, groupJid, event.revision)
-    if (result.changes !== 1) return this.getEvent(groupJid, event.id, now)
-    this.audit('event.poll.linked', actorJid, groupJid, 'changed', { optionCount: options.length })
-    return this.getEvent(groupJid, event.id, now)
+    const eventRow = this.database().prepare(`SELECT * FROM events WHERE id = ? AND group_jid = ?`).get(event.id, groupJid) as EventRow | undefined
+    if (!eventRow) throw new Error('Event changed concurrently; retry')
+    const operationId = this.operationId(event.id, 'poll_link')
+    if (!this.claimOperation(operationId, eventRow, 'poll_link', undefined, now)) return this.getEvent(groupJid, event.id, now)
+    const originKey = `event-poll-${hash(event.id).slice(0, 48)}`
+    try {
+      const poll = this.collaboration.createPoll(groupJid, actorJid, question, options, 1, now, originKey)
+      this.setOperationResultRef(operationId, poll.id, now)
+      const result = this.database().prepare(`UPDATE events SET poll_id = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND group_jid = ? AND poll_id IS NULL AND revision = ?`).run(poll.id, now, event.id, groupJid, eventRow.revision)
+      if (result.changes === 1) {
+        this.finishOperation(operationId, 'succeeded', 'changed', now)
+        this.audit('event.poll.linked', actorJid, groupJid, 'changed', { optionCount: options.length })
+        return this.getEvent(groupJid, event.id, now)
+      }
+      const latest = this.getEvent(groupJid, event.id, now)
+      if (latest?.pollId) {
+        const supersededPoll = this.collaboration.closePoll(groupJid, poll.id, actorJid, now)
+        const compensationSucceeded = Boolean(supersededPoll && supersededPoll.status !== 'open')
+        this.finishOperation(operationId, 'failed', compensationSucceeded ? 'superseded_compensated' : 'superseded_recovery_required', now)
+        this.audit('event.poll.superseded', actorJid, groupJid, 'failed', { optionCount: options.length, recoveryRequired: !compensationSucceeded })
+        return latest
+      }
+      this.finishOperation(operationId, 'failed', 'recovery_required', now)
+      this.audit('event.poll.link_failed', actorJid, groupJid, 'failed', { optionCount: options.length, recoveryRequired: true })
+      return latest
+    } catch (error) {
+      this.finishOperation(operationId, 'failed', 'error', now)
+      throw error
+    }
   }
 
   getEvent(groupJid: string, eventId: string, now = this.clock()): EventRecord | undefined {
@@ -547,8 +590,8 @@ export class EventService implements Service {
 
   private claimOperation(operationId: string, event: EventRow, operationType: EventOperationType, phaseId: string | undefined, now: number): boolean {
     const result = this.database().prepare(`
-      INSERT OR IGNORE INTO event_operations (operation_id, event_id, group_jid, operation_type, phase_id, status, correlation_hash, created_at, updated_at, outcome_code)
-      VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, 'planned')
+      INSERT OR IGNORE INTO event_operations (operation_id, event_id, group_jid, operation_type, phase_id, status, correlation_hash, created_at, updated_at, outcome_code, result_ref)
+      VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, 'planned', NULL)
     `).run(operationId, event.id, event.group_jid, operationType, phaseId ?? null, hash(`${event.group_jid}:${event.id}:${operationType}:${phaseId ?? ''}`), now, now)
     if (result.changes === 0) {
       const existing = this.database().prepare(`SELECT status FROM event_operations WHERE operation_id = ?`).get(operationId) as { status: EventOperationStatus } | undefined
@@ -556,6 +599,10 @@ export class EventService implements Service {
     }
     const claimed = this.database().prepare(`UPDATE event_operations SET status = 'running', updated_at = ?, outcome_code = 'running' WHERE operation_id = ? AND (status = 'planned' OR status = 'failed' OR (status = 'running' AND updated_at <= ?))`).run(now, operationId, now - Math.max(this.dispatcherIntervalMs * 2, 30_000))
     return claimed.changes === 1
+  }
+
+  private setOperationResultRef(operationId: string, resultRef: string, now: number): void {
+    this.database().prepare(`UPDATE event_operations SET result_ref = ?, updated_at = ? WHERE operation_id = ? AND status = 'running'`).run(resultRef, now, operationId)
   }
 
   private finishOperation(operationId: string, status: EventOperationStatus, outcomeCode: string, now: number): void {
@@ -727,10 +774,16 @@ export class EventService implements Service {
         correlation_hash TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        outcome_code TEXT NOT NULL
+        outcome_code TEXT NOT NULL,
+        result_ref TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_event_operations_event ON event_operations(event_id, created_at);
     `)
+    try {
+      this.database().exec('ALTER TABLE event_operations ADD COLUMN result_ref TEXT')
+    } catch (error) {
+      if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error
+    }
   }
 
   private operationId(eventId: string, operationType: EventOperationType, phaseId?: string, target?: string): string {
@@ -758,6 +811,11 @@ export class EventService implements Service {
     } catch (error) {
       this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', eventType }, 'event audit unavailable')
     }
+  }
+
+  private activeParticipantCount(eventId: string): number {
+    const row = this.database().prepare(`SELECT COUNT(*) AS count FROM event_participants WHERE event_id = ? AND status = 'joined'`).get(eventId) as { count: number }
+    return Number(row.count)
   }
 
   private transaction<T>(operation: () => T): T {

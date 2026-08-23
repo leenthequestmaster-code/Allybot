@@ -129,8 +129,9 @@ test('Technical commands provide routed ping, safe profile, and owner-only cache
   assert.match(core.sent[2].text, /Allybot Owner Profile/)
   assert.match(core.sent[2].text, /Nama: Vallen/)
   assert.match(core.sent[2].text, /Status: Owner/)
-  assert.match(core.sent[2].text, /Nomor HP: 083197859955/)
+  assert.match(core.sent[2].text, /Kontak owner: tidak dipublikasikan/)
   assert.match(core.sent[2].text, /text fallback digunakan/)
+  assert.equal(/(?:\+?\d[\d -]{6,}\d)/.test(core.sent[2].text), false)
   assert.equal(core.sent[2].text.includes('owner@s.whatsapp.net'), false)
   assert.equal(core.sent[2].text.includes('password'), false)
 
@@ -269,7 +270,8 @@ test('Public owner profile is available to non-owner callers in a group without 
     })
     assert.match(core.sent[0].text, /Allybot Owner Profile/)
     assert.match(core.sent[0].text, /Control plane: protected/)
-    assert.match(core.sent[0].text, /Nomor HP: 083197859955/)
+    assert.match(core.sent[0].text, /Kontak owner: tidak dipublikasikan/)
+    assert.equal(/(?:\+?\d[\d -]{6,}\d)/.test(core.sent[0].text), false)
     assert.equal(core.sent[0].text.includes('owner@s.whatsapp.net'), false)
   } finally {
     await app.stop()

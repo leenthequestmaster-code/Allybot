@@ -235,7 +235,7 @@ export class CollaborationService implements Service {
     return enabled
   }
 
-  createPoll(groupJid: string, creatorJid: string, question: string, options: readonly string[], selectableCount = 1, now = this.clock()): PollRecord {
+  createPoll(groupJid: string, creatorJid: string, question: string, options: readonly string[], selectableCount = 1, now = this.clock(), originKey?: string): PollRecord {
     validateGroupJid(groupJid)
     this.requireEnabled(groupJid)
     validateJid(creatorJid, 'poll creator')
@@ -244,15 +244,35 @@ export class CollaborationService implements Service {
     if (normalizedOptions.length < 2 || normalizedOptions.length > 12) throw new Error('Poll requires between 2 and 12 options')
     if (new Set(normalizedOptions.map((option) => option.toLowerCase())).size !== normalizedOptions.length) throw new Error('Poll options must be unique')
     if (!Number.isInteger(selectableCount) || selectableCount < 1 || selectableCount > normalizedOptions.length) throw new Error('Invalid poll selectableCount')
+    if (originKey !== undefined) validateCorrelation(originKey)
+    const existing = originKey
+      ? this.database().prepare('SELECT * FROM collaboration_polls WHERE origin_key = ?').get(originKey) as (PollRow & { origin_key: string | null }) | undefined
+      : undefined
+    if (existing) {
+      if (existing.group_jid !== groupJid) throw new Error('Poll idempotency key belongs to another group')
+      if (existing.creator_jid !== creatorJid || existing.question !== normalizedQuestion || existing.options_json !== JSON.stringify(normalizedOptions) || existing.selectable_count !== selectableCount) {
+        throw new Error('Poll idempotency key maps to a different request')
+      }
+      if (existing.status !== 'open') throw new Error('Poll idempotency record is no longer open')
+      return mapPoll(existing)
+    }
     this.consumeRate(groupJid, creatorJid, now)
     const id = randomUUID()
     this.audit('collaboration.poll.requested', creatorJid, groupJid, 'allowed', { pollId: id, optionCount: normalizedOptions.length, questionLength: normalizedQuestion.length })
     const record = this.transaction(() => {
-      this.database().prepare(`
+      const inserted = this.database().prepare(`
         INSERT INTO collaboration_polls
-          (id, group_jid, creator_jid, question, options_json, selectable_count, status, transport_status, created_at, expires_at, revision)
-        VALUES (@id, @group_jid, @creator_jid, @question, @options_json, @selectable_count, 'open', 'text', @created_at, @expires_at, 0)
-      `).run({ id, group_jid: groupJid, creator_jid: creatorJid, question: normalizedQuestion, options_json: JSON.stringify(normalizedOptions), selectable_count: selectableCount, created_at: now, expires_at: now + POLL_TTL_MS })
+          (id, group_jid, creator_jid, question, options_json, selectable_count, status, transport_status, created_at, expires_at, revision, origin_key)
+        VALUES (@id, @group_jid, @creator_jid, @question, @options_json, @selectable_count, 'open', 'text', @created_at, @expires_at, 0, @origin_key)
+        ON CONFLICT(origin_key) DO NOTHING
+      `).run({ id, group_jid: groupJid, creator_jid: creatorJid, question: normalizedQuestion, options_json: JSON.stringify(normalizedOptions), selectable_count: selectableCount, created_at: now, expires_at: now + POLL_TTL_MS, origin_key: originKey ?? null })
+      if (inserted.changes !== 1 && originKey !== undefined) {
+        const raced = this.database().prepare('SELECT * FROM collaboration_polls WHERE origin_key = ?').get(originKey) as (PollRow & { origin_key: string | null }) | undefined
+        if (!raced) throw new Error('Poll idempotency record was not persisted')
+        if (raced.group_jid !== groupJid || raced.creator_jid !== creatorJid || raced.question !== normalizedQuestion || raced.options_json !== JSON.stringify(normalizedOptions) || raced.selectable_count !== selectableCount) throw new Error('Poll idempotency key maps to a different request')
+        if (raced.status !== 'open') throw new Error('Poll idempotency record is no longer open')
+        return mapPoll(raced)
+      }
       return this.getPoll(id, now) as PollRecord
     })
     this.audit('collaboration.poll.created', creatorJid, groupJid, 'changed', { pollId: id, optionCount: normalizedOptions.length })
@@ -523,7 +543,8 @@ export class CollaborationService implements Service {
         created_at INTEGER NOT NULL,
         expires_at INTEGER NOT NULL,
         closed_at INTEGER,
-        revision INTEGER NOT NULL
+        revision INTEGER NOT NULL,
+        origin_key TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_collaboration_polls_group_status ON collaboration_polls (group_jid, status, created_at);
       CREATE TABLE IF NOT EXISTS collaboration_poll_votes (
@@ -568,9 +589,14 @@ export class CollaborationService implements Service {
         created_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_collaboration_decisions_group_time ON collaboration_decisions (group_jid, created_at);
-    `)
+        `)
+    try {
+      this.database().exec('ALTER TABLE collaboration_polls ADD COLUMN origin_key TEXT')
+    } catch (error) {
+      if (!(error instanceof Error) || !/duplicate column name/i.test(error.message)) throw error
+    }
+    this.database().exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_collaboration_polls_origin_key ON collaboration_polls (origin_key)')
   }
-
   private transaction<T>(operation: () => T): T {
     return this.database().transaction(operation)()
   }

@@ -22,6 +22,18 @@ interface SerializedValueRow {
 
 interface StoredMessageRow {
   data: string
+  updated_at: string
+}
+
+export interface MessageCacheStats {
+  readonly rows: number
+  readonly bytes: number
+}
+
+export interface MessageCachePruneResult extends MessageCacheStats {
+  readonly expiredRows: number
+  readonly excessRows: number
+  readonly excessBytesRows: number
 }
 
 function serializeValue(value: unknown): string {
@@ -41,17 +53,34 @@ export class SqliteStorage {
   private readonly db: Database.Database
   private readonly accountId: string
   private readonly logger: AppLogger
+  private readonly messageCacheTtlMs: number
+  private readonly messageCacheMaxRows: number
+  private readonly messageCacheMaxBytes: number
+  private readonly messagePruneTimer: NodeJS.Timeout
 
   constructor(config: AppConfig, logger: AppLogger) {
     mkdirSync(dirname(config.DATABASE_PATH), { recursive: true, mode: 0o700 })
     this.db = new Database(config.DATABASE_PATH)
     this.accountId = config.AUTH_ACCOUNT_ID
     this.logger = logger.child({ component: 'storage' })
+    this.messageCacheTtlMs = config.LOCAL_MESSAGE_CACHE_TTL_MS
+    this.messageCacheMaxRows = config.LOCAL_MESSAGE_CACHE_MAX_ROWS
+    this.messageCacheMaxBytes = config.LOCAL_MESSAGE_CACHE_MAX_BYTES
     this.db.pragma('journal_mode = WAL')
     this.db.pragma('synchronous = NORMAL')
     this.db.pragma('foreign_keys = ON')
     this.db.pragma('busy_timeout = 5000')
     this.migrate()
+    this.pruneMessageCache()
+    const pruneIntervalMs = Math.min(Math.max(Math.floor(this.messageCacheTtlMs / 2), 60_000), 60 * 60_000)
+    this.messagePruneTimer = setInterval(() => {
+      try {
+        this.pruneMessageCache()
+      } catch (error) {
+        this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'message cache pruning failed')
+      }
+    }, pruneIntervalMs)
+    this.messagePruneTimer.unref()
   }
 
   private migrate(): void {
@@ -227,21 +256,87 @@ export class SqliteStorage {
          timestamp = excluded.timestamp,
          updated_at = excluded.updated_at`,
     )
-    const persistMessages = this.db.transaction((messages: WAMessage[]) => {
-      for (const message of messages) {
+    const persistMessages = this.db.transaction((incoming: WAMessage[]) => {
+      for (const message of incoming) {
         const key = getMessageKey(message.key)
         if (!key || !message.message) continue
+        const value = serializeValue(message.message)
+        if (Buffer.byteLength(value, 'utf8') > this.messageCacheMaxBytes) {
+          this.logger.warn({ reason: 'message_cache_item_too_large' }, 'message skipped by local cache byte limit')
+          continue
+        }
         upsertMessage.run({
           account_id: this.accountId,
           remote_jid: key.jid,
           message_id: key.id,
-          value: serializeValue(message.message),
+          value,
           timestamp: message.messageTimestamp ? Number(message.messageTimestamp) : null,
           updated_at: now,
         })
       }
+      this.pruneMessageCacheWithinTransaction(new Date(now).getTime())
     })
     persistMessages(messages)
+  }
+
+  getMessageCacheStats(): MessageCacheStats {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS rows, COALESCE(SUM(length(CAST(value AS BLOB))), 0) AS bytes
+         FROM messages WHERE account_id = ?`,
+      )
+      .get(this.accountId) as { rows: number; bytes: number }
+    return { rows: Number(row.rows), bytes: Number(row.bytes) }
+  }
+
+  pruneMessageCache(now = Date.now()): MessageCachePruneResult {
+    if (!Number.isFinite(now)) throw new Error('message cache prune clock must be finite')
+    const prune = this.db.transaction((clock: number) => this.pruneMessageCacheWithinTransaction(clock))
+    return prune(now)
+  }
+
+  private pruneMessageCacheWithinTransaction(now: number): MessageCachePruneResult {
+    const cutoff = new Date(now - this.messageCacheTtlMs).toISOString()
+    const expiredRows = this.db
+      .prepare('DELETE FROM messages WHERE account_id = ? AND updated_at < ?')
+      .run(this.accountId, cutoff).changes
+
+    const excessRowIds = this.db
+      .prepare(
+        `SELECT rowid FROM messages
+         WHERE account_id = ?
+         ORDER BY updated_at DESC, rowid DESC
+         LIMIT -1 OFFSET ?`,
+      )
+      .all(this.accountId, this.messageCacheMaxRows) as Array<{ rowid: number }>
+    const excessRows = this.deleteMessageRows(excessRowIds.map((row) => row.rowid))
+
+    const retainedRows = this.db
+      .prepare(
+        `SELECT rowid, length(CAST(value AS BLOB)) AS bytes
+         FROM messages
+         WHERE account_id = ?
+         ORDER BY updated_at DESC, rowid DESC`,
+      )
+      .all(this.accountId) as Array<{ rowid: number; bytes: number }>
+    let retainedBytes = 0
+    const excessByteRowIds: number[] = []
+    for (const row of retainedRows) {
+      const rowBytes = Number(row.bytes)
+      if (retainedBytes + rowBytes <= this.messageCacheMaxBytes) retainedBytes += rowBytes
+      else excessByteRowIds.push(row.rowid)
+    }
+    const excessBytesRows = this.deleteMessageRows(excessByteRowIds)
+    const stats = this.getMessageCacheStats()
+    return { ...stats, expiredRows, excessRows, excessBytesRows }
+  }
+
+  private deleteMessageRows(rowIds: readonly number[]): number {
+    if (rowIds.length === 0) return 0
+    const placeholders = rowIds.map(() => '?').join(',')
+    return this.db
+      .prepare(`DELETE FROM messages WHERE account_id = ? AND rowid IN (${placeholders})`)
+      .run(this.accountId, ...rowIds).changes
   }
 
   async getMessage(key: WAMessageKey): Promise<proto.IMessage | undefined> {
@@ -249,14 +344,24 @@ export class SqliteStorage {
     if (!normalized) return undefined
     const row = this.db
       .prepare(
-        `SELECT value AS data FROM messages
+        `SELECT value AS data, updated_at
+         FROM messages
          WHERE account_id = ? AND remote_jid = ? AND message_id = ?`,
       )
       .get(this.accountId, normalized.jid, normalized.id) as StoredMessageRow | undefined
-    return row ? parseValue<proto.IMessage>(row.data) : undefined
+    if (!row) return undefined
+    const updatedAt = Date.parse(row.updated_at)
+    if (!Number.isFinite(updatedAt) || updatedAt <= Date.now() - this.messageCacheTtlMs) {
+      this.db
+        .prepare('DELETE FROM messages WHERE account_id = ? AND remote_jid = ? AND message_id = ?')
+        .run(this.accountId, normalized.jid, normalized.id)
+      return undefined
+    }
+    return parseValue<proto.IMessage>(row.data)
   }
 
   close(): void {
+    clearInterval(this.messagePruneTimer)
     if (this.db.open) this.db.close()
   }
 }
