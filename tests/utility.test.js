@@ -42,6 +42,16 @@ function createRegistry(whatsapp) {
   return registry
 }
 
+test('utility module split preserves canonical command registration parity', () => {
+  const registry = createRegistry(fakeWhatsapp())
+  assert.deepEqual(registry.list().map((command) => command.name), [
+    'status', 'uptime', 'features', 'commands', 'searchcmd', 'about', 'version', 'privacy', 'support',
+    'calc', 'convert', 'time', 'date', 'random', 'choose', 'flip', 'roll', 'truth', 'dare', 'rps', '8ball',
+  ])
+  assert.deepEqual(registry.get('dice')?.aliases, ['dice'])
+  assert.deepEqual(registry.get('suit')?.aliases, ['suit'])
+})
+
 test('status, uptime, and features expose bounded non-sensitive runtime summaries', async () => {
   const whatsapp = fakeWhatsapp()
   const registry = createRegistry(whatsapp)
