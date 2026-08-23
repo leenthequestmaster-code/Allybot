@@ -111,6 +111,7 @@ test('R3 native poll is optional and records capability failure without losing t
     fixture.collaboration.setNativePollEnabled(groupA, true, adminJid, fixture.now())
     const poll = fixture.collaboration.createPoll(groupA, memberJid, 'Transport?', ['Text', 'Native'], 1, fixture.now())
     assert.equal(fixture.collaboration.markPollNativePending(groupA, poll.id, memberJid)?.transportStatus, 'native-pending')
+    assert.equal(fixture.collaboration.markPollNativeSent(groupA, poll.id, memberJid)?.transportStatus, 'native-sent')
     assert.equal(fixture.collaboration.markPollNativeFailed(groupA, poll.id, memberJid)?.transportStatus, 'native-failed')
     assert.equal(fixture.collaboration.getPoll(poll.id)?.status, 'open')
   } finally {

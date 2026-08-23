@@ -473,9 +473,9 @@ export class CollaborationService implements Service {
     validateId(pollId, 'poll id')
     validateJid(actorJid, 'poll actor')
     const current = this.requirePollInGroup(groupJid, pollId, now)
-    const result = this.database().prepare(`UPDATE collaboration_polls SET transport_status = ?, revision = revision + 1 WHERE id = ? AND group_jid = ? AND status = 'open' AND revision = ?`).run(status, pollId, groupJid, current.revision)
+    this.database().prepare(`UPDATE collaboration_polls SET transport_status = ?, revision = revision + 1 WHERE id = ? AND group_jid = ? AND status = 'open' AND revision = ?`).run(status, pollId, groupJid, current.revision)
     this.audit(`collaboration.poll.${status}`, actorJid, groupJid, status === 'native-sent' ? 'changed' : 'failed', { pollId })
-    return result.changes === 1 ? this.getPoll(pollId, now) : this.getPoll(pollId, now)
+    return this.getPoll(pollId, now)
   }
 
   private requirePollInGroup(groupJid: string, pollId: string, now: number): PollRecord {
