@@ -59,6 +59,53 @@ function safeReply(text: string): string {
   return text.length <= MAX_REPLY_LENGTH ? text : `${text.slice(0, MAX_REPLY_LENGTH - 1)}…`
 }
 
+function formatUptime(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const days = Math.floor(totalSeconds / 86_400)
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600)
+  const minutes = Math.floor((totalSeconds % 3_600) / 60)
+  const remainingSeconds = totalSeconds % 60
+  const parts: string[] = []
+  if (days) parts.push(`${days} hari`)
+  if (hours || days) parts.push(`${hours} jam`)
+  if (minutes || hours || days) parts.push(`${minutes} menit`)
+  parts.push(`${remainingSeconds} detik`)
+  return parts.join(' ')
+}
+
+function connectionStatus(context: CommandContext): string {
+  return context.whatsapp.currentStatus ?? (context.whatsapp.isConnected ? 'connected' : 'idle')
+}
+
+function featureCategory(category: string | undefined): string {
+  const normalized = category?.toLowerCase()
+  if (normalized === 'community' || normalized === 'collaboration' || normalized === 'events' || normalized === 'group') return 'GROUP'
+  if (normalized === 'moderation' || normalized === 'governance') return 'MODERATION'
+  if (normalized === 'roleplay' || normalized === 'knowledge' || normalized === 'rpg') return 'ROLEPLAY'
+  if (normalized === 'personal' || normalized === 'personalization' || normalized === 'general') return 'PERSONAL'
+  if (normalized === 'fun' || normalized === 'creativity') return 'FUN'
+  if (normalized === 'developer') return 'DEVELOPER'
+  if (normalized === 'owner') return 'OWNER'
+  return 'TOOLS'
+}
+
+function renderFeatureSummary(commands: readonly CommandDefinition[], prefix: string): string {
+  const counts = new Map<string, number>()
+  for (const command of visibleCommands(commands)) {
+    const category = featureCategory(command.category)
+    counts.set(category, (counts.get(category) ?? 0) + 1)
+  }
+  const order = ['GROUP', 'MODERATION', 'ROLEPLAY', 'PERSONAL', 'TOOLS', 'FUN']
+  return [
+    '🧭 *Ringkasan fitur Allybot*',
+    '',
+    ...order.map((category) => `• ${category}: ${counts.get(category) ?? 0} command`),
+    '',
+    'Sebagian fitur membutuhkan admin grup, izin Owner, atau pengaturan layanan terlebih dahulu.',
+    `Gunakan ${prefix}menu untuk melihat detail dan ${prefix}searchcmd <kata> untuk mencari command.`,
+  ].join('\n')
+}
+
 function visibleCommands(commands: readonly CommandDefinition[]): CommandDefinition[] {
   return [...commands]
     .filter((command) => !command.hidden && command.name !== 'menu-reply')
@@ -240,6 +287,42 @@ export const utilityPlugin: Plugin = {
   version: '0.1.0',
   load(context) {
     const commands = () => visibleCommands(context.commands.list())
+
+    context.commands.register({
+      name: 'status',
+      description: 'Lihat status umum Allybot',
+      category: 'tools',
+      menuOrder: 1,
+      cooldownMs: UTILITY_COOLDOWN_MS,
+      handler: async (commandContext) => {
+        await commandContext.reply([
+          '📡 *Status Allybot*',
+          '',
+          `Sambungan: ${connectionStatus(commandContext)}`,
+          `Lama berjalan: ${formatUptime(process.uptime())}`,
+          `Mode chat: ${commandContext.message.remoteJid.endsWith('@g.us') ? 'grup' : 'pribadi'}`,
+          'Data rahasia dan isi database tidak ditampilkan.',
+        ].join('\n'))
+      },
+    })
+
+    context.commands.register({
+      name: 'uptime',
+      description: 'Lihat lama Allybot berjalan',
+      category: 'tools',
+      menuOrder: 2,
+      cooldownMs: UTILITY_COOLDOWN_MS,
+      handler: async (commandContext) => commandContext.reply(`⏱️ Allybot sudah berjalan selama *${formatUptime(process.uptime())}*.`),
+    })
+
+    context.commands.register({
+      name: 'features',
+      description: 'Lihat ringkasan fitur yang tersedia',
+      category: 'tools',
+      menuOrder: 3,
+      cooldownMs: UTILITY_COOLDOWN_MS,
+      handler: async (commandContext) => commandContext.reply(renderFeatureSummary(context.commands.list(), commandContext.prefix)),
+    })
 
     context.commands.register({
       name: 'commands',

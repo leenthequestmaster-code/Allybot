@@ -42,15 +42,34 @@ function createRegistry(whatsapp) {
   return registry
 }
 
+test('status, uptime, and features expose bounded non-sensitive runtime summaries', async () => {
+  const whatsapp = fakeWhatsapp()
+  const registry = createRegistry(whatsapp)
+
+  await registry.dispatch(message(1, '!status'))
+  assert.match(whatsapp.sent[0].text, /Status Allybot/)
+  assert.match(whatsapp.sent[0].text, /Sambungan: connected/)
+  assert.match(whatsapp.sent[0].text, /Data rahasia/)
+
+  await registry.dispatch(message(2, '!uptime'))
+  assert.match(whatsapp.sent[1].text, /sudah berjalan selama/)
+  assert.match(whatsapp.sent[1].text, /detik/)
+
+  await registry.dispatch(message(3, '!features'))
+  assert.match(whatsapp.sent[2].text, /Ringkasan fitur Allybot/)
+  assert.match(whatsapp.sent[2].text, /TOOLS:/)
+  assert.doesNotMatch(whatsapp.sent[2].text, /clearcache/)
+})
+
 test('utility command index and search expose registered commands without hidden entries', async () => {
   const whatsapp = fakeWhatsapp()
   const registry = createRegistry(whatsapp)
 
-  await registry.dispatch(message(1, '!commands'))
+  await registry.dispatch(message(4, '!commands'))
   assert.match(whatsapp.sent[0].text, /Command Allybot yang tersedia/)
   assert.match(whatsapp.sent[0].text, /!searchcmd/)
 
-  await registry.dispatch(message(2, '!searchcmd matematika'))
+  await registry.dispatch(message(5, '!searchcmd matematika'))
   assert.match(whatsapp.sent[1].text, /!calc/)
   assert.doesNotMatch(whatsapp.sent[1].text, /menu-reply/)
 })

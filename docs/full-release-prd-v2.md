@@ -83,3 +83,11 @@ Setiap batch dikomit terpisah dan dapat direvert tanpa menghapus historical audi
 Langkah eksekusi pertama adalah V2-A karena langsung memperbaiki keluhan utama pengguna dan membuka semua kontingen yang sudah existing. Setelah V2-A lulus, batch berikutnya tidak akan berhenti pada menu: source plugin yang sudah nyata akan diangkat ke menu/help, lalu gap command general yang aman diisi, dan setiap batch akan melewati CI artifact-only serta release gates.
 
 **Author:** Manus AI
+
+## 11. V2-A implementation checkpoint
+
+V2-A telah diimplementasikan bertahap pada commit `d932d51` dan `b899996`. Main menu native sekarang mengirim body teks informatif bersama tombol kategori/pagination, dengan text/numeric fallback tetap tersedia. Registry menerima nama command aman yang diawali angka sehingga `!8ball` dapat dipakai sesuai katalog.
+
+Surface baru yang benar-benar terdaftar adalah `!commands`, `!searchcmd`, `!about`, `!version`, `!privacy`, `!support`, `!status`, `!uptime`, `!features`, `!calc`, `!convert`, `!time`, `!date`, `!random`, `!choose`, `!flip`, `!roll`/`!dice`, dan `!8ball`. Calculator menggunakan parser aritmetika terbatas; tidak ada `eval`, shell, atau arbitrary code execution. Permainan dibatasi pada input, rentang, jumlah opsi, dan cooldown.
+
+Verification checkpoint setelah discovery update: typecheck pass, clean build pass, menu/utility tests pass, full regression `280/280` pass, dan runtime dependency audit pada high threshold `0 vulnerability`. CI/artifact deployment berikutnya tetap wajib dijalankan setelah commit checkpoint ini.

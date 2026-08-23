@@ -99,3 +99,9 @@ Fitur baru harus memakai `import type { Logger } from 'pino'` jika mengimpor tip
 Full release baru dapat dinyatakan selesai apabila Wave A–E yang dipilih pada scope freeze benar-benar memiliki implementation dan test, semua command yang tampil pada menu berasal dari registry aktual, CI artifact dan Panel deployment lulus, recovery rehearsal selesai, dan residual risk ditulis. Jika acceptance live WhatsApp masih unavailable, status harus `completed_with_caveat`; kata “full release” merujuk pada breadth implementation yang benar-benar dipilih, bukan klaim bahwa semua perilaku Baileys telah diuji.
 
 **Author:** Manus AI
+
+## 9. V2-A checkpoint
+
+V2-A sudah mengisi slice pertama setelah re-baseline. Menu native kini semi-button dengan body informatif, command fallback, dan pagination. Utility/fun plugin baru mendaftarkan command discovery, status, privacy/support, calculator terbatas, konversi, waktu/tanggal, random, choose, coin flip, dice, dan 8ball. Registry command diperluas secara aman untuk nama numeric-leading seperti `8ball` dengan karakter tetap dibatasi.
+
+Checkpoint lokal setelah slice ini: typecheck dan clean build pass; focused tests pass; full regression `280/280` pass; runtime dependency audit high threshold pass dengan 0 vulnerability. Commit source utama V2-A adalah `d932d51`, dan localization/copy checkpoint adalah `b899996`; commit discovery lanjutan menunggu validasi final/CI.
