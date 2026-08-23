@@ -46,7 +46,7 @@ Boundary harus memaksa batas sebelum download: jenis media yang diizinkan, MIME 
 
 ## Command slice yang layak setelah boundary siap
 
-Slice pertama yang bernilai dan bounded adalah `!sticker` untuk image/video yang dikirim langsung atau direply, dengan static MIME allowlist dan ukuran kecil. Slice berikutnya `!toimg` untuk sticker statis dan `!togif` untuk video pendek; `!toaudio` hanya setelah MIME/duration/codec contract dan ffmpeg availability terverifikasi pada Panel. `!yt2mp3`, downloader arbitrary URL, upscale 2K–16K, dan `!hd` tidak masuk release ini karena membutuhkan outbound fetch/codec/resource policy yang belum memiliki kontrak dan meningkatkan abuse surface.
+Slice yang dipilih dan telah diimplementasikan adalah `!sticker` untuk image, `!toimg` untuk sticker statis, `!togif` untuk video pendek, dan `!toaudio` untuk video/audio. Semua dapat menggunakan media direct atau quoted dengan static MIME allowlist, byte/duration limit, bounded in-memory buffer, fixed ffmpeg args, dan output cap. `!togif` dikirim sebagai MP4 dengan `gifPlayback`, bukan file GIF arbitrer. `!yt2mp3`, `!tomp3`, downloader arbitrary URL, upscale 2K–16K, dan `!hd` tidak masuk release ini karena membutuhkan outbound fetch/codec/resource policy yang belum memiliki kontrak dan meningkatkan abuse surface.
 
 ## Failure modes dan kontrol wajib
 
@@ -63,10 +63,12 @@ Slice pertama yang bernilai dan bounded adalah `!sticker` untuk image/video yang
 | Baileys version skew | Compile against pinned `7.0.0-rc14`, adapter contract tests, dependency upgrade review trigger. |
 | Panel tidak memiliki binary yang diasumsikan | CI/runtime preflight non-secret; command disabled dengan pesan aman bila capability tidak tersedia. |
 
-## Exit criteria untuk mulai coding
+## Exit criteria implementasi dan residual gate
 
-Media slice baru boleh dikodekan setelah: (1) `MediaDescriptor` dan `MediaPort` disepakati sebagai boundary internal; (2) adapter fixture membuktikan pemetaan media dari pinned Baileys; (3) fake port membuktikan rejection sebelum download dan cleanup/timeout; (4) outbound send contract mencakup image/video/audio/sticker dengan MIME yang ditentukan server; (5) tidak ada API media publik yang mengekspos Baileys type ke plugin; (6) CI artifact tetap sanitized; dan (7) command pertama memiliki positive, negative, permission, size, timeout, and restart-safe tests.
+Boundary telah diterapkan pada `CoreMessage` dan optional media methods di `WhatsAppPort`; plugin tidak mengimpor tipe Baileys atau memanggil `spawn`. Adapter fixture membuktikan plain, quoted, dan view-once descriptor; tests membuktikan rejection sebelum download, binary send validation, output cap, unsupported target, dan safe failure. `runFfmpeg` memakai executable fixed, argument array, no shell, timeout, output cap, dan in-memory stdin/stdout sehingga tidak meninggalkan temporary file. CI artifact tetap sanitized dan tidak menambahkan runtime dependency npm.
+
+Residual gate yang belum ditutup adalah verifikasi binary/codec pada environment Panel serta live WhatsApp black-box acceptance untuk parsing media, quoted/view-once download, expired-media reupload, dan actual send pada akun acceptance. Karena gate tersebut belum tersedia, command media boleh disebut implemented dan artifact-synced, tetapi belum fully proven live.
 
 ## Status
 
-Status keputusan: **spike selesai, implementasi media belum dimulai**. AI tools dan FUN tools dirilis terpisah tanpa media boundary. Review trigger: perubahan major Baileys, kebutuhan command media pertama, atau bukti workload yang membuat transform synchronous tidak lagi aman.
+Status keputusan: **spike selesai; bounded media transport implemented dan CI/artifact-synced**. Local evidence mencakup 13 focused media tests, full regression `303/303` setelah V2-H, dan real ffmpeg smoke test pada fixture sintetis PNG/MP4. Review trigger: perubahan major Baileys, Panel tidak memiliki codec yang dipakai, sustained media workload, atau kebutuhan transform asynchronous/queue.
