@@ -71,6 +71,8 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   event: 'Buat dan kelola kegiatan grup.',
   calendar: 'Lihat jadwal kegiatan grup.',
   ai: 'Tanya Allybot tanpa menyimpan percakapan.',
+  translate: 'Terjemahkan teks yang kamu kirim.',
+  summarize: 'Ringkas teks yang kamu kirim.',
   suggest: 'Minta saran dari catatan yang kamu pilih.',
   ping: 'Cek apakah bot sedang merespons.',
   health: 'Cek apakah bagian utama bot berjalan normal.',
