@@ -60,6 +60,10 @@ test('user-friendly aliases remain attached to canonical commands', () => {
 
   assertAlias(collaboration, 'setcollab', 'collabmode')
   assertAlias(collaboration, 'setnativepoll', 'pollmode')
+  assertAlias(collaboration, 'poll', 'jajak')
+  assertAlias(collaboration, 'remind', 'ingatkan')
+  assertAlias(collaboration, 'task', 'tugas')
+  assertAlias(collaboration, 'decision', 'putuskan')
   assertAlias(knowledge, 'setknowledge', 'catatan')
   assertAlias(knowledge, 'bookmarks', 'tersimpan')
   assertAlias(knowledge, 'knowledgeexport', 'exportcatatan')
