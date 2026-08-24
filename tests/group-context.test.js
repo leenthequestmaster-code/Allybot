@@ -10,6 +10,7 @@ const memberJid = '628120000000@s.whatsapp.net'
 
 function createHarness({ mode = 'ic', allowed = false, registered = [] } = {}) {
   const sent = []
+  let contextReads = 0
   const commands = new Map(registered.map((name) => [name, { name, handler: async () => {} }]))
   const contextRecord = {
     groupKey: 'a'.repeat(64),
@@ -22,7 +23,10 @@ function createHarness({ mode = 'ic', allowed = false, registered = [] } = {}) {
   const service = {
     name: 'group-context',
     isEnabled: true,
-    async get() { return contextRecord },
+    async get() {
+      contextReads += 1
+      return contextRecord
+    },
     async isOocAllowed() { return allowed },
     memberKeyForJid(value) { return `key:${value}` },
     async listAllowlist() { return [] },
@@ -65,7 +69,7 @@ function createHarness({ mode = 'ic', allowed = false, registered = [] } = {}) {
       return { jid: groupJid, subject: 'Test', participants: [{ jid: memberJid, role: 'member' }] }
     },
   }
-  return { context, whatsapp, sent, commands, service }
+  return { context, whatsapp, sent, commands, service, get contextReads() { return contextReads } }
 }
 
 function message(overrides = {}) {
@@ -84,6 +88,13 @@ async function loadHarness(options) {
   await createGroupContextPlugin(harness.whatsapp).load(harness.context)
   return harness
 }
+
+test('registered commands bypass context lookup before dispatch', async () => {
+  const harness = await loadHarness({ registered: ['ping'] })
+  const result = await harness.context.messageGates.evaluate(message({ text: '!ping' }))
+  assert.equal(result.allowed, true)
+  assert.equal(harness.contextReads, 0)
+})
 
 test('strict IC gate allows registered commands and anchored narrative but cuts unknown/OOC text', async () => {
   const harness = await loadHarness({ registered: ['character'] })

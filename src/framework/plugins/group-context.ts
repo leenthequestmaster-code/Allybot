@@ -117,15 +117,14 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.messageGates.register('group-context-ic-ooc', async (message: CoreMessage) => {
         if (!service.isEnabled || message.fromMe || !isGroupJid(message.remoteJid)) return { allowed: true }
+        const commandName = commandNameFromMessage(message.text, context.config.commandPrefix)
+        if (commandName && context.commands.get(commandName)) return { allowed: true }
+
         const groupContext = await service.get(message.remoteJid)
         if (groupContext.mode !== 'ic') return { allowed: true }
 
         const sender = message.senderJid
         if (sender && await service.isOocAllowed(message.remoteJid, sender)) return { allowed: true }
-        if (commandNameFromMessage(message.text, context.config.commandPrefix)) {
-          const commandName = commandNameFromMessage(message.text, context.config.commandPrefix)
-          if (commandName && context.commands.get(commandName)) return { allowed: true }
-        }
 
         const text = message.text?.trim() ?? ''
         const isSticker = message.media?.kind === 'sticker'
