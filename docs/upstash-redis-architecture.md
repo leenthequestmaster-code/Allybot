@@ -32,6 +32,12 @@ Credential tidak boleh dimasukkan ke repository, CI artifact, console log, publi
 
 ## Operational primitives
 
+### Economy read-through cache
+
+Financial System menggunakan primitive cache yang sama dengan namespace terpisah `economy-account`. Pada cache miss, `EconomyService` membaca snapshot authoritative dari Supabase RPC, memvalidasi invariant snapshot, kemudian menyimpan snapshot terbatas ke Redis dengan TTL bounded. Pada cache hit, snapshot divalidasi kembali sebelum dikirim ke output user. Cache identity dibuat dari hash scope grup dan subject; raw JID tidak menjadi key Redis.
+
+Redis tidak pernah menghitung, mengurangi, atau menambah saldo. Setelah mutation ekonomi transactional di Supabase tersedia, service wajib menghapus cache account terkait atau menulis ulang snapshot terbaru setelah mutation sukses. Jika Redis timeout, invalid, atau unavailable, read path langsung kembali ke Supabase. Jika Supabase gagal, tidak ada output sukses dan tidak ada cache update.
+
 ### Cache metadata grup
 
 `cacheGet`, `cacheSet`, dan `cacheDelete` menyediakan cache-aside dengan TTL bounded. WhatsApp adapter menggunakannya untuk nama grup yang memang sedang diperlukan, dengan TTL 300 detik. Jika Redis gagal, adapter kembali ke cache lokal dan lookup metadata Baileys. Cache tidak menyimpan participant list, isi chat, token, atau session material.

@@ -4,6 +4,7 @@ import { AppLifecycle } from './lifecycle.js'
 import { ApplicationFramework } from './framework/application.js'
 import { diagnosticsPlugin } from './framework/plugins/diagnostics.js'
 import { createAiPlugin } from './framework/plugins/ai.js'
+import { economyPlugin } from './framework/plugins/economy.js'
 import { developerModePlugin } from './framework/plugins/developer-mode.js'
 import { technicalPlugin } from './framework/plugins/technical.js'
 import { createAfkPlugin } from './framework/plugins/afk.js'
@@ -52,6 +53,7 @@ import { WhatsAppConnection } from './whatsapp.js'
 import { NeonClientService } from './neon-client.js'
 import { createNeonChatLogPlugin } from './framework/plugins/neon-chat-log.js'
 import { UpstashRedisService } from './upstash-redis.js'
+import { EconomyService } from './services/economy-service.js'
 
 function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input: SuggestionProviderInput) => Promise<string>) | undefined {
   if (!config.XKIRO_AI_ENABLED) return undefined
@@ -105,6 +107,10 @@ async function main(): Promise<void> {
   framework.registerService(new AfkService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
+  framework.registerService(new EconomyService(logger, {
+    env: process.env,
+    cacheTtlSeconds: config.SUPABASE_ECONOMY_CACHE_TTL_SECONDS,
+  }))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(new CollaborationService(config.DATABASE_PATH, logger))
@@ -140,6 +146,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createScenePlugin(whatsapp))
   framework.registerPlugin(createCharacterPlugin(whatsapp))
   framework.registerPlugin(createCanonPlugin(whatsapp))
+  framework.registerPlugin(economyPlugin)
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
   framework.registerPlugin(createEventPlugin(whatsapp))
   framework.registerPlugin(onboardingPlugin)

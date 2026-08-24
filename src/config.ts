@@ -41,6 +41,10 @@ const envSchema = z.object({
   DIAGNOSTICS_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_FALLBACK_ENABLED: booleanFromEnv.default(false),
+  SUPABASE_ECONOMY_ENABLED: booleanFromEnv.default(false),
+  SUPABASE_URL: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_ECONOMY_CACHE_TTL_SECONDS: boundedInt(5, 300).default(15),
   NEON_ENABLED: booleanFromEnv.default(false),
   NEON_DATABASE_URL: z.string().min(1).optional(),
   NEON_POOL_MODE: z.enum(['direct', 'transaction']).default('transaction'),
@@ -75,6 +79,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   if (parsed.data.PAIRING_ENABLED && !parsed.data.PAIRING_PHONE_NUMBER) {
     throw new Error('PAIRING_PHONE_NUMBER is required when PAIRING_ENABLED=true')
+  }
+  if (parsed.data.SUPABASE_ECONOMY_ENABLED) {
+    if (!parsed.data.SUPABASE_URL) throw new Error('SUPABASE_URL is required when SUPABASE_ECONOMY_ENABLED=true')
+    if (!parsed.data.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required when SUPABASE_ECONOMY_ENABLED=true')
+    if (!/^https:\/\//i.test(parsed.data.SUPABASE_URL)) throw new Error('SUPABASE_URL must use https://')
   }
   if (parsed.data.NEON_ENABLED && !parsed.data.NEON_DATABASE_URL) {
     throw new Error('NEON_DATABASE_URL is required when NEON_ENABLED=true')
@@ -119,6 +128,8 @@ export function publicConfig(config: AppConfig) {
     diagnosticsEnabled: config.DIAGNOSTICS_ENABLED,
     xkiroAiEnabled: config.XKIRO_AI_ENABLED,
     xkiroAiFallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED,
+    supabaseEconomyEnabled: config.SUPABASE_ECONOMY_ENABLED,
+    supabaseEconomyCacheTtlSeconds: config.SUPABASE_ECONOMY_CACHE_TTL_SECONDS,
     neonEnabled: config.NEON_ENABLED,
     neonChatLogEnabled: config.NEON_CHAT_LOG_ENABLED,
     upstashRedisEnabled: config.UPSTASH_REDIS_ENABLED,

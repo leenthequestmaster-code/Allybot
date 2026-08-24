@@ -40,9 +40,23 @@ Jika salah satu konfigurasi tidak ada atau URL bukan HTTPS, command berhenti fai
 
 ## Write authorization boundary
 
-Modul `src/supabase-read-write.ts` adalah satu-satunya factory untuk client service-role pada tahap ini. Call site awalnya hanya command verifikasi konfigurasi. Implementasi fitur write berikutnya wajib memiliki command/service terpisah, validasi input, authorization, idempotency, audit redaction, bounded retry, dan test negative sebelum factory dipakai untuk operasi data.
+Modul `src/supabase-read-write.ts` adalah satu-satunya factory untuk client service-role pada tahap ini. Call site-nya adalah command verifikasi konfigurasi dan `EconomyService` read-only yang memanggil RPC snapshot terkontrol ketika feature flag aktif. Implementasi fitur write berikutnya wajib memiliki command/service terpisah, validasi input, authorization, idempotency, audit redaction, bounded retry, dan test negative sebelum factory dipakai untuk mutation data.
 
 SQLite tetap menjadi storage runtime Allybot. Supabase World Database tetap berada pada boundary terpisah dan belum memiliki schema atau tabel yang dibuat oleh perubahan ini.
+
+## Economy read-through boundary
+
+Financial System Economy menggunakan `SUPABASE_ECONOMY_ENABLED` sebagai feature flag terpisah. Saat aktif, `EconomyService` memanggil RPC read-only `economy_get_account_snapshot` pada Supabase PostgreSQL menggunakan hash SHA-256 dari scope grup dan subject; raw JID tidak dikirim sebagai key database atau suffix Redis. Snapshot yang lolos validasi ditulis ke Upstash Redis dengan TTL bounded dan read berikutnya dapat dilayani dari cache. Redis bukan sumber kebenaran saldo: cache miss, cache invalidation, timeout, atau outage Redis selalu kembali ke Supabase.
+
+Alur read yang digunakan adalah:
+
+```text
+EconomyPlugin → EconomyService → Redis cache lookup
+                                      ├─ hit  → validate snapshot → User
+                                      └─ miss → Supabase RPC → validate → Redis TTL → User
+```
+
+Pada tahap ini migration Economy hanya membuat account projection kosong dan RPC pembacaan; tidak ada saldo atau data ekonomi yang diinsert. Mutation ekonomi seperti reward, deposit, withdraw, transfer, membership, reversal, dan seizure harus ditambahkan melalui RPC transactional terpisah sebelum command write diaktifkan. Setelah mutation berhasil di Supabase, cache account terkait wajib di-invalidate atau di-prime dengan snapshot terbaru. Jika Supabase gagal, bot tidak boleh mengirim output sukses dan tidak boleh memperbarui cache.
 
 ## Security and rollback
 
