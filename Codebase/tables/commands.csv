@@ -5,6 +5,7 @@ tests/framework.test.js,8ball,8b,,,public,,156,156
 src/framework/plugins/utility.ts,about,,Lihat penjelasan singkat tentang Allybot,tools,public,,335,342
 tests/framework.test.js,admin,,,,admin.use,,258,262
 tests/permissions.test.js,adminprobe,,,,group.admin,,57,61
+tests/permissions.test.js,adminprobe,,,,group.admin,,86,90
 src/framework/plugins/group.ts,admins,adminlist,List group administrators with clickable mentions,group,public,,191,204
 src/framework/plugins/afk.ts,afk,away,Set status AFK or view your private AFK status,general,public,3000,195,253
 src/framework/plugins/collaboration.ts,agenda,,Show collaboration agenda,collaboration,public,,414,436
@@ -73,7 +74,7 @@ tests/menu.test.js,groupinfo,,Show group information,group,public,,165,171
 tests/menu.test.js,groupinfo,,Show group information,group,public,,212,217
 tests/menu.test.js,groupinfo,,Show group information,group,public,,298,303
 src/framework/plugins/group-moderation.ts,groupmode,,Update guarded group settings,moderation,public,,120,163
-tests/permissions.test.js,groupownerprobe,,,,group.owner,,91,95
+tests/permissions.test.js,groupownerprobe,,,,group.owner,,111,115
 src/framework/plugins/group.ts,groupsettings,,Show active group configuration,group,public,,466,488
 src/framework/plugins/group-setup-mission.ts,groupsetup,setupgroup,Start or resume the persistent group setup mission,group,group.admin,3000,49,97
 src/framework/plugins/group-governance.ts,handoff,handover,Manage bounded moderator handoff,governance,public,,142,178
@@ -104,7 +105,7 @@ tests/framework.test.js,other,jid,,,public,,148,148
 src/framework/plugins/technical.ts,owner,,Show the safe public Owner profile and control-plane status,system,public,3000,127,150
 tests/menu.test.js,owner-help,,Owner command,owner,public,,100,100
 tests/menu.test.js,owner-help,,Owner command,owner,public,,109,109
-tests/permissions.test.js,ownerprobe,,,,bot.owner,,86,90
+tests/permissions.test.js,ownerprobe,,,,bot.owner,,106,110
 tests/framework.test.js,partial-boom,,,,public,,130,130
 tests/framework.test.js,partial-command,,,,public,,238,238
 tests/framework.test.js,partial-failure,,,,public,,235,243
@@ -176,7 +177,7 @@ src/framework/plugins/media.ts,togif,gif,Ubah video pendek menjadi GIF,media,pub
 src/framework/plugins/media.ts,toimg,togambar,Ubah sticker menjadi gambar,media,public,,116,124
 src/framework/plugins/ai.ts,translate,terjemah|trans,Terjemahkan teks yang kamu kirim secara langsung,ai,public,,45,66
 src/framework/plugins/utility-fun.ts,truth,jujur,Dapatkan pertanyaan truth ringan,fun,public,,120,128
-tests/permissions.test.js,unknownprobe,,,,unknown.permission,,96,100
+tests/permissions.test.js,unknownprobe,,,,unknown.permission,,116,120
 src/framework/plugins/utility.ts,uptime,,Lihat lama Allybot berjalan,tools,public,,284,291
 tests/framework.test.js,validated,,,,public,,87,91
 tests/runtime-acceptance.test.js,validated,,,,public,,137,141

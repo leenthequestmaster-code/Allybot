@@ -60,7 +60,7 @@ export function createPermissionResolver(
 
     if (!isGroupJid(context.message.remoteJid)) return false
 
-    if (permission === permissionNames.groupAdminOrBotOwner && isSameJid(senderJid, normalizedBotOwnerJid)) return true
+    if ((permission === permissionNames.groupAdmin || permission === permissionNames.groupAdminOrBotOwner) && isSameJid(senderJid, normalizedBotOwnerJid)) return true
 
     const metadata = await whatsapp.getGroupMetadata(context.message.remoteJid)
     const sender = metadata.participants.find((participant) => isSameJid(participant.jid, senderJid))
