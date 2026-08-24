@@ -1,0 +1,43 @@
+name,schema,default,requiredness,line
+NODE_ENV,"z.enum(['development', 'test', 'production']).default('production'),",'production',required-or-defaulted,24
+LOG_LEVEL,"z.enum(['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),",'info',required-or-defaulted,25
+DATABASE_PATH,"z.string().min(1).default('./data/allyssea.sqlite'),",'./data/allyssea.sqlite',required-or-defaulted,26
+AUTH_ACCOUNT_ID,"z.string().min(1).default('primary'),",'primary',required-or-defaulted,27
+LOCAL_MESSAGE_CACHE_TTL_MS,"boundedInt(60_000, 7 * 24 * 60 * 60 * 1_000).default(24 * 60 * 60 * 1_000),",24 * 60 * 60 * 1_000,required-or-defaulted,28
+LOCAL_MESSAGE_CACHE_MAX_ROWS,"boundedInt(1, 100_000).default(10_000),",10_000,required-or-defaulted,29
+LOCAL_MESSAGE_CACHE_MAX_BYTES,"boundedInt(1_024, 256 * 1024 * 1_024).default(64 * 1024 * 1_024),",64 * 1024 * 1_024,required-or-defaulted,30
+BOT_OWNER_JID,"z.string().regex(/^\d+(?:@s\.whatsapp\.net)?$/, 'must be a phone-number JID or digits only').optional(),",,optional,31
+WHATSAPP_ENABLED,"booleanFromEnv.default(true),",true,required-or-defaulted,32
+QR_ENABLED,"booleanFromEnv,",,required-or-defaulted,33
+PAIRING_ENABLED,"booleanFromEnv,",,required-or-defaulted,34
+PAIRING_PHONE_NUMBER,"z.string().regex(/^\d+$/, 'must contain digits only').optional(),",,optional,35
+ENABLE_HISTORY_SYNC,"booleanFromEnv,",,required-or-defaulted,36
+MAX_RECONNECT_DELAY_MS,"positiveInt.default(300000),",300000,required-or-defaulted,37
+SHUTDOWN_TIMEOUT_MS,"positiveInt.default(15000),",15000,required-or-defaulted,38
+COMMAND_PREFIX,"z.string().min(1).max(4).default('!'),",'!',required-or-defaulted,39
+DEFAULT_COMMAND_COOLDOWN_MS,"positiveInt.default(3000),",3000,required-or-defaulted,40
+DIAGNOSTICS_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,41
+XKIRO_AI_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,42
+XKIRO_AI_FALLBACK_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,43
+NEON_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,44
+NEON_DATABASE_URL,"z.string().min(1).optional(),",,optional,45
+NEON_POOL_MODE,"z.enum(['direct', 'transaction']).default('transaction'),",'transaction',required-or-defaulted,46
+NEON_CHAT_LOG_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,47
+NEON_CHAT_LOG_GROUPS,"z.string().default(''),",'',required-or-defaulted,48
+NEON_CHAT_LOG_QUEUE_CAPACITY,"boundedInt(1, 10_000).default(1000),",1000,required-or-defaulted,49
+NEON_CHAT_LOG_MAX_ATTEMPTS,"boundedInt(1, 5).default(3),",3,required-or-defaulted,50
+NEON_CHAT_LOG_RETRY_DELAY_MS,"boundedInt(50, 5_000).default(250),",250,required-or-defaulted,51
+NEON_CHAT_LOG_MAX_RETRY_DELAY_MS,"boundedInt(100, 60_000).default(5_000),",5_000,required-or-defaulted,52
+NEON_CHAT_LOG_WRITE_TIMEOUT_MS,"boundedInt(1_000, 60_000).default(10_000),",10_000,required-or-defaulted,53
+NEON_CHAT_LOG_DRAIN_TIMEOUT_MS,"boundedInt(1_000, 60_000).default(10_000),",10_000,required-or-defaulted,54
+UPSTASH_REDIS_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,55
+UPSTASH_REDIS_REST_URL,"z.string().url().optional(),",,optional,56
+UPSTASH_REDIS_REST_TOKEN,"z.string().min(1).optional(),",,optional,57
+UPSTASH_REDIS_TIMEOUT_MS,"boundedInt(1_000, 10_000).default(5_000),",5_000,required-or-defaulted,58
+UPSTASH_REDIS_OPERATION_TIMEOUT_MS,"boundedInt(100, 2_000).default(1_000),",1_000,required-or-defaulted,59
+UPSTASH_REDIS_MAX_ATTEMPTS,"boundedInt(1, 3).default(2),",2,required-or-defaulted,60
+UPSTASH_REDIS_RETRY_DELAY_MS,"boundedInt(50, 2_000).default(100),",100,required-or-defaulted,61
+UPSTASH_REDIS_KEY_PREFIX,"z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,39}$/i).default('allybot:v1'),",'allybot:v1',required-or-defaulted,62
+CODEBASE_EXPORT_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,63
+CODEBASE_EXPORT_PATH,"z.string().min(1).default('./Codebase/allybot-codebase-latest.zip'),",'./Codebase/allybot-codebase-latest.zip',required-or-defaulted,64
+CODEBASE_EXPORT_MAX_BYTES,"boundedInt(1, 4 * 1024 * 1024).default(3 * 1024 * 1024),",3 * 1024 * 1024,required-or-defaulted,65
