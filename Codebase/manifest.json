@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "5c2d37f6c6eba73cb73f9f05985e87d153a946a6",
-  "generatedAt": "2026-08-24T10:49:52Z",
+  "commitSha": "a768f124277d5ce311e9642412277be29dd76513",
+  "generatedAt": "2026-08-24T13:15:39Z",
   "sourceFileCount": 273,
   "counts": {
     "files": 273,
-    "symbols": 6911,
+    "symbols": 6915,
     "imports": 914,
-    "calls": 15587,
+    "calls": 15592,
     "commands": 201,
     "services": 118,
     "config": 52,
     "featureFlags": 13,
     "dependencies": 14,
-    "tests": 367,
+    "tests": 368,
     "dataFlow": 405
   },
   "excluded": [
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "c836070ec55551c4674e88fb32e0cd4e136c7f4a8c9602075071a8ef01122ef9"
+      "sha256": "b7566ac8ebc069762dfe685d8cf4c1ec01a379b343784a3916634d00d271682a"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "ec9878c1f69bcea99959a9e584c6fbef64945ee720fcaf148feea95fa17cf3c5"
+      "sha256": "b3c6492339443d0b0ce051e515aaf2ecdc063b7e45f669b621b2b530d400f226"
     },
     {
       "path": "snapshot/.env.example",
@@ -715,8 +715,8 @@
     },
     {
       "path": "snapshot/src/framework/plugins/group-context.ts",
-      "bytes": 15989,
-      "sha256": "bfa7e3ffa54d22e265ada67c1974e8218532de5d9541ac9192048cba6a27afd2"
+      "bytes": 15894,
+      "sha256": "553228e2442fdfbdb920f6e3687be3355db98319dbc988d71fab17a5bb6d9175"
     },
     {
       "path": "snapshot/src/framework/plugins/group-governance.ts",
@@ -1155,8 +1155,8 @@
     },
     {
       "path": "snapshot/tests/group-context.test.js",
-      "bytes": 4852,
-      "sha256": "f624cd9096cd77604920813c2940899fbb237d403d468cfde3311e9997c747c1"
+      "bytes": 5265,
+      "sha256": "d9316102142b927430447717c7241a9065e0cebcdb229f0824255ff5840efc8b"
     },
     {
       "path": "snapshot/tests/group-safety-redis.test.js",
@@ -1430,13 +1430,13 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 2028683,
-      "sha256": "7504f9d37a2415990284f923d83a2a31d2a95853ee2157a536184dcefd5b11e8"
+      "bytes": 2029172,
+      "sha256": "2e5d1709491c4da433ea5d5ead7ea9923ecbcafec6fb5cf8e6cc77d06ef41977"
     },
     {
       "path": "tables/commands.csv",
       "bytes": 20022,
-      "sha256": "31546d436a1f88012fb96fc783e54a679e36501a690fb29866f230a5d7e0240a"
+      "sha256": "23f7cb171c5289329013e94b85b7e2592af44c868d7f39a28494b38526ee967e"
     },
     {
       "path": "tables/config-catalog.csv",
@@ -1461,7 +1461,7 @@
     {
       "path": "tables/files.csv",
       "bytes": 24332,
-      "sha256": "78bca8b151c6727fe9f5bdc02bbcbf72ad808d32bf46e0c342049b41f2a3fdf7"
+      "sha256": "1bc4b386c0eda5f32c07db54d135b03448f0b5913380a609dac20e518d25a3b1"
     },
     {
       "path": "tables/imports.csv",
@@ -1475,13 +1475,13 @@
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 579541,
-      "sha256": "145e0fc726c2cbbe8a524061df8881ee4a43d1fe6861610b20051fc08545d73b"
+      "bytes": 579848,
+      "sha256": "5c648b60d75468ccf3fa39b77fa81a17093920f5ae1062550020ad08a3fb145f"
     },
     {
       "path": "tables/tests.csv",
-      "bytes": 43419,
-      "sha256": "ff5a617ec43cef6d80e049308aa5fd7932fc909a392f9374e5f775e1cdf75c67"
+      "bytes": 43523,
+      "sha256": "0d708dfca14bd2b50b99e67fa18522d0fac874c03b97f82c20dd6b0114041719"
     }
   ]
 }

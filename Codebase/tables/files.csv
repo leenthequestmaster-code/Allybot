@@ -129,7 +129,7 @@ src/framework/plugins/developer-mode.ts,9610,.ts,source,snapshot/src/framework/p
 src/framework/plugins/diagnostics.ts,2660,.ts,source,snapshot/src/framework/plugins/diagnostics.ts
 src/framework/plugins/economy.ts,17797,.ts,source,snapshot/src/framework/plugins/economy.ts
 src/framework/plugins/event.ts,14069,.ts,source,snapshot/src/framework/plugins/event.ts
-src/framework/plugins/group-context.ts,15989,.ts,source,snapshot/src/framework/plugins/group-context.ts
+src/framework/plugins/group-context.ts,15894,.ts,source,snapshot/src/framework/plugins/group-context.ts
 src/framework/plugins/group-governance.ts,18003,.ts,source,snapshot/src/framework/plugins/group-governance.ts
 src/framework/plugins/group-moderation.ts,8984,.ts,source,snapshot/src/framework/plugins/group-moderation.ts
 src/framework/plugins/group-safety.ts,17558,.ts,source,snapshot/src/framework/plugins/group-safety.ts
@@ -217,7 +217,7 @@ tests/errors.test.js,746,.js,test,snapshot/tests/errors.test.js
 tests/framework.test.js,13026,.js,test,snapshot/tests/framework.test.js
 tests/group-configuration.test.js,12076,.js,test,snapshot/tests/group-configuration.test.js
 tests/group-context-service.test.js,3255,.js,test,snapshot/tests/group-context-service.test.js
-tests/group-context.test.js,4854,.js,test,snapshot/tests/group-context.test.js
+tests/group-context.test.js,5267,.js,test,snapshot/tests/group-context.test.js
 tests/group-safety-redis.test.js,2721,.js,test,snapshot/tests/group-safety-redis.test.js
 tests/group-setup-plugin.test.js,4281,.js,test,snapshot/tests/group-setup-plugin.test.js
 tests/group.test.js,7468,.js,test,snapshot/tests/group.test.js

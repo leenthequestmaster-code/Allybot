@@ -82,10 +82,11 @@ tests/group-configuration.test.js,"rules history and timezone are admin-only, va
 tests/group-configuration.test.js,"group rules require admin access, stay isolated by group, validate input, and persist after restart",group-configuration,68
 tests/group-context-service.test.js,Group Context service hashes identities and preserves server-authoritative mode result,group-context-service,32
 tests/group-context-service.test.js,disabled Group Context returns safe normal defaults without a client,group-context-service,53
-tests/group-context.test.js,non-IC mode does not invoke CUT OOC classifier,group-context,106
-tests/group-context.test.js,valid !ooc is silent because the original WhatsApp message is already the OOC bubble,group-context,112
-tests/group-context.test.js,strict IC gate allows registered commands and anchored narrative but cuts unknown/OOC text,group-context,88
-tests/group-context.test.js,"sticker and media are CUT OOC for normal users, while whitelist bypasses only the gate",group-context,97
+tests/group-context.test.js,"sticker and media are CUT OOC for normal users, while whitelist bypasses only the gate",group-context,108
+tests/group-context.test.js,non-IC mode does not invoke CUT OOC classifier,group-context,117
+tests/group-context.test.js,valid !ooc is silent because the original WhatsApp message is already the OOC bubble,group-context,123
+tests/group-context.test.js,registered commands bypass context lookup before dispatch,group-context,92
+tests/group-context.test.js,strict IC gate allows registered commands and anchored narrative but cuts unknown/OOC text,group-context,99
 tests/group-safety-redis.test.js,Group Safety uses Redis shared windows when available and preserves group scope,group-safety-redis,47
 tests/group-setup-plugin.test.js,Group Setup Mission plugin persists and resumes active wizard across plugin reload,group-setup-plugin,32
 tests/group-setup-plugin.test.js,Group Setup Mission plugin denies input after actor loses admin role,group-setup-plugin,66
