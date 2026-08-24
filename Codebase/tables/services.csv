@@ -181,7 +181,7 @@ tests/group.test.js,plugin,groupPlugin,142,142,groupPlugin
 tests/group.test.js,plugin,groupPlugin,187,187,groupPlugin
 tests/integration.test.js,plugin,groupPlugin,212,212,groupPlugin
 tests/permissions.test.js,plugin,groupPlugin,56,56,groupPlugin
-tests/permissions.test.js,plugin,groupPlugin,135,135,groupPlugin
+tests/permissions.test.js,plugin,groupPlugin,155,155,groupPlugin
 src/index.ts,plugin,mediaPlugin,161,161,mediaPlugin
 src/index.ts,plugin,menuPlugin,142,142,menuPlugin
 tests/afk.test.js,plugin,menuPlugin,73,73,menuPlugin

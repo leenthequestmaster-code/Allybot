@@ -118,10 +118,11 @@ tests/neon-client.test.js,Neon client defaults to transaction mode and redacts U
 tests/neon-client.test.js,Neon service initializes and shuts down independently,neon-client,57
 tests/observability-contract.test.js,"observability contract keeps guardrail audit bounded, scalar, and redacted",observability-contract,23
 tests/observability-contract.test.js,observability contract exposes Developer Mode audit as bounded hashes and outcomes,observability-contract,66
-tests/permissions.test.js,BOT_OWNER_JID accepts a phone JID and stays out of publicConfig,permissions,121
-tests/permissions.test.js,group role and permissions identify the configured bot owner,permissions,131
+tests/permissions.test.js,bot owner permission works outside groups and group owner permission remains separate,permissions,102
+tests/permissions.test.js,BOT_OWNER_JID accepts a phone JID and stays out of publicConfig,permissions,141
+tests/permissions.test.js,group role and permissions identify the configured bot owner,permissions,151
 tests/permissions.test.js,group admin permission allows admins and denies regular members with a denial response,permissions,53
-tests/permissions.test.js,bot owner permission works outside groups and group owner permission remains separate,permissions,82
+tests/permissions.test.js,configured bot owner bypasses group admin permission in groups,permissions,82
 tests/platform-adapter.test.js,framework command conversion preserves menu order and metadata,platform-adapter,22
 tests/platform-adapter.test.js,framework adapter maps CoreMessage and rejects self or foreign quoted menu input,platform-adapter,5
 tests/platform-buttons.test.js,button adapter uses native quick replies only when capability and constraints allow it,platform-buttons,14

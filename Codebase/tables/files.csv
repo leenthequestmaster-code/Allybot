@@ -149,7 +149,7 @@ src/logger.ts,2389,.ts,source,snapshot/src/logger.ts
 src/media.ts,5960,.ts,source,snapshot/src/media.ts
 src/neon-chat-log-writer.ts,10604,.ts,source,snapshot/src/neon-chat-log-writer.ts
 src/neon-client.ts,2992,.ts,source,snapshot/src/neon-client.ts
-src/permissions.ts,3052,.ts,source,snapshot/src/permissions.ts
+src/permissions.ts,3099,.ts,source,snapshot/src/permissions.ts
 src/platform/buttons.ts,3823,.ts,source,snapshot/src/platform/buttons.ts
 src/platform/contracts.ts,3891,.ts,source,snapshot/src/platform/contracts.ts
 src/platform/events.ts,1148,.ts,source,snapshot/src/platform/events.ts
@@ -219,7 +219,7 @@ tests/neon-chat-log-plugin.test.js,1203,.js,test,snapshot/tests/neon-chat-log-pl
 tests/neon-chat-log-writer.test.js,4982,.js,test,snapshot/tests/neon-chat-log-writer.test.js
 tests/neon-client.test.js,2140,.js,test,snapshot/tests/neon-client.test.js
 tests/observability-contract.test.js,3364,.js,test,snapshot/tests/observability-contract.test.js
-tests/permissions.test.js,6130,.js,test,snapshot/tests/permissions.test.js
+tests/permissions.test.js,6898,.js,test,snapshot/tests/permissions.test.js
 tests/platform-adapter.test.js,1818,.js,test,snapshot/tests/platform-adapter.test.js
 tests/platform-buttons.test.js,2815,.js,test,snapshot/tests/platform-buttons.test.js
 tests/platform-group-setup.test.js,3974,.js,test,snapshot/tests/platform-group-setup.test.js
