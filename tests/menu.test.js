@@ -93,6 +93,34 @@ test('menu plugin renders the decorative main menu and supports numbered categor
   assert.match(whatsapp.sent[3].text, /Listmenu/)
 })
 
+test('menu presents Economy under Your Character and rejects removed categories', async () => {
+  const whatsapp = fakeWhatsapp()
+  const { registry } = createRegistry(whatsapp)
+  registry.register({
+    name: 'bank',
+    description: 'Manage Vela account',
+    category: 'your-character',
+    handler: async () => {},
+  })
+
+  await registry.dispatch(message('your-character-submenu', 'character@s.whatsapp.net', '!menu your-character'))
+  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
+  assert.match(whatsapp.sent[0].text, /!bank/)
+  assert.doesNotMatch(whatsapp.sent[0].text, /ROLEPLAY/)
+
+  await registry.dispatch(message('removed-collaboration-category', 'removed@s.whatsapp.net', '!menu collaboration'))
+  assert.match(whatsapp.sent[1].text, /tidak ditemukan/)
+
+  await registry.dispatch(message('removed-community-category', 'community@s.whatsapp.net', '!menu community'))
+  assert.match(whatsapp.sent[2].text, /tidak ditemukan/)
+
+  await registry.dispatch(message('removed-events-category', 'events@s.whatsapp.net', '!menu events'))
+  assert.match(whatsapp.sent[3].text, /tidak ditemukan/)
+
+  await registry.dispatch(message('roleplay-alias', 'alias@s.whatsapp.net', '!menu roleplay'))
+  assert.match(whatsapp.sent[4].text, /YOUR CHARACTER/)
+})
+
 test('menu hides Developer and Owner categories from members but shows them to the Owner', async () => {
   const memberWhatsapp = fakeWhatsapp()
   const { registry: memberRegistry } = createRegistry(memberWhatsapp)

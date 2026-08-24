@@ -15,16 +15,8 @@ import { groupPlugin } from './framework/plugins/group.js'
 import { createGroupSafetyPlugin } from './framework/plugins/group-safety.js'
 import { createGroupModerationPlugin } from './framework/plugins/group-moderation.js'
 import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-mission.js'
-import { createCollaborationPlugin } from './framework/plugins/collaboration.js'
-import { createKnowledgePlugin } from './framework/plugins/knowledge.js'
 import { createPersonalizationPlugin } from './framework/plugins/personalization.js'
-import { createScenePlugin } from './framework/plugins/scene.js'
-import { createCharacterPlugin } from './framework/plugins/character.js'
-import { createCanonPlugin } from './framework/plugins/canon.js'
 import { createGroupGovernancePlugin } from './framework/plugins/group-governance.js'
-import { createEventPlugin } from './framework/plugins/event.js'
-import { onboardingPlugin } from './framework/plugins/onboarding.js'
-import { createAnnouncementPlugin } from './framework/plugins/announcement.js'
 import { suggestionRelayPlugin } from './framework/plugins/suggestion-relay.js'
 import { utilityPlugin } from './framework/plugins/utility.js'
 import { mediaPlugin } from './framework/plugins/media.js'
@@ -39,16 +31,10 @@ import { DeveloperModeService } from './services/developer-mode-service.js'
 import { PlatformGuardrailService } from './services/platform-guardrail-service.js'
 import { GroupSafetyService } from './services/group-safety-service.js'
 import { GroupModerationService } from './services/group-moderation-service.js'
-import { CollaborationService } from './services/collaboration-service.js'
 import { KnowledgeService } from './services/knowledge-service.js'
 import { PersonalizationService } from './services/personalization-service.js'
 import { SceneService } from './services/scene-service.js'
-import { CharacterService } from './services/character-service.js'
-import { CanonService } from './services/canon-service.js'
 import { GroupGovernanceService } from './services/group-governance-service.js'
-import { EventService } from './services/event-service.js'
-import { OnboardingService } from './services/onboarding-service.js'
-import { AnnouncementService } from './services/announcement-service.js'
 import { SuggestionRelayService, type SuggestionProviderInput } from './services/suggestion-relay-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 import { NeonClientService } from './neon-client.js'
@@ -117,16 +103,10 @@ async function main(): Promise<void> {
   }))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
-  framework.registerService(new CollaborationService(config.DATABASE_PATH, logger))
   framework.registerService(new KnowledgeService(config.DATABASE_PATH, logger))
   framework.registerService(new PersonalizationService(config.DATABASE_PATH, logger))
   framework.registerService(new SceneService(config.DATABASE_PATH, logger))
-  framework.registerService(new CharacterService(config.DATABASE_PATH, logger))
-  framework.registerService(new CanonService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupGovernanceService(config.DATABASE_PATH, logger))
-  framework.registerService(new EventService(config.DATABASE_PATH, logger))
-  framework.registerService(new OnboardingService(config.DATABASE_PATH, logger))
-  framework.registerService(new AnnouncementService(config.DATABASE_PATH, logger))
   framework.registerService(new SuggestionRelayService(config.DATABASE_PATH, logger, {
     provider: createSuggestionProvider(config, logger),
   }))
@@ -145,17 +125,9 @@ async function main(): Promise<void> {
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
-  framework.registerPlugin(createCollaborationPlugin(whatsapp))
-  framework.registerPlugin(createKnowledgePlugin(whatsapp))
   framework.registerPlugin(createPersonalizationPlugin(whatsapp))
-  framework.registerPlugin(createScenePlugin(whatsapp))
-  framework.registerPlugin(createCharacterPlugin(whatsapp))
-  framework.registerPlugin(createCanonPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
-  framework.registerPlugin(createEventPlugin(whatsapp))
-  framework.registerPlugin(onboardingPlugin)
-  framework.registerPlugin(createAnnouncementPlugin(whatsapp))
   framework.registerPlugin(suggestionRelayPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
