@@ -22,24 +22,25 @@ Semua tabel Economy berada di schema `public`, tetapi **RLS tetap diaktifkan**, 
 
 ## 2. File migration
 
-Jalankan dua file berikut secara berurutan:
+Jalankan tiga file berikut secara berurutan:
 
 | Urutan | File | Isi |
 |---:|---|---|
 | 1 | `migrations/supabase/0001_economy_schema.sql` | Table, constraint, index, RLS, dan grant server-only. |
 | 2 | `migrations/supabase/0002_economy_functions.sql` | RPC snapshot, policy update, Safe, reward, deposit, withdraw, membership, transfer, rejection, overage seizure, dan history. |
+| 3 | `migrations/supabase/0003_economy_transfer_cache_keys.sql` | Refresh RPC accept/reject transfer agar response menyertakan hashed sender/recipient key untuk invalidasi cache kedua account. |
 
-Migration pertama **tidak memasukkan saldo, user, account, transfer, atau ledger row**. Migration kedua hanya membuat function dan grant; function baru menghasilkan data ketika dipanggil dengan operation key yang valid.
+Migration pertama **tidak memasukkan saldo, user, account, transfer, atau ledger row**. Migration kedua hanya membuat function dan grant; migration ketiga hanya mengganti definisi dua RPC transfer secara additive. Tidak ada migration yang membuat saldo awal.
 
 ### Cara menjalankan melalui Supabase Dashboard
 
-Buka **Supabase Dashboard → SQL Editor → New query**. Salin seluruh isi `0001_economy_schema.sql`, jalankan sekali, dan pastikan query berhasil. Setelah itu buat query baru, salin seluruh isi `0002_economy_functions.sql`, lalu jalankan sekali.
+Buka **Supabase Dashboard → SQL Editor → New query**. Salin seluruh isi `0001_economy_schema.sql`, jalankan sekali, dan pastikan query berhasil. Setelah itu buat query baru untuk `0002_economy_functions.sql`, lalu query baru berikutnya untuk `0003_economy_transfer_cache_keys.sql`. Pastikan masing-masing query berhasil sebelum lanjut ke file berikutnya.
 
 Jangan menyalin placeholder secara literal dan jangan menggabungkan migration dengan query seed. Jangan menjalankan `DROP TABLE`, `TRUNCATE`, `DELETE`, atau `DROP FUNCTION` sebagai bagian dari setup awal.
 
 ### Cara menjalankan melalui Supabase CLI
 
-Jika repository sudah memakai Supabase CLI, salin dua file tersebut ke direktori migration CLI yang sesuai, lalu gunakan workflow migration resmi. Sebelum `db push`, lakukan review diff pada environment lokal atau branch development. Migration produksi tidak boleh dijalankan dari laptop yang tidak memiliki secret management yang benar.
+Jika repository sudah memakai Supabase CLI, salin tiga file tersebut ke direktori migration CLI yang sesuai, lalu gunakan workflow migration resmi. Sebelum `db push`, lakukan review diff pada environment lokal atau branch development. Migration produksi tidak boleh dijalankan dari laptop yang tidak memiliki secret management yang benar.
 
 ## 3. Environment server-side
 

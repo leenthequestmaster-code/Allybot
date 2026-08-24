@@ -822,6 +822,7 @@ SET search_path = public
 AS $$
 DECLARE
   transfer public.economy_transfers%ROWTYPE;
+  sender public.economy_accounts%ROWTYPE;
   operation public.economy_operations%ROWTYPE;
   operation_result JSONB;
   request_hash TEXT;
