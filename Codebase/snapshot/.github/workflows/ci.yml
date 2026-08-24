@@ -170,7 +170,7 @@ jobs:
           cp Codebase/allybot-codebase-latest.zip .ci-artifact/Codebase/
           cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs scripts/verify-upstash-redis.mjs scripts/verify-supabase-economy-migration.mjs .ci-artifact/scripts/
           cp migrations/neon/0001_whatsapp_chat_logs.sql .ci-artifact/migrations/neon/
-          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql migrations/supabase/0003_economy_transfer_cache_keys.sql .ci-artifact/migrations/supabase/
+          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql migrations/supabase/0003_economy_transfer_cache_keys.sql migrations/supabase/0004_economy_pgcrypto_search_path.sql .ci-artifact/migrations/supabase/
           cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
           cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
           cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
