@@ -22,25 +22,26 @@ Semua tabel Economy berada di schema `public`, tetapi **RLS tetap diaktifkan**, 
 
 ## 2. File migration
 
-Jalankan tiga file berikut secara berurutan:
+Jalankan empat file berikut secara berurutan:
 
 | Urutan | File | Isi |
 |---:|---|---|
 | 1 | `migrations/supabase/0001_economy_schema.sql` | Table, constraint, index, RLS, dan grant server-only. |
 | 2 | `migrations/supabase/0002_economy_functions.sql` | RPC snapshot, policy update, Safe, reward, deposit, withdraw, membership, transfer, rejection, overage seizure, dan history. |
 | 3 | `migrations/supabase/0003_economy_transfer_cache_keys.sql` | Refresh RPC accept/reject transfer agar response menyertakan hashed sender/recipient key untuk invalidasi cache kedua account. |
+| 4 | `migrations/supabase/0004_economy_pgcrypto_search_path.sql` | Menambahkan schema `extensions` ke `search_path` RPC fingerprint agar `pgcrypto.digest` dapat di-resolve saat runtime, lalu meminta refresh schema cache PostgREST. |
 
-Migration pertama **tidak memasukkan saldo, user, account, transfer, atau ledger row**. Migration kedua hanya membuat function dan grant; migration ketiga hanya mengganti definisi dua RPC transfer secara additive. Tidak ada migration yang membuat saldo awal.
+Migration pertama **tidak memasukkan saldo, user, account, transfer, atau ledger row**. Migration kedua hanya membuat function dan grant; migration ketiga hanya mengganti definisi dua RPC transfer secara additive; migration keempat hanya mengubah konfigurasi `search_path` function dan mengirim notifikasi reload schema. Tidak ada migration yang membuat saldo awal.
 
 ### Cara menjalankan melalui Supabase Dashboard
 
-Buka **Supabase Dashboard → SQL Editor → New query**. Salin seluruh isi `0001_economy_schema.sql`, jalankan sekali, dan pastikan query berhasil. Setelah itu buat query baru untuk `0002_economy_functions.sql`, lalu query baru berikutnya untuk `0003_economy_transfer_cache_keys.sql`. Pastikan masing-masing query berhasil sebelum lanjut ke file berikutnya.
+Buka **Supabase Dashboard → SQL Editor → New query**. Salin seluruh isi `0001_economy_schema.sql`, jalankan sekali, dan pastikan query berhasil. Setelah itu buat query baru secara berurutan untuk `0002_economy_functions.sql`, `0003_economy_transfer_cache_keys.sql`, dan `0004_economy_pgcrypto_search_path.sql`. Pastikan masing-masing query berhasil sebelum lanjut ke file berikutnya.
 
 Jangan menyalin placeholder secara literal dan jangan menggabungkan migration dengan query seed. Jangan menjalankan `DROP TABLE`, `TRUNCATE`, `DELETE`, atau `DROP FUNCTION` sebagai bagian dari setup awal.
 
 ### Cara menjalankan melalui Supabase CLI
 
-Jika repository sudah memakai Supabase CLI, salin tiga file tersebut ke direktori migration CLI yang sesuai, lalu gunakan workflow migration resmi. Sebelum `db push`, lakukan review diff pada environment lokal atau branch development. Migration produksi tidak boleh dijalankan dari laptop yang tidak memiliki secret management yang benar.
+Jika repository sudah memakai Supabase CLI, salin empat file tersebut ke direktori migration CLI yang sesuai, lalu gunakan workflow migration resmi. Sebelum `db push`, lakukan review diff pada environment lokal atau branch development. Migration produksi tidak boleh dijalankan dari laptop yang tidak memiliki secret management yang benar.
 
 ## 3. Environment server-side
 
@@ -101,7 +102,7 @@ Nilai secret tidak boleh dicetak saat menjalankan `env`, `printenv`, `config`, h
 
 ## 5. Aktivasi policy Economy per grup
 
-Schema menggunakan policy per scope agar mengaktifkan Economy untuk satu grup tidak otomatis mengaktifkan semua grup. Policy baru default-nya `enabled=false`. Scope dan actor disimpan sebagai SHA-256 hex key, bukan raw JID.
+Schema menggunakan policy per scope agar mengaktifkan Economy untuk satu grup tidak otomatis mengaktifkan semua grup. Policy baru default-nya `enabled=false`. Scope dan actor disimpan sebagai SHA-256 hex key, bukan raw JID. Migration `0004` memastikan function yang membuat request fingerprint dapat menemukan `pgcrypto.digest` pada schema `extensions`; tanpa perubahan ini function dapat terdaftar tetapi gagal saat dipanggil.
 
 Function operator yang tersedia adalah:
 
@@ -185,7 +186,7 @@ SELECT COUNT(*) AS economy_account_rows
 FROM public.economy_accounts;
 ```
 
-Hasil awal yang diharapkan adalah lima table terdeteksi, seluruh function Economy terdaftar, dan `economy_account_rows` bernilai `0` sebelum ada provisioning atau operasi ekonomi. Query ini tidak mengubah data.
+Hasil awal yang diharapkan adalah lima table terdeteksi, seluruh function Economy terdaftar, dan `economy_account_rows` bernilai `0` sebelum ada provisioning atau operasi ekonomi. Selain itu, RPC mutation fingerprint harus memiliki `search_path=public, extensions`. Query ini tidak mengubah data.
 
 ### 6.3 Verifikasi RPC read
 
