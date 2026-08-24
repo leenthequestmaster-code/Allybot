@@ -123,7 +123,7 @@ src/framework/plugins/codebase.ts,3274,.ts,source,snapshot/src/framework/plugins
 src/framework/plugins/collaboration.ts,19718,.ts,source,snapshot/src/framework/plugins/collaboration.ts
 src/framework/plugins/developer-mode.ts,9610,.ts,source,snapshot/src/framework/plugins/developer-mode.ts
 src/framework/plugins/diagnostics.ts,2660,.ts,source,snapshot/src/framework/plugins/diagnostics.ts
-src/framework/plugins/economy.ts,17785,.ts,source,snapshot/src/framework/plugins/economy.ts
+src/framework/plugins/economy.ts,17797,.ts,source,snapshot/src/framework/plugins/economy.ts
 src/framework/plugins/event.ts,14069,.ts,source,snapshot/src/framework/plugins/event.ts
 src/framework/plugins/group-governance.ts,18003,.ts,source,snapshot/src/framework/plugins/group-governance.ts
 src/framework/plugins/group-moderation.ts,8984,.ts,source,snapshot/src/framework/plugins/group-moderation.ts
@@ -132,7 +132,7 @@ src/framework/plugins/group-setup-mission.ts,6267,.ts,source,snapshot/src/framew
 src/framework/plugins/group.ts,26103,.ts,source,snapshot/src/framework/plugins/group.ts
 src/framework/plugins/knowledge.ts,11732,.ts,source,snapshot/src/framework/plugins/knowledge.ts
 src/framework/plugins/media.ts,6599,.ts,source,snapshot/src/framework/plugins/media.ts
-src/framework/plugins/menu.ts,17739,.ts,source,snapshot/src/framework/plugins/menu.ts
+src/framework/plugins/menu.ts,17719,.ts,source,snapshot/src/framework/plugins/menu.ts
 src/framework/plugins/neon-chat-log.ts,7438,.ts,source,snapshot/src/framework/plugins/neon-chat-log.ts
 src/framework/plugins/onboarding.ts,7621,.ts,source,snapshot/src/framework/plugins/onboarding.ts
 src/framework/plugins/personalization.ts,13014,.ts,source,snapshot/src/framework/plugins/personalization.ts
@@ -143,7 +143,7 @@ src/framework/plugins/utility-fun.ts,6519,.ts,source,snapshot/src/framework/plug
 src/framework/plugins/utility.ts,17495,.ts,source,snapshot/src/framework/plugins/utility.ts
 src/framework/plugins/welcome-leave.ts,3100,.ts,source,snapshot/src/framework/plugins/welcome-leave.ts
 src/framework/service-registry.ts,2804,.ts,source,snapshot/src/framework/service-registry.ts
-src/index.ts,9878,.ts,source,snapshot/src/index.ts
+src/index.ts,7966,.ts,source,snapshot/src/index.ts
 src/lifecycle.ts,2739,.ts,source,snapshot/src/lifecycle.ts
 src/logger.ts,2389,.ts,source,snapshot/src/logger.ts
 src/media.ts,5960,.ts,source,snapshot/src/media.ts
@@ -191,6 +191,7 @@ src/storage.ts,13134,.ts,source,snapshot/src/storage.ts
 src/supabase-read-write.ts,1080,.ts,source,snapshot/src/supabase-read-write.ts
 src/upstash-redis.ts,16993,.ts,source,snapshot/src/upstash-redis.ts
 src/whatsapp.ts,40785,.ts,source,snapshot/src/whatsapp.ts
+tests/active-command-surface.test.js,1580,.js,test,snapshot/tests/active-command-surface.test.js
 tests/afk.test.js,8506,.js,test,snapshot/tests/afk.test.js
 tests/ai-tools.test.js,2602,.js,test,snapshot/tests/ai-tools.test.js
 tests/architecture-fitness.test.js,4696,.js,test,snapshot/tests/architecture-fitness.test.js
@@ -212,7 +213,7 @@ tests/integration.test.js,12269,.js,test,snapshot/tests/integration.test.js
 tests/logger-privacy.test.js,1517,.js,test,snapshot/tests/logger-privacy.test.js
 tests/maintenance.test.js,2445,.js,test,snapshot/tests/maintenance.test.js
 tests/media-plugin.test.js,7690,.js,test,snapshot/tests/media-plugin.test.js
-tests/menu.test.js,13243,.js,test,snapshot/tests/menu.test.js
+tests/menu.test.js,14504,.js,test,snapshot/tests/menu.test.js
 tests/neon-chat-log-control.test.js,6066,.js,test,snapshot/tests/neon-chat-log-control.test.js
 tests/neon-chat-log-migration.test.js,1089,.js,test,snapshot/tests/neon-chat-log-migration.test.js
 tests/neon-chat-log-plugin.test.js,1203,.js,test,snapshot/tests/neon-chat-log-plugin.test.js

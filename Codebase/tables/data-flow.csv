@@ -123,27 +123,19 @@ src/index.ts,src/errors.ts,module import,static import graph,high
 src/index.ts,src/framework/application.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/afk.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/ai.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/announcement.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/canon.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/character.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/codebase.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/collaboration.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/developer-mode.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/diagnostics.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/economy.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/event.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group-governance.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group-moderation.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group-safety.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group-setup-mission.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/knowledge.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/media.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/menu.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/neon-chat-log.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/onboarding.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/personalization.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/scene.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/suggestion-relay.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/technical.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/utility.ts,module import,static import graph,high
@@ -154,19 +146,13 @@ src/index.ts,src/neon-client.ts,module import,static import graph,high
 src/index.ts,src/permissions.ts,module import,static import graph,high
 src/index.ts,src/platform/validation.ts,module import,static import graph,high
 src/index.ts,src/services/afk-service.ts,module import,static import graph,high
-src/index.ts,src/services/announcement-service.ts,module import,static import graph,high
-src/index.ts,src/services/canon-service.ts,module import,static import graph,high
-src/index.ts,src/services/character-service.ts,module import,static import graph,high
-src/index.ts,src/services/collaboration-service.ts,module import,static import graph,high
 src/index.ts,src/services/developer-mode-service.ts,module import,static import graph,high
 src/index.ts,src/services/economy-service.ts,module import,static import graph,high
-src/index.ts,src/services/event-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-configuration-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-governance-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-moderation-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-safety-service.ts,module import,static import graph,high
 src/index.ts,src/services/knowledge-service.ts,module import,static import graph,high
-src/index.ts,src/services/onboarding-service.ts,module import,static import graph,high
 src/index.ts,src/services/personalization-service.ts,module import,static import graph,high
 src/index.ts,src/services/platform-guardrail-service.ts,module import,static import graph,high
 src/index.ts,src/services/scene-service.ts,module import,static import graph,high
@@ -345,14 +331,9 @@ tests/xkiro-ai.test.js,"createAiPlugin({
       return { content: 'jawaban untuk WhatsA",registers plugin,static registration call,high
 src/index.ts,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }),registers plugin,static registration call,high
 tests/r11-announcement-suggestion.test.js,createAnnouncementPlugin(fixture.whatsapp),registers plugin,static registration call,high
-src/index.ts,createAnnouncementPlugin(whatsapp),registers plugin,static registration call,high
 tests/r7-canon.test.js,createCanonPlugin(core),registers plugin,static registration call,high
-src/index.ts,createCanonPlugin(whatsapp),registers plugin,static registration call,high
-src/index.ts,createCharacterPlugin(whatsapp),registers plugin,static registration call,high
 tests/r3-collaboration.test.js,createCollaborationPlugin(core),registers plugin,static registration call,high
-src/index.ts,createCollaborationPlugin(whatsapp),registers plugin,static registration call,high
 tests/r9-event.test.js,createEventPlugin(core),registers plugin,static registration call,high
-src/index.ts,createEventPlugin(whatsapp),registers plugin,static registration call,high
 tests/r8-group-governance.test.js,createGroupGovernancePlugin(core),registers plugin,static registration call,high
 src/index.ts,createGroupGovernancePlugin(whatsapp),registers plugin,static registration call,high
 src/index.ts,createGroupModerationPlugin(whatsapp),registers plugin,static registration call,high
@@ -360,14 +341,12 @@ tests/r1-group-safety.test.js,createGroupSafetyPlugin(core),registers plugin,sta
 src/index.ts,createGroupSafetyPlugin(whatsapp),registers plugin,static registration call,high
 src/index.ts,createGroupSetupMissionPlugin(whatsapp),registers plugin,static registration call,high
 tests/r4-knowledge.test.js,createKnowledgePlugin(core),registers plugin,static registration call,high
-src/index.ts,createKnowledgePlugin(whatsapp),registers plugin,static registration call,high
 tests/neon-chat-log-control.test.js,createNeonChatLogPlugin({ NEON_CHAT_LOG_ENABLED: false }),registers plugin,static registration call,high
 src/index.ts,createNeonChatLogPlugin(config),registers plugin,static registration call,high
 tests/neon-chat-log-control.test.js,createNeonChatLogPlugin(pluginConfig()),registers plugin,static registration call,high
 tests/r5-personalization.test.js,createPersonalizationPlugin(core),registers plugin,static registration call,high
 src/index.ts,createPersonalizationPlugin(whatsapp),registers plugin,static registration call,high
 tests/r6-scene.test.js,createScenePlugin(core),registers plugin,static registration call,high
-src/index.ts,createScenePlugin(whatsapp),registers plugin,static registration call,high
 src/index.ts,createWelcomeLeavePlugin(whatsapp),registers plugin,static registration call,high
 src/index.ts,developerModePlugin,registers plugin,static registration call,high
 tests/developer-mode.test.js,developerModePlugin,registers plugin,static registration call,high
@@ -383,7 +362,6 @@ src/index.ts,mediaPlugin,registers plugin,static registration call,high
 src/index.ts,menuPlugin,registers plugin,static registration call,high
 tests/afk.test.js,menuPlugin,registers plugin,static registration call,high
 tests/runtime-acceptance.test.js,menuPlugin,registers plugin,static registration call,high
-src/index.ts,onboardingPlugin,registers plugin,static registration call,high
 tests/r10-onboarding.test.js,onboardingPlugin,registers plugin,static registration call,high
 src/index.ts,suggestionRelayPlugin,registers plugin,static registration call,high
 src/index.ts,technicalPlugin,registers plugin,static registration call,high
@@ -400,19 +378,14 @@ tests/integration.test.js,"{
     shutdown() { lifecycle.push('serv",registers service,static registration call,high
 tests/afk.test.js,afk,registers service,static registration call,high
 src/index.ts,AfkService,registers service,static registration call,high
-src/index.ts,AnnouncementService,registers service,static registration call,high
 tests/r11-announcement-suggestion.test.js,appGuardrails,registers service,static registration call,high
 tests/r11-announcement-suggestion.test.js,appService,registers service,static registration call,high
 tests/r7-canon.test.js,canon,registers service,static registration call,high
-src/index.ts,CanonService,registers service,static registration call,high
-src/index.ts,CharacterService,registers service,static registration call,high
 tests/r3-collaboration.test.js,collaboration,registers service,static registration call,high
-src/index.ts,CollaborationService,registers service,static registration call,high
 tests/group.test.js,configuration,registers service,static registration call,high
 src/index.ts,DeveloperModeService,registers service,static registration call,high
 src/index.ts,EconomyService,registers service,static registration call,high
 tests/r9-event.test.js,events,registers service,static registration call,high
-src/index.ts,EventService,registers service,static registration call,high
 tests/r10-onboarding.test.js,fixture.guardrails,registers service,static registration call,high
 tests/r10-onboarding.test.js,fixture.onboarding,registers service,static registration call,high
 tests/r8-group-governance.test.js,governance,registers service,static registration call,high
@@ -435,7 +408,6 @@ tests/r4-knowledge.test.js,knowledge,registers service,static registration call,
 tests/r7-canon.test.js,knowledge,registers service,static registration call,high
 src/index.ts,KnowledgeService,registers service,static registration call,high
 src/index.ts,NeonClientService,registers service,static registration call,high
-src/index.ts,OnboardingService,registers service,static registration call,high
 tests/r5-personalization.test.js,personalization,registers service,static registration call,high
 src/index.ts,PersonalizationService,registers service,static registration call,high
 src/index.ts,PlatformGuardrailService,registers service,static registration call,high

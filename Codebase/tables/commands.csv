@@ -15,7 +15,8 @@ tests/framework.test.js,alpha,,,,public,,278,278
 src/framework/plugins/announcement.ts,announce,announcement|pengumuman,Explicit-target consent window announcement,community,public,,74,162
 src/framework/plugins/group-safety.ts,appeal,,Appeal your own resolved or dismissed case,moderation,public,,296,318
 tests/integration.test.js,bad,,,,public,,87,87
-src/framework/plugins/economy.ts,bank,,Kelola rekening Wallet dan Safe Vela,roleplay,public,3000,348,355
+src/framework/plugins/economy.ts,bank,,Kelola rekening Wallet dan Safe Vela,your-character,public,3000,348,355
+tests/menu.test.js,bank,,Manage Vela account,your-character,public,,99,104
 src/framework/plugins/economy.ts,bankpolicy,economypolicy,Aktifkan atau nonaktifkan Economy untuk grup,owner,public,5000,357,377
 src/framework/plugins/economy.ts,bankreward,,Berikan reward Vela kepada anggota,owner,public,5000,379,403
 src/framework/plugins/economy.ts,banksweep,,Proses overage Wallet yang telah jatuh tempo,owner,public,5000,405,424
@@ -52,11 +53,11 @@ src/framework/plugins/utility.ts,date,,Lihat tanggal hari ini,tools,public,,431,
 src/framework/plugins/collaboration.ts,decision,putuskan,Record an explicit group decision,collaboration,public,,381,399
 src/framework/plugins/collaboration.ts,decisions,,List explicit group decisions,collaboration,public,,401,412
 src/framework/plugins/developer-mode.ts,dev,debug,Owner-controlled Developer Mode diagnostics,system,public,1000,96,234
-tests/menu.test.js,developer-help,,Developer command,developer,public,,99,99
-tests/menu.test.js,developer-help,,Developer command,developer,public,,108,108
+tests/menu.test.js,developer-help,,Developer command,developer,public,,127,127
+tests/menu.test.js,developer-help,,Developer command,developer,public,,136,136
 src/framework/plugins/diagnostics.ts,diag,,Show a detailed non-sensitive framework diagnostics snapshot,system,public,3000,68,77
-tests/menu.test.js,diagnostics,,Show diagnostics,system,public,,218,223
-tests/menu.test.js,diagnostics,,Show diagnostics,system,public,,304,309
+tests/menu.test.js,diagnostics,,Show diagnostics,system,public,,246,251
+tests/menu.test.js,diagnostics,,Show diagnostics,system,public,,332,337
 tests/runtime-acceptance.test.js,echo,e,,general,public,,106,114
 src/framework/plugins/character.ts,emote,aksi,Kirim aksi singkat untuk roleplay sosial,roleplay,public,,151,169
 src/framework/plugins/event.ts,event,events|acara,Event Conductor multi-phase,events,public,,98,211
@@ -70,9 +71,9 @@ src/framework/plugins/technical.ts,groupid,jid,Show the current WhatsApp group J
 tests/framework.test.js,groupid,jid,,,public,,146,146
 tests/framework.test.js,groupid,,,,public,,147,147
 src/framework/plugins/group.ts,groupinfo,ginfo,Show group metadata and bot status,group,public,,165,176
-tests/menu.test.js,groupinfo,,Show group information,group,public,,165,171
-tests/menu.test.js,groupinfo,,Show group information,group,public,,212,217
-tests/menu.test.js,groupinfo,,Show group information,group,public,,298,303
+tests/menu.test.js,groupinfo,,Show group information,group,public,,193,199
+tests/menu.test.js,groupinfo,,Show group information,group,public,,240,245
+tests/menu.test.js,groupinfo,,Show group information,group,public,,326,331
 src/framework/plugins/group-moderation.ts,groupmode,,Update guarded group settings,moderation,public,,120,163
 tests/permissions.test.js,groupownerprobe,,,,group.owner,,111,115
 src/framework/plugins/group.ts,groupsettings,,Show active group configuration,group,public,,466,488
@@ -91,8 +92,8 @@ src/framework/plugins/canon.ts,lore,,Show approved lore/canon entries,roleplay,p
 src/framework/plugins/group.ts,membercount,,Show total members and administrators,group,public,,178,189
 src/framework/plugins/group.ts,memberinfo,,Show role information for a mentioned member,group,public,,220,243
 src/framework/plugins/group.ts,members,memberlist,List group members with pagination,group,public,,206,218
-src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,3000,414,423
-src/framework/plugins/menu.ts,menu-reply,,Internal menu reply navigation,system,public,0,425,432
+src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,3000,411,420
+src/framework/plugins/menu.ts,menu-reply,,Internal menu reply navigation,system,public,0,422,429
 src/framework/plugins/group-moderation.ts,modaction,moderate,Run a guarded participant moderation action,moderation,public,,68,118
 src/framework/plugins/group-moderation.ts,modstatus,,Show guarded moderation action status,moderation,public,,165,183
 src/framework/plugins/character.ts,mood,,Atur mood character aktif,roleplay,public,,171,199
@@ -103,8 +104,8 @@ src/framework/plugins/personalization.ts,notify,,Enable or disable personal noti
 src/framework/plugins/onboarding.ts,onboarding,onboard,Bounded group onboarding workflow,community,public,,61,120
 tests/framework.test.js,other,jid,,,public,,148,148
 src/framework/plugins/technical.ts,owner,,Show the safe public Owner profile and control-plane status,system,public,3000,127,150
-tests/menu.test.js,owner-help,,Owner command,owner,public,,100,100
-tests/menu.test.js,owner-help,,Owner command,owner,public,,109,109
+tests/menu.test.js,owner-help,,Owner command,owner,public,,128,128
+tests/menu.test.js,owner-help,,Owner command,owner,public,,137,137
 tests/permissions.test.js,ownerprobe,,,,bot.owner,,106,110
 tests/framework.test.js,partial-boom,,,,public,,130,130
 tests/framework.test.js,partial-command,,,,public,,238,238
@@ -114,12 +115,12 @@ src/framework/plugins/group.ts,permissions,,Show the basic permissions associate
 src/framework/plugins/personalization.ts,personalization,personal,Show Personalization status and scope,personalization,public,,116,128
 src/framework/plugins/technical.ts,ping,,Check Allybot response latency and uptime,system,public,3000,110,125
 tests/menu.test.js,ping,,Check bot latency,general,public,,58,64
-tests/menu.test.js,ping,,Check bot latency,general,public,,126,132
-tests/menu.test.js,ping,,Check bot latency,general,public,,143,149
-tests/menu.test.js,ping,,Check bot latency,general,public,,158,164
-tests/menu.test.js,ping,,Check bot latency,general,public,,206,211
-tests/menu.test.js,ping,,Check bot latency,general,public,,249,254
-tests/menu.test.js,ping,,Check bot latency,general,public,,292,297
+tests/menu.test.js,ping,,Check bot latency,general,public,,154,160
+tests/menu.test.js,ping,,Check bot latency,general,public,,171,177
+tests/menu.test.js,ping,,Check bot latency,general,public,,186,192
+tests/menu.test.js,ping,,Check bot latency,general,public,,234,239
+tests/menu.test.js,ping,,Check bot latency,general,public,,277,282
+tests/menu.test.js,ping,,Check bot latency,general,public,,320,325
 src/framework/plugins/collaboration.ts,poll,jajak,"Create, inspect, or close a collaboration poll",collaboration,public,,167,232
 src/framework/plugins/personalization.ts,preferences,groupprefs,Set group notification and presentation policy,personalization,public,,172,210
 src/framework/plugins/group.ts,prefix,,Show the active command prefix for the current group,group,public,,490,513
@@ -182,7 +183,7 @@ src/framework/plugins/utility.ts,uptime,,Lihat lama Allybot berjalan,tools,publi
 tests/framework.test.js,validated,,,,public,,87,91
 tests/runtime-acceptance.test.js,validated,,,,public,,137,141
 tests/framework.test.js,validated-cooldown,,,,public,10000,108,113
-src/framework/plugins/economy.ts,vela,wallet,Lihat saldo Wallet dan Safe Vela,roleplay,public,3000,329,346
+src/framework/plugins/economy.ts,vela,wallet,Lihat saldo Wallet dan Safe Vela,your-character,public,3000,329,346
 src/framework/plugins/personalization.ts,verbosity,balasan,Set personal response verbosity,personalization,public,,252,261
 src/framework/plugins/utility.ts,version,,Lihat informasi runtime non-sensitif,tools,public,,344,351
 src/framework/plugins/collaboration.ts,vote,,Record one vote in a collaboration poll,collaboration,public,,234,262

@@ -330,7 +330,7 @@ export const economyPlugin: Plugin = {
       name: 'vela',
       aliases: ['wallet'],
       description: 'Lihat saldo Wallet dan Safe Vela',
-      category: 'roleplay',
+      category: 'your-character',
       menuOrder: 35,
       cooldownMs: 3_000,
       handler: async (commandContext) => {
@@ -348,7 +348,7 @@ export const economyPlugin: Plugin = {
     context.commands.register({
       name: 'bank',
       description: 'Kelola rekening Wallet dan Safe Vela',
-      category: 'roleplay',
+      category: 'your-character',
       menuOrder: 36,
       cooldownMs: 3_000,
       handler: handleBank,

@@ -1,4 +1,6 @@
 file,test_name,component_hint,line
+tests/active-command-surface.test.js,bootstrap preserves services required by the active Economy and Suggestion Relay paths,active-command-surface,17
+tests/active-command-surface.test.js,bootstrap keeps Economy and removes retired category plugin registrations,active-command-surface,7
 tests/afk.test.js,AFK hardening bounds retention and context and throttles presence writes,afk,132
 tests/afk.test.js,AFK migration converts legacy mention timestamps from seconds to milliseconds,afk,178
 tests/afk.test.js,"AFK plugin persists state, forwards every mention privately, and auto-unsets on return",afk,59
@@ -94,14 +96,15 @@ tests/media-plugin.test.js,sticker transforms a direct image and sends server-se
 tests/media-plugin.test.js,toimg transforms quoted WebP sticker and sends PNG image payload,media-plugin,69
 tests/media-plugin.test.js,togif converts a short video to looping MP4 playback,media-plugin,81
 tests/media-plugin.test.js,toaudio converts quoted video to bounded OGG audio,media-plugin,94
-tests/menu.test.js,menu plugin follows the effective group prefix while retaining global fallback,menu,120
-tests/menu.test.js,replying with a category number navigates only from a quoted main menu,menu,154
-tests/menu.test.js,menu plugin sends native buttons and routes a button callback to the category submenu,menu,202
-tests/menu.test.js,menu plugin falls back to text when the native button sender fails,menu,245
-tests/menu.test.js,menu plugin renders paginated submenus and unknown-category guidance,menu,262
-tests/menu.test.js,main native menu paginates categories with NEXT and keeps Coming Soon text-only,menu,288
+tests/menu.test.js,menu hides Developer and Owner categories from members but shows them to the Owner,menu,124
+tests/menu.test.js,menu plugin follows the effective group prefix while retaining global fallback,menu,148
+tests/menu.test.js,replying with a category number navigates only from a quoted main menu,menu,182
+tests/menu.test.js,menu plugin sends native buttons and routes a button callback to the category submenu,menu,230
+tests/menu.test.js,menu plugin falls back to text when the native button sender fails,menu,273
+tests/menu.test.js,menu plugin renders paginated submenus and unknown-category guidance,menu,290
+tests/menu.test.js,main native menu paginates categories with NEXT and keeps Coming Soon text-only,menu,316
 tests/menu.test.js,menu plugin renders the decorative main menu and supports numbered categories,menu,54
-tests/menu.test.js,menu hides Developer and Owner categories from members but shows them to the Owner,menu,96
+tests/menu.test.js,menu presents Economy under Your Character and rejects removed categories,menu,96
 tests/neon-chat-log-control.test.js,chatlog command remains unavailable when the global Neon chat-log flag is disabled,neon-chat-log-control,128
 tests/neon-chat-log-control.test.js,chatlog suppression survives restart and status remains group-scoped,neon-chat-log-control,137
 tests/neon-chat-log-control.test.js,chatlog is admin-or-owner gated and suppresses only the current allowlisted group,neon-chat-log-control,84
