@@ -83,12 +83,20 @@ function bankHelp(prefix: string): string {
   ].join('\n')
 }
 
+function bankRewardUsage(prefix: string): string {
+  return [
+    `Format: ${prefix}bankreward @orang <jumlah>`,
+    `Contoh: ${prefix}bankreward @orang 1000`,
+  ].join('\n')
+}
+
 function adminHelp(prefix: string): string {
   return [
     '🛡️ *Pengelolaan Economy Vela*',
     '',
     `• ${prefix}bankpolicy on|off — aktifkan/nonaktifkan Economy grup`,
     `• ${prefix}bankreward @orang <jumlah> — berikan reward`,
+    bankRewardUsage(prefix),
     `• ${prefix}banksweep @orang — proses overage yang sudah jatuh tempo`,
   ].join('\n')
 }
@@ -383,11 +391,11 @@ export const economyPlugin: Plugin = {
         const target = targetFromMessage(commandContext)
         const { amount } = amountFromArgs(commandContext.args)
         if (!target) {
-          await commandContext.reply(`Format: ${commandContext.prefix}bankreward @orang <jumlah>\nTag anggota dari daftar mention WhatsApp atau balas pesannya.`)
+          await commandContext.reply(`${bankRewardUsage(commandContext.prefix)}\nTag anggota dari daftar mention WhatsApp atau balas pesannya.`)
           return
         }
         if (!amount) {
-          await commandContext.reply(`Format: ${commandContext.prefix}bankreward @orang <jumlah>\nContoh: ${commandContext.prefix}bankreward @orang 1000`)
+          await commandContext.reply(bankRewardUsage(commandContext.prefix))
           return
         }
         await runEconomyAction(commandContext, async () => renderMutation('Reward berhasil diberikan.', await service.grantReward(groupJid, target, amount, actor, operationKey(commandContext, 'bank-reward'), 'Reward dari pengelola grup')))

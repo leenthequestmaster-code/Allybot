@@ -419,6 +419,39 @@ test('Economy registers operational bank commands and handles a deposit command'
   assert.equal(fixture.calls.find((call) => call.operation === 'rpc').functionName, 'economy_deposit')
 })
 
+test('Economy admin bank help includes the bankreward format and example', async () => {
+  const fixture = createFixture()
+  const commands = []
+  economyPlugin.load({
+    logger: loggerFor(),
+    config: {},
+    events: {},
+    commands: {
+      register(command) {
+        commands.push(command)
+        return () => undefined
+      },
+    },
+    services: servicesFor(fixture.service),
+  })
+
+  const replies = []
+  await commands.find((command) => command.name === 'bankpolicy').handler({
+    message: { id: 'bank-help-message', remoteJid: GROUP_JID, senderJid: SUBJECT_JID },
+    args: ['invalid'],
+    commandName: 'bankpolicy',
+    prefix: '!',
+    config: {},
+    logger: loggerFor(),
+    services: servicesFor(fixture.service),
+    whatsapp: { userJid: SUBJECT_JID },
+    reply: async (text) => replies.push(text),
+  })
+
+  assert.equal(replies.length, 1)
+  assert.match(replies[0], /Format: !bankreward @orang <jumlah>\nContoh: !bankreward @orang 1000/)
+})
+
 test('Economy bankreward accepts a real mention with pipe-separated display text', async () => {
   const fixture = createFixture({ rpcData: { status: 'applied', amount: 99999 } })
   const commands = []
