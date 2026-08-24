@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "a9c1bc82a8b2921a7a01d796ec648e3ebb0552ac",
-  "generatedAt": "2026-08-24T04:31:03Z",
+  "commitSha": "e7ad6fa49e5c8516e38ae59c4ab310d153db00a7",
+  "generatedAt": "2026-08-24T05:24:04Z",
   "sourceFileCount": 256,
   "counts": {
     "files": 256,
-    "symbols": 6275,
+    "symbols": 6278,
     "imports": 847,
-    "calls": 14246,
+    "calls": 14256,
     "commands": 189,
     "services": 121,
     "config": 46,
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "e62996d25b8817c227ac373a0dd306fc9db3c19d981172bdb4e75f7c6606a70c"
+      "sha256": "4068d12b272f3c61a773b533fcdf8249be9eb53d1952da95fcebb132b91a0745"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "3e1495511a909390204e1ed9c9ee25b4eb5eca26131aaa638cc2b0c40c160e88"
+      "sha256": "14dbb9293e51facaab456c6b98203db61ad2d038e2758c5f9cdf1562e5123928"
     },
     {
       "path": "snapshot/.env.example",
@@ -70,8 +70,8 @@
     },
     {
       "path": "snapshot/.github/workflows/ci.yml",
-      "bytes": 26710,
-      "sha256": "717d7b765383abf652be6a93fbbe418525f16d8817d964c1f9f4453b52bb81c2"
+      "bytes": 26792,
+      "sha256": "390277477195a36f55fdf0697e16674c052edd96711807498a727bce201d5276"
     },
     {
       "path": "snapshot/docs/.group-info-visual-exploration.md",
@@ -500,8 +500,8 @@
     },
     {
       "path": "snapshot/docs/supabase-economy-migration-and-env-setup.md",
-      "bytes": 13933,
-      "sha256": "3d6f05196fcac4d37ce7099898fd79f2ad778658fda35a6b62a5d35d1f0a28ea"
+      "bytes": 14595,
+      "sha256": "f07e3d290a261c9de25f4493506ebb140ac4d6cfbe7d935715f2a1489b3f990c"
     },
     {
       "path": "snapshot/docs/technical-command-pack-design.md",
@@ -575,8 +575,8 @@
     },
     {
       "path": "snapshot/scripts/verify-supabase-economy-migration.mjs",
-      "bytes": 4329,
-      "sha256": "90f5da7a4e7a52f106d54bfe9e16eeddba96436621ffb8b2b7de5a7bb5a5d134"
+      "bytes": 5088,
+      "sha256": "b69fca9df3f0de89dad63147ce61ffddb16b15a7d49a1fb7a432f406bc73dc8a"
     },
     {
       "path": "snapshot/scripts/verify-upstash-redis.mjs",
@@ -1345,8 +1345,8 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 1834996,
-      "sha256": "5a9380048aa3a64b34bcfd0ae2f2a3f1406d0acbc4d3578a04769a7771e8e39f"
+      "bytes": 1836349,
+      "sha256": "cca69eafd36f7577c222546357d9390b0da33550eb0bb49e49c68e380b3518be"
     },
     {
       "path": "tables/commands.csv",
@@ -1376,7 +1376,7 @@
     {
       "path": "tables/files.csv",
       "bytes": 22655,
-      "sha256": "3beeb3ce97d88a5cffe34d0a7800c86cc3b6cd16bd20ce4feb97fee0072053a6"
+      "sha256": "d6cba51c98b313fefbf9a1169e3e4762efdb7aac980479add81ca1749cc50e25"
     },
     {
       "path": "tables/imports.csv",
@@ -1390,8 +1390,8 @@
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 523117,
-      "sha256": "0467f926e9edb762066c3322b23a7d58ae2aa0fa81914f1b90f99f1e833ecd68"
+      "bytes": 523388,
+      "sha256": "b8436fc0596cc12cb620ed42707690819523e2a62a1b7e68820cde7ff74985c9"
     },
     {
       "path": "tables/tests.csv",

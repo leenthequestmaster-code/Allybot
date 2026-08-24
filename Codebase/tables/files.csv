@@ -1,6 +1,6 @@
 path,bytes,extension,layer,snapshot_path
 .env.example,2078,.example,root,snapshot/.env.example
-.github/workflows/ci.yml,26710,.yml,ci,snapshot/.github/workflows/ci.yml
+.github/workflows/ci.yml,26792,.yml,ci,snapshot/.github/workflows/ci.yml
 docs/.group-info-visual-exploration.md,1707,.md,documentation,snapshot/docs/.group-info-visual-exploration.md
 docs/allybot-symbol-catalog.md,12823,.md,documentation,snapshot/docs/allybot-symbol-catalog.md
 docs/application-framework.md,6834,.md,documentation,snapshot/docs/application-framework.md
@@ -86,7 +86,7 @@ docs/release-runtime-evidence-2026-08-23.md,3673,.md,documentation,snapshot/docs
 docs/runbooks/allybot-failure-modes.md,6483,.md,documentation,snapshot/docs/runbooks/allybot-failure-modes.md
 docs/semibutton-compatibility-evidence-2026-08-23.md,2589,.md,documentation,snapshot/docs/semibutton-compatibility-evidence-2026-08-23.md
 docs/supabase-access-boundaries.md,5258,.md,documentation,snapshot/docs/supabase-access-boundaries.md
-docs/supabase-economy-migration-and-env-setup.md,13933,.md,documentation,snapshot/docs/supabase-economy-migration-and-env-setup.md
+docs/supabase-economy-migration-and-env-setup.md,14595,.md,documentation,snapshot/docs/supabase-economy-migration-and-env-setup.md
 docs/technical-command-pack-design.md,4715,.md,documentation,snapshot/docs/technical-command-pack-design.md
 docs/upstash-redis-architecture.md,9028,.md,documentation,snapshot/docs/upstash-redis-architecture.md
 docs/verification-matrix-9.6.md,4366,.md,documentation,snapshot/docs/verification-matrix-9.6.md
@@ -101,7 +101,7 @@ scripts/verify-neon.mjs,692,.mjs,root,snapshot/scripts/verify-neon.mjs
 scripts/verify-platform.mjs,1241,.mjs,root,snapshot/scripts/verify-platform.mjs
 scripts/verify-postgres.mjs,644,.mjs,root,snapshot/scripts/verify-postgres.mjs
 scripts/verify-supabase-access.mjs,1150,.mjs,root,snapshot/scripts/verify-supabase-access.mjs
-scripts/verify-supabase-economy-migration.mjs,4329,.mjs,root,snapshot/scripts/verify-supabase-economy-migration.mjs
+scripts/verify-supabase-economy-migration.mjs,5088,.mjs,root,snapshot/scripts/verify-supabase-economy-migration.mjs
 scripts/verify-upstash-redis.mjs,742,.mjs,root,snapshot/scripts/verify-upstash-redis.mjs
 src/ai-handler.ts,5381,.ts,source,snapshot/src/ai-handler.ts
 src/config.ts,7601,.ts,source,snapshot/src/config.ts
