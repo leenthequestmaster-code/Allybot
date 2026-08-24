@@ -1,0 +1,574 @@
+name: Allybot CI
+
+on:
+  push:
+    paths-ignore:
+      - 'Codebase/**'
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy_panel:
+        description: Deploy the tested artifact to the configured Pterodactyl server
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    name: Typecheck, clean build, and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Verify runtime
+        run: |
+          set -euo pipefail
+          node --version
+          node -e "const major = Number(process.versions.node.split('.')[0]); if (major !== 22) { console.error('Node.js 22 is required'); process.exit(1); }"
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck source
+        run: npm run typecheck
+
+      - name: Clean build from source
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          npm run build
+
+      - name: Verify platform source-dist parity and repository hygiene
+        run: npm run verify:platform
+
+      - name: Validate Neon chat-log migration offline
+        run: npm run verify:neon-schema
+
+      - name: Validate Supabase Economy migration offline
+        run: node scripts/verify-supabase-economy-migration.mjs .
+
+      - name: Validate compiled JavaScript
+        run: |
+          set -euo pipefail
+          find dist -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Validate compiled entrypoints
+        run: |
+          set -euo pipefail
+          for file in dist/index.js dist/errors.js dist/permissions.js; do
+            test -f "$file"
+          done
+
+      - name: Run regression suite against compiled runtime
+        run: npm test
+
+      - name: Generate sanitized Codebase Intelligence Export
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v zip >/dev/null
+          command -v unzip >/dev/null
+          source_sha="$GITHUB_SHA"
+          if [ "$(git show -s --format=%s "$GITHUB_SHA")" = 'chore(codebase): refresh intelligence export [skip ci]' ]; then
+            changed_files="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+            while IFS= read -r changed_file; do
+              if [ -n "$changed_file" ] && [[ "$changed_file" != Codebase/* ]]; then
+                echo "Generated commit changed unexpected path: $changed_file" >&2
+                exit 1
+              fi
+            done <<< "$changed_files"
+            source_sha="$(git rev-parse "$GITHUB_SHA^")"
+          fi
+          rm -rf Codebase
+          node scripts/generate-codebase-export.mjs --output Codebase --source-sha "$source_sha"
+          SOURCE_SHA="$source_sha" node <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const manifest = JSON.parse(readFileSync('Codebase/manifest.json', 'utf8'))
+          if (manifest.commitSha !== process.env.SOURCE_SHA) throw new Error('Codebase manifest source commit mismatch')
+          if (!Number.isSafeInteger(manifest.counts?.files) || manifest.counts.files < 1) throw new Error('Codebase manifest has no source files')
+          if (!Number.isSafeInteger(manifest.sourceFileCount) || manifest.sourceFileCount !== manifest.counts.files) throw new Error('Codebase manifest source file count mismatch')
+          if (!Array.isArray(manifest.files) || manifest.files.length < 1) throw new Error('Codebase manifest has no generated output files')
+          if (manifest.files.some(({ path }) => typeof path !== 'string' || path.startsWith('Codebase/') || /(^|\/)(?:\.env(?!\.example$)|.*\.(?:sqlite|db|pem|key)|creds\.json|credentials\.json)(?:\/|$)/i.test(path))) throw new Error('Forbidden path found in Codebase manifest')
+          NODE
+          (cd Codebase && sha256sum -c SHA256SUMS.txt)
+          if grep -R -El '[0-9]{7,}@(s\.whatsapp\.net|g\.us)' Codebase/snapshot >/dev/null; then
+            echo 'Numeric WhatsApp JID found in Codebase snapshot' >&2
+            exit 1
+          fi
+          if grep -R -E -l '(^|[^A-Za-z0-9])\+?(62|0)8[0-9 .-]{8,13}[0-9]([^A-Za-z0-9]|$)' Codebase/snapshot >/dev/null; then
+            echo 'Phone-like identifier found in Codebase snapshot' >&2
+            exit 1
+          fi
+          SOURCE_EPOCH="$(git show -s --format=%ct "$source_sha")"
+          find Codebase -type f ! -name 'allybot-codebase-latest.zip' -exec touch -d "@${SOURCE_EPOCH}" {} +
+          (
+            cd Codebase
+            find . -type f ! -name 'allybot-codebase-latest.zip' -print | LC_ALL=C sort | zip -X -q -@ allybot-codebase-latest.zip
+          )
+          unzip -t Codebase/allybot-codebase-latest.zip
+          archive_bytes="$(stat -c '%s' Codebase/allybot-codebase-latest.zip)"
+          test "$archive_bytes" -gt 0
+          test "$archive_bytes" -le 4194304
+          if unzip -Z1 Codebase/allybot-codebase-latest.zip | grep -Eq '(^|/)(\.env|.*\.(sqlite|db|pem|key)|creds\.json|credentials\.json|node_modules|dist|Codebase)(/|$)'; then
+            echo 'Forbidden path found in Codebase ZIP' >&2
+            exit 1
+          fi
+          rm -f codebase-export.tar
+          tar --format=posix -cf codebase-export.tar Codebase
+          if tar -tf codebase-export.tar | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo 'Unsafe path found in Codebase transport archive' >&2
+            exit 1
+          fi
+
+      - name: Upload generated Codebase export for publisher
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allybot-codebase-${{ github.sha }}
+          path: codebase-export.tar
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload tested release artifact
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allybot-dist-${{ github.sha }}
+          path: |
+            dist/**
+            package.json
+            package-lock.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Package sanitized deployment archive
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v zip >/dev/null
+          command -v unzip >/dev/null
+          rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
+          mkdir -p .ci-artifact/dist .ci-artifact/Codebase .ci-artifact/scripts .ci-artifact/migrations/neon .ci-artifact/migrations/supabase .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/@upstash .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib .ci-artifact/node_modules/uncrypto
+          cp -a dist/. .ci-artifact/dist/
+          cp Codebase/allybot-codebase-latest.zip .ci-artifact/Codebase/
+          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs scripts/verify-upstash-redis.mjs scripts/verify-supabase-economy-migration.mjs .ci-artifact/scripts/
+          cp migrations/neon/0001_whatsapp_chat_logs.sql .ci-artifact/migrations/neon/
+          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql migrations/supabase/0003_economy_transfer_cache_keys.sql .ci-artifact/migrations/supabase/
+          cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
+          cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
+          cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
+          cp -a node_modules/@upstash/. .ci-artifact/node_modules/@upstash/
+          cp -a node_modules/buffer/. .ci-artifact/node_modules/buffer/
+          cp -a node_modules/ws/. .ci-artifact/node_modules/ws/
+          cp -a node_modules/iceberg-js/. .ci-artifact/node_modules/iceberg-js/
+          cp -a node_modules/tslib/. .ci-artifact/node_modules/tslib/
+          cp -a node_modules/uncrypto/. .ci-artifact/node_modules/uncrypto/
+          cp package.json package-lock.json bash-exec-list.txt .ci-artifact/
+
+          forbidden_files=$(find .ci-artifact -type f \( \
+            -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o \
+            -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \
+            \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/@upstash/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' ! -path '*/node_modules/uncrypto/*' \) -o \
+            -path '.ci-artifact/src/*' -o -path '.ci-artifact/tests/*' \
+          \) -print)
+          if [ -n "$forbidden_files" ]; then
+            printf '%s\n' "$forbidden_files" >&2
+            exit 1
+          fi
+
+          node scripts/create-release-manifest.mjs .ci-artifact release-manifest.json
+          test -s .ci-artifact/release-manifest.json
+
+          (
+            cd .ci-artifact
+            find . -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+            zip -qr "../allybot-release-${GITHUB_SHA}.zip" .
+          )
+          sha256sum "allybot-release-${GITHUB_SHA}.zip" > "allybot-release-${GITHUB_SHA}.zip.sha256"
+          unzip -t "allybot-release-${GITHUB_SHA}.zip"
+          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -Ev '^(node_modules(/|$)|node_modules/(postgres|dotenv|@supabase|@upstash|buffer|ws|iceberg-js|tslib|uncrypto)(/|$))' | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
+            echo 'Forbidden path found in sanitized archive' >&2
+            exit 1
+          fi
+
+      - name: Upload sanitized deployment archive
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allybot-release-${{ github.sha }}
+          path: |
+            allybot-release-${{ github.sha }}.zip
+            allybot-release-${{ github.sha }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish artifact-only status
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        run: |
+          {
+            echo '## Deployment status'
+            echo ''
+            echo '- `artifact_deployed`: not attempted in verify job; artifact is available for the optional Panel job.'
+            echo '- `server_started`: not attempted.'
+            echo '- `bot_online_verified`: not attempted; current Panel autostart is intentionally unchanged.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy_panel:
+    name: Optional Pterodactyl artifact sync
+    needs: verify
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.PANEL_DEPLOY_ENABLED == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.deploy_panel == true)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    concurrency:
+      group: allybot-panel-production
+      cancel-in-progress: false
+
+    env:
+      PANEL_URL: ${{ vars.PANEL_URL }}
+      PTERODACTYL_SERVER_ID: ${{ vars.PTERODACTYL_SERVER_ID }}
+      PTERODACTYL_API_TOKEN: ${{ secrets.PTERODACTYL_API_TOKEN }}
+      ARCHIVE_NAME: allybot-release-${{ github.sha }}.zip
+
+    steps:
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PANEL_URL"
+          test -n "$PTERODACTYL_SERVER_ID"
+          test -n "$PTERODACTYL_API_TOKEN"
+          case "$PANEL_URL" in
+            https://*) ;;
+            *) echo 'PANEL_URL must use HTTPS' >&2; exit 1 ;;
+          esac
+
+      - name: Download sanitized deployment archive
+        uses: actions/download-artifact@v4
+        with:
+          name: allybot-release-${{ github.sha }}
+          path: .deploy
+
+      - name: Verify local archive and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd .deploy
+          sha256sum -c "$ARCHIVE_NAME.sha256"
+          unzip -t "$ARCHIVE_NAME"
+          rm -rf stage
+          mkdir stage
+          unzip -q "$ARCHIVE_NAME" -d stage
+          test -f stage/dist/index.js
+          test -f stage/dist/errors.js
+          test -f stage/dist/permissions.js
+          test -f stage/Codebase/allybot-codebase-latest.zip
+          test "$(stat -c '%s' stage/Codebase/allybot-codebase-latest.zip)" -le 4194304
+          unzip -t stage/Codebase/allybot-codebase-latest.zip
+          test -f stage/package.json
+          test -f stage/package-lock.json
+          test -f stage/release-manifest.json
+          test -s stage/release-manifest.json
+          test -f stage/scripts/verify-postgres.mjs
+          test -f stage/scripts/verify-supabase-access.mjs
+          test -f stage/scripts/verify-neon.mjs
+          test -f stage/scripts/monitor-postgres.mjs
+          test -f stage/scripts/verify-neon-chat-log-migration.mjs
+          test -f stage/scripts/verify-upstash-redis.mjs
+          test -f stage/scripts/verify-supabase-economy-migration.mjs
+          test -f stage/migrations/neon/0001_whatsapp_chat_logs.sql
+          test -f stage/migrations/supabase/0001_economy_schema.sql
+          test -f stage/migrations/supabase/0002_economy_functions.sql
+          (cd stage && node scripts/verify-supabase-economy-migration.mjs .)
+          test -f stage/SHA256SUMS.txt
+          (cd stage && sha256sum -c SHA256SUMS.txt)
+          if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/@upstash/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' ! -path '*/node_modules/uncrypto/*' \) -o -path 'stage/src/*' -o -path 'stage/tests/*' \) -print -quit | grep -q .; then
+            echo 'Forbidden file found in deployment archive' >&2
+            exit 1
+          fi
+
+      - name: Upload archive to Panel
+        id: upload
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          response=$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer ${PTERODACTYL_API_TOKEN}" \
+            -H 'Accept: Application/vnd.pterodactyl.v1+json' \
+            "${api}/files/upload?directory=%2F")
+          upload_url=$(UPLOAD_RESPONSE="$response" node <<'NODE'
+          const parsed = JSON.parse(process.env.UPLOAD_RESPONSE)
+          const url = parsed?.attributes?.url ?? parsed?.data?.attributes?.url
+          if (typeof url !== 'string' || !url.startsWith('https://')) process.exit(1)
+          process.stdout.write(url)
+          NODE
+          )
+          curl --fail-with-body --silent --show-error \
+            -X POST "$upload_url" \
+            -F "files=@.deploy/${ARCHIVE_NAME}"
+          echo "archive_uploaded=true" >> "$GITHUB_OUTPUT"
+
+      - name: Decompress archive on Panel
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          payload=$(ARCHIVE_NAME="$ARCHIVE_NAME" node <<'NODE'
+          process.stdout.write(JSON.stringify({ root: '/', file: process.env.ARCHIVE_NAME }))
+          NODE
+          )
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${PTERODACTYL_API_TOKEN}" \
+            -H 'Accept: Application/vnd.pterodactyl.v1+json' \
+            -H 'Content-Type: application/json' \
+            --data "$payload" \
+            "${api}/files/decompress"
+
+      - name: Verify deployed files against SHA256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          export API_BASE="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          cd .deploy
+          cat > verify-deployed.mjs <<'NODE'
+          import { createHash } from 'node:crypto'
+          import { readFileSync } from 'node:fs'
+
+          const base = process.env.API_BASE
+          const token = process.env.PTERODACTYL_API_TOKEN
+          const manifest = readFileSync('stage/SHA256SUMS.txt', 'utf8')
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+              const match = line.match(/^([a-f0-9]{64})  (.+)$/)
+              if (!match) throw new Error(`Invalid checksum line: ${line}`)
+              return { expected: match[1], path: match[2].replace(/^\.\//, '') }
+            })
+
+          const failures = []
+          let cursor = 0
+          const retryableStatuses = new Set([429, 500, 502, 503, 504])
+          const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+          const fetchFile = async (url) => {
+            for (let attempt = 0; attempt < 5; attempt += 1) {
+              let delay = Math.min(500 * 2 ** attempt, 10_000)
+              try {
+                const response = await fetch(url, {
+                  headers: {
+                    Accept: 'text/plain, */*',
+                    Authorization: `Bearer ${token}`,
+                  },
+                  signal: AbortSignal.timeout(20_000),
+                })
+                if (response.ok) return Buffer.from(await response.arrayBuffer())
+                if (!retryableStatuses.has(response.status) || attempt === 4) {
+                  throw new Error(`HTTP ${response.status}`)
+                }
+                const retryAfter = Number(response.headers.get('retry-after'))
+                if (Number.isFinite(retryAfter) && retryAfter > 0) {
+                  delay = Math.min(retryAfter * 1000, 10_000)
+                }
+              } catch (error) {
+                if (attempt === 4) throw error
+                if (error instanceof Error && /^HTTP \d+$/.test(error.message) && !/^HTTP (429|5\d\d)$/.test(error.message)) {
+                  throw error
+                }
+              }
+              await sleep(delay)
+            }
+            throw new Error('request retry limit reached')
+          }
+          const verifyEntry = async (entry) => {
+            const url = new URL(`${base}/files/contents`)
+            url.searchParams.set('file', `/${entry.path}`)
+            const bytes = await fetchFile(url)
+            return createHash('sha256').update(bytes).digest('hex')
+          }
+
+          const mismatches = []
+          const worker = async () => {
+            while (true) {
+              const index = cursor++
+              if (index >= manifest.length) return
+              const entry = manifest[index]
+              try {
+                const actual = await verifyEntry(entry)
+                if (actual !== entry.expected) mismatches.push({ entry, actual })
+              } catch (error) {
+                failures.push(`${entry.path}: ${error instanceof Error ? error.message : String(error)}`)
+              }
+            }
+          }
+
+          await Promise.all(Array.from({ length: Math.min(2, manifest.length) }, () => worker()))
+          for (let attempt = 1; attempt <= 4 && mismatches.length > 0; attempt += 1) {
+            await sleep(Math.min(2_000 * 2 ** (attempt - 1), 10_000))
+            const pending = mismatches.splice(0)
+            for (const { entry } of pending) {
+              try {
+                const actual = await verifyEntry(entry)
+                if (actual !== entry.expected) mismatches.push({ entry, actual })
+              } catch (error) {
+                failures.push(`${entry.path}: ${error instanceof Error ? error.message : String(error)}`)
+              }
+            }
+          }
+          for (const { entry, actual } of mismatches) failures.push(`${entry.path}: checksum mismatch: ${actual}`)
+          if (failures.length > 0) {
+            for (const failure of failures.slice(0, 20)) console.error(failure)
+            process.exit(1)
+          }
+          console.log(`Verified ${manifest.length} deployed files against SHA256 manifest`)
+          NODE
+          node verify-deployed.mjs
+
+      - name: Remove temporary archive and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          payload=$(ARCHIVE_NAME="$ARCHIVE_NAME" node <<'NODE'
+          process.stdout.write(JSON.stringify({ root: '/', files: [process.env.ARCHIVE_NAME, 'SHA256SUMS.txt'] }))
+          NODE
+          )
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer ${PTERODACTYL_API_TOKEN}" \
+            -H 'Accept: Application/vnd.pterodactyl.v1+json' \
+            -H 'Content-Type: application/json' \
+            --data "$payload" \
+            "${api}/files/delete"
+
+      - name: Publish artifact sync status
+        run: |
+          {
+            echo '## Deployment status'
+            echo ''
+            echo '- `artifact_deployed`: verified by remote SHA256 manifest.'
+            echo '- `server_started`: not attempted; power state is not mutated by default.'
+            echo '- `bot_online_verified`: not attempted; `.bash_profile` and Startup Command remain unchanged.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish_codebase:
+    name: Publish Codebase export to main
+    needs: verify
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: allybot-codebase-main
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout source commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Download validated Codebase export
+        uses: actions/download-artifact@v4
+        with:
+          name: allybot-codebase-${{ github.sha }}
+          path: .generated-codebase
+
+      - name: Verify provenance and generated-output boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main --depth=2
+          test -f .generated-codebase/codebase-export.tar
+          rm -rf Codebase
+          tar --no-same-owner --no-same-permissions -xf .generated-codebase/codebase-export.tar
+          test -f Codebase/manifest.json
+          test -f Codebase/allybot-codebase-latest.zip
+          source_sha="$(node <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const manifest = JSON.parse(readFileSync('Codebase/manifest.json', 'utf8'))
+          if (!/^[a-f0-9]{40}$/i.test(manifest.commitSha ?? '')) throw new Error('Downloaded Codebase export has invalid source commit')
+          process.stdout.write(manifest.commitSha)
+          NODE
+          )"
+          git cat-file -e "${source_sha}^{commit}"
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+          if [ "$source_sha" != "$GITHUB_SHA" ]; then
+            test "$(git show -s --format=%s "$GITHUB_SHA")" = 'chore(codebase): refresh intelligence export [skip ci]'
+            test "$(git rev-parse "$GITHUB_SHA^")" = "$source_sha"
+          fi
+          test "$(stat -c '%s' Codebase/allybot-codebase-latest.zip)" -le 4194304
+          unzip -t Codebase/allybot-codebase-latest.zip
+          if find Codebase -type l -print -quit | grep -q .; then
+            echo 'Symlink found in generated Codebase artifact' >&2
+            exit 1
+          fi
+          if tar -tf .generated-codebase/codebase-export.tar | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo 'Unsafe path found in Codebase transport archive' >&2
+            exit 1
+          fi
+          if find Codebase -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name '*.pem' -o -name '*.key' -o -name 'creds.json' -o -name 'credentials.json' \) -print -quit | grep -q .; then
+            echo 'Sensitive file found in generated Codebase artifact' >&2
+            exit 1
+          fi
+
+      - name: Commit generated Codebase only when source tip is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main --depth=1
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Codebase
+          if git diff --cached --quiet; then
+            echo 'Codebase export already matches source commit; no commit required.'
+            exit 0
+          fi
+          git commit -m 'chore(codebase): refresh intelligence export [skip ci]'
+          git push origin HEAD:main
+
+  deployment-summary:
+    name: Deployment summary
+    if: always()
+    needs: [verify, deploy_panel]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize gates
+        env:
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          DEPLOY_RESULT: ${{ needs.deploy_panel.result }}
+        run: |
+          {
+            echo '## CI/CD gate summary'
+            echo ''
+            echo "- verify: ${VERIFY_RESULT}"
+            echo "- optional Panel artifact sync: ${DEPLOY_RESULT}"
+            if [ "$DEPLOY_RESULT" = 'skipped' ]; then
+              echo '- Panel deployment was not enabled; no external mutation was attempted.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$VERIFY_RESULT" = success
