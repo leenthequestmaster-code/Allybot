@@ -6,6 +6,7 @@ import { diagnosticsPlugin } from './framework/plugins/diagnostics.js'
 import { createAiPlugin } from './framework/plugins/ai.js'
 import { economyPlugin } from './framework/plugins/economy.js'
 import { developerModePlugin } from './framework/plugins/developer-mode.js'
+import { codebasePlugin } from './framework/plugins/codebase.js'
 import { technicalPlugin } from './framework/plugins/technical.js'
 import { createAfkPlugin } from './framework/plugins/afk.js'
 import { menuPlugin } from './framework/plugins/menu.js'
@@ -94,6 +95,9 @@ async function main(): Promise<void> {
       defaultCooldownMs: config.DEFAULT_COMMAND_COOLDOWN_MS,
       botOwnerJid: config.BOT_OWNER_JID,
       databasePath: config.DATABASE_PATH,
+      codebaseExportEnabled: config.CODEBASE_EXPORT_ENABLED,
+      codebaseExportPath: config.CODEBASE_EXPORT_PATH,
+      codebaseExportMaxBytes: config.CODEBASE_EXPORT_MAX_BYTES,
     },
     logger,
     whatsapp,
@@ -133,6 +137,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(technicalPlugin)
   if (config.XKIRO_AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }))
   framework.registerPlugin(developerModePlugin)
+  if (config.CODEBASE_EXPORT_ENABLED) framework.registerPlugin(codebasePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)
   framework.registerPlugin(menuPlugin)
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))

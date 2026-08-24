@@ -56,6 +56,28 @@ test('architecture fitness keeps sanitized artifact and locked deployment bounda
   assert.doesNotMatch(workflow, /\/command/)
 })
 
+test('architecture fitness keeps Codebase export automation least-privilege and provenance-bound', () => {
+  const workflow = read('.github/workflows/ci.yml')
+  const packageJson = JSON.parse(read('package.json'))
+  const releaseManifest = read('scripts/create-release-manifest.mjs')
+  const generator = read('scripts/generate-codebase-export.mjs')
+
+  assert.equal(packageJson.scripts.test, 'node --test tests/*.test.js')
+  assert.match(workflow, /paths-ignore:[\s\S]*Codebase\/\*\*/)
+  assert.match(workflow, /Generate sanitized Codebase Intelligence Export/)
+  assert.match(workflow, /source_sha="\$GITHUB_SHA"/)
+  assert.match(workflow, /node scripts\/generate-codebase-export\.mjs --output Codebase --source-sha "\$source_sha"/)
+  assert.match(workflow, /Codebase\/allybot-codebase-latest\.zip/)
+  assert.match(workflow, /publish_codebase:[\s\S]*permissions:\n\s+contents: write/)
+  assert.match(workflow, /git fetch --no-tags origin main --depth=1/)
+  assert.match(workflow, /git rev-parse origin\/main\)" = "\$GITHUB_SHA"/)
+  assert.doesNotMatch(workflow, /^permissions:\n\s+contents: write/m)
+  assert.match(releaseManifest, /path === 'Codebase\/allybot-codebase-latest\.zip'/)
+  assert.match(generator, /CODEBASE_REPOSITORY_ROOT/)
+  assert.match(generator, /MAX_TOTAL_SNAPSHOT_BYTES/)
+  assert.match(generator, /secretPatterns/)
+})
+
 test('architecture fitness rejects tracked secrets, database files, and session artifacts', () => {
   const tracked = execFileSync('git', ['ls-files'], { cwd: repository, encoding: 'utf8' })
     .split('\n')

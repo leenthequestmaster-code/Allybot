@@ -2,6 +2,8 @@ name: Allybot CI
 
 on:
   push:
+    paths-ignore:
+      - 'Codebase/**'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -24,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
@@ -73,6 +77,74 @@ jobs:
       - name: Run regression suite against compiled runtime
         run: npm test
 
+      - name: Generate sanitized Codebase Intelligence Export
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v zip >/dev/null
+          command -v unzip >/dev/null
+          source_sha="$GITHUB_SHA"
+          if [ "$(git show -s --format=%s "$GITHUB_SHA")" = 'chore(codebase): refresh intelligence export [skip ci]' ]; then
+            changed_files="$(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA")"
+            while IFS= read -r changed_file; do
+              if [ -n "$changed_file" ] && [[ "$changed_file" != Codebase/* ]]; then
+                echo "Generated commit changed unexpected path: $changed_file" >&2
+                exit 1
+              fi
+            done <<< "$changed_files"
+            source_sha="$(git rev-parse "$GITHUB_SHA^")"
+          fi
+          rm -rf Codebase
+          node scripts/generate-codebase-export.mjs --output Codebase --source-sha "$source_sha"
+          SOURCE_SHA="$source_sha" node <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const manifest = JSON.parse(readFileSync('Codebase/manifest.json', 'utf8'))
+          if (manifest.commitSha !== process.env.SOURCE_SHA) throw new Error('Codebase manifest source commit mismatch')
+          if (!Number.isSafeInteger(manifest.counts?.files) || manifest.counts.files < 1) throw new Error('Codebase manifest has no source files')
+          if (!Number.isSafeInteger(manifest.sourceFileCount) || manifest.sourceFileCount !== manifest.counts.files) throw new Error('Codebase manifest source file count mismatch')
+          if (!Array.isArray(manifest.files) || manifest.files.length < 1) throw new Error('Codebase manifest has no generated output files')
+          if (manifest.files.some(({ path }) => typeof path !== 'string' || path.startsWith('Codebase/') || /(^|\/)(?:\.env(?!\.example$)|.*\.(?:sqlite|db|pem|key)|creds\.json|credentials\.json)(?:\/|$)/i.test(path))) throw new Error('Forbidden path found in Codebase manifest')
+          NODE
+          (cd Codebase && sha256sum -c SHA256SUMS.txt)
+          if grep -R -El '[0-9]{7,}@(s\.whatsapp\.net|g\.us)' Codebase/snapshot >/dev/null; then
+            echo 'Numeric WhatsApp JID found in Codebase snapshot' >&2
+            exit 1
+          fi
+          if grep -R -E -l '(^|[^A-Za-z0-9])\+?(62|0)8[0-9 .-]{8,13}[0-9]([^A-Za-z0-9]|$)' Codebase/snapshot >/dev/null; then
+            echo 'Phone-like identifier found in Codebase snapshot' >&2
+            exit 1
+          fi
+          SOURCE_EPOCH="$(git show -s --format=%ct "$source_sha")"
+          find Codebase -type f ! -name 'allybot-codebase-latest.zip' -exec touch -d "@${SOURCE_EPOCH}" {} +
+          (
+            cd Codebase
+            find . -type f ! -name 'allybot-codebase-latest.zip' -print | LC_ALL=C sort | zip -X -q -@ allybot-codebase-latest.zip
+          )
+          unzip -t Codebase/allybot-codebase-latest.zip
+          archive_bytes="$(stat -c '%s' Codebase/allybot-codebase-latest.zip)"
+          test "$archive_bytes" -gt 0
+          test "$archive_bytes" -le 4194304
+          if unzip -Z1 Codebase/allybot-codebase-latest.zip | grep -Eq '(^|/)(\.env|.*\.(sqlite|db|pem|key)|creds\.json|credentials\.json|node_modules|dist|Codebase)(/|$)'; then
+            echo 'Forbidden path found in Codebase ZIP' >&2
+            exit 1
+          fi
+          rm -f codebase-export.tar
+          tar --format=posix -cf codebase-export.tar Codebase
+          if tar -tf codebase-export.tar | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo 'Unsafe path found in Codebase transport archive' >&2
+            exit 1
+          fi
+
+      - name: Upload generated Codebase export for publisher
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: allybot-codebase-${{ github.sha }}
+          path: codebase-export.tar
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload tested release artifact
         if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
@@ -93,11 +165,12 @@ jobs:
           command -v zip >/dev/null
           command -v unzip >/dev/null
           rm -rf .ci-artifact "allybot-release-${GITHUB_SHA}.zip" "allybot-release-${GITHUB_SHA}.zip.sha256"
-          mkdir -p .ci-artifact/dist .ci-artifact/scripts .ci-artifact/migrations/neon .ci-artifact/migrations/supabase .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/@upstash .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib .ci-artifact/node_modules/uncrypto
+          mkdir -p .ci-artifact/dist .ci-artifact/Codebase .ci-artifact/scripts .ci-artifact/migrations/neon .ci-artifact/migrations/supabase .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/@upstash .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib .ci-artifact/node_modules/uncrypto
           cp -a dist/. .ci-artifact/dist/
+          cp Codebase/allybot-codebase-latest.zip .ci-artifact/Codebase/
           cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs scripts/verify-upstash-redis.mjs scripts/verify-supabase-economy-migration.mjs .ci-artifact/scripts/
           cp migrations/neon/0001_whatsapp_chat_logs.sql .ci-artifact/migrations/neon/
-          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql .ci-artifact/migrations/supabase/
+          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql migrations/supabase/0003_economy_transfer_cache_keys.sql .ci-artifact/migrations/supabase/
           cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
           cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
           cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
@@ -208,6 +281,9 @@ jobs:
           test -f stage/dist/index.js
           test -f stage/dist/errors.js
           test -f stage/dist/permissions.js
+          test -f stage/Codebase/allybot-codebase-latest.zip
+          test "$(stat -c '%s' stage/Codebase/allybot-codebase-latest.zip)" -le 4194304
+          unzip -t stage/Codebase/allybot-codebase-latest.zip
           test -f stage/package.json
           test -f stage/package-lock.json
           test -f stage/release-manifest.json
@@ -394,6 +470,86 @@ jobs:
             echo '- `server_started`: not attempted; power state is not mutated by default.'
             echo '- `bot_online_verified`: not attempted; `.bash_profile` and Startup Command remain unchanged.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  publish_codebase:
+    name: Publish Codebase export to main
+    needs: verify
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: allybot-codebase-main
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout source commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Download validated Codebase export
+        uses: actions/download-artifact@v4
+        with:
+          name: allybot-codebase-${{ github.sha }}
+          path: .generated-codebase
+
+      - name: Verify provenance and generated-output boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main --depth=2
+          test -f .generated-codebase/codebase-export.tar
+          rm -rf Codebase
+          tar --no-same-owner --no-same-permissions -xf .generated-codebase/codebase-export.tar
+          test -f Codebase/manifest.json
+          test -f Codebase/allybot-codebase-latest.zip
+          source_sha="$(node <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const manifest = JSON.parse(readFileSync('Codebase/manifest.json', 'utf8'))
+          if (!/^[a-f0-9]{40}$/i.test(manifest.commitSha ?? '')) throw new Error('Downloaded Codebase export has invalid source commit')
+          process.stdout.write(manifest.commitSha)
+          NODE
+          )"
+          git cat-file -e "${source_sha}^{commit}"
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+          if [ "$source_sha" != "$GITHUB_SHA" ]; then
+            test "$(git show -s --format=%s "$GITHUB_SHA")" = 'chore(codebase): refresh intelligence export [skip ci]'
+            test "$(git rev-parse "$GITHUB_SHA^")" = "$source_sha"
+          fi
+          test "$(stat -c '%s' Codebase/allybot-codebase-latest.zip)" -le 4194304
+          unzip -t Codebase/allybot-codebase-latest.zip
+          if find Codebase -type l -print -quit | grep -q .; then
+            echo 'Symlink found in generated Codebase artifact' >&2
+            exit 1
+          fi
+          if tar -tf .generated-codebase/codebase-export.tar | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo 'Unsafe path found in Codebase transport archive' >&2
+            exit 1
+          fi
+          if find Codebase -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name '*.pem' -o -name '*.key' -o -name 'creds.json' -o -name 'credentials.json' \) -print -quit | grep -q .; then
+            echo 'Sensitive file found in generated Codebase artifact' >&2
+            exit 1
+          fi
+
+      - name: Commit generated Codebase only when source tip is unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main --depth=1
+          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Codebase
+          if git diff --cached --quiet; then
+            echo 'Codebase export already matches source commit; no commit required.'
+            exit 0
+          fi
+          git commit -m 'chore(codebase): refresh intelligence export [skip ci]'
+          git push origin HEAD:main
 
   deployment-summary:
     name: Deployment summary

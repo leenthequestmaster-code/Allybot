@@ -22,6 +22,7 @@ const allowedPath = (path) => path === 'package.json'
   || path === 'scripts/verify-supabase-economy-migration.mjs'
   || path.startsWith('migrations/neon/')
   || path.startsWith('migrations/supabase/')
+  || path === 'Codebase/allybot-codebase-latest.zip'
   || path.startsWith('dist/')
   || path.startsWith('node_modules/postgres/')
   || path.startsWith('node_modules/dotenv/')
@@ -66,9 +67,7 @@ const manifest = {
   nodeVersion: process.version,
   packageVersion: typeof packageJson.version === 'string' ? packageJson.version : 'unknown',
   packageLockSha256: sha256(packageLockPath),
-  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'scripts/verify-supabase-access.mjs', 'scripts/verify-neon.mjs', 'scripts/monitor-postgres.mjs', 'scripts/verify-neon-chat-log-migration.mjs', 'scripts/verify-upstash-redis.mjs', 'scripts/verify-supabase-economy-migration.mjs', 'migrations/neon/**',
- 'migrations/supabase/**',
- 'node_modules/postgres/**', 'node_modules/dotenv/**', 'node_modules/@supabase/**', 'node_modules/@upstash/**', 'node_modules/buffer/**', 'node_modules/ws/**', 'node_modules/iceberg-js/**', 'node_modules/tslib/**', 'node_modules/uncrypto/**'],
+  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'scripts/verify-supabase-access.mjs', 'scripts/verify-neon.mjs', 'scripts/monitor-postgres.mjs', 'scripts/verify-neon-chat-log-migration.mjs', 'scripts/verify-upstash-redis.mjs', 'scripts/verify-supabase-economy-migration.mjs', 'migrations/neon/**', 'migrations/supabase/**', 'node_modules/postgres/**', 'node_modules/dotenv/**', 'node_modules/@supabase/**', 'node_modules/@upstash/**', 'node_modules/buffer/**', 'node_modules/ws/**', 'node_modules/iceberg-js/**', 'node_modules/tslib/**', 'node_modules/uncrypto/**', 'Codebase/allybot-codebase-latest.zip'],
   files: entries,
 }
 
