@@ -15,10 +15,10 @@ tests/framework.test.js,alpha,,,,public,,278,278
 src/framework/plugins/announcement.ts,announce,announcement|pengumuman,Explicit-target consent window announcement,community,public,,74,162
 src/framework/plugins/group-safety.ts,appeal,,Appeal your own resolved or dismissed case,moderation,public,,296,318
 tests/integration.test.js,bad,,,,public,,87,87
-src/framework/plugins/economy.ts,bank,,Kelola rekening Wallet dan Safe Vela,roleplay,public,3000,345,352
-src/framework/plugins/economy.ts,bankpolicy,economypolicy,Aktifkan atau nonaktifkan Economy untuk grup,owner,public,5000,354,374
-src/framework/plugins/economy.ts,bankreward,,Berikan reward Vela kepada anggota,owner,public,5000,376,400
-src/framework/plugins/economy.ts,banksweep,,Proses overage Wallet yang telah jatuh tempo,owner,public,5000,402,421
+src/framework/plugins/economy.ts,bank,,Kelola rekening Wallet dan Safe Vela,roleplay,public,3000,334,341
+src/framework/plugins/economy.ts,bankpolicy,economypolicy,Aktifkan atau nonaktifkan Economy untuk grup,owner,public,5000,343,363
+src/framework/plugins/economy.ts,bankreward,,Berikan reward Vela kepada anggota,owner,public,5000,365,389
+src/framework/plugins/economy.ts,banksweep,,Proses overage Wallet yang telah jatuh tempo,owner,public,5000,391,410
 tests/framework.test.js,beta,,,,public,,279,279
 src/framework/plugins/knowledge.ts,bookmark,,Bookmark an explicitly quoted message as a bounded source,knowledge,public,,140,169
 src/framework/plugins/knowledge.ts,bookmarks,tersimpan,List explicit bookmarks visible in the group,knowledge,public,,171,187
@@ -182,7 +182,7 @@ src/framework/plugins/utility.ts,uptime,,Lihat lama Allybot berjalan,tools,publi
 tests/framework.test.js,validated,,,,public,,87,91
 tests/runtime-acceptance.test.js,validated,,,,public,,137,141
 tests/framework.test.js,validated-cooldown,,,,public,10000,108,113
-src/framework/plugins/economy.ts,vela,wallet,Lihat saldo Wallet dan Safe Vela,roleplay,public,3000,326,343
+src/framework/plugins/economy.ts,vela,wallet,Lihat saldo Wallet dan Safe Vela,roleplay,public,3000,315,332
 src/framework/plugins/personalization.ts,verbosity,balasan,Set personal response verbosity,personalization,public,,252,261
 src/framework/plugins/utility.ts,version,,Lihat informasi runtime non-sensitif,tools,public,,344,351
 src/framework/plugins/collaboration.ts,vote,,Record one vote in a collaboration poll,collaboration,public,,234,262

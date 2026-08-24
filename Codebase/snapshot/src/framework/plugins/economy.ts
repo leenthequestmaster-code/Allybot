@@ -36,35 +36,24 @@ function safeStatus(value: EconomyAccountSnapshot['safeStatus']): string {
   }
 }
 
-function renderSnapshot(snapshot: EconomyAccountSnapshot, prefix: string): string {
-  if (!snapshot.economyEnabled) {
-    return '💸 *Vela belum diaktifkan di grup ini.*\n\nAktivasi Economy harus dilakukan oleh pengelola grup melalui policy yang sah.'
-  }
+function renderSnapshot(snapshot: EconomyAccountSnapshot): string {
+  if (!snapshot.economyEnabled) return ['Vela Status', 'Status: Belum diaktifkan di grup ini'].join('\n')
+
   const walletAvailable = snapshot.walletBalance - snapshot.restrictedWalletBalance - snapshot.reservedWalletBalance
   const safeLimit = snapshot.safeLimit >= 2_000_000_000 ? 'Tidak terbatas' : `${formatVela(snapshot.safeLimit)} Vela`
   return [
-    '💸 *Vela Account*',
-    '',
-    '👝 *Wallet*',
-    `↳ Saldo tersedia: ${formatVela(walletAvailable)} Vela`,
-    '↳ Limit: 20.000 Vela',
-    `↳ Tertahan karena limit: ${formatVela(snapshot.restrictedWalletBalance)} Vela`,
-    `↳ Ditahan untuk transfer: ${formatVela(snapshot.reservedWalletBalance)} Vela`,
-    '',
-    '🏦 *Safe*',
-    `↳ Status: ${safeStatus(snapshot.safeStatus)}`,
-    `↳ Saldo: ${formatVela(snapshot.safeBalance)} Vela`,
-    `↳ Kapasitas: ${safeLimit}`,
-    `↳ Membership: ${safeTier(snapshot.membershipTier)}`,
-    '',
-    `💰 Total tercatat: ${formatVela(snapshot.walletBalance + snapshot.safeBalance)} Vela`,
-    snapshot.restrictedWalletBalance > 0
-      ? `\n⚠️ Ada ${formatVela(snapshot.restrictedWalletBalance)} Vela yang tertahan karena melebihi limit Wallet.`
-      : '',
-    snapshot.reservedWalletBalance > 0
-      ? `\n⏳ Ada ${formatVela(snapshot.reservedWalletBalance)} Vela yang sedang dikunci untuk transfer yang belum selesai.`
-      : '',
-    `\nGunakan ${prefix}bank untuk melihat bantuan rekening.`,
+    'Vela Status',
+    'Wallet:',
+    `Saldo tersedia: ${formatVela(walletAvailable)} Vela`,
+    'Limit: 20.000 Vela',
+    `Tertahan karena limit: ${formatVela(snapshot.restrictedWalletBalance)} Vela`,
+    `Ditahan untuk transfer: ${formatVela(snapshot.reservedWalletBalance)} Vela`,
+    'Safe:',
+    `Status: ${safeStatus(snapshot.safeStatus)}`,
+    `Saldo: ${formatVela(snapshot.safeBalance)} Vela`,
+    `Kapasitas: ${safeLimit}`,
+    `Membership: ${safeTier(snapshot.membershipTier)}`,
+    `Total tercatat: ${formatVela(snapshot.walletBalance + snapshot.safeBalance)} Vela`,
   ].join('\n')
 }
 
@@ -337,7 +326,7 @@ export const economyPlugin: Plugin = {
         if (!actor) return
         await runEconomyAction(commandContext, async () => {
           const result = await economyService(commandContext).getAccountSnapshot(groupJid, actor)
-          return renderSnapshot(result.snapshot, commandContext.prefix)
+          return renderSnapshot(result.snapshot)
         })
       },
     })
