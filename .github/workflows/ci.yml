@@ -99,8 +99,9 @@ jobs:
           const manifest = JSON.parse(readFileSync('Codebase/manifest.json', 'utf8'))
           if (manifest.commitSha !== process.env.SOURCE_SHA) throw new Error('Codebase manifest source commit mismatch')
           if (!Number.isSafeInteger(manifest.counts?.files) || manifest.counts.files < 1) throw new Error('Codebase manifest has no source files')
-          if (!Array.isArray(manifest.files) || manifest.files.length !== manifest.counts.files) throw new Error('Codebase manifest file count mismatch')
-          if (manifest.files.some(({ path }) => typeof path !== 'string' || path.startsWith('Codebase/') || /(^|\\/)(?:\\.env(?!\\.example$)|.*\\.(?:sqlite|db|pem|key)|creds\\.json|credentials\\.json)(?:\\/|$)/i.test(path))) throw new Error('Forbidden path found in Codebase manifest')
+          if (!Number.isSafeInteger(manifest.sourceFileCount) || manifest.sourceFileCount !== manifest.counts.files) throw new Error('Codebase manifest source file count mismatch')
+          if (!Array.isArray(manifest.files) || manifest.files.length < 1) throw new Error('Codebase manifest has no generated output files')
+          if (manifest.files.some(({ path }) => typeof path !== 'string' || path.startsWith('Codebase/') || /(^|\/)(?:\.env(?!\.example$)|.*\.(?:sqlite|db|pem|key)|creds\.json|credentials\.json)(?:\/|$)/i.test(path))) throw new Error('Forbidden path found in Codebase manifest')
           NODE
           (cd Codebase && sha256sum -c SHA256SUMS.txt)
           SOURCE_EPOCH="$(git show -s --format=%ct "$source_sha")"
@@ -113,13 +114,13 @@ jobs:
           archive_bytes="$(stat -c '%s' Codebase/allybot-codebase-latest.zip)"
           test "$archive_bytes" -gt 0
           test "$archive_bytes" -le 4194304
-          if unzip -Z1 Codebase/allybot-codebase-latest.zip | grep -Eq '(^|/)(\\.env|.*\\.(sqlite|db|pem|key)|creds\\.json|credentials\\.json|node_modules|dist|Codebase)(/|$)'; then
+          if unzip -Z1 Codebase/allybot-codebase-latest.zip | grep -Eq '(^|/)(\.env|.*\.(sqlite|db|pem|key)|creds\.json|credentials\.json|node_modules|dist|Codebase)(/|$)'; then
             echo 'Forbidden path found in Codebase ZIP' >&2
             exit 1
           fi
           rm -f codebase-export.tar
           tar --format=posix -cf codebase-export.tar Codebase
-          if tar -tf codebase-export.tar | grep -Eq '(^/|(^|/)\\.\\.(/|$))'; then
+          if tar -tf codebase-export.tar | grep -Eq '(^/|(^|/)\.\.(/|$))'; then
             echo 'Unsafe path found in Codebase transport archive' >&2
             exit 1
           fi
