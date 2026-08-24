@@ -387,8 +387,12 @@ export const economyPlugin: Plugin = {
         if (!actor) return
         const target = targetFromMessage(commandContext)
         const { amount } = amountFromArgs(commandContext.args)
-        if (!target || !amount) {
-          await commandContext.reply(`Format: ${commandContext.prefix}bankreward @orang <jumlah>`)
+        if (!target) {
+          await commandContext.reply(`Format: ${commandContext.prefix}bankreward @orang <jumlah>\nTag anggota dari daftar mention WhatsApp atau balas pesannya.`)
+          return
+        }
+        if (!amount) {
+          await commandContext.reply(`Format: ${commandContext.prefix}bankreward @orang <jumlah>\nContoh: ${commandContext.prefix}bankreward @orang 1000`)
           return
         }
         await runEconomyAction(commandContext, async () => renderMutation('Reward berhasil diberikan.', await service.grantReward(groupJid, target, amount, actor, operationKey(commandContext, 'bank-reward'), 'Reward dari pengelola grup')))
