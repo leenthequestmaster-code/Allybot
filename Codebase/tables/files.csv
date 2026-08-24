@@ -123,7 +123,7 @@ src/framework/plugins/codebase.ts,3274,.ts,source,snapshot/src/framework/plugins
 src/framework/plugins/collaboration.ts,19718,.ts,source,snapshot/src/framework/plugins/collaboration.ts
 src/framework/plugins/developer-mode.ts,9610,.ts,source,snapshot/src/framework/plugins/developer-mode.ts
 src/framework/plugins/diagnostics.ts,2660,.ts,source,snapshot/src/framework/plugins/diagnostics.ts
-src/framework/plugins/economy.ts,17673,.ts,source,snapshot/src/framework/plugins/economy.ts
+src/framework/plugins/economy.ts,17785,.ts,source,snapshot/src/framework/plugins/economy.ts
 src/framework/plugins/event.ts,14069,.ts,source,snapshot/src/framework/plugins/event.ts
 src/framework/plugins/group-governance.ts,18003,.ts,source,snapshot/src/framework/plugins/group-governance.ts
 src/framework/plugins/group-moderation.ts,8984,.ts,source,snapshot/src/framework/plugins/group-moderation.ts
@@ -200,7 +200,7 @@ tests/codebase-config.test.js,1233,.js,test,snapshot/tests/codebase-config.test.
 tests/codebase-export.test.js,5871,.js,test,snapshot/tests/codebase-export.test.js
 tests/codebase-generator.test.js,4384,.js,test,snapshot/tests/codebase-generator.test.js
 tests/developer-mode.test.js,7839,.js,test,snapshot/tests/developer-mode.test.js
-tests/economy-cache.test.js,15687,.js,test,snapshot/tests/economy-cache.test.js
+tests/economy-cache.test.js,16653,.js,test,snapshot/tests/economy-cache.test.js
 tests/errors.test.js,746,.js,test,snapshot/tests/errors.test.js
 tests/framework.test.js,13026,.js,test,snapshot/tests/framework.test.js
 tests/group-configuration.test.js,12076,.js,test,snapshot/tests/group-configuration.test.js
