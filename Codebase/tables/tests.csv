@@ -41,8 +41,9 @@ tests/economy-cache.test.js,Economy deposit calls authoritative RPC and invalida
 tests/economy-cache.test.js,Economy maps authoritative mutation rejection to a safe user error,economy-cache,365
 tests/economy-cache.test.js,Economy operation keys are bounded and do not contain source identifiers,economy-cache,379
 tests/economy-cache.test.js,Economy registers operational bank commands and handles a deposit command,economy-cache,385
-tests/economy-cache.test.js,Economy bankreward accepts a real mention with pipe-separated display text,economy-cache,422
-tests/economy-cache.test.js,Economy bankreward does not guess a target from display text,economy-cache,464
+tests/economy-cache.test.js,Economy admin bank help includes the bankreward format and example,economy-cache,422
+tests/economy-cache.test.js,Economy bankreward accepts a real mention with pipe-separated display text,economy-cache,455
+tests/economy-cache.test.js,Economy bankreward does not guess a target from display text,economy-cache,497
 tests/errors.test.js,retryable option overrides category default,errors,11
 tests/errors.test.js,retryable defaults to network and protocol categories,errors,5
 tests/framework.test.js,Invalid command input does not consume the command cooldown,framework,103

@@ -2207,48 +2207,58 @@ src/framework/plugins/economy.ts,bankHelp,"unresolved:[
     'Tier membership: bronze, silver, gold, atau star.',
     'Transfer yang belum diterima akan mengunci saldo pengirim sampai diterima, ditolak, atau kedaluwarsa.',
   ].join",low,67,83,
+src/framework/plugins/economy.ts,bankRewardUsage,"unresolved:[
+    `Format: ${prefix}bankreward @orang <jumlah>`,
+    `Contoh: ${prefix}bankreward @orang 1000`,
+  ].join","[
+    `Format: ${prefix}bankreward @orang <jumlah>`,
+    `Contoh: ${prefix}bankreward @orang 1000`,
+  ].join",low,87,90,
 src/framework/plugins/economy.ts,adminHelp,"unresolved:[
     '🛡️ *Pengelolaan Economy Vela*',
     '',
     `• ${prefix}bankpolicy on|off — aktifkan/nonaktifkan Economy grup`,
     `• ${prefix}bankreward @orang <jumlah> — berikan reward`,
+    bankRewardUsage(prefix),
     `• ${prefix}banksweep @orang — proses overage yang sudah jatuh tempo`,
   ].join","[
     '🛡️ *Pengelolaan Economy Vela*',
     '',
     `• ${prefix}bankpolicy on|off — aktifkan/nonaktifkan Economy grup`,
     `• ${prefix}bankreward @orang <jumlah> — berikan reward`,
+    bankRewardUsage(prefix),
     `• ${prefix}banksweep @orang — proses overage yang sudah jatuh tempo`,
-  ].join",low,87,93,
-src/framework/plugins/economy.ts,parseAmount,"unresolved:/^\d{1,10}$/.test","/^\d{1,10}$/.test",low,105,105,
-src/framework/plugins/economy.ts,parseAmount,unresolved:Number,Number,low,106,106,
-src/framework/plugins/economy.ts,parseAmount,unresolved:Number.isSafeInteger,Number.isSafeInteger,low,107,107,
-src/framework/plugins/economy.ts,amountFromArgs,src/framework/plugins/economy.ts,parseAmount,medium,112,112,src/framework/plugins/economy.ts:104
-src/framework/plugins/economy.ts,targetFromMessage,unresolved:context.message.mentionedJids?.filter,context.message.mentionedJids?.filter,low,119,119,
-src/framework/plugins/economy.ts,targetFromMessage,src/platform/validation.ts,isJid,medium,121,121,src/platform/validation.ts:9
-src/framework/plugins/economy.ts,requireGroup,src/platform/validation.ts,isGroupJid,medium,127,127,src/platform/validation.ts:13
-src/framework/plugins/economy.ts,requireGroup,tests/platform.test.js,reply,medium,128,128,tests/platform.test.js:62
-src/framework/plugins/economy.ts,requireGroup,src/framework/plugins/economy.ts,groupOnlyText,medium,128,128,src/framework/plugins/economy.ts:100
-src/framework/plugins/economy.ts,requireActor,src/framework/plugins/economy.ts,actorJid,medium,135,135,src/framework/plugins/economy.ts:18
-src/framework/plugins/economy.ts,requireActor,src/platform/validation.ts,isJid,medium,136,136,src/platform/validation.ts:9
-src/framework/plugins/economy.ts,requireActor,tests/platform.test.js,reply,medium,137,137,tests/platform.test.js:62
-src/framework/plugins/economy.ts,runEconomyAction,tests/platform.test.js,reply,medium,145,145,tests/platform.test.js:62
-src/framework/plugins/economy.ts,runEconomyAction,src/framework/plugins/economy.ts,action,medium,145,145,src/framework/plugins/economy.ts:220
-src/framework/plugins/economy.ts,runEconomyAction,tests/platform.test.js,reply,medium,148,148,tests/platform.test.js:62
-src/framework/plugins/economy.ts,runEconomyAction,src/framework/plugins/economy.ts,unavailableText,medium,148,148,src/framework/plugins/economy.ts:96
-src/framework/plugins/economy.ts,runEconomyAction,unresolved:context.logger.warn,context.logger.warn,low,151,151,
-src/framework/plugins/economy.ts,runEconomyAction,tests/platform.test.js,reply,medium,152,152,tests/platform.test.js:62
-src/framework/plugins/economy.ts,runEconomyAction,src/framework/plugins/economy.ts,unavailableText,medium,152,152,src/framework/plugins/economy.ts:96
-src/framework/plugins/economy.ts,resultAmount,unresolved:Number.isSafeInteger,Number.isSafeInteger,low,162,162,
-src/framework/plugins/economy.ts,resultAmount,unresolved:/^\d+$/.test,/^\d+$/.test,low,163,163,
-src/framework/plugins/economy.ts,resultAmount,unresolved:Number,Number,low,163,163,
-src/framework/plugins/economy.ts,renderMutation,src/framework/plugins/economy.ts,resultAmount,medium,168,168,src/framework/plugins/economy.ts:160
-src/framework/plugins/economy.ts,renderMutation,src/framework/plugins/economy.ts,mutationStatus,medium,171,171,src/framework/plugins/economy.ts:156
-src/framework/plugins/economy.ts,renderMutation,unresolved:lines.push,lines.push,low,172,172,
-src/framework/plugins/economy.ts,renderMutation,src/framework/plugins/economy.ts,formatVela,medium,172,172,src/framework/plugins/economy.ts:22
-src/framework/plugins/economy.ts,renderMutation,unresolved:lines.push,lines.push,low,173,173,
-src/framework/plugins/economy.ts,renderMutation,unresolved:lines.push,lines.push,low,174,174,
-src/framework/plugins/economy.ts,renderMutation,unresolved:lines.join,lines.join,low,175,175,
+  ].join",low,94,101,
+src/framework/plugins/economy.ts,adminHelp,src/framework/plugins/economy.ts,bankRewardUsage,medium,99,99,src/framework/plugins/economy.ts:86
+src/framework/plugins/economy.ts,parseAmount,"unresolved:/^\d{1,10}$/.test","/^\d{1,10}$/.test",low,113,113,
+src/framework/plugins/economy.ts,parseAmount,unresolved:Number,Number,low,114,114,
+src/framework/plugins/economy.ts,parseAmount,unresolved:Number.isSafeInteger,Number.isSafeInteger,low,115,115,
+src/framework/plugins/economy.ts,amountFromArgs,src/framework/plugins/economy.ts,parseAmount,medium,120,120,src/framework/plugins/economy.ts:112
+src/framework/plugins/economy.ts,targetFromMessage,unresolved:context.message.mentionedJids?.filter,context.message.mentionedJids?.filter,low,127,127,
+src/framework/plugins/economy.ts,targetFromMessage,src/platform/validation.ts,isJid,medium,129,129,src/platform/validation.ts:9
+src/framework/plugins/economy.ts,requireGroup,src/platform/validation.ts,isGroupJid,medium,135,135,src/platform/validation.ts:13
+src/framework/plugins/economy.ts,requireGroup,tests/platform.test.js,reply,medium,136,136,tests/platform.test.js:62
+src/framework/plugins/economy.ts,requireGroup,src/framework/plugins/economy.ts,groupOnlyText,medium,136,136,src/framework/plugins/economy.ts:108
+src/framework/plugins/economy.ts,requireActor,src/framework/plugins/economy.ts,actorJid,medium,143,143,src/framework/plugins/economy.ts:18
+src/framework/plugins/economy.ts,requireActor,src/platform/validation.ts,isJid,medium,144,144,src/platform/validation.ts:9
+src/framework/plugins/economy.ts,requireActor,tests/platform.test.js,reply,medium,145,145,tests/platform.test.js:62
+src/framework/plugins/economy.ts,runEconomyAction,tests/platform.test.js,reply,medium,153,153,tests/platform.test.js:62
+src/framework/plugins/economy.ts,runEconomyAction,src/framework/plugins/economy.ts,action,medium,153,153,src/framework/plugins/economy.ts:228
+src/framework/plugins/economy.ts,runEconomyAction,tests/platform.test.js,reply,medium,156,156,tests/platform.test.js:62
+src/framework/plugins/economy.ts,runEconomyAction,src/framework/plugins/economy.ts,unavailableText,medium,156,156,src/framework/plugins/economy.ts:104
+src/framework/plugins/economy.ts,runEconomyAction,unresolved:context.logger.warn,context.logger.warn,low,159,159,
+src/framework/plugins/economy.ts,runEconomyAction,tests/platform.test.js,reply,medium,160,160,tests/platform.test.js:62
+src/framework/plugins/economy.ts,runEconomyAction,src/framework/plugins/economy.ts,unavailableText,medium,160,160,src/framework/plugins/economy.ts:104
+src/framework/plugins/economy.ts,resultAmount,unresolved:Number.isSafeInteger,Number.isSafeInteger,low,170,170,
+src/framework/plugins/economy.ts,resultAmount,unresolved:/^\d+$/.test,/^\d+$/.test,low,171,171,
+src/framework/plugins/economy.ts,resultAmount,unresolved:Number,Number,low,171,171,
+src/framework/plugins/economy.ts,renderMutation,src/framework/plugins/economy.ts,resultAmount,medium,176,176,src/framework/plugins/economy.ts:168
+src/framework/plugins/economy.ts,renderMutation,src/framework/plugins/economy.ts,mutationStatus,medium,179,179,src/framework/plugins/economy.ts:164
+src/framework/plugins/economy.ts,renderMutation,unresolved:lines.push,lines.push,low,180,180,
+src/framework/plugins/economy.ts,renderMutation,src/framework/plugins/economy.ts,formatVela,medium,180,180,src/framework/plugins/economy.ts:22
+src/framework/plugins/economy.ts,renderMutation,unresolved:lines.push,lines.push,low,181,181,
+src/framework/plugins/economy.ts,renderMutation,unresolved:lines.push,lines.push,low,182,182,
+src/framework/plugins/economy.ts,renderMutation,unresolved:lines.join,lines.join,low,183,183,
 src/framework/plugins/economy.ts,renderHistory,"unresolved:[
     '📒 *Riwayat Vela*',
     '',
@@ -2267,21 +2277,21 @@ src/framework/plugins/economy.ts,renderHistory,"unresolved:[
       const reserved = entry.reservedWalletDelta === 0 ? '' : ` | Kunci ${entry.reservedWalletDelta > 0 ? '+' : ''}${formatVela(entry.reservedWalletDelta)}`
       return `• ${labels[entry.entryType] ?? 'Transaksi'}${wallet}${safe}${reserved}\n  ${entry.reason}`
     }),
-  ].join",low,194,203,
-src/framework/plugins/economy.ts,renderHistory,tests/r11-announcement-suggestion.test.js,map,medium,197,202,tests/r11-announcement-suggestion.test.js:104
-src/framework/plugins/economy.ts,renderHistory,src/framework/plugins/economy.ts,formatVela,medium,198,198,src/framework/plugins/economy.ts:22
-src/framework/plugins/economy.ts,renderHistory,src/framework/plugins/economy.ts,formatVela,medium,199,199,src/framework/plugins/economy.ts:22
-src/framework/plugins/economy.ts,renderHistory,src/framework/plugins/economy.ts,formatVela,medium,200,200,src/framework/plugins/economy.ts:22
-src/framework/plugins/economy.ts,membershipTier,"unresolved:['bronze', 'silver', 'gold', 'star'].includes","['bronze', 'silver', 'gold', 'star'].includes",low,207,207,
-src/framework/plugins/economy.ts,operationKey,src/services/economy-service.ts,createEconomyOperationKey,medium,211,211,src/services/economy-service.ts:498
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,requireGroup,medium,215,215,src/framework/plugins/economy.ts:126
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,requireActor,medium,217,217,src/framework/plugins/economy.ts:134
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,economyService,medium,219,219,src/framework/plugins/economy.ts:14
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args[0]?.toLowerCase,context.args[0]?.toLowerCase,low,220,220,
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,223,223,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,bankHelp,medium,223,223,src/framework/plugins/economy.ts:66
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,227,242,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,getAccountSnapshot,medium,228,228,src/services/economy-service.ts:150
+  ].join",low,202,211,
+src/framework/plugins/economy.ts,renderHistory,tests/r11-announcement-suggestion.test.js,map,medium,205,210,tests/r11-announcement-suggestion.test.js:104
+src/framework/plugins/economy.ts,renderHistory,src/framework/plugins/economy.ts,formatVela,medium,206,206,src/framework/plugins/economy.ts:22
+src/framework/plugins/economy.ts,renderHistory,src/framework/plugins/economy.ts,formatVela,medium,207,207,src/framework/plugins/economy.ts:22
+src/framework/plugins/economy.ts,renderHistory,src/framework/plugins/economy.ts,formatVela,medium,208,208,src/framework/plugins/economy.ts:22
+src/framework/plugins/economy.ts,membershipTier,"unresolved:['bronze', 'silver', 'gold', 'star'].includes","['bronze', 'silver', 'gold', 'star'].includes",low,215,215,
+src/framework/plugins/economy.ts,operationKey,src/services/economy-service.ts,createEconomyOperationKey,medium,219,219,src/services/economy-service.ts:498
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,requireGroup,medium,223,223,src/framework/plugins/economy.ts:134
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,requireActor,medium,225,225,src/framework/plugins/economy.ts:142
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,economyService,medium,227,227,src/framework/plugins/economy.ts:14
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args[0]?.toLowerCase,context.args[0]?.toLowerCase,low,228,228,
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,231,231,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,bankHelp,medium,231,231,src/framework/plugins/economy.ts:66
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,235,250,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,getAccountSnapshot,medium,236,236,src/services/economy-service.ts:150
 src/framework/plugins/economy.ts,handleBank,"unresolved:[
         '🏦 *Status Rekening Vela*',
         '',
@@ -2304,107 +2314,109 @@ src/framework/plugins/economy.ts,handleBank,"unresolved:[
         snapshot.safeStatus === 'not_open'
           ? `Buka rekening melalui ${context.prefix}bank open.`
           : `Lihat ringkasan saldo melalui ${context.prefix}vela.`,
-      ].join",low,230,241,
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,safeStatus,medium,233,233,src/framework/plugins/economy.ts:30
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,safeTier,medium,234,234,src/framework/plugins/economy.ts:26
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,formatVela,medium,235,235,src/framework/plugins/economy.ts:22
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,formatVela,medium,236,236,src/framework/plugins/economy.ts:22
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,246,246,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,246,246,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,openSafe,medium,246,246,src/services/economy-service.ts:198
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,246,246,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,amountFromArgs,medium,250,250,src/framework/plugins/economy.ts:110
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,250,250,
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,252,252,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,255,255,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,255,255,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,deposit,medium,255,255,src/services/economy-service.ts:241
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,255,255,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,amountFromArgs,medium,259,259,src/framework/plugins/economy.ts:110
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,259,259,
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,261,261,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,264,264,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,264,264,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,withdraw,medium,264,264,src/services/economy-service.ts:263
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,264,264,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,targetFromMessage,medium,268,268,src/framework/plugins/economy.ts:118
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,amountFromArgs,medium,269,269,src/framework/plugins/economy.ts:110
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,269,269,
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,271,271,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join(' ').slice,context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join(' ').slice,low,274,274,
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join,context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join,low,274,274,
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice(1).filter,context.args.slice(1).filter,low,274,274,
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,274,274,
-src/framework/plugins/economy.ts,handleBank,unresolved:arg.startsWith,arg.startsWith,low,274,274,
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,275,275,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,275,275,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,createTransfer,medium,275,275,src/services/economy-service.ts:307
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,275,275,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,handleBank,unresolved:/^[0-9a-f-]{36}$/i.test,/^[0-9a-f-]{36}$/i.test,low,280,280,
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,281,281,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,284,284,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,284,284,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,acceptTransfer,medium,284,284,src/services/economy-service.ts:335
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,284,284,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,handleBank,unresolved:/^[0-9a-f-]{36}$/i.test,/^[0-9a-f-]{36}$/i.test,low,289,289,
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,290,290,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,293,293,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,293,293,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,rejectTransfer,medium,293,293,src/services/economy-service.ts:357
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,293,293,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,membershipTier,medium,297,297,src/framework/plugins/economy.ts:206
-src/framework/plugins/economy.ts,handleBank,unresolved:context.args[1]?.toLowerCase,context.args[1]?.toLowerCase,low,297,297,
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,299,299,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,302,302,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,302,302,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,upgradeMembership,medium,302,302,src/services/economy-service.ts:285
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,302,302,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,handleBank,unresolved:Number,Number,low,306,306,
-src/framework/plugins/economy.ts,handleBank,unresolved:Number.isSafeInteger,Number.isSafeInteger,low,307,307,
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,308,308,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderHistory,medium,308,308,src/framework/plugins/economy.ts:178
-src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,getHistory,medium,308,308,src/services/economy-service.ts:398
-src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,311,311,tests/platform.test.js:62
-src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,bankHelp,medium,311,311,src/framework/plugins/economy.ts:66
-src/framework/plugins/economy.ts,load,unresolved:context.services.get,context.services.get,low,318,318,
-src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,321,338,
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,329,329,src/framework/plugins/economy.ts:126
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,331,331,src/framework/plugins/economy.ts:134
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,333,336,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,load,src/services/economy-service.ts,getAccountSnapshot,medium,334,334,src/services/economy-service.ts:150
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,economyService,medium,334,334,src/framework/plugins/economy.ts:14
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderSnapshot,medium,335,335,src/framework/plugins/economy.ts:39
-src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,340,347,
-src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,349,369,
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,358,358,src/framework/plugins/economy.ts:126
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,360,360,src/framework/plugins/economy.ts:134
-src/framework/plugins/economy.ts,load,unresolved:commandContext.args[0]?.toLowerCase,commandContext.args[0]?.toLowerCase,low,362,362,
-src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,364,364,tests/platform.test.js:62
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,adminHelp,medium,364,364,src/framework/plugins/economy.ts:86
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,367,367,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderMutation,medium,367,367,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,load,src/services/economy-service.ts,setGroupPolicy,medium,367,367,src/services/economy-service.ts:180
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,operationKey,medium,367,367,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,371,395,
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,379,379,src/framework/plugins/economy.ts:126
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,381,381,src/framework/plugins/economy.ts:134
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,targetFromMessage,medium,383,383,src/framework/plugins/economy.ts:118
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,amountFromArgs,medium,384,384,src/framework/plugins/economy.ts:110
-src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,386,386,tests/platform.test.js:62
-src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,390,390,tests/platform.test.js:62
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,393,393,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderMutation,medium,393,393,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,load,src/services/economy-service.ts,grantReward,medium,393,393,src/services/economy-service.ts:218
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,operationKey,medium,393,393,src/framework/plugins/economy.ts:210
-src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,397,416,
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,405,405,src/framework/plugins/economy.ts:126
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,407,407,src/framework/plugins/economy.ts:134
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,targetFromMessage,medium,409,409,src/framework/plugins/economy.ts:118
-src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,411,411,tests/platform.test.js:62
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,414,414,src/framework/plugins/economy.ts:143
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderMutation,medium,414,414,src/framework/plugins/economy.ts:167
-src/framework/plugins/economy.ts,load,src/services/economy-service.ts,sweepOverage,medium,414,414,src/services/economy-service.ts:379
-src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,operationKey,medium,414,414,src/framework/plugins/economy.ts:210
+      ].join",low,238,249,
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,safeStatus,medium,241,241,src/framework/plugins/economy.ts:30
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,safeTier,medium,242,242,src/framework/plugins/economy.ts:26
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,formatVela,medium,243,243,src/framework/plugins/economy.ts:22
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,formatVela,medium,244,244,src/framework/plugins/economy.ts:22
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,254,254,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,254,254,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,openSafe,medium,254,254,src/services/economy-service.ts:198
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,254,254,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,amountFromArgs,medium,258,258,src/framework/plugins/economy.ts:118
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,258,258,
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,260,260,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,263,263,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,263,263,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,deposit,medium,263,263,src/services/economy-service.ts:241
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,263,263,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,amountFromArgs,medium,267,267,src/framework/plugins/economy.ts:118
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,267,267,
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,269,269,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,272,272,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,272,272,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,withdraw,medium,272,272,src/services/economy-service.ts:263
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,272,272,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,targetFromMessage,medium,276,276,src/framework/plugins/economy.ts:126
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,amountFromArgs,medium,277,277,src/framework/plugins/economy.ts:118
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,277,277,
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,279,279,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join(' ').slice,context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join(' ').slice,low,282,282,
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join,context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join,low,282,282,
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice(1).filter,context.args.slice(1).filter,low,282,282,
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args.slice,context.args.slice,low,282,282,
+src/framework/plugins/economy.ts,handleBank,unresolved:arg.startsWith,arg.startsWith,low,282,282,
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,283,283,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,283,283,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,createTransfer,medium,283,283,src/services/economy-service.ts:307
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,283,283,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,handleBank,unresolved:/^[0-9a-f-]{36}$/i.test,/^[0-9a-f-]{36}$/i.test,low,288,288,
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,289,289,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,292,292,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,292,292,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,acceptTransfer,medium,292,292,src/services/economy-service.ts:335
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,292,292,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,handleBank,unresolved:/^[0-9a-f-]{36}$/i.test,/^[0-9a-f-]{36}$/i.test,low,297,297,
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,298,298,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,301,301,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,301,301,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,rejectTransfer,medium,301,301,src/services/economy-service.ts:357
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,301,301,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,membershipTier,medium,305,305,src/framework/plugins/economy.ts:214
+src/framework/plugins/economy.ts,handleBank,unresolved:context.args[1]?.toLowerCase,context.args[1]?.toLowerCase,low,305,305,
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,307,307,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,310,310,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderMutation,medium,310,310,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,upgradeMembership,medium,310,310,src/services/economy-service.ts:285
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,operationKey,medium,310,310,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,handleBank,unresolved:Number,Number,low,314,314,
+src/framework/plugins/economy.ts,handleBank,unresolved:Number.isSafeInteger,Number.isSafeInteger,low,315,315,
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,runEconomyAction,medium,316,316,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,renderHistory,medium,316,316,src/framework/plugins/economy.ts:186
+src/framework/plugins/economy.ts,handleBank,src/services/economy-service.ts,getHistory,medium,316,316,src/services/economy-service.ts:398
+src/framework/plugins/economy.ts,handleBank,tests/platform.test.js,reply,medium,319,319,tests/platform.test.js:62
+src/framework/plugins/economy.ts,handleBank,src/framework/plugins/economy.ts,bankHelp,medium,319,319,src/framework/plugins/economy.ts:66
+src/framework/plugins/economy.ts,load,unresolved:context.services.get,context.services.get,low,326,326,
+src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,329,346,
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,337,337,src/framework/plugins/economy.ts:134
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,339,339,src/framework/plugins/economy.ts:142
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,341,344,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,load,src/services/economy-service.ts,getAccountSnapshot,medium,342,342,src/services/economy-service.ts:150
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,economyService,medium,342,342,src/framework/plugins/economy.ts:14
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderSnapshot,medium,343,343,src/framework/plugins/economy.ts:39
+src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,348,355,
+src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,357,377,
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,366,366,src/framework/plugins/economy.ts:134
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,368,368,src/framework/plugins/economy.ts:142
+src/framework/plugins/economy.ts,load,unresolved:commandContext.args[0]?.toLowerCase,commandContext.args[0]?.toLowerCase,low,370,370,
+src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,372,372,tests/platform.test.js:62
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,adminHelp,medium,372,372,src/framework/plugins/economy.ts:93
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,375,375,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderMutation,medium,375,375,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,load,src/services/economy-service.ts,setGroupPolicy,medium,375,375,src/services/economy-service.ts:180
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,operationKey,medium,375,375,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,379,403,
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,387,387,src/framework/plugins/economy.ts:134
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,389,389,src/framework/plugins/economy.ts:142
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,targetFromMessage,medium,391,391,src/framework/plugins/economy.ts:126
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,amountFromArgs,medium,392,392,src/framework/plugins/economy.ts:118
+src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,394,394,tests/platform.test.js:62
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,bankRewardUsage,medium,394,394,src/framework/plugins/economy.ts:86
+src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,398,398,tests/platform.test.js:62
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,bankRewardUsage,medium,398,398,src/framework/plugins/economy.ts:86
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,401,401,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderMutation,medium,401,401,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,load,src/services/economy-service.ts,grantReward,medium,401,401,src/services/economy-service.ts:218
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,operationKey,medium,401,401,src/framework/plugins/economy.ts:218
+src/framework/plugins/economy.ts,load,unresolved:context.commands.register,context.commands.register,low,405,424,
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireGroup,medium,413,413,src/framework/plugins/economy.ts:134
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,requireActor,medium,415,415,src/framework/plugins/economy.ts:142
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,targetFromMessage,medium,417,417,src/framework/plugins/economy.ts:126
+src/framework/plugins/economy.ts,load,tests/platform.test.js,reply,medium,419,419,tests/platform.test.js:62
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,runEconomyAction,medium,422,422,src/framework/plugins/economy.ts:151
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,renderMutation,medium,422,422,src/framework/plugins/economy.ts:175
+src/framework/plugins/economy.ts,load,src/services/economy-service.ts,sweepOverage,medium,422,422,src/services/economy-service.ts:379
+src/framework/plugins/economy.ts,load,src/framework/plugins/economy.ts,operationKey,medium,422,422,src/framework/plugins/economy.ts:218
 src/framework/plugins/event.ts,groupJid,src/platform/validation.ts,isGroupJid,medium,6,6,src/platform/validation.ts:13
 src/framework/plugins/event.ts,eventService,unresolved:context.services.get,context.services.get,low,14,14,
 src/framework/plugins/event.ts,groupOnlyReply,tests/platform.test.js,reply,medium,18,18,tests/platform.test.js:62
@@ -11773,38 +11785,51 @@ tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,41
 tests/economy-cache.test.js,<module>,unresolved:assert.match,assert.match,low,418,418,
 tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,419,419,
 tests/economy-cache.test.js,<module>,unresolved:fixture.calls.find,fixture.calls.find,low,419,419,
-tests/economy-cache.test.js,<module>,unresolved:test,test,low,422,462,
+tests/economy-cache.test.js,<module>,unresolved:test,test,low,422,453,
 tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,createFixture,medium,423,423,tests/economy-cache.test.js:54
 tests/economy-cache.test.js,<module>,unresolved:economyPlugin.load,economyPlugin.load,low,425,436,
 tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,426,426,tests/economy-cache.test.js:11
 tests/economy-cache.test.js,register,unresolved:commands.push,commands.push,low,431,431,
 tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,435,435,tests/economy-cache.test.js:25
-tests/economy-cache.test.js,<module>,unresolved:commands.find((command) => command.name === 'bankreward').handler,commands.find((command) => command.name === 'bankreward').handler,low,439,454,
+tests/economy-cache.test.js,<module>,unresolved:commands.find((command) => command.name === 'bankpolicy').handler,commands.find((command) => command.name === 'bankpolicy').handler,low,439,449,
 tests/economy-cache.test.js,<module>,unresolved:commands.find,commands.find,low,439,439,
-tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,450,450,tests/economy-cache.test.js:11
-tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,451,451,tests/economy-cache.test.js:25
-tests/economy-cache.test.js,<module>,unresolved:replies.push,replies.push,low,453,453,
-tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,456,456,
-tests/economy-cache.test.js,<module>,unresolved:assert.match,assert.match,low,457,457,
-tests/economy-cache.test.js,<module>,unresolved:fixture.calls.find,fixture.calls.find,low,458,458,
-tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,459,459,
-tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,460,460,
-tests/economy-cache.test.js,<module>,unresolved:assert.match,assert.match,low,461,461,
-tests/economy-cache.test.js,<module>,unresolved:test,test,low,464,496,
-tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,createFixture,medium,465,465,tests/economy-cache.test.js:54
-tests/economy-cache.test.js,<module>,unresolved:economyPlugin.load,economyPlugin.load,low,467,478,
-tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,468,468,tests/economy-cache.test.js:11
-tests/economy-cache.test.js,register,unresolved:commands.push,commands.push,low,473,473,
-tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,477,477,tests/economy-cache.test.js:25
-tests/economy-cache.test.js,<module>,unresolved:commands.find((command) => command.name === 'bankreward').handler,commands.find((command) => command.name === 'bankreward').handler,low,481,491,
-tests/economy-cache.test.js,<module>,unresolved:commands.find,commands.find,low,481,481,
-tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,487,487,tests/economy-cache.test.js:11
-tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,488,488,tests/economy-cache.test.js:25
-tests/economy-cache.test.js,<module>,unresolved:replies.push,replies.push,low,490,490,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,445,445,tests/economy-cache.test.js:11
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,446,446,tests/economy-cache.test.js:25
+tests/economy-cache.test.js,<module>,unresolved:replies.push,replies.push,low,448,448,
+tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,451,451,
+tests/economy-cache.test.js,<module>,unresolved:assert.match,assert.match,low,452,452,
+tests/economy-cache.test.js,<module>,unresolved:test,test,low,455,495,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,createFixture,medium,456,456,tests/economy-cache.test.js:54
+tests/economy-cache.test.js,<module>,unresolved:economyPlugin.load,economyPlugin.load,low,458,469,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,459,459,tests/economy-cache.test.js:11
+tests/economy-cache.test.js,register,unresolved:commands.push,commands.push,low,464,464,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,468,468,tests/economy-cache.test.js:25
+tests/economy-cache.test.js,<module>,unresolved:commands.find((command) => command.name === 'bankreward').handler,commands.find((command) => command.name === 'bankreward').handler,low,472,487,
+tests/economy-cache.test.js,<module>,unresolved:commands.find,commands.find,low,472,472,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,483,483,tests/economy-cache.test.js:11
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,484,484,tests/economy-cache.test.js:25
+tests/economy-cache.test.js,<module>,unresolved:replies.push,replies.push,low,486,486,
+tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,489,489,
+tests/economy-cache.test.js,<module>,unresolved:assert.match,assert.match,low,490,490,
+tests/economy-cache.test.js,<module>,unresolved:fixture.calls.find,fixture.calls.find,low,491,491,
+tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,492,492,
 tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,493,493,
 tests/economy-cache.test.js,<module>,unresolved:assert.match,assert.match,low,494,494,
-tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,495,495,
-tests/economy-cache.test.js,<module>,unresolved:fixture.calls.some,fixture.calls.some,low,495,495,
+tests/economy-cache.test.js,<module>,unresolved:test,test,low,497,529,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,createFixture,medium,498,498,tests/economy-cache.test.js:54
+tests/economy-cache.test.js,<module>,unresolved:economyPlugin.load,economyPlugin.load,low,500,511,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,501,501,tests/economy-cache.test.js:11
+tests/economy-cache.test.js,register,unresolved:commands.push,commands.push,low,506,506,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,510,510,tests/economy-cache.test.js:25
+tests/economy-cache.test.js,<module>,unresolved:commands.find((command) => command.name === 'bankreward').handler,commands.find((command) => command.name === 'bankreward').handler,low,514,524,
+tests/economy-cache.test.js,<module>,unresolved:commands.find,commands.find,low,514,514,
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,loggerFor,medium,520,520,tests/economy-cache.test.js:11
+tests/economy-cache.test.js,<module>,tests/economy-cache.test.js,servicesFor,medium,521,521,tests/economy-cache.test.js:25
+tests/economy-cache.test.js,<module>,unresolved:replies.push,replies.push,low,523,523,
+tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,526,526,
+tests/economy-cache.test.js,<module>,unresolved:assert.match,assert.match,low,527,527,
+tests/economy-cache.test.js,<module>,unresolved:assert.equal,assert.equal,low,528,528,
+tests/economy-cache.test.js,<module>,unresolved:fixture.calls.some,fixture.calls.some,low,528,528,
 tests/errors.test.js,<module>,unresolved:test,test,low,5,9,
 tests/errors.test.js,<module>,unresolved:assert.equal,assert.equal,low,6,6,
 tests/errors.test.js,<module>,unresolved:assert.equal,assert.equal,low,7,7,
