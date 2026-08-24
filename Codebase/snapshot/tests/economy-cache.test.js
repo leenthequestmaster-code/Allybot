@@ -358,3 +358,79 @@ test('Economy registers operational bank commands and handles a deposit command'
   assert.match(replies[0], /Setoran berhasil/)
   assert.equal(fixture.calls.find((call) => call.operation === 'rpc').functionName, 'economy_deposit')
 })
+
+test('Economy bankreward accepts a real mention with pipe-separated display text', async () => {
+  const fixture = createFixture({ rpcData: { status: 'applied', amount: 99999 } })
+  const commands = []
+  economyPlugin.load({
+    logger: loggerFor(),
+    config: {},
+    events: {},
+    commands: {
+      register(command) {
+        commands.push(command)
+        return () => undefined
+      },
+    },
+    services: servicesFor(fixture.service),
+  })
+
+  const replies = []
+  await commands.find((command) => command.name === 'bankreward').handler({
+    message: {
+      id: 'reward-message',
+      remoteJid: GROUP_JID,
+      senderJid: SUBJECT_JID,
+      mentionedJids: ['reward-target@s.whatsapp.net'],
+    },
+    args: ['@Ran', '|', 'Arthalon', '99999'],
+    commandName: 'bankreward',
+    prefix: '!',
+    config: {},
+    logger: loggerFor(),
+    services: servicesFor(fixture.service),
+    whatsapp: { userJid: SUBJECT_JID },
+    reply: async (text) => replies.push(text),
+  })
+
+  assert.equal(replies.length, 1)
+  assert.match(replies[0], /Reward berhasil diberikan/)
+  const rpcCall = fixture.calls.find((call) => call.operation === 'rpc')
+  assert.equal(rpcCall.functionName, 'economy_grant_reward')
+  assert.equal(rpcCall.args.p_amount, 99999)
+  assert.match(rpcCall.args.p_subject_key, /^[0-9a-f]{64}$/)
+})
+
+test('Economy bankreward does not guess a target from display text', async () => {
+  const fixture = createFixture({ rpcData: { status: 'applied', amount: 99999 } })
+  const commands = []
+  economyPlugin.load({
+    logger: loggerFor(),
+    config: {},
+    events: {},
+    commands: {
+      register(command) {
+        commands.push(command)
+        return () => undefined
+      },
+    },
+    services: servicesFor(fixture.service),
+  })
+
+  const replies = []
+  await commands.find((command) => command.name === 'bankreward').handler({
+    message: { id: 'reward-without-mention', remoteJid: GROUP_JID, senderJid: SUBJECT_JID },
+    args: ['@Ran', '|', 'Arthalon', '99999'],
+    commandName: 'bankreward',
+    prefix: '!',
+    config: {},
+    logger: loggerFor(),
+    services: servicesFor(fixture.service),
+    whatsapp: { userJid: SUBJECT_JID },
+    reply: async (text) => replies.push(text),
+  })
+
+  assert.equal(replies.length, 1)
+  assert.match(replies[0], /Tag anggota dari daftar mention WhatsApp atau balas pesannya/)
+  assert.equal(fixture.calls.some((call) => call.operation === 'rpc'), false)
+})
