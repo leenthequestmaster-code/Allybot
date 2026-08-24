@@ -37,7 +37,13 @@ function safeStatus(value: EconomyAccountSnapshot['safeStatus']): string {
 }
 
 function renderSnapshot(snapshot: EconomyAccountSnapshot): string {
-  if (!snapshot.economyEnabled) return ['Vela Status', 'Status: Belum diaktifkan di grup ini'].join('\n')
+  if (!snapshot.economyEnabled) {
+    return [
+      'Vela Status',
+      'Status: Belum diaktifkan di grup ini',
+      'Keterangan: Aktivasi dilakukan oleh pengelola grup melalui policy yang sah.',
+    ].join('\n')
+  }
 
   const walletAvailable = snapshot.walletBalance - snapshot.restrictedWalletBalance - snapshot.reservedWalletBalance
   const safeLimit = snapshot.safeLimit >= 2_000_000_000 ? 'Tidak terbatas' : `${formatVela(snapshot.safeLimit)} Vela`
