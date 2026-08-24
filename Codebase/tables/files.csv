@@ -1,6 +1,6 @@
 path,bytes,extension,layer,snapshot_path
 .env.example,2078,.example,root,snapshot/.env.example
-.github/workflows/ci.yml,26629,.yml,ci,snapshot/.github/workflows/ci.yml
+.github/workflows/ci.yml,26710,.yml,ci,snapshot/.github/workflows/ci.yml
 docs/.group-info-visual-exploration.md,1707,.md,documentation,snapshot/docs/.group-info-visual-exploration.md
 docs/allybot-symbol-catalog.md,12823,.md,documentation,snapshot/docs/allybot-symbol-catalog.md
 docs/application-framework.md,6834,.md,documentation,snapshot/docs/application-framework.md

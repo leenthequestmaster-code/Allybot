@@ -298,6 +298,7 @@ jobs:
           test -f stage/migrations/neon/0001_whatsapp_chat_logs.sql
           test -f stage/migrations/supabase/0001_economy_schema.sql
           test -f stage/migrations/supabase/0002_economy_functions.sql
+          test -f stage/migrations/supabase/0003_economy_transfer_cache_keys.sql
           (cd stage && node scripts/verify-supabase-economy-migration.mjs .)
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)
