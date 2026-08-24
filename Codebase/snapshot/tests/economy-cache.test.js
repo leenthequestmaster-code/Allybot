@@ -221,6 +221,55 @@ test('Economy plugin renders the authoritative snapshot to the user', async () =
   ].join('\n'))
 })
 
+test('Economy renders a plain disabled status with activation guidance', async () => {
+  const fixture = createFixture({ rpcData: {
+    economy_enabled: false,
+    wallet_balance: 0,
+    safe_balance: 0,
+    safe_limit: 50000,
+    restricted_wallet_balance: 0,
+    reserved_wallet_balance: 0,
+    membership_tier: 'basic',
+    safe_status: 'not_open',
+    revision: 0,
+    as_of: '2026-08-24T00:00:00.000Z',
+  } })
+  const commands = []
+  economyPlugin.load({
+    logger: loggerFor(),
+    config: {},
+    events: {},
+    commands: {
+      register(command) {
+        commands.push(command)
+        return () => undefined
+      },
+    },
+    services: servicesFor(fixture.service),
+  })
+
+  const vela = commands.find((command) => command.name === 'vela')
+  const replies = []
+  await vela.handler({
+    message: { remoteJid: GROUP_JID, senderJid: SUBJECT_JID },
+    args: [],
+    commandName: 'vela',
+    prefix: '!',
+    config: {},
+    logger: loggerFor(),
+    services: servicesFor(fixture.service),
+    whatsapp: { userJid: SUBJECT_JID },
+    reply: async (text) => replies.push(text),
+  })
+
+  assert.equal(replies.length, 1)
+  assert.equal(replies[0], [
+    'Vela Status',
+    'Status: Belum diaktifkan di grup ini',
+    'Keterangan: Aktivasi dilakukan oleh pengelola grup melalui policy yang sah.',
+  ].join('\n'))
+})
+
 test('Economy falls back to Supabase when Redis cache operations fail', async () => {
   const calls = []
   const redis = {
