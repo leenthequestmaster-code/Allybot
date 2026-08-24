@@ -866,6 +866,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       const text = extractText(message)
       const buttonId = extractButtonId(message)
       const quotedText = extractQuotedText(message)
+      const quotedMessageId = extractContextInfo(message)?.stanzaId
       const media = mediaDescriptorFromContent(message.message)
       const quotedMedia = mediaDescriptorFromContent(extractContextInfo(message)?.quotedMessage, true)
       const rawQuotedSenderJid = extractQuotedSenderJid(message)
@@ -883,6 +884,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         ...(text ? { text } : {}),
         ...(buttonId ? { buttonId } : {}),
         ...(quotedText ? { quotedText } : {}),
+        ...(typeof quotedMessageId === 'string' && quotedMessageId.length > 0 ? { quotedMessageId } : {}),
         ...(quotedSenderJid ? { quotedSenderJid } : {}),
         ...(media ? { media } : {}),
         ...(quotedMedia ? { quotedMedia } : {}),

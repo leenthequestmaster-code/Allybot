@@ -4,6 +4,7 @@ import type {
   Plugin,
   PluginContext,
   CommandRegistryLike,
+  MessageGateRegistryLike,
   ServiceRegistryLike,
 } from './contracts.js'
 import type { Logger } from 'pino'
@@ -23,6 +24,7 @@ export class PluginManager {
     private readonly events: EventBusLike,
     private readonly commands: CommandRegistryLike,
     private readonly services: ServiceRegistryLike,
+    private readonly messageGates: MessageGateRegistryLike,
   ) {}
 
   register(plugin: Plugin): void {
@@ -105,6 +107,11 @@ export class PluginManager {
       events,
       commands,
       services: this.services,
+      messageGates: {
+        register: (name, gate) => this.trackCleanup(record, this.messageGates.register(name, gate)),
+        evaluate: (message) => this.messageGates.evaluate(message),
+        list: () => this.messageGates.list(),
+      },
     }
   }
 

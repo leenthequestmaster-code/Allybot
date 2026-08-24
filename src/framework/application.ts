@@ -12,6 +12,7 @@ import type {
 } from './contracts.js'
 import { CommandRegistry } from './command-registry.js'
 import { EventBus } from './event-bus.js'
+import { MessageGateRegistry } from './message-gate.js'
 import { PluginManager } from './plugin-manager.js'
 import { ServiceRegistry } from './service-registry.js'
 import { type PermissionResolver } from './middleware.js'
@@ -27,6 +28,7 @@ export class ApplicationFramework {
   readonly services: ServiceRegistryLike
   readonly commands: CommandRegistryLike
   readonly plugins: PluginManager
+  readonly messageGates: MessageGateRegistry
 
   private stateValue: FrameworkState = { phase: 'created', connected: false }
   private readonly unbinders: Array<() => void> = []
@@ -39,6 +41,7 @@ export class ApplicationFramework {
   ) {
     this.events = new EventBus(logger)
     this.services = new ServiceRegistry(logger)
+    this.messageGates = new MessageGateRegistry()
     this.commands = new CommandRegistry(
       config,
       logger,
@@ -49,7 +52,7 @@ export class ApplicationFramework {
       options.extraMiddleware,
       options.prefixResolver,
     )
-    this.plugins = new PluginManager(logger, config, this.events, this.commands, this.services)
+    this.plugins = new PluginManager(logger, config, this.events, this.commands, this.services, this.messageGates)
   }
 
   get state(): FrameworkState {
@@ -107,6 +110,11 @@ export class ApplicationFramework {
     )
     this.unbinders.push(
       this.whatsapp.onMessage(async (message) => {
+        const gateResult = await this.messageGates.evaluate(message)
+        if (!gateResult.allowed) {
+          this.logger.info({ reason: gateResult.reason }, 'message blocked by policy gate')
+          return
+        }
         await this.events.emit('message.received', message)
         await this.commands.dispatch(message)
       }),

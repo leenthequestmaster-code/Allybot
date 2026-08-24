@@ -246,3 +246,31 @@ test('framework stop unbinds inbound listeners and prevents post-stop dispatch',
   assert.deepEqual(whatsapp.sentTexts, [])
   assert.equal(framework.state.phase, 'stopped')
 })
+
+
+test('message gate denies before message.received and command dispatch', async () => {
+  const whatsapp = createFakeWhatsapp()
+  const framework = createFramework(whatsapp)
+  let received = 0
+  let executions = 0
+
+  framework.registerPlugin({
+    name: 'acceptance-message-gate',
+    load(context) {
+      context.messageGates.register('deny-acceptance-message', () => ({ allowed: false, reason: 'test-denied' }))
+      context.events.on('message.received', () => { received += 1 })
+      context.commands.register({
+        name: 'gated',
+        handler: async () => { executions += 1 },
+      })
+    },
+  })
+
+  await framework.start()
+  await whatsapp.emitMessage(message({ id: 'gate-denied', text: '!gated' }))
+
+  assert.equal(received, 0)
+  assert.equal(executions, 0)
+  assert.deepEqual(whatsapp.sentTexts, [])
+  await framework.stop()
+})

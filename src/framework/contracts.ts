@@ -27,6 +27,7 @@ export interface CoreMessage {
   readonly text?: string
   readonly buttonId?: string
   readonly quotedText?: string
+  readonly quotedMessageId?: string
   readonly quotedSenderJid?: string
   readonly media?: CoreMediaDescriptor
   readonly quotedMedia?: CoreMediaDescriptor
@@ -150,6 +151,10 @@ export interface FrameworkConfig {
   readonly codebaseExportEnabled?: boolean
   readonly codebaseExportPath?: string
   readonly codebaseExportMaxBytes?: number
+  readonly characterGuideSessionTtlSeconds?: number
+  readonly groupContextOocCooldownMs?: number
+  readonly groupContextOocWindowMs?: number
+  readonly groupContextOocMaxPerWindow?: number
 }
 
 export interface CommandContext {
@@ -245,12 +250,26 @@ export type CommandPrefixResolver = (
   fallback: string,
 ) => string
 
+export interface MessageGateResult {
+  readonly allowed: boolean
+  readonly reason?: string
+}
+
+export type MessageGate = (message: CoreMessage) => Promise<MessageGateResult> | MessageGateResult
+
+export interface MessageGateRegistryLike {
+  register(name: string, gate: MessageGate): () => void
+  evaluate(message: CoreMessage): Promise<MessageGateResult>
+  list(): readonly string[]
+}
+
 export interface PluginContext {
   readonly logger: Logger
   readonly config: FrameworkConfig
   readonly events: EventBusLike
   readonly commands: CommandRegistryLike
   readonly services: ServiceRegistryLike
+  readonly messageGates: MessageGateRegistryLike
 }
 
 export interface Plugin {

@@ -41,6 +41,10 @@ import { NeonClientService } from './neon-client.js'
 import { createNeonChatLogPlugin } from './framework/plugins/neon-chat-log.js'
 import { UpstashRedisService } from './upstash-redis.js'
 import { EconomyService } from './services/economy-service.js'
+import { CharacterGuideService } from './services/character-guide-service.js'
+import { GroupContextService } from './services/group-context-service.js'
+import { createGroupContextPlugin } from './framework/plugins/group-context.js'
+import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
 
 function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input: SuggestionProviderInput) => Promise<string>) | undefined {
   if (!config.XKIRO_AI_ENABLED) return undefined
@@ -84,6 +88,10 @@ async function main(): Promise<void> {
       codebaseExportEnabled: config.CODEBASE_EXPORT_ENABLED,
       codebaseExportPath: config.CODEBASE_EXPORT_PATH,
       codebaseExportMaxBytes: config.CODEBASE_EXPORT_MAX_BYTES,
+      characterGuideSessionTtlSeconds: config.CHARACTER_GUIDE_SESSION_TTL_SECONDS,
+      groupContextOocCooldownMs: config.GROUP_CONTEXT_OOC_COOLDOWN_MS,
+      groupContextOocWindowMs: config.GROUP_CONTEXT_OOC_WINDOW_MS,
+      groupContextOocMaxPerWindow: config.GROUP_CONTEXT_OOC_MAX_PER_WINDOW,
     },
     logger,
     whatsapp,
@@ -101,6 +109,8 @@ async function main(): Promise<void> {
     env: process.env,
     cacheTtlSeconds: config.SUPABASE_ECONOMY_CACHE_TTL_SECONDS,
   }))
+  framework.registerService(new GroupContextService(logger, { env: process.env }))
+  framework.registerService(new CharacterGuideService(logger, { env: process.env }))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(new KnowledgeService(config.DATABASE_PATH, logger))
@@ -120,8 +130,10 @@ async function main(): Promise<void> {
   if (config.CODEBASE_EXPORT_ENABLED) framework.registerPlugin(codebasePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)
   framework.registerPlugin(menuPlugin)
-  framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(groupPlugin)
+  framework.registerPlugin(createGroupContextPlugin(whatsapp))
+  framework.registerPlugin(createCharacterGuidePlugin(whatsapp))
+  framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))

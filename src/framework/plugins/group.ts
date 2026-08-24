@@ -13,6 +13,7 @@ import {
   SUPPORTED_GROUP_LANGUAGES,
   isValidGroupTimezone,
 } from '../../services/group-configuration-service.js'
+import { GroupContextService, type GroupContextRecord } from '../../services/group-context-service.js'
 
 const PAGE_SIZE = 25
 
@@ -65,6 +66,37 @@ function groupConfiguration(context: CommandContext): GroupConfigurationService 
   return context.services.get<GroupConfigurationService>('group-configuration')
 }
 
+function groupContext(context: CommandContext): GroupContextService | undefined {
+  return context.services.has('group-context')
+    ? context.services.get<GroupContextService>('group-context')
+    : undefined
+}
+
+function renderContextStatus(context: GroupContextRecord): string[] {
+  const subtype = context.icSubtype === 'story_event'
+    ? 'Story/Event'
+    : context.icSubtype
+      ? context.icSubtype.charAt(0).toUpperCase() + context.icSubtype.slice(1)
+      : context.mode === 'guide' ? 'Character Registration' : 'Tidak ada'
+  return [
+    `↳ *Mode* : ${context.mode.toUpperCase()}`,
+    `↳ *Konteks* : ${subtype}`,
+    `↳ *Autodetect OOC/IC* : ${context.mode === 'ic' ? (context.oocPolicy === 'permissive' ? 'Permissive' : 'Strict') : 'Tidak digunakan'}`,
+    `↳ *Welcome/Leave* : ${context.mode === 'ooc' ? 'Tersedia' : 'Terkunci'}`,
+    `↳ *Character Guide* : ${context.mode === 'guide' ? 'Aktif' : 'Tidak aktif'}`,
+  ]
+}
+
+async function requireOocContext(context: CommandContext): Promise<boolean> {
+  if (!context.services.has('group-context')) return true
+  const service = groupContext(context)
+  if (!service || !service.isEnabled) return true
+  const current = await service.get(context.message.remoteJid)
+  if (current.mode === 'ooc') return true
+  await context.reply(`Welcome dan Leave hanya dapat diatur pada grup dengan mode OOC.\nMode grup saat ini: ${current.mode === 'ic' ? `IC - ${current.icSubtype ?? 'unknown'}` : current.mode.toUpperCase()}`)
+  return false
+}
+
 function updateActor(context: CommandContext): string {
   return context.message.senderJid ?? context.whatsapp.userJid ?? 'unknown'
 }
@@ -98,7 +130,7 @@ function formatHistoryTime(timestamp: number, timezone: string, language: 'id' |
   }).format(new Date(timestamp))
 }
 
-function renderGroupInfo(metadata: WhatsAppGroupMetadata, botJid?: string): string {
+function renderGroupInfo(metadata: WhatsAppGroupMetadata, botJid?: string, contextStatus?: GroupContextRecord, oocWhitelistCount?: number): string {
   const adminCount = metadata.participants.filter((participant) => participant.role === 'admin' || participant.role === 'superadmin').length
   const bot = findParticipant(metadata, botJid)
   return [
@@ -109,6 +141,8 @@ function renderGroupInfo(metadata: WhatsAppGroupMetadata, botJid?: string): stri
     `↳ *Member* : ${metadata.participants.length} orang`,
     `↳ *Admin* : ${adminCount} orang`,
     `↳ *Status Bot* : ${bot ? participantRoleLabel(bot.role) : 'Tidak terdeteksi'}`,
+    ...(contextStatus ? renderContextStatus(contextStatus) : []),
+    ...(contextStatus?.mode === 'ic' ? [`↳ *OOC Whitelist* : ${oocWhitelistCount ?? 0} user`] : []),
     ...(metadata.ownerJid ? [`↳ *Creator* : ${userLabel(metadata.ownerJid)}`] : []),
     ...(metadata.description ? ['', `↳ *Deskripsi* : ${metadata.description}`] : []),
     '',
@@ -171,7 +205,12 @@ export const groupPlugin: Plugin = {
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
-        await commandContext.reply(renderGroupInfo(metadata, commandContext.whatsapp.userJid))
+        const contextService = groupContext(commandContext)
+        const contextStatus = contextService ? await contextService.get(commandContext.message.remoteJid) : undefined
+        const whitelistCount = contextService?.isEnabled && contextStatus?.mode === 'ic'
+          ? (await contextService.listAllowlist(commandContext.message.remoteJid)).length
+          : undefined
+        await commandContext.reply(renderGroupInfo(metadata, commandContext.whatsapp.userJid, contextStatus, whitelistCount))
       },
     })
 
@@ -385,6 +424,7 @@ export const groupPlugin: Plugin = {
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
+        if (!(await requireOocContext(commandContext))) return
         const text = commandContext.args.join(' ').trim()
         if (!text) {
           await commandContext.reply(`Format: ${commandContext.prefix}setwelcome <pesan>\nPlaceholder: {{user}}, {{group}}, dan {{count}}.`)
@@ -411,6 +451,7 @@ export const groupPlugin: Plugin = {
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
+        if (!(await requireOocContext(commandContext))) return
         const removed = groupConfiguration(commandContext).clearWelcome(commandContext.message.remoteJid)
         await commandContext.reply(
           removed
@@ -428,6 +469,7 @@ export const groupPlugin: Plugin = {
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
+        if (!(await requireOocContext(commandContext))) return
         const text = commandContext.args.join(' ').trim()
         if (!text) {
           await commandContext.reply(`Format: ${commandContext.prefix}setleave <pesan>\nPlaceholder: {{user}}, {{group}}, dan {{count}}.`)
@@ -454,6 +496,7 @@ export const groupPlugin: Plugin = {
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
+        if (!(await requireOocContext(commandContext))) return
         const removed = groupConfiguration(commandContext).clearLeave(commandContext.message.remoteJid)
         await commandContext.reply(
           removed

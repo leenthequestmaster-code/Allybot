@@ -6,6 +6,8 @@ const entrypoint = await readFile(new URL('../src/index.ts', import.meta.url), '
 
 test('bootstrap keeps Economy and removes retired category plugin registrations', () => {
   assert.match(entrypoint, /framework\.registerPlugin\(economyPlugin\)/)
+  assert.match(entrypoint, /framework\.registerPlugin\(createGroupContextPlugin\(whatsapp\)\)/)
+  assert.match(entrypoint, /framework\.registerPlugin\(createCharacterGuidePlugin\(whatsapp\)\)/)
   assert.doesNotMatch(entrypoint, /createCollaborationPlugin|createEventPlugin|createAnnouncementPlugin/)
   assert.doesNotMatch(entrypoint, /framework\.registerPlugin\(onboardingPlugin\)/)
   assert.doesNotMatch(entrypoint, /framework\.registerPlugin\(createKnowledgePlugin\)/)
@@ -16,6 +18,8 @@ test('bootstrap keeps Economy and removes retired category plugin registrations'
 
 test('bootstrap preserves services required by the active Economy and Suggestion Relay paths', () => {
   assert.match(entrypoint, /new EconomyService\(/)
+  assert.match(entrypoint, /new GroupContextService\(/)
+  assert.match(entrypoint, /new CharacterGuideService\(/)
   assert.match(entrypoint, /new KnowledgeService\(/)
   assert.match(entrypoint, /new SceneService\(/)
   assert.match(entrypoint, /new SuggestionRelayService\(/)

@@ -42,6 +42,12 @@ const envSchema = z.object({
   XKIRO_AI_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_FALLBACK_ENABLED: booleanFromEnv.default(false),
   SUPABASE_ECONOMY_ENABLED: booleanFromEnv.default(false),
+  CHARACTER_GUIDE_ENABLED: booleanFromEnv.default(false),
+  GROUP_CONTEXT_ENABLED: booleanFromEnv.default(false),
+  CHARACTER_GUIDE_SESSION_TTL_SECONDS: boundedInt(300, 86_400).default(1_800),
+  GROUP_CONTEXT_OOC_COOLDOWN_MS: boundedInt(1_000, 3_600_000).default(30_000),
+  GROUP_CONTEXT_OOC_WINDOW_MS: boundedInt(60_000, 3_600_000).default(600_000),
+  GROUP_CONTEXT_OOC_MAX_PER_WINDOW: boundedInt(1, 20).default(3),
   SUPABASE_URL: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   SUPABASE_ECONOMY_CACHE_TTL_SECONDS: boundedInt(5, 300).default(15),
@@ -83,9 +89,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (parsed.data.PAIRING_ENABLED && !parsed.data.PAIRING_PHONE_NUMBER) {
     throw new Error('PAIRING_PHONE_NUMBER is required when PAIRING_ENABLED=true')
   }
-  if (parsed.data.SUPABASE_ECONOMY_ENABLED) {
-    if (!parsed.data.SUPABASE_URL) throw new Error('SUPABASE_URL is required when SUPABASE_ECONOMY_ENABLED=true')
-    if (!parsed.data.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required when SUPABASE_ECONOMY_ENABLED=true')
+  if (parsed.data.SUPABASE_ECONOMY_ENABLED || parsed.data.CHARACTER_GUIDE_ENABLED || parsed.data.GROUP_CONTEXT_ENABLED) {
+    if (!parsed.data.SUPABASE_URL) throw new Error('SUPABASE_URL is required when a Supabase-backed feature is enabled')
+    if (!parsed.data.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required when a Supabase-backed feature is enabled')
     if (!/^https:\/\//i.test(parsed.data.SUPABASE_URL)) throw new Error('SUPABASE_URL must use https://')
   }
   if (parsed.data.NEON_ENABLED && !parsed.data.NEON_DATABASE_URL) {
@@ -135,6 +141,8 @@ export function publicConfig(config: AppConfig) {
     xkiroAiEnabled: config.XKIRO_AI_ENABLED,
     xkiroAiFallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED,
     supabaseEconomyEnabled: config.SUPABASE_ECONOMY_ENABLED,
+    characterGuideEnabled: config.CHARACTER_GUIDE_ENABLED,
+    groupContextEnabled: config.GROUP_CONTEXT_ENABLED,
     supabaseEconomyCacheTtlSeconds: config.SUPABASE_ECONOMY_CACHE_TTL_SECONDS,
     neonEnabled: config.NEON_ENABLED,
     neonChatLogEnabled: config.NEON_CHAT_LOG_ENABLED,
