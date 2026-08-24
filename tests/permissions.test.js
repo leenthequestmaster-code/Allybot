@@ -79,6 +79,26 @@ test('group admin permission allows admins and denies regular members with a den
   await app.stop()
 })
 
+test('configured bot owner bypasses group admin permission in groups', async () => {
+  const core = new PermissionCore()
+  const ownerJid = '628120000009@s.whatsapp.net'
+  const app = appFor(core, ownerJid)
+  app.commands.register({
+    name: 'adminprobe',
+    permission: 'group.admin',
+    handler: async ({ reply }) => reply('admin command accepted'),
+  })
+  await app.start()
+
+  await core.emitMessage(message('owner-admin', core.metadata.jid, ownerJid, '!adminprobe'))
+  assert.equal(core.sent[0].text, 'admin command accepted')
+
+  await core.emitMessage(message('member-admin', core.metadata.jid, '628120000003@s.whatsapp.net', '!adminprobe'))
+  assert.equal(core.sent[1].text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+
+  await app.stop()
+})
+
 test('bot owner permission works outside groups and group owner permission remains separate', async () => {
   const core = new PermissionCore()
   const ownerJid = '628120000009@s.whatsapp.net'
