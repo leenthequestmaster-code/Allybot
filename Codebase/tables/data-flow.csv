@@ -10,6 +10,7 @@ src/framework/application.ts,src/whatsapp.ts,starts and closes transport,whatsap
 src/framework/application.ts,src/framework/command-registry.ts,module import,static import graph,high
 src/framework/application.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/application.ts,src/framework/event-bus.ts,module import,static import graph,high
+src/framework/application.ts,src/framework/message-gate.ts,module import,static import graph,high
 src/framework/application.ts,src/framework/middleware.ts,module import,static import graph,high
 src/framework/application.ts,src/framework/plugin-manager.ts,module import,static import graph,high
 src/framework/application.ts,src/framework/service-registry.ts,module import,static import graph,high
@@ -17,6 +18,7 @@ src/framework/command-copy.ts,src/framework/contracts.ts,module import,static im
 src/framework/command-registry.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/command-registry.ts,src/framework/middleware.ts,module import,static import graph,high
 src/framework/event-bus.ts,src/framework/contracts.ts,module import,static import graph,high
+src/framework/message-gate.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/middleware.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/middleware.ts,src/platform/validation.ts,module import,static import graph,high
 src/framework/plugin-manager.ts,src/framework/contracts.ts,module import,static import graph,high
@@ -33,6 +35,12 @@ src/framework/plugins/canon.ts,src/framework/contracts.ts,module import,static i
 src/framework/plugins/canon.ts,src/permissions.ts,module import,static import graph,high
 src/framework/plugins/canon.ts,src/platform/validation.ts,module import,static import graph,high
 src/framework/plugins/canon.ts,src/services/canon-service.ts,module import,static import graph,high
+src/framework/plugins/character-guide.ts,src/framework/contracts.ts,module import,static import graph,high
+src/framework/plugins/character-guide.ts,src/permissions.ts,module import,static import graph,high
+src/framework/plugins/character-guide.ts,src/platform/validation.ts,module import,static import graph,high
+src/framework/plugins/character-guide.ts,src/services/character-guide-service.ts,module import,static import graph,high
+src/framework/plugins/character-guide.ts,src/services/character-sheet-parser.ts,module import,static import graph,high
+src/framework/plugins/character-guide.ts,src/services/group-context-service.ts,module import,static import graph,high
 src/framework/plugins/character.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/character.ts,src/platform/validation.ts,module import,static import graph,high
 src/framework/plugins/character.ts,src/services/character-service.ts,module import,static import graph,high
@@ -54,6 +62,12 @@ src/framework/plugins/economy.ts,src/services/economy-service.ts,module import,s
 src/framework/plugins/event.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/event.ts,src/platform/validation.ts,module import,static import graph,high
 src/framework/plugins/event.ts,src/services/event-service.ts,module import,static import graph,high
+src/framework/plugins/group-context.ts,src/framework/contracts.ts,module import,static import graph,high
+src/framework/plugins/group-context.ts,src/permissions.ts,module import,static import graph,high
+src/framework/plugins/group-context.ts,src/platform/validation.ts,module import,static import graph,high
+src/framework/plugins/group-context.ts,src/services/character-sheet-parser.ts,module import,static import graph,high
+src/framework/plugins/group-context.ts,src/services/group-context-service.ts,module import,static import graph,high
+src/framework/plugins/group-context.ts,src/upstash-redis.ts,module import,static import graph,high
 src/framework/plugins/group-governance.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/group-governance.ts,src/permissions.ts,module import,static import graph,high
 src/framework/plugins/group-governance.ts,src/platform/validation.ts,module import,static import graph,high
@@ -75,6 +89,7 @@ src/framework/plugins/group.ts,src/framework/contracts.ts,module import,static i
 src/framework/plugins/group.ts,src/permissions.ts,module import,static import graph,high
 src/framework/plugins/group.ts,src/platform/validation.ts,module import,static import graph,high
 src/framework/plugins/group.ts,src/services/group-configuration-service.ts,module import,static import graph,high
+src/framework/plugins/group.ts,src/services/group-context-service.ts,module import,static import graph,high
 src/framework/plugins/knowledge.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/knowledge.ts,src/permissions.ts,module import,static import graph,high
 src/framework/plugins/knowledge.ts,src/platform/validation.ts,module import,static import graph,high
@@ -116,6 +131,7 @@ src/framework/plugins/utility.ts,src/framework/contracts.ts,module import,static
 src/framework/plugins/utility.ts,src/framework/plugins/utility-fun.ts,module import,static import graph,high
 src/framework/plugins/welcome-leave.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/welcome-leave.ts,src/services/group-configuration-service.ts,module import,static import graph,high
+src/framework/plugins/welcome-leave.ts,src/services/group-context-service.ts,module import,static import graph,high
 src/framework/service-registry.ts,src/framework/contracts.ts,module import,static import graph,high
 src/index.ts,src/ai-handler.ts,module import,static import graph,high
 src/index.ts,src/config.ts,module import,static import graph,high
@@ -123,10 +139,12 @@ src/index.ts,src/errors.ts,module import,static import graph,high
 src/index.ts,src/framework/application.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/afk.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/ai.ts,module import,static import graph,high
+src/index.ts,src/framework/plugins/character-guide.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/codebase.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/developer-mode.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/diagnostics.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/economy.ts,module import,static import graph,high
+src/index.ts,src/framework/plugins/group-context.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group-governance.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group-moderation.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/group-safety.ts,module import,static import graph,high
@@ -146,9 +164,11 @@ src/index.ts,src/neon-client.ts,module import,static import graph,high
 src/index.ts,src/permissions.ts,module import,static import graph,high
 src/index.ts,src/platform/validation.ts,module import,static import graph,high
 src/index.ts,src/services/afk-service.ts,module import,static import graph,high
+src/index.ts,src/services/character-guide-service.ts,module import,static import graph,high
 src/index.ts,src/services/developer-mode-service.ts,module import,static import graph,high
 src/index.ts,src/services/economy-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-configuration-service.ts,module import,static import graph,high
+src/index.ts,src/services/group-context-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-governance-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-moderation-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-safety-service.ts,module import,static import graph,high
@@ -203,6 +223,10 @@ src/services/canon-service.ts,src/framework/contracts.ts,module import,static im
 src/services/canon-service.ts,src/platform/validation.ts,module import,static import graph,high
 src/services/canon-service.ts,src/services/knowledge-service.ts,module import,static import graph,high
 src/services/canon-service.ts,src/services/platform-guardrail-service.ts,module import,static import graph,high
+src/services/character-guide-service.ts,src/framework/contracts.ts,module import,static import graph,high
+src/services/character-guide-service.ts,src/platform/validation.ts,module import,static import graph,high
+src/services/character-guide-service.ts,src/services/character-sheet-parser.ts,module import,static import graph,high
+src/services/character-guide-service.ts,src/supabase-read-write.ts,module import,static import graph,high
 src/services/character-service.ts,src/framework/contracts.ts,module import,static import graph,high
 src/services/character-service.ts,src/platform/validation.ts,module import,static import graph,high
 src/services/character-service.ts,src/services/platform-guardrail-service.ts,module import,static import graph,high
@@ -223,6 +247,9 @@ src/services/event-service.ts,src/services/collaboration-service.ts,module impor
 src/services/event-service.ts,src/services/personalization-service.ts,module import,static import graph,high
 src/services/event-service.ts,src/services/platform-guardrail-service.ts,module import,static import graph,high
 src/services/group-configuration-service.ts,src/framework/contracts.ts,module import,static import graph,high
+src/services/group-context-service.ts,src/framework/contracts.ts,module import,static import graph,high
+src/services/group-context-service.ts,src/platform/validation.ts,module import,static import graph,high
+src/services/group-context-service.ts,src/supabase-read-write.ts,module import,static import graph,high
 src/services/group-governance-service.ts,src/framework/contracts.ts,module import,static import graph,high
 src/services/group-governance-service.ts,src/platform/operations.ts,module import,static import graph,high
 src/services/group-governance-service.ts,src/platform/validation.ts,module import,static import graph,high
@@ -275,6 +302,10 @@ tests/runtime-acceptance.test.js,"{
       context.commands.register({
         name: 'status',
    ",registers plugin,static registration call,high
+tests/runtime-acceptance.test.js,"{
+    name: 'acceptance-message-gate',
+    load(context) {
+      context.messageGates.register('deny-acceptance-message'",registers plugin,static registration call,high
 tests/runtime-acceptance.test.js,"{
     name: 'acceptance-permission',
     load(context) {
@@ -332,8 +363,11 @@ tests/xkiro-ai.test.js,"createAiPlugin({
 src/index.ts,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }),registers plugin,static registration call,high
 tests/r11-announcement-suggestion.test.js,createAnnouncementPlugin(fixture.whatsapp),registers plugin,static registration call,high
 tests/r7-canon.test.js,createCanonPlugin(core),registers plugin,static registration call,high
+src/index.ts,createCharacterGuidePlugin(whatsapp),registers plugin,static registration call,high
 tests/r3-collaboration.test.js,createCollaborationPlugin(core),registers plugin,static registration call,high
 tests/r9-event.test.js,createEventPlugin(core),registers plugin,static registration call,high
+tests/welcome-leave-context.test.js,createGroupContextPlugin(core),registers plugin,static registration call,high
+src/index.ts,createGroupContextPlugin(whatsapp),registers plugin,static registration call,high
 tests/r8-group-governance.test.js,createGroupGovernancePlugin(core),registers plugin,static registration call,high
 src/index.ts,createGroupGovernancePlugin(whatsapp),registers plugin,static registration call,high
 src/index.ts,createGroupModerationPlugin(whatsapp),registers plugin,static registration call,high
@@ -347,6 +381,7 @@ tests/neon-chat-log-control.test.js,createNeonChatLogPlugin(pluginConfig()),regi
 tests/r5-personalization.test.js,createPersonalizationPlugin(core),registers plugin,static registration call,high
 src/index.ts,createPersonalizationPlugin(whatsapp),registers plugin,static registration call,high
 tests/r6-scene.test.js,createScenePlugin(core),registers plugin,static registration call,high
+tests/welcome-leave-context.test.js,createWelcomeLeavePlugin(core),registers plugin,static registration call,high
 src/index.ts,createWelcomeLeavePlugin(whatsapp),registers plugin,static registration call,high
 src/index.ts,developerModePlugin,registers plugin,static registration call,high
 tests/developer-mode.test.js,developerModePlugin,registers plugin,static registration call,high
@@ -358,10 +393,12 @@ tests/group-configuration.test.js,groupPlugin,registers plugin,static registrati
 tests/group.test.js,groupPlugin,registers plugin,static registration call,high
 tests/integration.test.js,groupPlugin,registers plugin,static registration call,high
 tests/permissions.test.js,groupPlugin,registers plugin,static registration call,high
+tests/welcome-leave-context.test.js,groupPlugin,registers plugin,static registration call,high
 src/index.ts,mediaPlugin,registers plugin,static registration call,high
 src/index.ts,menuPlugin,registers plugin,static registration call,high
 tests/afk.test.js,menuPlugin,registers plugin,static registration call,high
 tests/runtime-acceptance.test.js,menuPlugin,registers plugin,static registration call,high
+tests/welcome-leave-context.test.js,menuPlugin,registers plugin,static registration call,high
 tests/r10-onboarding.test.js,onboardingPlugin,registers plugin,static registration call,high
 src/index.ts,suggestionRelayPlugin,registers plugin,static registration call,high
 src/index.ts,technicalPlugin,registers plugin,static registration call,high
@@ -381,6 +418,7 @@ src/index.ts,AfkService,registers service,static registration call,high
 tests/r11-announcement-suggestion.test.js,appGuardrails,registers service,static registration call,high
 tests/r11-announcement-suggestion.test.js,appService,registers service,static registration call,high
 tests/r7-canon.test.js,canon,registers service,static registration call,high
+src/index.ts,CharacterGuideService,registers service,static registration call,high
 tests/r3-collaboration.test.js,collaboration,registers service,static registration call,high
 tests/group.test.js,configuration,registers service,static registration call,high
 src/index.ts,DeveloperModeService,registers service,static registration call,high
@@ -393,6 +431,9 @@ tests/afk.test.js,groupConfiguration,registers service,static registration call,
 src/index.ts,GroupConfigurationService,registers service,static registration call,high
 tests/group-configuration.test.js,GroupConfigurationService,registers service,static registration call,high
 tests/group.test.js,GroupConfigurationService,registers service,static registration call,high
+tests/welcome-leave-context.test.js,GroupConfigurationService,registers service,static registration call,high
+tests/welcome-leave-context.test.js,groupContext,registers service,static registration call,high
+src/index.ts,GroupContextService,registers service,static registration call,high
 src/index.ts,GroupGovernanceService,registers service,static registration call,high
 src/index.ts,GroupModerationService,registers service,static registration call,high
 src/index.ts,GroupSafetyService,registers service,static registration call,high

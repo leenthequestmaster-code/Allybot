@@ -6,7 +6,7 @@ src/framework/plugins/utility.ts,about,,Lihat penjelasan singkat tentang Allybot
 tests/framework.test.js,admin,,,,admin.use,,258,262
 tests/permissions.test.js,adminprobe,,,,group.admin,,57,61
 tests/permissions.test.js,adminprobe,,,,group.admin,,86,90
-src/framework/plugins/group.ts,admins,adminlist,List group administrators with clickable mentions,group,public,,191,204
+src/framework/plugins/group.ts,admins,adminlist,List group administrators with clickable mentions,group,public,,230,243
 src/framework/plugins/afk.ts,afk,away,Set status AFK or view your private AFK status,general,public,3000,195,253
 src/framework/plugins/collaboration.ts,agenda,,Show collaboration agenda,collaboration,public,,414,436
 src/framework/plugins/ai.ts,ai,ally|tanya,Ask Allybot AI without conversation memory,ai,public,,91,117
@@ -28,18 +28,20 @@ src/framework/plugins/technical.ts,botprofile,bprofile,Show the safe public Ally
 tests/framework.test.js,cache,,,,public,,45,50
 src/framework/plugins/utility.ts,calc,,Hitung operasi matematika sederhana,tools,public,,371,386
 src/framework/plugins/event.ts,calendar,kalender,Show event calendar,events,public,,213,236
+src/framework/plugins/character-guide.ts,cancel,cancelcharacter,Batalkan pendaftaran Character Sheet yang belum selesai,your-character,public,5000,521,540
 src/framework/plugins/canon.ts,canon,,Manage bounded community canon,roleplay,public,,98,149
 src/framework/plugins/group-safety.ts,case,,Show one group safety case,moderation,public,,218,238
 src/framework/plugins/group-safety.ts,cases,,List recent group safety cases,moderation,public,,201,216
+src/framework/plugins/character-guide.ts,character,char|yourcharacter,Lihat Character aktif,your-character,public,3000,542,567
 src/framework/plugins/character.ts,character,char,Buat dan kelola character roleplay sosial,roleplay,public,,77,149
 src/framework/plugins/neon-chat-log.ts,chatlog,,Atur transfer chat grup ke Neon,group,public,,79,139
 src/framework/plugins/utility-fun.ts,choose,,Memilih satu opsi secara acak,fun,public,,77,91
 src/framework/plugins/group-safety.ts,claimcase,takecase,Claim an open safety case,moderation,public,,240,264
 src/framework/plugins/technical.ts,clearcache,cacheclear,Clear ephemeral runtime caches without touching auth or databases,system,public,10000,189,212
-src/framework/plugins/group.ts,clearleave,,Clear the custom leave message for the current group,group,public,,449,464
-src/framework/plugins/group.ts,clearrules,,Clear the rules for the current group,group,public,,360,378
+src/framework/plugins/group.ts,clearleave,,Clear the custom leave message for the current group,group,public,,491,507
+src/framework/plugins/group.ts,clearrules,,Clear the rules for the current group,group,public,,399,417
 src/framework/plugins/group-safety.ts,clearwarn,,Revoke a warning by id prefix,moderation,public,,153,176
-src/framework/plugins/group.ts,clearwelcome,,Clear the custom welcome message for the current group,group,public,,406,421
+src/framework/plugins/group.ts,clearwelcome,,Clear the custom welcome message for the current group,group,public,,446,462
 src/framework/plugins/codebase.ts,codebase,,Send the latest sanitized Codebase Intelligence Export,developer,public,30000,61,76
 src/framework/plugins/collaboration.ts,collab,,Show Collaboration status,collaboration,public,,112,123
 src/framework/plugins/utility.ts,commands,cmds,Lihat daftar command yang aktif,tools,public,,302,317
@@ -47,11 +49,13 @@ src/framework/plugins/scene.ts,consent,,Grant or withdraw scoped scene consent,r
 tests/framework.test.js,consumer,,,,public,,274,274
 src/framework/plugins/group-governance.ts,continuity,cekcatatan,Check bounded governance continuity,governance,public,,180,195
 src/framework/plugins/utility.ts,convert,,Konversi satuan dasar,tools,public,,388,404
+src/framework/plugins/character-guide.ts,daftar,registercharacter|createcharacter,Mulai pendaftaran Character Sheet di Grup Guide,your-character,public,5000,383,427
 src/framework/plugins/utility-fun.ts,dare,tantangan,Dapatkan tantangan ringan yang aman,fun,public,,130,138
 tests/framework.test.js,database,,,,public,,40,44
 src/framework/plugins/utility.ts,date,,Lihat tanggal hari ini,tools,public,,431,441
 src/framework/plugins/collaboration.ts,decision,putuskan,Record an explicit group decision,collaboration,public,,381,399
 src/framework/plugins/collaboration.ts,decisions,,List explicit group decisions,collaboration,public,,401,412
+src/framework/plugins/character-guide.ts,deletecharacter,deletechar|offcharacter,Nonaktifkan Character aktif dan mulai ulang,your-character,public,5000,569,597
 src/framework/plugins/developer-mode.ts,dev,debug,Owner-controlled Developer Mode diagnostics,system,public,1000,96,234
 tests/menu.test.js,developer-help,,Developer command,developer,public,,127,127
 tests/menu.test.js,developer-help,,Developer command,developer,public,,136,136
@@ -66,18 +70,20 @@ src/framework/plugins/knowledge.ts,find,cari,Search explicit knowledge visible i
 src/framework/plugins/utility-fun.ts,flip,,Lempar koin,fun,public,,93,100
 src/framework/plugins/knowledge.ts,forget,knowledgeforget,Delete your explicit source record,knowledge,public,,209,227
 src/framework/plugins/personalization.ts,format,,Set personal accessibility format,personalization,public,,263,271
+tests/runtime-acceptance.test.js,gated,,,,public,,262,265
 tests/integration.test.js,good,,,,public,,88,88
 src/framework/plugins/technical.ts,groupid,jid,Show the current WhatsApp group JID for allowlist setup,developer,public,0,164,175
 tests/framework.test.js,groupid,jid,,,public,,146,146
 tests/framework.test.js,groupid,,,,public,,147,147
-src/framework/plugins/group.ts,groupinfo,ginfo,Show group metadata and bot status,group,public,,165,176
+src/framework/plugins/group.ts,groupinfo,ginfo,Show group metadata and bot status,group,public,,199,215
 tests/menu.test.js,groupinfo,,Show group information,group,public,,193,199
 tests/menu.test.js,groupinfo,,Show group information,group,public,,240,245
 tests/menu.test.js,groupinfo,,Show group information,group,public,,326,331
 src/framework/plugins/group-moderation.ts,groupmode,,Update guarded group settings,moderation,public,,120,163
 tests/permissions.test.js,groupownerprobe,,,,group.owner,,111,115
-src/framework/plugins/group.ts,groupsettings,,Show active group configuration,group,public,,466,488
+src/framework/plugins/group.ts,groupsettings,,Show active group configuration,group,public,,509,531
 src/framework/plugins/group-setup-mission.ts,groupsetup,setupgroup,Start or resume the persistent group setup mission,group,group.admin,3000,49,97
+src/framework/plugins/character-guide.ts,guider,,Lihat admin yang menjadi kontak Guide grup,your-character,public,,599,614
 src/framework/plugins/group-governance.ts,handoff,handover,Manage bounded moderator handoff,governance,public,,142,178
 src/framework/plugins/diagnostics.ts,health,,Show a concise non-sensitive framework health snapshot,system,public,3000,56,66
 tests/framework.test.js,hello,hi,,,public,1000,81,86
@@ -87,11 +93,11 @@ src/framework/plugins/group-governance.ts,join,,Approve or reject a bounded join
 src/framework/plugins/group-governance.ts,joinrequests,joinlist,List bounded group join requests,governance,public,,197,215
 src/framework/plugins/knowledge.ts,knowledge,know,Show explicit knowledge status,knowledge,public,,87,99
 src/framework/plugins/knowledge.ts,knowledgeexport,knowexport|exportcatatan,Export visible explicit knowledge records,knowledge,public,,253,270
-src/framework/plugins/group.ts,link,,Show the group invite link for administrators,group,public,,245,258
+src/framework/plugins/group.ts,link,,Show the group invite link for administrators,group,public,,284,297
 src/framework/plugins/canon.ts,lore,,Show approved lore/canon entries,roleplay,public,,172,187
-src/framework/plugins/group.ts,membercount,,Show total members and administrators,group,public,,178,189
-src/framework/plugins/group.ts,memberinfo,,Show role information for a mentioned member,group,public,,220,243
-src/framework/plugins/group.ts,members,memberlist,List group members with pagination,group,public,,206,218
+src/framework/plugins/group.ts,membercount,,Show total members and administrators,group,public,,217,228
+src/framework/plugins/group.ts,memberinfo,,Show role information for a mentioned member,group,public,,259,282
+src/framework/plugins/group.ts,members,memberlist,List group members with pagination,group,public,,245,257
 src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,3000,411,420
 src/framework/plugins/menu.ts,menu-reply,,Internal menu reply navigation,system,public,0,422,429
 src/framework/plugins/group-moderation.ts,modaction,moderate,Run a guarded participant moderation action,moderation,public,,68,118
@@ -102,6 +108,7 @@ src/framework/plugins/personalization.ts,myprefs,mypreferences|prefs,Show effect
 src/framework/plugins/personalization.ts,mytimezone,,Set personal IANA timezone preference,personalization,public,,222,230
 src/framework/plugins/personalization.ts,notify,,Enable or disable personal notifications,personalization,public,,242,250
 src/framework/plugins/onboarding.ts,onboarding,onboard,Bounded group onboarding workflow,community,public,,61,120
+src/framework/plugins/group-context.ts,ooc,,Kirim pesan di luar karakter pada grup IC,group,public,0,219,278
 tests/framework.test.js,other,jid,,,public,,148,148
 src/framework/plugins/technical.ts,owner,,Show the safe public Owner profile and control-plane status,system,public,3000,127,150
 tests/menu.test.js,owner-help,,Owner command,owner,public,,128,128
@@ -111,7 +118,7 @@ tests/framework.test.js,partial-boom,,,,public,,130,130
 tests/framework.test.js,partial-command,,,,public,,238,238
 tests/framework.test.js,partial-failure,,,,public,,235,243
 src/framework/plugins/scene.ts,pause,,Pause a scene owned by the actor,roleplay,public,,183,191
-src/framework/plugins/group.ts,permissions,,Show the basic permissions associated with your group role,group,public,,619,641
+src/framework/plugins/group.ts,permissions,,Show the basic permissions associated with your group role,group,public,,662,684
 src/framework/plugins/personalization.ts,personalization,personal,Show Personalization status and scope,personalization,public,,116,128
 src/framework/plugins/technical.ts,ping,,Check Allybot response latency and uptime,system,public,3000,110,125
 tests/menu.test.js,ping,,Check bot latency,general,public,,58,64
@@ -123,7 +130,7 @@ tests/menu.test.js,ping,,Check bot latency,general,public,,277,282
 tests/menu.test.js,ping,,Check bot latency,general,public,,320,325
 src/framework/plugins/collaboration.ts,poll,jajak,"Create, inspect, or close a collaboration poll",collaboration,public,,167,232
 src/framework/plugins/personalization.ts,preferences,groupprefs,Set group notification and presentation policy,personalization,public,,172,210
-src/framework/plugins/group.ts,prefix,,Show the active command prefix for the current group,group,public,,490,513
+src/framework/plugins/group.ts,prefix,,Show the active command prefix for the current group,group,public,,533,556
 src/framework/plugins/utility.ts,privacy,,Baca ringkasan cara Allybot menjaga data,tools,public,,353,360
 tests/runtime-acceptance.test.js,protected,,,,bot.owner,,165,169
 src/framework/plugins/personalization.ts,quiet,,Set personal quiet hours,personalization,public,,232,240
@@ -138,29 +145,32 @@ src/framework/plugins/collaboration.ts,remindcancel,,Cancel a group reminder cre
 src/framework/plugins/collaboration.ts,reminders,reminder,List active group reminders,collaboration,public,,289,301
 src/framework/plugins/group-safety.ts,report,,Report a group safety case,moderation,public,,178,199
 src/framework/plugins/group-governance.ts,retcon,,Review bounded retcon proposals,governance,public,,79,140
-src/framework/plugins/group.ts,role,,Show your role or the role of a mentioned member,group,public,,601,617
+src/framework/plugins/character-guide.ts,retry,retrycharacter,Ulangi pendaftaran Character Sheet,your-character,public,5000,498,519
+src/framework/plugins/group.ts,role,,Show your role or the role of a mentioned member,group,public,,644,660
 src/framework/plugins/utility-fun.ts,roll,dice,"Lempar dadu, misalnya 2d6",fun,public,,102,118
 src/framework/plugins/utility-fun.ts,rps,suit,Main batu gunting kertas melawan Allybot,fun,public,,140,157
-src/framework/plugins/group.ts,rules,,Show the current group rules,group,public,,260,280
-src/framework/plugins/group.ts,ruleshistory,,Show recent group rules changes,group,public,,282,328
+src/framework/plugins/group.ts,rules,,Show the current group rules,group,public,,299,319
+src/framework/plugins/group.ts,ruleshistory,,Show recent group rules changes,group,public,,321,367
 src/framework/plugins/group-safety.ts,safety,,Show group safety mode,moderation,public,,67,81
+src/framework/plugins/character-guide.ts,savecharacter,savechar,Simpan Character Sheet dari reply ID Card,your-character,public,5000,429,496
 src/framework/plugins/scene.ts,scene,,Manage bounded roleplay scenes,roleplay,public,,100,148
 src/framework/plugins/utility.ts,searchcmd,,Cari command berdasarkan kata kunci,tools,public,,319,333
 tests/menu.test.js,secret,,Hidden internal command,owner,public,,65,71
 tests/framework.test.js,self-test,,,,public,,169,172
 src/framework/plugins/canon.ts,setcanon,cerita,Enable or disable Canon per group,roleplay,public,,151,170
 src/framework/plugins/collaboration.ts,setcollab,collabmode,Enable or disable Collaboration per group,collaboration,public,,125,144
+src/framework/plugins/group-context.ts,setgroup,groupmode,Atur mode dan konteks sebuah grup,group,public,,151,217
 src/framework/plugins/knowledge.ts,setknowledge,catatan,Enable or disable explicit knowledge capture,knowledge,public,,101,120
-src/framework/plugins/group.ts,setlanguage,,Set the language preference for the current group,group,public,,554,574
-src/framework/plugins/group.ts,setleave,,Set a custom leave message for the current group,group,public,,423,447
+src/framework/plugins/group.ts,setlanguage,,Set the language preference for the current group,group,public,,597,617
+src/framework/plugins/group.ts,setleave,,Set a custom leave message for the current group,group,public,,464,489
 src/framework/plugins/collaboration.ts,setnativepoll,pollmode,Enable optional native poll presentation,collaboration,public,,146,165
 src/framework/plugins/personalization.ts,setpersonalization,,Enable or disable Personalization per group,personalization,public,,130,148
-src/framework/plugins/group.ts,setprefix,,Set the command prefix for the current group,group,public,,515,552
-src/framework/plugins/group.ts,setrules,,Set the rules for the current group,group,public,,330,358
+src/framework/plugins/group.ts,setprefix,,Set the command prefix for the current group,group,public,,558,595
+src/framework/plugins/group.ts,setrules,,Set the rules for the current group,group,public,,369,397
 src/framework/plugins/group-safety.ts,setsafety,,Enable or disable group safety dry-run,moderation,public,,83,108
 src/framework/plugins/scene.ts,setscene,adegan,Enable or disable Scene per group,roleplay,public,,150,169
-src/framework/plugins/group.ts,settimezone,,Set the IANA timezone for the current group,group,public,,576,599
-src/framework/plugins/group.ts,setwelcome,,Set a custom welcome message for the current group,group,public,,380,404
+src/framework/plugins/group.ts,settimezone,,Set the IANA timezone for the current group,group,public,,619,642
+src/framework/plugins/group.ts,setwelcome,,Set a custom welcome message for the current group,group,public,,419,444
 src/framework/plugins/knowledge.ts,source,sourceinfo,Read one explicit source by short id,knowledge,public,,189,207
 src/framework/plugins/utility.ts,status,,Lihat status umum Allybot,tools,public,,266,282
 tests/runtime-acceptance.test.js,status,,Acceptance status command,general,public,,190,195
@@ -189,3 +199,4 @@ src/framework/plugins/utility.ts,version,,Lihat informasi runtime non-sensitif,t
 src/framework/plugins/collaboration.ts,vote,,Record one vote in a collaboration poll,collaboration,public,,234,262
 src/framework/plugins/group-safety.ts,warn,,Issue an auditable warning to a group member,moderation,public,,110,132
 src/framework/plugins/group-safety.ts,warnings,warns,List recent group warnings,moderation,public,,134,151
+src/framework/plugins/group-context.ts,whitelistooc,oocwhitelist,Kelola daftar user yang boleh OOC di grup IC,group,public,,280,340

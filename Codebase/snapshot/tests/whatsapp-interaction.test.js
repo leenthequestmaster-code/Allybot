@@ -105,3 +105,36 @@ test('WhatsApp adapter profile-picture failures log only a safe error name', asy
   assert.equal(JSON.stringify(logs).includes('<jid-redacted@s.whatsapp.net>'), false)
   assert.equal(JSON.stringify(logs).includes('example-token'), false)
 })
+
+
+test('WhatsApp adapter forwards quoted message id and sender for Character Guide reply validation', async () => {
+  const connection = new WhatsAppConnection({}, {}, {})
+  const messages = []
+  connection.onMessage((normalized) => messages.push(normalized))
+
+  await connection.emitMessages([
+    {
+      key: {
+        remoteJid: '<jid-redacted@g.us>',
+        participant: '<jid-redacted@s.whatsapp.net>',
+        id: 'save-message',
+        fromMe: false,
+      },
+      message: {
+        extendedTextMessage: {
+          text: '!savecharacter\nName: Aruna',
+          contextInfo: {
+            stanzaId: 'card-message',
+            participant: 'bot@s.whatsapp.net',
+            quotedMessage: { conversation: 'Character ID Card\nRegistration ID: AAAABBBBCCCC' },
+          },
+        },
+      },
+      messageTimestamp: 1_700_000_000,
+    },
+  ])
+
+  assert.equal(messages[0]?.quotedMessageId, 'card-message')
+  assert.equal(messages[0]?.quotedSenderJid, 'bot@s.whatsapp.net')
+  assert.match(messages[0]?.quotedText ?? '', /Registration ID: AAAABBBBCCCC/)
+})

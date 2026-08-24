@@ -6,7 +6,9 @@ DIAGNOSTICS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted
 XKIRO_AI_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,42
 XKIRO_AI_FALLBACK_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,43
 SUPABASE_ECONOMY_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,44
-NEON_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,48
-NEON_CHAT_LOG_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,51
-UPSTASH_REDIS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,59
-CODEBASE_EXPORT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,67
+CHARACTER_GUIDE_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,45
+GROUP_CONTEXT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,46
+NEON_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,54
+NEON_CHAT_LOG_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,57
+UPSTASH_REDIS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,65
+CODEBASE_EXPORT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,73

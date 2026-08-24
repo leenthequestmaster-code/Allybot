@@ -6,6 +6,7 @@ import type {
   WhatsAppSendOptions,
 } from '../contracts.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
+import { GroupContextService } from '../../services/group-context-service.js'
 
 function userLabel(jid: string): string {
   const user = jidNormalizedUser(jid).split('@')[0]?.split(':')[0] ?? jid
@@ -60,11 +61,13 @@ export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
   return {
     name: 'welcome-leave',
     version: '0.2.0',
-    dependencies: ['menu'],
+    dependencies: ['menu', 'group-context'],
     load(context) {
       const configuration = context.services.get<GroupConfigurationService>('group-configuration')
+      const groupContext = context.services.get<GroupContextService>('group-context')
       context.events.on('group.participants.changed', async (event) => {
         if (event.action !== 'add' && event.action !== 'remove') return
+        if (groupContext.isEnabled && (await groupContext.get(event.groupJid)).mode !== 'ooc') return
         const custom = event.action === 'add'
           ? configuration.getWelcome(event.groupJid)
           : configuration.getLeave(event.groupJid)

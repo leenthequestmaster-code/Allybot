@@ -1,5 +1,5 @@
 file,test_name,component_hint,line
-tests/active-command-surface.test.js,bootstrap preserves services required by the active Economy and Suggestion Relay paths,active-command-surface,17
+tests/active-command-surface.test.js,bootstrap preserves services required by the active Economy and Suggestion Relay paths,active-command-surface,19
 tests/active-command-surface.test.js,bootstrap keeps Economy and removes retired category plugin registrations,active-command-surface,7
 tests/afk.test.js,AFK hardening bounds retention and context and throttles presence writes,afk,132
 tests/afk.test.js,AFK migration converts legacy mention timestamps from seconds to milliseconds,afk,178
@@ -13,11 +13,24 @@ tests/architecture-fitness.test.js,architecture fitness keeps guardrail outcomes
 tests/architecture-fitness.test.js,architecture fitness keeps sanitized artifact and locked deployment boundaries,architecture-fitness,46
 tests/architecture-fitness.test.js,architecture fitness keeps Codebase export automation least-privilege and provenance-bound,architecture-fitness,59
 tests/architecture-fitness.test.js,"architecture fitness rejects tracked secrets, database files, and session artifacts",architecture-fitness,81
+tests/character-guide-service.test.js,Character RPC uses one stable world scope across Guide and IC groups,character-guide-service,62
+tests/character-guide-service.test.js,Character service stays disabled without feature flag and does not construct a client,character-guide-service,79
+tests/character-guide.test.js,Character Guide handles experience selection without quotedMessageId and issues one coherent card session,character-guide,106
+tests/character-guide.test.js,Character Guide refuses to silently map a new card to a different existing session,character-guide,119
+tests/character-guide.test.js,Character Guide save path validates reply/card and calls service only after parser succeeds,character-guide,130
+tests/character-guide.test.js,Guide participant add creates onboarding prompt but does not create durable session before card issuance,character-guide,147
 tests/character-plugin.test.js,"Character plugin emote is group-only, bounded, and strips presentation markup",character-plugin,22
 tests/character-plugin.test.js,Character plugin supports text-first roleplay profile workflow with owner checks,character-plugin,38
 tests/character-service.test.js,"CharacterService persists bounded profiles, enforces ownership, and archives without deletion",character-service,22
 tests/character-service.test.js,CharacterService limits active characters per owner and validates identifiers,character-service,55
+tests/character-sheet-parser.test.js,Character Sheet parser normalizes WhatsApp formatting and ignores server-owned fields,character-sheet-parser,26
+tests/character-sheet-parser.test.js,Character Sheet parser rejects duplicate and unknown labeled fields,character-sheet-parser,47
+tests/character-sheet-parser.test.js,Character Sheet parser rejects invalid gameplay values without guessing typos,character-sheet-parser,55
+tests/character-sheet-parser.test.js,IC narrative grammar accepts anchored action/dialog variants,character-sheet-parser,63
+tests/character-sheet-parser.test.js,IC narrative grammar does not treat markup or manual OOC markers as narrative,character-sheet-parser,71
 tests/codebase-config.test.js,Codebase export configuration rejects unsafe paths and oversized limits,codebase-config,16
+tests/codebase-config.test.js,Character Guide and Group Context are default-off with bounded safe defaults,codebase-config,24
+tests/codebase-config.test.js,Supabase-backed Character/Group Context flags require server-side credentials and valid bounds,codebase-config,38
 tests/codebase-config.test.js,Codebase export configuration is disabled and bounded by default,codebase-config,5
 tests/codebase-export.test.js,codebase command is permission-gated,codebase-export,123
 tests/codebase-export.test.js,codebase command sends a bounded ZIP document to an authorized developer,codebase-export,53
@@ -67,6 +80,12 @@ tests/group-configuration.test.js,welcome and leave configuration commands are a
 tests/group-configuration.test.js,"prefix and language configuration are validated, group-scoped, and persistent",group-configuration,163
 tests/group-configuration.test.js,"rules history and timezone are admin-only, validated, and persistent",group-configuration,219
 tests/group-configuration.test.js,"group rules require admin access, stay isolated by group, validate input, and persist after restart",group-configuration,68
+tests/group-context-service.test.js,Group Context service hashes identities and preserves server-authoritative mode result,group-context-service,32
+tests/group-context-service.test.js,disabled Group Context returns safe normal defaults without a client,group-context-service,53
+tests/group-context.test.js,non-IC mode does not invoke CUT OOC classifier,group-context,106
+tests/group-context.test.js,valid !ooc is silent because the original WhatsApp message is already the OOC bubble,group-context,112
+tests/group-context.test.js,strict IC gate allows registered commands and anchored narrative but cuts unknown/OOC text,group-context,88
+tests/group-context.test.js,"sticker and media are CUT OOC for normal users, while whitelist bypasses only the gate",group-context,97
 tests/group-safety-redis.test.js,Group Safety uses Redis shared windows when available and preserves group scope,group-safety-redis,47
 tests/group-setup-plugin.test.js,Group Setup Mission plugin persists and resumes active wizard across plugin reload,group-setup-plugin,32
 tests/group-setup-plugin.test.js,Group Setup Mission plugin denies input after actor loses admin role,group-setup-plugin,66
@@ -292,13 +311,16 @@ tests/r9-event.test.js,"R9 audit redaction excludes raw JID, title, description,
 tests/r9-event.test.js,"R9 timezone, timestamp, phase ordering, and location validation fail closed",r9-event,333
 tests/r9-event.test.js,"R9 plugin is default-off, admin-gated, group-only, and text fallback based",r9-event,345
 tests/recovery-rehearsal.test.js,SQLite recovery rehearsal preserves mission state and audit archive,recovery-rehearsal,33
+tests/release-manifest.test.js,release manifest allows Character verifier and Supabase migrations,release-manifest,10
 tests/runtime-acceptance.test.js,"runtime acceptance rejects fromMe, unknown, and invalid commands without handler side effects",runtime-acceptance,129
 tests/runtime-acceptance.test.js,permission denial is enforced before protected handler execution,runtime-acceptance,155
 tests/runtime-acceptance.test.js,menu uses native buttons only for the main menu and keeps submenu text-only with numeric fallback,runtime-acceptance,184
 tests/runtime-acceptance.test.js,framework stop unbinds inbound listeners and prevents post-stop dispatch,runtime-acceptance,229
+tests/runtime-acceptance.test.js,message gate denies before message.received and command dispatch,runtime-acceptance,251
 tests/runtime-acceptance.test.js,runtime acceptance traces inbound message through command handler to response,runtime-acceptance,98
 tests/storage.test.js,local message cache enforces row and byte bounds without affecting auth state,storage,40
 tests/storage.test.js,local message cache removes expired rows on prune and stale read,storage,64
+tests/supabase-character-migration.test.js,Supabase Character/Group Context migration verifier passes repository source,supabase-character-migration,7
 tests/supabase-read-write.test.js,Supabase read-write config requires URL and service-role key together,supabase-read-write,12
 tests/supabase-read-write.test.js,Supabase read-write config requires an HTTPS URL,supabase-read-write,23
 tests/supabase-read-write.test.js,Supabase read-write client initializes server-side without a data operation,supabase-read-write,33
@@ -322,6 +344,8 @@ tests/utility.test.js,"status, uptime, and features expose bounded non-sensitive
 tests/utility.test.js,utility command index and search expose registered commands without hidden entries,utility,74
 tests/utility.test.js,calculator accepts bounded arithmetic and rejects executable syntax,utility,87
 tests/utility.test.js,unit and timezone utilities validate input and return bounded output,utility,98
+tests/welcome-leave-context.test.js,generic Welcome/Leave is locked outside OOC mode,welcome-leave-context,80
+tests/whatsapp-interaction.test.js,WhatsApp adapter forwards quoted message id and sender for Character Guide reply validation,whatsapp-interaction,110
 tests/whatsapp-interaction.test.js,WhatsApp adapter preserves phone identity from private-message remoteJidAlt when primary chat JID is a LID,whatsapp-interaction,16
 tests/whatsapp-interaction.test.js,WhatsApp adapter ignores malformed or oversized native-flow params,whatsapp-interaction,39
 tests/whatsapp-interaction.test.js,WhatsApp adapter caches profile-picture lookup and rejects non-HTTPS URLs,whatsapp-interaction,51

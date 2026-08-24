@@ -62,6 +62,9 @@ jobs:
       - name: Validate Supabase Economy migration offline
         run: node scripts/verify-supabase-economy-migration.mjs .
 
+      - name: Validate Supabase Character and Group Context migrations offline
+        run: npm run verify:supabase-character
+
       - name: Validate compiled JavaScript
         run: |
           set -euo pipefail
@@ -168,9 +171,9 @@ jobs:
           mkdir -p .ci-artifact/dist .ci-artifact/Codebase .ci-artifact/scripts .ci-artifact/migrations/neon .ci-artifact/migrations/supabase .ci-artifact/node_modules/postgres .ci-artifact/node_modules/dotenv .ci-artifact/node_modules/@supabase .ci-artifact/node_modules/@upstash .ci-artifact/node_modules/buffer .ci-artifact/node_modules/ws .ci-artifact/node_modules/iceberg-js .ci-artifact/node_modules/tslib .ci-artifact/node_modules/uncrypto
           cp -a dist/. .ci-artifact/dist/
           cp Codebase/allybot-codebase-latest.zip .ci-artifact/Codebase/
-          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs scripts/verify-upstash-redis.mjs scripts/verify-supabase-economy-migration.mjs .ci-artifact/scripts/
+          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs scripts/verify-upstash-redis.mjs scripts/verify-supabase-economy-migration.mjs scripts/verify-supabase-character-migration.mjs .ci-artifact/scripts/
           cp migrations/neon/0001_whatsapp_chat_logs.sql .ci-artifact/migrations/neon/
-          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql migrations/supabase/0003_economy_transfer_cache_keys.sql migrations/supabase/0004_economy_pgcrypto_search_path.sql .ci-artifact/migrations/supabase/
+          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql migrations/supabase/0003_economy_transfer_cache_keys.sql migrations/supabase/0004_economy_pgcrypto_search_path.sql migrations/supabase/0005_character_guide_group_context.sql migrations/supabase/0006_character_delivery_lookup.sql migrations/supabase/0007_character_group_context_function_grants.sql migrations/supabase/0008_character_group_context_fk_indexes.sql .ci-artifact/migrations/supabase/
           cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
           cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
           cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
@@ -295,12 +298,18 @@ jobs:
           test -f stage/scripts/verify-neon-chat-log-migration.mjs
           test -f stage/scripts/verify-upstash-redis.mjs
           test -f stage/scripts/verify-supabase-economy-migration.mjs
+          test -f stage/scripts/verify-supabase-character-migration.mjs
           test -f stage/migrations/neon/0001_whatsapp_chat_logs.sql
           test -f stage/migrations/supabase/0001_economy_schema.sql
           test -f stage/migrations/supabase/0002_economy_functions.sql
           test -f stage/migrations/supabase/0003_economy_transfer_cache_keys.sql
           test -f stage/migrations/supabase/0004_economy_pgcrypto_search_path.sql
+          test -f stage/migrations/supabase/0005_character_guide_group_context.sql
+          test -f stage/migrations/supabase/0006_character_delivery_lookup.sql
+          test -f stage/migrations/supabase/0007_character_group_context_function_grants.sql
+          test -f stage/migrations/supabase/0008_character_group_context_fk_indexes.sql
           (cd stage && node scripts/verify-supabase-economy-migration.mjs .)
+          (cd stage && node scripts/verify-supabase-character-migration.mjs .)
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)
           if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/@upstash/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' ! -path '*/node_modules/uncrypto/*' \) -o -path 'stage/src/*' -o -path 'stage/tests/*' \) -print -quit | grep -q .; then
