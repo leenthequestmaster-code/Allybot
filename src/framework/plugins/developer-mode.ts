@@ -63,6 +63,7 @@ function helpText(): string {
     '↳ `!dev connection`',
     '↳ `!dev commands`',
     '↳ `!dev services`',
+    '↳ `!codebase` — kirim export Codebase tersanitasi terakhir dari CI (jika diaktifkan)',
     '',
     'Owner control:',
     '↳ `!dev enable <international-phone-or-jid> <observer|operator> <minutes> <reason>`',

@@ -19,7 +19,7 @@
     "verify:neon-schema": "node scripts/verify-neon-chat-log-migration.mjs",
     "verify:upstash-redis": "node scripts/verify-upstash-redis.mjs",
     "monitor:postgres": "node scripts/monitor-postgres.mjs",
-    "test": "node --test"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@cacheable/node-cache": "1.7.5",

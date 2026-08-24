@@ -147,6 +147,9 @@ export interface FrameworkConfig {
   readonly defaultCooldownMs: number
   readonly botOwnerJid?: string
   readonly databasePath?: string
+  readonly codebaseExportEnabled?: boolean
+  readonly codebaseExportPath?: string
+  readonly codebaseExportMaxBytes?: number
 }
 
 export interface CommandContext {

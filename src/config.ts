@@ -60,6 +60,9 @@ const envSchema = z.object({
   UPSTASH_REDIS_MAX_ATTEMPTS: boundedInt(1, 3).default(2),
   UPSTASH_REDIS_RETRY_DELAY_MS: boundedInt(50, 2_000).default(100),
   UPSTASH_REDIS_KEY_PREFIX: z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,39}$/i).default('allybot:v1'),
+  CODEBASE_EXPORT_ENABLED: booleanFromEnv.default(false),
+  CODEBASE_EXPORT_PATH: z.string().min(1).default('./Codebase/allybot-codebase-latest.zip'),
+  CODEBASE_EXPORT_MAX_BYTES: boundedInt(1, 4 * 1024 * 1024).default(3 * 1024 * 1024),
 })
 
 export type AppConfig = z.infer<typeof envSchema>
@@ -96,6 +99,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     if (!parsed.data.UPSTASH_REDIS_REST_TOKEN) throw new Error('UPSTASH_REDIS_REST_TOKEN is required when UPSTASH_REDIS_ENABLED=true')
     if (!/^https:\/\//i.test(parsed.data.UPSTASH_REDIS_REST_URL)) throw new Error('UPSTASH_REDIS_REST_URL must use https://')
   }
+  if (parsed.data.CODEBASE_EXPORT_PATH.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(parsed.data.CODEBASE_EXPORT_PATH) || parsed.data.CODEBASE_EXPORT_PATH.split(/[\\/]/u).includes('..')) {
+    throw new Error('CODEBASE_EXPORT_PATH must remain inside the application directory')
+  }
 
   return parsed.data
 }
@@ -122,5 +128,7 @@ export function publicConfig(config: AppConfig) {
     neonEnabled: config.NEON_ENABLED,
     neonChatLogEnabled: config.NEON_CHAT_LOG_ENABLED,
     upstashRedisEnabled: config.UPSTASH_REDIS_ENABLED,
+    codebaseExportEnabled: config.CODEBASE_EXPORT_ENABLED,
+    codebaseExportMaxBytes: config.CODEBASE_EXPORT_MAX_BYTES,
   }
 }
