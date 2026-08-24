@@ -205,9 +205,20 @@ test('Economy plugin renders the authoritative snapshot to the user', async () =
   })
 
   assert.equal(replies.length, 1)
-  assert.match(replies[0], /Vela Account/)
-  assert.match(replies[0], /Saldo tersedia: 1\.250 Vela/)
-  assert.match(replies[0], /Saldo: 4\.000 Vela/)
+  assert.equal(replies[0], [
+    'Vela Status',
+    'Wallet:',
+    'Saldo tersedia: 1.250 Vela',
+    'Limit: 20.000 Vela',
+    'Tertahan karena limit: 0 Vela',
+    'Ditahan untuk transfer: 0 Vela',
+    'Safe:',
+    'Status: Aktif',
+    'Saldo: 4.000 Vela',
+    'Kapasitas: 50.000 Vela',
+    'Membership: Basic',
+    'Total tercatat: 5.250 Vela',
+  ].join('\n'))
 })
 
 test('Economy falls back to Supabase when Redis cache operations fail', async () => {
