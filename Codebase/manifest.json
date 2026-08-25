@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "a768f124277d5ce311e9642412277be29dd76513",
-  "generatedAt": "2026-08-24T13:15:39Z",
-  "sourceFileCount": 273,
+  "commitSha": "c6433e2964d21ff5a58b287222aefdaa4a8e6af2",
+  "generatedAt": "2026-08-25T05:17:36Z",
+  "sourceFileCount": 277,
   "counts": {
-    "files": 273,
-    "symbols": 6915,
-    "imports": 914,
-    "calls": 15592,
+    "files": 277,
+    "symbols": 6955,
+    "imports": 927,
+    "calls": 15709,
     "commands": 201,
-    "services": 118,
-    "config": 52,
-    "featureFlags": 13,
-    "dependencies": 14,
-    "tests": 368,
-    "dataFlow": 405
+    "services": 119,
+    "config": 57,
+    "featureFlags": 14,
+    "dependencies": 15,
+    "tests": 372,
+    "dataFlow": 413
   },
   "excluded": [
     ".env",
@@ -56,17 +56,17 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "b7566ac8ebc069762dfe685d8cf4c1ec01a379b343784a3916634d00d271682a"
+      "sha256": "1f781133304759ae1fce391d55f8892c2596b28d9376ee131b6709e89837e374"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "b3c6492339443d0b0ce051e515aaf2ecdc063b7e45f669b621b2b530d400f226"
+      "sha256": "f04c7c87cec40e761c85a42b9a554436cdc7135752cd364f35680b33af997676"
     },
     {
       "path": "snapshot/.env.example",
-      "bytes": 2805,
-      "sha256": "da83aa1761d58dbd9acea96858560ecae090fd61095f2850d922c0d85d078ac1"
+      "bytes": 3066,
+      "sha256": "42e8c9e16cb43b86aed07c5127be371f2d11c0f39151f3252dad12fff4a618a2"
     },
     {
       "path": "snapshot/.github/workflows/ci.yml",
@@ -217,6 +217,11 @@
       "path": "snapshot/docs/observability-contract.md",
       "bytes": 5748,
       "sha256": "5726c22fbac65bcff10459deb3b9b3190411d0257b51b46bc94c4d41a33c3abd"
+    },
+    {
+      "path": "snapshot/docs/OBSERVABILITY-SENTRY.md",
+      "bytes": 4734,
+      "sha256": "cac31fed5fb12c301ef899c445087cb5ef26b3a5d37c829ac17f75f8353bd3e6"
     },
     {
       "path": "snapshot/docs/owner-control-plane-implementation-plan.md",
@@ -530,13 +535,13 @@
     },
     {
       "path": "snapshot/package-lock.json",
-      "bytes": 69809,
-      "sha256": "192bb8c647d3e7d20d2c39859b2f699d97bf106314b1d8dadd54b0b42983df3a"
+      "bytes": 85182,
+      "sha256": "b52f62a6b70c6f2695da8688820ded2c187ba83fc5fe65ea555e43fd641bd56b"
     },
     {
       "path": "snapshot/package.json",
-      "bytes": 1438,
-      "sha256": "83395048cfea0a87aebf93c319cdbf73fbe4619236ed29e3f71c407375ae7a53"
+      "bytes": 1469,
+      "sha256": "5ccd59f6b7376430a9d5bfd4cef0d77231142e72c88f33762a5516efa13ec58d"
     },
     {
       "path": "snapshot/scripts/create-release-manifest.mjs",
@@ -600,8 +605,8 @@
     },
     {
       "path": "snapshot/src/config.ts",
-      "bytes": 8222,
-      "sha256": "171d1e1e28e3c63cf42008c65cbab97c261ca8795e0d52fccb13d01420bcd949"
+      "bytes": 9075,
+      "sha256": "8ca145c91989d83222f59449c0b77b9cf75e3254b1baae5591217d29bbe2a2d7"
     },
     {
       "path": "snapshot/src/errors.ts",
@@ -779,6 +784,11 @@
       "sha256": "d498831f36b9fa5d4bd5559a11687a05a7127108430a910a74e04b052a7ebfdf"
     },
     {
+      "path": "snapshot/src/framework/plugins/sentry.ts",
+      "bytes": 751,
+      "sha256": "0ca13e30aad63a39a2ef58537dc1756589a333e77ecd1385b1064db611b577d9"
+    },
+    {
       "path": "snapshot/src/framework/plugins/suggestion-relay.ts",
       "bytes": 5361,
       "sha256": "02576510b2cad9e4da12d6c8d06894156e59328f000f6c16d515a75dbc4eaa2e"
@@ -810,13 +820,13 @@
     },
     {
       "path": "snapshot/src/index.ts",
-      "bytes": 8875,
-      "sha256": "eca9f1120276fb2d201bec93169c3b4148c50450f7aeae7f0c15d84a0bf9b5b6"
+      "bytes": 9260,
+      "sha256": "051723b4753a0d5027c97a2caff77862fa3a70289eca7ad6e583137f8751b0d1"
     },
     {
       "path": "snapshot/src/lifecycle.ts",
-      "bytes": 2739,
-      "sha256": "311f3b6225467a6cdbe04c13a0b8b2e8903d30a0fc15aa053b3bfba7a4f74422"
+      "bytes": 3210,
+      "sha256": "4affbc523e8a7a6d794c23d7b5b4d88e624f5043fdd3c14cfe20236af681bd4b"
     },
     {
       "path": "snapshot/src/logger.ts",
@@ -932,6 +942,11 @@
       "path": "snapshot/src/postgres-verifier.ts",
       "bytes": 2261,
       "sha256": "0fd6cf26e6dd558da8c23407b6617a638ddc95dd5eefc7e1bee4339e49e312b2"
+    },
+    {
+      "path": "snapshot/src/sentry.ts",
+      "bytes": 4159,
+      "sha256": "ee604f1640637e4caa40dffa5c9a4bb25a04ca7b3d5ae0ae0c0dbf969b1bb366"
     },
     {
       "path": "snapshot/src/services/afk-service.ts",
@@ -1369,6 +1384,11 @@
       "sha256": "dc2f373144102e8f412f986efd087c9059465f47c9551cd71c1e82e2ffc79c3b"
     },
     {
+      "path": "snapshot/tests/sentry.test.js",
+      "bytes": 3517,
+      "sha256": "4f039beea0a5feaf61df7e9311710cb72dc4e26964c0ac5b72fa5e18be3eec67"
+    },
+    {
       "path": "snapshot/tests/storage.test.js",
       "bytes": 2726,
       "sha256": "5357a2eaccdc2cdf69ad1e1d10814ba708c8e67c1dc38d7c99d654db22cfff46"
@@ -1430,8 +1450,8 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 2029172,
-      "sha256": "2e5d1709491c4da433ea5d5ead7ea9923ecbcafec6fb5cf8e6cc77d06ef41977"
+      "bytes": 2039476,
+      "sha256": "82d7938f0f7b8fa8feaa47711a4d0828caa9444f6b7c442d24a36c3291a4199a"
     },
     {
       "path": "tables/commands.csv",
@@ -1440,48 +1460,48 @@
     },
     {
       "path": "tables/config-catalog.csv",
-      "bytes": 5028,
-      "sha256": "1644d0fbc203dc43d1ff58e4d1fa172d5fe64b26a6cc72d859f9537d670cb978"
+      "bytes": 5511,
+      "sha256": "8f29216fd0db76d16cfed3f41600afeb70c59500b142dd5bc838179a0fea54b1"
     },
     {
       "path": "tables/data-flow.csv",
-      "bytes": 40336,
-      "sha256": "584bfd09075a23c01bf9698d10e53b7a2b827b9166ee9176517a3c42f6fd0c4f"
+      "bytes": 40960,
+      "sha256": "b34f6ce13ab7104e23ac82a46667fd7a286cd00b9dc425f03912d57515718b7c"
     },
     {
       "path": "tables/dependencies.csv",
-      "bytes": 465,
-      "sha256": "ed68af19adf53e5a0cb3fae38348fc7425fc2eb7c6aee1038532c1789185eedc"
+      "bytes": 497,
+      "sha256": "84a0adfa1d9731fb9ad796f9def83e410456be253acd42eeaf1633e48d0ac1b9"
     },
     {
       "path": "tables/feature-flags.csv",
-      "bytes": 1087,
-      "sha256": "49cdb9e023da6526feb2df84e7bd3f6973f22201a9e88c804bffe700fa235c78"
+      "bytes": 1166,
+      "sha256": "b2581fb181fc4ffe07f87ee9a996b5793bf1f035285e502d4092c386f7afa28d"
     },
     {
       "path": "tables/files.csv",
-      "bytes": 24332,
-      "sha256": "1bc4b386c0eda5f32c07db54d135b03448f0b5913380a609dac20e518d25a3b1"
+      "bytes": 24628,
+      "sha256": "69eb9eb2a309b605a2434e72b20e917b20f65251b4a51302ba04136d77889c10"
     },
     {
       "path": "tables/imports.csv",
-      "bytes": 79818,
-      "sha256": "35cc6a49c0f177c1d9c91fb8b39790a0f5ca2466a740dad3bd5a3a8343dffc71"
+      "bytes": 80649,
+      "sha256": "8018d910f07fd05673230f7b328b2b1a1ae5575a4da271ab59344ac320d79c80"
     },
     {
       "path": "tables/services.csv",
-      "bytes": 14083,
-      "sha256": "8f3f36f7800ed3836758d8e094624aec3e7b1f475855efaa179933dca807d480"
+      "bytes": 14165,
+      "sha256": "135bf02c28c103fdd20343a109dbd03d43c5a625986a33f9006f0d39b2a712aa"
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 579848,
-      "sha256": "5c648b60d75468ccf3fa39b77fa81a17093920f5ae1062550020ad08a3fb145f"
+      "bytes": 582520,
+      "sha256": "80181d1df4fe34067cc081ccb84f77c7424b990d0f7c3d82657a7030611e285b"
     },
     {
       "path": "tables/tests.csv",
-      "bytes": 43523,
-      "sha256": "0d708dfca14bd2b50b99e67fa18522d0fac874c03b97f82c20dd6b0114041719"
+      "bytes": 43865,
+      "sha256": "fcc0acb64a740629b13fe356df0665e345573797be4b1623d4c540a43aa131b1"
     }
   ]
 }

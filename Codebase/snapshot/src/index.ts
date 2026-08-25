@@ -22,6 +22,8 @@ import { utilityPlugin } from './framework/plugins/utility.js'
 import { mediaPlugin } from './framework/plugins/media.js'
 import { createAiHandler, MAX_AI_INPUT_LENGTH } from './ai-handler.js'
 import { createLogger, type AppLogger } from './logger.js'
+import { createSentryReporter } from './sentry.js'
+import { createSentryPlugin } from './framework/plugins/sentry.js'
 import { createPermissionResolver } from './permissions.js'
 import { isGroupJid } from './platform/validation.js'
 import { SqliteStorage } from './storage.js'
@@ -66,6 +68,7 @@ function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input
 async function main(): Promise<void> {
   const config = loadConfig()
   const logger = createLogger(config)
+  const sentry = createSentryReporter(config, logger)
 
   const storage = new SqliteStorage(config, logger)
 
@@ -73,6 +76,7 @@ async function main(): Promise<void> {
     const integrity = storage.verifyIntegrity()
     logger.info({ config: publicConfig(config), node: process.version, integrity }, 'Allybot self-check passed')
     storage.close()
+    await sentry.close()
     if (!integrity.valid) process.exitCode = 2
     return
   }
@@ -123,6 +127,7 @@ async function main(): Promise<void> {
   framework.registerService(new NeonClientService(logger))
   framework.registerService(redis)
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
+  framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(createNeonChatLogPlugin(config))
   framework.registerPlugin(technicalPlugin)
   if (config.XKIRO_AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }))
@@ -144,8 +149,14 @@ async function main(): Promise<void> {
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
-  const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework)
-  await lifecycle.start()
+  const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework, sentry)
+  try {
+    await lifecycle.start()
+  } catch (error) {
+    sentry.captureError('lifecycle:start', error)
+    await sentry.close()
+    throw error
+  }
 
 }
 

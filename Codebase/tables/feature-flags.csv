@@ -12,3 +12,4 @@ NEON_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,54
 NEON_CHAT_LOG_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,57
 UPSTASH_REDIS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,65
 CODEBASE_EXPORT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,73
+SENTRY_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,76

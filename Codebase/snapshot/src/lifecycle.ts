@@ -4,6 +4,7 @@ import type { AppLogger } from './logger.js'
 import { SqliteStorage } from './storage.js'
 import { WhatsAppConnection } from './whatsapp.js'
 import type { ApplicationFramework } from './framework/application.js'
+import type { SentryReporter } from './sentry.js'
 
 export class AppLifecycle {
   private shuttingDown = false
@@ -15,6 +16,12 @@ export class AppLifecycle {
     private readonly storage: SqliteStorage,
     private readonly whatsapp: WhatsAppConnection,
     private readonly framework?: ApplicationFramework,
+    private readonly sentry: SentryReporter = {
+      isEnabled: false,
+      captureError: () => undefined,
+      captureMessage: () => undefined,
+      close: async () => undefined,
+    },
   ) {}
 
   async start(): Promise<void> {
@@ -49,10 +56,12 @@ export class AppLifecycle {
       if (this.framework) await this.framework.stop()
       else await this.whatsapp.close()
       this.storage.close()
+      await this.sentry.close()
       clearTimeout(timeout)
       this.logger.info('graceful shutdown completed')
       process.exit(exitCode)
     } catch (error) {
+      this.sentry.captureError('lifecycle:shutdown', error)
       clearTimeout(timeout)
       this.logger.error({ err: errorMessage(error) }, 'graceful shutdown failed')
       process.exit(exitCode === 0 ? 1 : exitCode)
@@ -64,11 +73,13 @@ export class AppLifecycle {
     process.once('SIGTERM', () => void this.shutdown('SIGTERM'))
 
     process.on('uncaughtException', (error) => {
+      this.sentry.captureError('process:uncaught_exception', error)
       this.logger.fatal({ err: errorMessage(error) }, 'uncaught exception')
       void this.shutdown('uncaughtException', 1)
     })
 
     process.on('unhandledRejection', (reason) => {
+      this.sentry.captureError('process:unhandled_rejection', reason)
       this.logger.fatal({ err: errorMessage(reason) }, 'unhandled rejection')
       void this.shutdown('unhandledRejection', 1)
     })
