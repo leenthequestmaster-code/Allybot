@@ -224,6 +224,36 @@ jobs:
           for package in astring cjs-module-lexer debug es-module-lexer esquery estraverse import-in-the-middle magic-string meriyah module-details-from-path ms require-in-the-middle semifies source-map; do
             cp -a "node_modules/${package}/." ".ci-artifact/node_modules/${package}/"
           done
+          find \
+            .ci-artifact/node_modules/@sentry \
+            .ci-artifact/node_modules/@opentelemetry \
+            .ci-artifact/node_modules/@apm-js-collab \
+            .ci-artifact/node_modules/@jridgewell \
+            .ci-artifact/node_modules/@types/estree \
+            .ci-artifact/node_modules/astring \
+            .ci-artifact/node_modules/cjs-module-lexer \
+            .ci-artifact/node_modules/debug \
+            .ci-artifact/node_modules/es-module-lexer \
+            .ci-artifact/node_modules/esquery \
+            .ci-artifact/node_modules/estraverse \
+            .ci-artifact/node_modules/import-in-the-middle \
+            .ci-artifact/node_modules/magic-string \
+            .ci-artifact/node_modules/meriyah \
+            .ci-artifact/node_modules/module-details-from-path \
+            .ci-artifact/node_modules/ms \
+            .ci-artifact/node_modules/require-in-the-middle \
+            .ci-artifact/node_modules/semifies \
+            .ci-artifact/node_modules/source-map \
+            -type f \
+            ! \
+            \( \
+              -name '*.js' -o \
+              -name '*.cjs' -o \
+              -name '*.mjs' -o \
+              -name '*.json' -o \
+              ! -name '*.*' \
+            \) \
+            -delete
           cp package.json package-lock.json bash-exec-list.txt .ci-artifact/
           node --input-type=module <<'NODE'
           await import('./.ci-artifact/dist/sentry.js')
