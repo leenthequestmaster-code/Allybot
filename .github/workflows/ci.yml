@@ -244,15 +244,15 @@ jobs:
             .ci-artifact/node_modules/require-in-the-middle \
             .ci-artifact/node_modules/semifies \
             .ci-artifact/node_modules/source-map \
-            -type f \\
-            ! \\
-            \( \\
-              -name '*.js' -o \\
-              -name '*.cjs' -o \\
-              -name '*.mjs' -o \\
-              -name '*.json' -o \\
-              ! -name '*.*' \\
-            \) \\
+            -type f \
+            ! \
+            \( \
+              -name '*.js' -o \
+              -name '*.cjs' -o \
+              -name '*.mjs' -o \
+              -name '*.json' -o \
+              ! -name '*.*' \
+            \) \
             -delete
           cp package.json package-lock.json bash-exec-list.txt .ci-artifact/
           node --input-type=module <<'NODE'
