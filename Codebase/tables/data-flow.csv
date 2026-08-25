@@ -119,6 +119,8 @@ src/framework/plugins/scene.ts,src/framework/contracts.ts,module import,static i
 src/framework/plugins/scene.ts,src/permissions.ts,module import,static import graph,high
 src/framework/plugins/scene.ts,src/platform/validation.ts,module import,static import graph,high
 src/framework/plugins/scene.ts,src/services/scene-service.ts,module import,static import graph,high
+src/framework/plugins/sentry.ts,src/framework/contracts.ts,module import,static import graph,high
+src/framework/plugins/sentry.ts,src/sentry.ts,module import,static import graph,high
 src/framework/plugins/suggestion-relay.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/suggestion-relay.ts,src/platform/validation.ts,module import,static import graph,high
 src/framework/plugins/suggestion-relay.ts,src/services/suggestion-relay-service.ts,module import,static import graph,high
@@ -154,6 +156,7 @@ src/index.ts,src/framework/plugins/media.ts,module import,static import graph,hi
 src/index.ts,src/framework/plugins/menu.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/neon-chat-log.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/personalization.ts,module import,static import graph,high
+src/index.ts,src/framework/plugins/sentry.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/suggestion-relay.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/technical.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/utility.ts,module import,static import graph,high
@@ -163,6 +166,7 @@ src/index.ts,src/logger.ts,module import,static import graph,high
 src/index.ts,src/neon-client.ts,module import,static import graph,high
 src/index.ts,src/permissions.ts,module import,static import graph,high
 src/index.ts,src/platform/validation.ts,module import,static import graph,high
+src/index.ts,src/sentry.ts,module import,static import graph,high
 src/index.ts,src/services/afk-service.ts,module import,static import graph,high
 src/index.ts,src/services/character-guide-service.ts,module import,static import graph,high
 src/index.ts,src/services/developer-mode-service.ts,module import,static import graph,high
@@ -184,6 +188,7 @@ src/lifecycle.ts,src/config.ts,module import,static import graph,high
 src/lifecycle.ts,src/errors.ts,module import,static import graph,high
 src/lifecycle.ts,src/framework/application.ts,module import,static import graph,high
 src/lifecycle.ts,src/logger.ts,module import,static import graph,high
+src/lifecycle.ts,src/sentry.ts,module import,static import graph,high
 src/lifecycle.ts,src/storage.ts,module import,static import graph,high
 src/lifecycle.ts,src/whatsapp.ts,module import,static import graph,high
 src/logger.ts,src/config.ts,module import,static import graph,high
@@ -213,6 +218,8 @@ src/platform/operations.ts,src/platform/contracts.ts,module import,static import
 src/platform/permission.ts,src/platform/contracts.ts,module import,static import graph,high
 src/platform/sessions.ts,src/platform/contracts.ts,module import,static import graph,high
 src/postgres-monitor.ts,src/postgres-verifier.ts,module import,static import graph,high
+src/sentry.ts,src/config.ts,module import,static import graph,high
+src/sentry.ts,src/logger.ts,module import,static import graph,high
 src/services/afk-service.ts,src/framework/contracts.ts,module import,static import graph,high
 src/services/announcement-service.ts,src/framework/contracts.ts,module import,static import graph,high
 src/services/announcement-service.ts,src/platform/operations.ts,module import,static import graph,high
@@ -381,6 +388,7 @@ tests/neon-chat-log-control.test.js,createNeonChatLogPlugin(pluginConfig()),regi
 tests/r5-personalization.test.js,createPersonalizationPlugin(core),registers plugin,static registration call,high
 src/index.ts,createPersonalizationPlugin(whatsapp),registers plugin,static registration call,high
 tests/r6-scene.test.js,createScenePlugin(core),registers plugin,static registration call,high
+src/index.ts,createSentryPlugin(sentry),registers plugin,static registration call,high
 tests/welcome-leave-context.test.js,createWelcomeLeavePlugin(core),registers plugin,static registration call,high
 src/index.ts,createWelcomeLeavePlugin(whatsapp),registers plugin,static registration call,high
 src/index.ts,developerModePlugin,registers plugin,static registration call,high

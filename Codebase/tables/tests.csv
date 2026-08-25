@@ -319,6 +319,10 @@ tests/runtime-acceptance.test.js,menu uses native buttons only for the main menu
 tests/runtime-acceptance.test.js,framework stop unbinds inbound listeners and prevents post-stop dispatch,runtime-acceptance,229
 tests/runtime-acceptance.test.js,message gate denies before message.received and command dispatch,runtime-acceptance,251
 tests/runtime-acceptance.test.js,runtime acceptance traces inbound message through command handler to response,runtime-acceptance,98
+tests/sentry.test.js,Sentry telemetry requires an HTTPS DSN when enabled,sentry,26
+tests/sentry.test.js,Sentry labels and environment are bounded,sentry,41
+tests/sentry.test.js,Sentry telemetry is disabled and side-effect free by default,sentry,6
+tests/sentry.test.js,Sentry plugin observes only safe framework-level failure events,sentry,63
 tests/storage.test.js,local message cache enforces row and byte bounds without affecting auth state,storage,40
 tests/storage.test.js,local message cache removes expired rows on prune and stale read,storage,64
 tests/supabase-character-migration.test.js,Supabase Character/Group Context migration verifier passes repository source,supabase-character-migration,7

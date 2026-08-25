@@ -51,3 +51,8 @@ UPSTASH_REDIS_KEY_PREFIX,"z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,39}$/i).defau
 CODEBASE_EXPORT_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,73
 CODEBASE_EXPORT_PATH,"z.string().min(1).default('./Codebase/allybot-codebase-latest.zip'),",'./Codebase/allybot-codebase-latest.zip',required-or-defaulted,74
 CODEBASE_EXPORT_MAX_BYTES,"boundedInt(1, 4 * 1024 * 1024).default(3 * 1024 * 1024),",3 * 1024 * 1024,required-or-defaulted,75
+SENTRY_ENABLED,"booleanFromEnv.default(false),",false,required-or-defaulted,76
+SENTRY_DSN,"z.string().url().optional(),",,optional,77
+SENTRY_ENVIRONMENT,"z.string().regex(/^[a-zA-Z0-9._-]{1,32}$/).default('production'),",'production',required-or-defaulted,78
+SENTRY_RELEASE,"z.string().regex(/^[a-zA-Z0-9._-]{1,128}$/).optional(),",,optional,79
+SENTRY_TRACES_SAMPLE_RATE,"z.string().regex(/^(?:0(?:\.\d+)?|1(?:\.0+)?)$/).default('0').transform(Number),",'0',required-or-defaulted,80

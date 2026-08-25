@@ -1,5 +1,6 @@
 name,version,scope
 @cacheable/node-cache,1.7.5,production
+@sentry/node,10.71.0,production
 @supabase/supabase-js,2.112.3,production
 @types/better-sqlite3,7.6.13,development
 @types/node,24.3.0,development

@@ -1,5 +1,5 @@
 path,bytes,extension,layer,snapshot_path
-.env.example,2805,.example,root,snapshot/.env.example
+.env.example,3066,.example,root,snapshot/.env.example
 .github/workflows/ci.yml,27766,.yml,ci,snapshot/.github/workflows/ci.yml
 docs/.group-info-visual-exploration.md,1707,.md,documentation,snapshot/docs/.group-info-visual-exploration.md
 docs/adr/0001-character-world-scope.md,2994,.md,documentation,snapshot/docs/adr/0001-character-world-scope.md
@@ -30,6 +30,7 @@ docs/mission-platform-architecture.md,10350,.md,documentation,snapshot/docs/miss
 docs/neon-chat-log-activation-checklist.md,4240,.md,documentation,snapshot/docs/neon-chat-log-activation-checklist.md
 docs/neon-chat-log-architecture.md,7494,.md,documentation,snapshot/docs/neon-chat-log-architecture.md
 docs/observability-contract.md,5748,.md,documentation,snapshot/docs/observability-contract.md
+docs/OBSERVABILITY-SENTRY.md,4734,.md,documentation,snapshot/docs/OBSERVABILITY-SENTRY.md
 docs/owner-control-plane-implementation-plan.md,5315,.md,documentation,snapshot/docs/owner-control-plane-implementation-plan.md
 docs/owner-foundation-audit.md,5608,.md,documentation,snapshot/docs/owner-foundation-audit.md
 docs/panel-startup-observation-2026-08-23.md,1568,.md,documentation,snapshot/docs/panel-startup-observation-2026-08-23.md
@@ -92,8 +93,8 @@ docs/technical-command-pack-design.md,4715,.md,documentation,snapshot/docs/techn
 docs/upstash-redis-architecture.md,9028,.md,documentation,snapshot/docs/upstash-redis-architecture.md
 docs/verification-matrix-9.6.md,4366,.md,documentation,snapshot/docs/verification-matrix-9.6.md
 docs/xkiro-ai-architecture-brief.md,3371,.md,documentation,snapshot/docs/xkiro-ai-architecture-brief.md
-package-lock.json,69809,.json,root,snapshot/package-lock.json
-package.json,1438,.json,root,snapshot/package.json
+package-lock.json,85182,.json,root,snapshot/package-lock.json
+package.json,1469,.json,root,snapshot/package.json
 scripts/create-release-manifest.mjs,4215,.mjs,root,snapshot/scripts/create-release-manifest.mjs
 scripts/generate-codebase-export.mjs,30503,.mjs,root,snapshot/scripts/generate-codebase-export.mjs
 scripts/monitor-postgres.mjs,2158,.mjs,root,snapshot/scripts/monitor-postgres.mjs
@@ -106,7 +107,7 @@ scripts/verify-supabase-character-migration.mjs,6943,.mjs,root,snapshot/scripts/
 scripts/verify-supabase-economy-migration.mjs,5088,.mjs,root,snapshot/scripts/verify-supabase-economy-migration.mjs
 scripts/verify-upstash-redis.mjs,742,.mjs,root,snapshot/scripts/verify-upstash-redis.mjs
 src/ai-handler.ts,5381,.ts,source,snapshot/src/ai-handler.ts
-src/config.ts,8222,.ts,source,snapshot/src/config.ts
+src/config.ts,9075,.ts,source,snapshot/src/config.ts
 src/errors.ts,1076,.ts,source,snapshot/src/errors.ts
 src/framework/application.ts,4816,.ts,source,snapshot/src/framework/application.ts
 src/framework/command-copy.ts,7031,.ts,source,snapshot/src/framework/command-copy.ts
@@ -142,14 +143,15 @@ src/framework/plugins/neon-chat-log.ts,7438,.ts,source,snapshot/src/framework/pl
 src/framework/plugins/onboarding.ts,7621,.ts,source,snapshot/src/framework/plugins/onboarding.ts
 src/framework/plugins/personalization.ts,13014,.ts,source,snapshot/src/framework/plugins/personalization.ts
 src/framework/plugins/scene.ts,11863,.ts,source,snapshot/src/framework/plugins/scene.ts
+src/framework/plugins/sentry.ts,751,.ts,source,snapshot/src/framework/plugins/sentry.ts
 src/framework/plugins/suggestion-relay.ts,5361,.ts,source,snapshot/src/framework/plugins/suggestion-relay.ts
 src/framework/plugins/technical.ts,8071,.ts,source,snapshot/src/framework/plugins/technical.ts
 src/framework/plugins/utility-fun.ts,6519,.ts,source,snapshot/src/framework/plugins/utility-fun.ts
 src/framework/plugins/utility.ts,17495,.ts,source,snapshot/src/framework/plugins/utility.ts
 src/framework/plugins/welcome-leave.ts,3383,.ts,source,snapshot/src/framework/plugins/welcome-leave.ts
 src/framework/service-registry.ts,2804,.ts,source,snapshot/src/framework/service-registry.ts
-src/index.ts,8875,.ts,source,snapshot/src/index.ts
-src/lifecycle.ts,2739,.ts,source,snapshot/src/lifecycle.ts
+src/index.ts,9260,.ts,source,snapshot/src/index.ts
+src/lifecycle.ts,3210,.ts,source,snapshot/src/lifecycle.ts
 src/logger.ts,2389,.ts,source,snapshot/src/logger.ts
 src/media.ts,5960,.ts,source,snapshot/src/media.ts
 src/neon-chat-log-writer.ts,10604,.ts,source,snapshot/src/neon-chat-log-writer.ts
@@ -173,6 +175,7 @@ src/platform/sessions.ts,11874,.ts,source,snapshot/src/platform/sessions.ts
 src/platform/validation.ts,583,.ts,source,snapshot/src/platform/validation.ts
 src/postgres-monitor.ts,3464,.ts,source,snapshot/src/postgres-monitor.ts
 src/postgres-verifier.ts,2261,.ts,source,snapshot/src/postgres-verifier.ts
+src/sentry.ts,4159,.ts,source,snapshot/src/sentry.ts
 src/services/afk-service.ts,13636,.ts,source,snapshot/src/services/afk-service.ts
 src/services/announcement-service.ts,37154,.ts,source,snapshot/src/services/announcement-service.ts
 src/services/canon-service.ts,21433,.ts,source,snapshot/src/services/canon-service.ts
@@ -260,6 +263,7 @@ tests/r9-event.test.js,17553,.js,test,snapshot/tests/r9-event.test.js
 tests/recovery-rehearsal.test.js,3484,.js,test,snapshot/tests/recovery-rehearsal.test.js
 tests/release-manifest.test.js,1359,.js,test,snapshot/tests/release-manifest.test.js
 tests/runtime-acceptance.test.js,8691,.js,test,snapshot/tests/runtime-acceptance.test.js
+tests/sentry.test.js,3517,.js,test,snapshot/tests/sentry.test.js
 tests/storage.test.js,2726,.js,test,snapshot/tests/storage.test.js
 tests/supabase-character-migration.test.js,477,.js,test,snapshot/tests/supabase-character-migration.test.js
 tests/supabase-read-write.test.js,1396,.js,test,snapshot/tests/supabase-read-write.test.js
