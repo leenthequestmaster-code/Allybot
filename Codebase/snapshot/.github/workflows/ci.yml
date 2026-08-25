@@ -414,6 +414,28 @@ jobs:
             -F "files=@.deploy/${ARCHIVE_NAME}"
           echo "archive_uploaded=true" >> "$GITHUB_OUTPUT"
 
+      - name: Verify uploaded archive checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="${PANEL_URL%/}/api/client/servers/${PTERODACTYL_SERVER_ID}"
+          expected_sha="$(awk '{print $1}' ".deploy/${ARCHIVE_NAME}.sha256")"
+          response=$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer ${PTERODACTYL_API_TOKEN}" \
+            -H 'Accept: Application/vnd.pterodactyl.v1+json' \
+            --get --data-urlencode "file=/${ARCHIVE_NAME}" \
+            "${api}/files/download")
+          download_url=$(DOWNLOAD_RESPONSE="$response" node <<'NODE'
+          const parsed = JSON.parse(process.env.DOWNLOAD_RESPONSE)
+          const url = parsed?.attributes?.url ?? parsed?.data?.attributes?.url
+          if (typeof url !== 'string' || !url.startsWith('https://')) throw new Error('Panel returned an unsafe download URL')
+          process.stdout.write(url)
+          NODE
+          )
+          curl --fail-with-body --silent --show-error --proto '=https' --tlsv1.2 "$download_url" -o .deploy/remote-archive.zip
+          printf '%s  %s\n' "$expected_sha" .deploy/remote-archive.zip | sha256sum -c -
+          rm -f .deploy/remote-archive.zip
+
       - name: Decompress archive on Panel
         shell: bash
         run: |
@@ -453,8 +475,6 @@ jobs:
               return { expected: match[1], path: match[2].replace(/^\.\//, '') }
             })
 
-          const failures = []
-          let cursor = 0
           const retryableStatuses = new Set([429, 500, 502, 503, 504])
           const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
           const fetchFile = async (url) => {
@@ -493,40 +513,34 @@ jobs:
             return createHash('sha256').update(bytes).digest('hex')
           }
 
-          const mismatches = []
-          const worker = async () => {
-            while (true) {
-              const index = cursor++
-              if (index >= manifest.length) return
-              const entry = manifest[index]
-              try {
-                const actual = await verifyEntry(entry)
-                if (actual !== entry.expected) mismatches.push({ entry, actual })
-              } catch (error) {
-                failures.push(`${entry.path}: ${error instanceof Error ? error.message : String(error)}`)
-              }
-            }
-          }
+          const sentinelPaths = [
+            'dist/index.js',
+            'dist/sentry.js',
+            'package.json',
+            'package-lock.json',
+            'release-manifest.json',
+            'node_modules/@sentry/node/package.json',
+            'node_modules/@sentry/core/build/esm/index.js',
+          ]
+          const entries = new Map(manifest.map((entry) => [entry.path, entry]))
+          const missing = sentinelPaths.filter((path) => !entries.has(path))
+          if (missing.length > 0) throw new Error(`Manifest is missing required runtime sentinel: ${missing.join(', ')}`)
 
-          await Promise.all(Array.from({ length: Math.min(2, manifest.length) }, () => worker()))
-          for (let attempt = 1; attempt <= 4 && mismatches.length > 0; attempt += 1) {
-            await sleep(Math.min(2_000 * 2 ** (attempt - 1), 10_000))
-            const pending = mismatches.splice(0)
-            for (const { entry } of pending) {
-              try {
-                const actual = await verifyEntry(entry)
-                if (actual !== entry.expected) mismatches.push({ entry, actual })
-              } catch (error) {
-                failures.push(`${entry.path}: ${error instanceof Error ? error.message : String(error)}`)
-              }
+          const failures = []
+          await Promise.all(sentinelPaths.map(async (path) => {
+            const entry = entries.get(path)
+            try {
+              const actual = await verifyEntry(entry)
+              if (actual !== entry.expected) failures.push(`${path}: checksum mismatch: ${actual}`)
+            } catch (error) {
+              failures.push(`${path}: ${error instanceof Error ? error.message : String(error)}`)
             }
-          }
-          for (const { entry, actual } of mismatches) failures.push(`${entry.path}: checksum mismatch: ${actual}`)
+          }))
           if (failures.length > 0) {
-            for (const failure of failures.slice(0, 20)) console.error(failure)
+            for (const failure of failures) console.error(failure)
             process.exit(1)
           }
-          console.log(`Verified ${manifest.length} deployed files against SHA256 manifest`)
+          console.log(`Verified uploaded archive and ${sentinelPaths.length} deployed runtime sentinels against SHA256 manifest`)
           NODE
           node verify-deployed.mjs
 

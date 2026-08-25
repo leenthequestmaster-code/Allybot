@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "437115f19b84adcae3e42d1d5fa89ec8ecde34cc",
-  "generatedAt": "2026-08-25T06:57:32Z",
+  "commitSha": "59dd886ea5864f96d68cde6e8c9d61e86a4286ad",
+  "generatedAt": "2026-08-25T07:11:19Z",
   "sourceFileCount": 277,
   "counts": {
     "files": 277,
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "7b899ed820ebae48f3c8a97f1bd02214895a3d8dcaec2dbfee502a5846a5abdf"
+      "sha256": "bc6f06e359330b486a96c16feba6b863d6b7453adc172f9fd138ed4f33df671c"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "0bd1047f209198a0f6079104c8138c44cb63ba3c1c92ffad8dbf84ecf6973b0e"
+      "sha256": "60816ff79dd78f3d5cb6e20ee320463512dfa2430f7357a318aa8defbac014c3"
     },
     {
       "path": "snapshot/.env.example",
@@ -70,8 +70,8 @@
     },
     {
       "path": "snapshot/.github/workflows/ci.yml",
-      "bytes": 32899,
-      "sha256": "a549ee5f3650ca3dffad4d3a0a43736f06f9facbcceefff6b1dfbce168a2803b"
+      "bytes": 33780,
+      "sha256": "ae9b5b5f0b79c2cfc41a23fdda7f1d868326b5ce974b4785b92d706bf9a5e1c3"
     },
     {
       "path": "snapshot/docs/.group-info-visual-exploration.md",
@@ -1481,7 +1481,7 @@
     {
       "path": "tables/files.csv",
       "bytes": 24628,
-      "sha256": "aede89b411b6f7e1796ef93b6e6ad828e7928de6e0a5c50832216eb7f82adac6"
+      "sha256": "05b76b4de9544906e7c73d791e3442cf0e3e4678bc1a339c3b40f11b5393b59b"
     },
     {
       "path": "tables/imports.csv",
