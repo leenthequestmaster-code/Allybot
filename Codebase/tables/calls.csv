@@ -15,21 +15,40 @@ scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.sta
 scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,34,34,
 scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,35,35,
 scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,36,36,
-scripts/create-release-manifest.mjs,listFiles,unresolved:readdirSync,readdirSync,low,40,40,
-scripts/create-release-manifest.mjs,listFiles,unresolved:resolve,resolve,low,41,41,
-scripts/create-release-manifest.mjs,listFiles,unresolved:basename,basename,low,42,42,
-scripts/create-release-manifest.mjs,listFiles,unresolved:entry.isDirectory,entry.isDirectory,low,43,43,
-scripts/create-release-manifest.mjs,listFiles,unresolved:files.push,files.push,low,43,43,
-scripts/create-release-manifest.mjs,listFiles,scripts/create-release-manifest.mjs,listFiles,medium,43,43,scripts/create-release-manifest.mjs:38
-scripts/create-release-manifest.mjs,listFiles,unresolved:entry.isFile,entry.isFile,low,44,44,
-scripts/create-release-manifest.mjs,listFiles,unresolved:files.push,files.push,low,44,44,
-scripts/create-release-manifest.mjs,sha256,src/services/character-guide-service.ts,digest,medium,51,51,src/services/character-guide-service.ts:99
-scripts/create-release-manifest.mjs,sha256,unresolved:createHash('sha256').update,createHash('sha256').update,low,51,51,
-scripts/create-release-manifest.mjs,sha256,unresolved:createHash,createHash,low,51,51,
-scripts/create-release-manifest.mjs,sha256,unresolved:readFileSync,readFileSync,low,51,51,
-scripts/create-release-manifest.mjs,<module>,unresolved:statSync(root).isDirectory,statSync(root).isDirectory,low,54,54,
-scripts/create-release-manifest.mjs,<module>,unresolved:statSync,statSync,low,54,54,
-scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,listFiles,medium,55,55,scripts/create-release-manifest.mjs:38
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,37,37,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,38,38,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,39,39,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,40,40,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,41,41,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,42,42,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,43,43,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,44,44,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,45,45,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,46,46,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,47,47,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,48,48,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,49,49,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,50,50,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,51,51,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,52,52,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,53,53,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,54,54,
+scripts/create-release-manifest.mjs,<module>,unresolved:path.startsWith,path.startsWith,low,55,55,
+scripts/create-release-manifest.mjs,listFiles,unresolved:readdirSync,readdirSync,low,59,59,
+scripts/create-release-manifest.mjs,listFiles,unresolved:resolve,resolve,low,60,60,
+scripts/create-release-manifest.mjs,listFiles,unresolved:basename,basename,low,61,61,
+scripts/create-release-manifest.mjs,listFiles,unresolved:entry.isDirectory,entry.isDirectory,low,62,62,
+scripts/create-release-manifest.mjs,listFiles,unresolved:files.push,files.push,low,62,62,
+scripts/create-release-manifest.mjs,listFiles,scripts/create-release-manifest.mjs,listFiles,medium,62,62,scripts/create-release-manifest.mjs:57
+scripts/create-release-manifest.mjs,listFiles,unresolved:entry.isFile,entry.isFile,low,63,63,
+scripts/create-release-manifest.mjs,listFiles,unresolved:files.push,files.push,low,63,63,
+scripts/create-release-manifest.mjs,sha256,src/services/character-guide-service.ts,digest,medium,70,70,src/services/character-guide-service.ts:99
+scripts/create-release-manifest.mjs,sha256,unresolved:createHash('sha256').update,createHash('sha256').update,low,70,70,
+scripts/create-release-manifest.mjs,sha256,unresolved:createHash,createHash,low,70,70,
+scripts/create-release-manifest.mjs,sha256,unresolved:readFileSync,readFileSync,low,70,70,
+scripts/create-release-manifest.mjs,<module>,unresolved:statSync(root).isDirectory,statSync(root).isDirectory,low,73,73,
+scripts/create-release-manifest.mjs,<module>,unresolved:statSync,statSync,low,73,73,
+scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,listFiles,medium,74,74,scripts/create-release-manifest.mjs:57
 scripts/create-release-manifest.mjs,<module>,"unresolved:files.map((absolute) => {
   const path = relative(root, absolute).split(sep).join('/')
   if (forbiddenPath.test(path) || !allowedPath(path)) throw new Error(`Artifact path is not allowlisted: ${path}`)
@@ -38,23 +57,23 @@ scripts/create-release-manifest.mjs,<module>,"unresolved:files.map((absolute) =>
   const path = relative(root, absolute).split(sep).join('/')
   if (forbiddenPath.test(path) || !allowedPath(path)) throw new Error(`Artifact path is not allowlisted: ${path}`)
   return { path, bytes: statSync(absolute).size, sha256: sha256(absolute) }
-}).sort",low,56,60,
-scripts/create-release-manifest.mjs,<module>,tests/r11-announcement-suggestion.test.js,map,medium,56,60,tests/r11-announcement-suggestion.test.js:104
-scripts/create-release-manifest.mjs,<module>,"unresolved:relative(root, absolute).split(sep).join","relative(root, absolute).split(sep).join",low,57,57,
-scripts/create-release-manifest.mjs,<module>,"unresolved:relative(root, absolute).split","relative(root, absolute).split",low,57,57,
-scripts/create-release-manifest.mjs,<module>,unresolved:relative,relative,low,57,57,
-scripts/create-release-manifest.mjs,<module>,unresolved:forbiddenPath.test,forbiddenPath.test,low,58,58,
-scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,allowedPath,medium,58,58,scripts/create-release-manifest.mjs:13
-scripts/create-release-manifest.mjs,<module>,unresolved:statSync,statSync,low,59,59,
-scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,sha256,medium,59,59,scripts/create-release-manifest.mjs:50
-scripts/create-release-manifest.mjs,<module>,unresolved:left.path.localeCompare,left.path.localeCompare,low,60,60,
-scripts/create-release-manifest.mjs,<module>,unresolved:JSON.parse,JSON.parse,low,62,62,
-scripts/create-release-manifest.mjs,<module>,unresolved:readFileSync,readFileSync,low,62,62,
-scripts/create-release-manifest.mjs,<module>,unresolved:resolve,resolve,low,62,62,
-scripts/create-release-manifest.mjs,<module>,unresolved:resolve,resolve,low,63,63,
-scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,sha256,medium,70,70,scripts/create-release-manifest.mjs:50
-scripts/create-release-manifest.mjs,<module>,unresolved:writeFileSync,writeFileSync,low,75,75,
-scripts/create-release-manifest.mjs,<module>,unresolved:JSON.stringify,JSON.stringify,low,75,75,
+}).sort",low,75,79,
+scripts/create-release-manifest.mjs,<module>,tests/r11-announcement-suggestion.test.js,map,medium,75,79,tests/r11-announcement-suggestion.test.js:104
+scripts/create-release-manifest.mjs,<module>,"unresolved:relative(root, absolute).split(sep).join","relative(root, absolute).split(sep).join",low,76,76,
+scripts/create-release-manifest.mjs,<module>,"unresolved:relative(root, absolute).split","relative(root, absolute).split",low,76,76,
+scripts/create-release-manifest.mjs,<module>,unresolved:relative,relative,low,76,76,
+scripts/create-release-manifest.mjs,<module>,unresolved:forbiddenPath.test,forbiddenPath.test,low,77,77,
+scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,allowedPath,medium,77,77,scripts/create-release-manifest.mjs:13
+scripts/create-release-manifest.mjs,<module>,unresolved:statSync,statSync,low,78,78,
+scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,sha256,medium,78,78,scripts/create-release-manifest.mjs:69
+scripts/create-release-manifest.mjs,<module>,unresolved:left.path.localeCompare,left.path.localeCompare,low,79,79,
+scripts/create-release-manifest.mjs,<module>,unresolved:JSON.parse,JSON.parse,low,81,81,
+scripts/create-release-manifest.mjs,<module>,unresolved:readFileSync,readFileSync,low,81,81,
+scripts/create-release-manifest.mjs,<module>,unresolved:resolve,resolve,low,81,81,
+scripts/create-release-manifest.mjs,<module>,unresolved:resolve,resolve,low,82,82,
+scripts/create-release-manifest.mjs,<module>,scripts/create-release-manifest.mjs,sha256,medium,89,89,scripts/create-release-manifest.mjs:69
+scripts/create-release-manifest.mjs,<module>,unresolved:writeFileSync,writeFileSync,low,94,94,
+scripts/create-release-manifest.mjs,<module>,unresolved:JSON.stringify,JSON.stringify,low,94,94,
 scripts/generate-codebase-export.mjs,<module>,unresolved:resolve,resolve,low,15,15,
 scripts/generate-codebase-export.mjs,<module>,unresolved:process.cwd,process.cwd,low,15,15,
 scripts/generate-codebase-export.mjs,<module>,scripts/generate-codebase-export.mjs,readOption,medium,16,16,scripts/generate-codebase-export.mjs:38
