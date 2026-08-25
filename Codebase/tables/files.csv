@@ -1,6 +1,6 @@
 path,bytes,extension,layer,snapshot_path
 .env.example,3066,.example,root,snapshot/.env.example
-.github/workflows/ci.yml,27766,.yml,ci,snapshot/.github/workflows/ci.yml
+.github/workflows/ci.yml,30871,.yml,ci,snapshot/.github/workflows/ci.yml
 docs/.group-info-visual-exploration.md,1707,.md,documentation,snapshot/docs/.group-info-visual-exploration.md
 docs/adr/0001-character-world-scope.md,2994,.md,documentation,snapshot/docs/adr/0001-character-world-scope.md
 docs/allybot-symbol-catalog.md,12823,.md,documentation,snapshot/docs/allybot-symbol-catalog.md
@@ -95,7 +95,7 @@ docs/verification-matrix-9.6.md,4366,.md,documentation,snapshot/docs/verificatio
 docs/xkiro-ai-architecture-brief.md,3371,.md,documentation,snapshot/docs/xkiro-ai-architecture-brief.md
 package-lock.json,85182,.json,root,snapshot/package-lock.json
 package.json,1469,.json,root,snapshot/package.json
-scripts/create-release-manifest.mjs,4215,.mjs,root,snapshot/scripts/create-release-manifest.mjs
+scripts/create-release-manifest.mjs,5782,.mjs,root,snapshot/scripts/create-release-manifest.mjs
 scripts/generate-codebase-export.mjs,30503,.mjs,root,snapshot/scripts/generate-codebase-export.mjs
 scripts/monitor-postgres.mjs,2158,.mjs,root,snapshot/scripts/monitor-postgres.mjs
 scripts/verify-neon-chat-log-migration.mjs,1466,.mjs,root,snapshot/scripts/verify-neon-chat-log-migration.mjs

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "c6433e2964d21ff5a58b287222aefdaa4a8e6af2",
-  "generatedAt": "2026-08-25T05:17:36Z",
+  "commitSha": "b121e4dab12ca24a076e033c589d495391f9d3f0",
+  "generatedAt": "2026-08-25T06:23:27Z",
   "sourceFileCount": 277,
   "counts": {
     "files": 277,
     "symbols": 6955,
     "imports": 927,
-    "calls": 15709,
+    "calls": 15728,
     "commands": 201,
     "services": 119,
     "config": 57,
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "1f781133304759ae1fce391d55f8892c2596b28d9376ee131b6709e89837e374"
+      "sha256": "8cb383d5ad6670efaccdd5aa0cc2acf85f84076bb419ab710ee2afabda57c1ed"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "f04c7c87cec40e761c85a42b9a554436cdc7135752cd364f35680b33af997676"
+      "sha256": "ff670dd626f54ba95dd725e8084b72a4b5dd1bf98d6511d83a1f89396761ce64"
     },
     {
       "path": "snapshot/.env.example",
@@ -70,8 +70,8 @@
     },
     {
       "path": "snapshot/.github/workflows/ci.yml",
-      "bytes": 27766,
-      "sha256": "fa2534941772755cc1ee5a2c817e2ef4300f6b27175259ed5b5ae1ec94ced32f"
+      "bytes": 30871,
+      "sha256": "f1254d0a47be9f8840d5ce3881881f64bdb1a3b04d5d74447b331695c5080b91"
     },
     {
       "path": "snapshot/docs/.group-info-visual-exploration.md",
@@ -545,8 +545,8 @@
     },
     {
       "path": "snapshot/scripts/create-release-manifest.mjs",
-      "bytes": 4215,
-      "sha256": "fae2c5e09c960ccf56be6c511fb291f8f08b3cf14b4c4c3e659a54de86077d47"
+      "bytes": 5782,
+      "sha256": "6b7df70612dfe6d0e52f6e71d2133ab3553c163330397af911708464e46be26e"
     },
     {
       "path": "snapshot/scripts/generate-codebase-export.mjs",
@@ -1450,8 +1450,8 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 2039476,
-      "sha256": "82d7938f0f7b8fa8feaa47711a4d0828caa9444f6b7c442d24a36c3291a4199a"
+      "bytes": 2041357,
+      "sha256": "c97a6f2c156ecab01ac19b689c21d71680a157bd41aca0e74f3bc0ca227ec7d5"
     },
     {
       "path": "tables/commands.csv",
@@ -1481,7 +1481,7 @@
     {
       "path": "tables/files.csv",
       "bytes": 24628,
-      "sha256": "69eb9eb2a309b605a2434e72b20e917b20f65251b4a51302ba04136d77889c10"
+      "sha256": "cab34b8420b0ee353a51db217c1ea77de5e32c787647f7de429adb3ff0b27571"
     },
     {
       "path": "tables/imports.csv",
@@ -1496,7 +1496,7 @@
     {
       "path": "tables/symbols.csv",
       "bytes": 582520,
-      "sha256": "80181d1df4fe34067cc081ccb84f77c7424b990d0f7c3d82657a7030611e285b"
+      "sha256": "fac835153ed2f4b2f3962398f7d3ba1a756772a8cbbd7cf58c7fa15f528e439b"
     },
     {
       "path": "tables/tests.csv",

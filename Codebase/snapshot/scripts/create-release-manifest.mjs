@@ -34,6 +34,25 @@ const allowedPath = (path) => path === 'package.json'
   || path.startsWith('node_modules/iceberg-js/')
   || path.startsWith('node_modules/tslib/')
   || path.startsWith('node_modules/uncrypto/')
+  || path.startsWith('node_modules/@sentry/')
+  || path.startsWith('node_modules/@opentelemetry/')
+  || path.startsWith('node_modules/@apm-js-collab/')
+  || path.startsWith('node_modules/@jridgewell/')
+  || path.startsWith('node_modules/@types/estree/')
+  || path.startsWith('node_modules/astring/')
+  || path.startsWith('node_modules/cjs-module-lexer/')
+  || path.startsWith('node_modules/debug/')
+  || path.startsWith('node_modules/es-module-lexer/')
+  || path.startsWith('node_modules/esquery/')
+  || path.startsWith('node_modules/estraverse/')
+  || path.startsWith('node_modules/import-in-the-middle/')
+  || path.startsWith('node_modules/magic-string/')
+  || path.startsWith('node_modules/meriyah/')
+  || path.startsWith('node_modules/module-details-from-path/')
+  || path.startsWith('node_modules/ms/')
+  || path.startsWith('node_modules/require-in-the-middle/')
+  || path.startsWith('node_modules/semifies/')
+  || path.startsWith('node_modules/source-map/')
 
 function listFiles(directory) {
   const files = []
@@ -68,7 +87,7 @@ const manifest = {
   nodeVersion: process.version,
   packageVersion: typeof packageJson.version === 'string' ? packageJson.version : 'unknown',
   packageLockSha256: sha256(packageLockPath),
-  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'scripts/verify-supabase-access.mjs', 'scripts/verify-neon.mjs', 'scripts/monitor-postgres.mjs', 'scripts/verify-neon-chat-log-migration.mjs', 'scripts/verify-upstash-redis.mjs', 'scripts/verify-supabase-economy-migration.mjs', 'scripts/verify-supabase-character-migration.mjs', 'migrations/neon/**', 'migrations/supabase/**', 'node_modules/postgres/**', 'node_modules/dotenv/**', 'node_modules/@supabase/**', 'node_modules/@upstash/**', 'node_modules/buffer/**', 'node_modules/ws/**', 'node_modules/iceberg-js/**', 'node_modules/tslib/**', 'node_modules/uncrypto/**', 'Codebase/allybot-codebase-latest.zip'],
+  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'scripts/verify-supabase-access.mjs', 'scripts/verify-neon.mjs', 'scripts/monitor-postgres.mjs', 'scripts/verify-neon-chat-log-migration.mjs', 'scripts/verify-upstash-redis.mjs', 'scripts/verify-supabase-economy-migration.mjs', 'scripts/verify-supabase-character-migration.mjs', 'migrations/neon/**', 'migrations/supabase/**', 'node_modules/postgres/**', 'node_modules/dotenv/**', 'node_modules/@supabase/**', 'node_modules/@upstash/**', 'node_modules/buffer/**', 'node_modules/ws/**', 'node_modules/iceberg-js/**', 'node_modules/tslib/**', 'node_modules/uncrypto/**', 'node_modules/@sentry/**', 'node_modules/@opentelemetry/**', 'node_modules/@apm-js-collab/**', 'node_modules/@jridgewell/**', 'node_modules/@types/estree/**', 'node_modules/astring/**', 'node_modules/cjs-module-lexer/**', 'node_modules/debug/**', 'node_modules/es-module-lexer/**', 'node_modules/esquery/**', 'node_modules/estraverse/**', 'node_modules/import-in-the-middle/**', 'node_modules/magic-string/**', 'node_modules/meriyah/**', 'node_modules/module-details-from-path/**', 'node_modules/ms/**', 'node_modules/require-in-the-middle/**', 'node_modules/semifies/**', 'node_modules/source-map/**', 'Codebase/allybot-codebase-latest.zip'],
   files: entries,
 }
 
