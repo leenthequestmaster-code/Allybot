@@ -73,6 +73,11 @@ const envSchema = z.object({
   CODEBASE_EXPORT_ENABLED: booleanFromEnv.default(false),
   CODEBASE_EXPORT_PATH: z.string().min(1).default('./Codebase/allybot-codebase-latest.zip'),
   CODEBASE_EXPORT_MAX_BYTES: boundedInt(1, 4 * 1024 * 1024).default(3 * 1024 * 1024),
+  SENTRY_ENABLED: booleanFromEnv.default(false),
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_ENVIRONMENT: z.string().regex(/^[a-zA-Z0-9._-]{1,32}$/).default('production'),
+  SENTRY_RELEASE: z.string().regex(/^[a-zA-Z0-9._-]{1,128}$/).optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.string().regex(/^(?:0(?:\.\d+)?|1(?:\.0+)?)$/).default('0').transform(Number),
 })
 
 export type AppConfig = z.infer<typeof envSchema>
@@ -117,6 +122,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (parsed.data.CODEBASE_EXPORT_PATH.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(parsed.data.CODEBASE_EXPORT_PATH) || parsed.data.CODEBASE_EXPORT_PATH.split(/[\\/]/u).includes('..')) {
     throw new Error('CODEBASE_EXPORT_PATH must remain inside the application directory')
   }
+  if (parsed.data.SENTRY_ENABLED && !parsed.data.SENTRY_DSN) {
+    throw new Error('SENTRY_DSN is required when SENTRY_ENABLED=true')
+  }
+  if (parsed.data.SENTRY_DSN && !/^https:\/\//i.test(parsed.data.SENTRY_DSN)) {
+    throw new Error('SENTRY_DSN must use https://')
+  }
 
   return parsed.data
 }
@@ -149,5 +160,9 @@ export function publicConfig(config: AppConfig) {
     upstashRedisEnabled: config.UPSTASH_REDIS_ENABLED,
     codebaseExportEnabled: config.CODEBASE_EXPORT_ENABLED,
     codebaseExportMaxBytes: config.CODEBASE_EXPORT_MAX_BYTES,
+    sentryEnabled: config.SENTRY_ENABLED,
+    sentryEnvironment: config.SENTRY_ENVIRONMENT,
+    sentryReleaseConfigured: Boolean(config.SENTRY_RELEASE),
+    sentryTracesSampleRate: config.SENTRY_TRACES_SAMPLE_RATE,
   }
 }

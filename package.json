@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@cacheable/node-cache": "1.7.5",
+    "@sentry/node": "10.71.0",
     "@supabase/supabase-js": "2.112.3",
     "@upstash/redis": "1.38.2",
     "@whiskeysockets/baileys": "7.0.0-rc14",
