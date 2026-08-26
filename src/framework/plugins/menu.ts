@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { CapabilityAwareButtonAdapter } from '../../platform/buttons.js'
 import { TextInteractionAdapter } from '../../platform/interaction.js'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
@@ -17,6 +18,17 @@ type CategoryPresentation = {
 
 const PAGE_SIZE = 8
 const MAIN_MENU_BUTTON_CATEGORY_COUNT = 2
+const MENU_THUMBNAIL_MIME_TYPE = 'image/jpeg'
+const MENU_THUMBNAIL_CAPTION = "Allybot's Menu — pilih kategori lewat tombol atau gunakan perintah teks."
+
+let menuThumbnailPromise: Promise<Uint8Array | undefined> | undefined
+
+async function loadMenuThumbnail(): Promise<Uint8Array | undefined> {
+  menuThumbnailPromise ??= readFile(new URL('../../assets/allybot-menu-thumbnail.jpg', import.meta.url))
+    .then((data) => new Uint8Array(data))
+    .catch(() => undefined)
+  return menuThumbnailPromise
+}
 
 const categoryPresentation: Record<string, CategoryPresentation> = {
   group: { label: 'GROUP', icon: '👥' },
@@ -292,8 +304,26 @@ export const menuPlugin: Plugin = {
       requestedPage = 1,
     ): Promise<void> => {
       const sendNativeQuickReplies = commandContext.whatsapp.sendNativeQuickReplies
+      const sendMedia = commandContext.whatsapp.sendMedia
+      const thumbnail = sendMedia ? await loadMenuThumbnail() : undefined
+      const sendThumbnail = async (caption: string): Promise<boolean> => {
+        if (!sendMedia || !thumbnail) return false
+        try {
+          await sendMedia.call(commandContext.whatsapp, commandContext.message.remoteJid, {
+            kind: 'image',
+            data: thumbnail,
+            mimeType: MENU_THUMBNAIL_MIME_TYPE,
+            caption,
+          })
+          return true
+        } catch (error) {
+          commandContext.logger.warn({ err: error }, 'menu thumbnail unavailable; continuing with text/native menu')
+          return false
+        }
+      }
+
       if (!sendNativeQuickReplies) {
-        await commandContext.reply(fallbackText)
+        if (!(await sendThumbnail(fallbackText))) await commandContext.reply(fallbackText)
         return
       }
 
@@ -350,6 +380,8 @@ export const menuPlugin: Plugin = {
         await commandContext.reply(fallbackText)
         return
       }
+
+      await sendThumbnail(MENU_THUMBNAIL_CAPTION)
 
       try {
         await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
