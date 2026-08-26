@@ -9,12 +9,13 @@ import { menuPlugin } from '../dist/framework/plugins/menu.js'
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
 
-function fakeWhatsapp({ native = false, nativeFailure = false } = {}) {
+function fakeWhatsapp({ native = false, nativeFailure = false, media = false, mediaFailure = false } = {}) {
   const transport = {
     isConnected: true,
     userJid: 'bot@s.whatsapp.net',
     sent: [],
     native: [],
+    media: [],
     onMessage() { return () => {} },
     onGroupParticipantUpdate() { return () => {} },
     onConnectionState() { return () => {} },
@@ -26,6 +27,12 @@ function fakeWhatsapp({ native = false, nativeFailure = false } = {}) {
     transport.sendNativeQuickReplies = async function sendNativeQuickReplies(remoteJid, payload) {
       this.native.push({ remoteJid, payload })
       if (nativeFailure) throw new Error('native transport unavailable')
+    }
+  }
+  if (media) {
+    transport.sendMedia = async function sendMedia(remoteJid, payload) {
+      this.media.push({ remoteJid, payload })
+      if (mediaFailure) throw new Error('media transport unavailable')
     }
   }
   return transport
@@ -268,6 +275,35 @@ test('menu plugin sends native buttons and routes a button callback to the categ
   assert.equal(whatsapp.native.length, 1)
   assert.match(whatsapp.sent[0].text, /GROUP/)
   assert.match(whatsapp.sent[0].text, /!groupinfo/)
+})
+
+test('menu plugin sends a local JPEG thumbnail before native quick replies when media is supported', async () => {
+  const whatsapp = fakeWhatsapp({ native: true, media: true })
+  const { registry } = createRegistry(whatsapp)
+  registry.register({ name: 'ping', description: 'Check bot latency', category: 'general', handler: async () => {} })
+
+  await registry.dispatch(message('thumbnail-menu', 'thumbnail@s.whatsapp.net', '!menu'))
+
+  assert.equal(whatsapp.media.length, 1)
+  assert.equal(whatsapp.media[0].payload.kind, 'image')
+  assert.equal(whatsapp.media[0].payload.mimeType, 'image/jpeg')
+  assert.ok(whatsapp.media[0].payload.data.length > 1000)
+  assert.match(whatsapp.media[0].payload.caption, /Allybot's Menu/)
+  assert.equal(whatsapp.native.length, 1)
+  assert.match(whatsapp.native[0].payload.body, /Listmenu/)
+})
+
+test('menu plugin keeps native menu when thumbnail delivery fails', async () => {
+  const whatsapp = fakeWhatsapp({ native: true, media: true, mediaFailure: true })
+  const { registry } = createRegistry(whatsapp)
+  registry.register({ name: 'ping', description: 'Check bot latency', category: 'general', handler: async () => {} })
+
+  await registry.dispatch(message('thumbnail-failure-menu', 'thumbnail-failure@s.whatsapp.net', '!menu'))
+
+  assert.equal(whatsapp.media.length, 1)
+  assert.equal(whatsapp.native.length, 1)
+  assert.equal(whatsapp.sent.length, 0)
+  assert.match(whatsapp.native[0].payload.body, /Listmenu/)
 })
 
 test('menu plugin falls back to text when the native button sender fails', async () => {

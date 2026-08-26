@@ -138,6 +138,28 @@ test('CommandRegistry sends a safe fallback when a handler fails before replying
   ])
 })
 
+test('CommandRegistry retries the safe fallback when the first reply delivery fails', async () => {
+  let attempts = 0
+  const whatsapp = createFakeWhatsapp({
+    async sendText(remoteJid, text) {
+      attempts += 1
+      if (attempts === 1) throw new Error('transport unavailable')
+      this.sent.push({ remoteJid, text })
+    },
+  })
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  registry.register({ name: 'reply-failure', handler: async (context) => context.reply('handler response') })
+
+  await registry.dispatch({ id: 'reply-failure', remoteJid: 'chat@s.whatsapp.net', text: '!reply-failure', timestamp: Date.now(), fromMe: false })
+
+  assert.equal(attempts, 2)
+  assert.deepEqual(whatsapp.sent, [
+    { remoteJid: 'chat@s.whatsapp.net', text: 'Maaf, command tidak dapat diproses saat ini. Silakan coba lagi.' },
+  ])
+})
+
 test('CommandRegistry rejects duplicate command names and aliases', () => {
   const whatsapp = createFakeWhatsapp()
   const events = new EventBus(logger)

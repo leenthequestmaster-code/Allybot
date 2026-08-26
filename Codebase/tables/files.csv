@@ -94,7 +94,7 @@ docs/upstash-redis-architecture.md,9028,.md,documentation,snapshot/docs/upstash-
 docs/verification-matrix-9.6.md,4366,.md,documentation,snapshot/docs/verification-matrix-9.6.md
 docs/xkiro-ai-architecture-brief.md,3371,.md,documentation,snapshot/docs/xkiro-ai-architecture-brief.md
 package-lock.json,85182,.json,root,snapshot/package-lock.json
-package.json,1469,.json,root,snapshot/package.json
+package.json,1589,.json,root,snapshot/package.json
 scripts/create-release-manifest.mjs,5782,.mjs,root,snapshot/scripts/create-release-manifest.mjs
 scripts/generate-codebase-export.mjs,30503,.mjs,root,snapshot/scripts/generate-codebase-export.mjs
 scripts/monitor-postgres.mjs,2158,.mjs,root,snapshot/scripts/monitor-postgres.mjs
@@ -138,7 +138,7 @@ src/framework/plugins/group-setup-mission.ts,6267,.ts,source,snapshot/src/framew
 src/framework/plugins/group.ts,28602,.ts,source,snapshot/src/framework/plugins/group.ts
 src/framework/plugins/knowledge.ts,11732,.ts,source,snapshot/src/framework/plugins/knowledge.ts
 src/framework/plugins/media.ts,6599,.ts,source,snapshot/src/framework/plugins/media.ts
-src/framework/plugins/menu.ts,17719,.ts,source,snapshot/src/framework/plugins/menu.ts
+src/framework/plugins/menu.ts,19068,.ts,source,snapshot/src/framework/plugins/menu.ts
 src/framework/plugins/neon-chat-log.ts,7438,.ts,source,snapshot/src/framework/plugins/neon-chat-log.ts
 src/framework/plugins/onboarding.ts,7621,.ts,source,snapshot/src/framework/plugins/onboarding.ts
 src/framework/plugins/personalization.ts,13014,.ts,source,snapshot/src/framework/plugins/personalization.ts
@@ -217,7 +217,7 @@ tests/codebase-generator.test.js,4384,.js,test,snapshot/tests/codebase-generator
 tests/developer-mode.test.js,7839,.js,test,snapshot/tests/developer-mode.test.js
 tests/economy-cache.test.js,16653,.js,test,snapshot/tests/economy-cache.test.js
 tests/errors.test.js,746,.js,test,snapshot/tests/errors.test.js
-tests/framework.test.js,13026,.js,test,snapshot/tests/framework.test.js
+tests/framework.test.js,13979,.js,test,snapshot/tests/framework.test.js
 tests/group-configuration.test.js,12076,.js,test,snapshot/tests/group-configuration.test.js
 tests/group-context-service.test.js,3255,.js,test,snapshot/tests/group-context-service.test.js
 tests/group-context.test.js,5267,.js,test,snapshot/tests/group-context.test.js
@@ -229,7 +229,7 @@ tests/integration.test.js,12269,.js,test,snapshot/tests/integration.test.js
 tests/logger-privacy.test.js,1517,.js,test,snapshot/tests/logger-privacy.test.js
 tests/maintenance.test.js,2445,.js,test,snapshot/tests/maintenance.test.js
 tests/media-plugin.test.js,7690,.js,test,snapshot/tests/media-plugin.test.js
-tests/menu.test.js,14504,.js,test,snapshot/tests/menu.test.js
+tests/menu.test.js,16227,.js,test,snapshot/tests/menu.test.js
 tests/neon-chat-log-control.test.js,6066,.js,test,snapshot/tests/neon-chat-log-control.test.js
 tests/neon-chat-log-migration.test.js,1089,.js,test,snapshot/tests/neon-chat-log-migration.test.js
 tests/neon-chat-log-plugin.test.js,1203,.js,test,snapshot/tests/neon-chat-log-plugin.test.js

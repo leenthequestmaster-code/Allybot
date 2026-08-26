@@ -89,7 +89,7 @@ export class CommandRegistry implements CommandRegistryLike {
     const command = this.get(token ?? '')
     if (!command) return false
 
-    let replyAttempted = false
+    let replyDelivered = false
     const context: CommandContext = {
       message,
       args,
@@ -100,8 +100,8 @@ export class CommandRegistry implements CommandRegistryLike {
       services: this.services,
       whatsapp: this.whatsapp,
       reply: async (replyText, options?: WhatsAppSendOptions) => {
-        replyAttempted = true
         await this.whatsapp.sendText(message.remoteJid, replyText, options)
+        replyDelivered = true
       },
     }
 
@@ -111,7 +111,7 @@ export class CommandRegistry implements CommandRegistryLike {
       await this.events.emit('command.executed', { command: command.name, context })
     } catch (error) {
       context.logger.error({ err: error }, 'command execution failed')
-      if (!replyAttempted) {
+      if (!replyDelivered) {
         try {
           await context.reply('Maaf, command tidak dapat diproses saat ini. Silakan coba lagi.')
         } catch (fallbackError) {

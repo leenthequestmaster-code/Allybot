@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "postbuild": "mkdir -p dist/assets && cp assets/allybot-menu-thumbnail.jpg dist/assets/allybot-menu-thumbnail.jpg",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
     "self-check": "node dist/index.js --self-check",
