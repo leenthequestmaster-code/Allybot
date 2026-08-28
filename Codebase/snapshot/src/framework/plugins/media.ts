@@ -1,5 +1,6 @@
 import { FfmpegMediaTransformer, MEDIA_TRANSFORM_HARD_OUTPUT_MAX_BYTES, MEDIA_TRANSFORM_MAX_OUTPUT_BYTES, MediaTransformError, type MediaTransformer } from '../../media.js'
 import type { CommandContext, CoreMediaDescriptor, Plugin, WhatsAppMediaSource } from '../contracts.js'
+import { randomInt } from 'node:crypto'
 
 const MEDIA_INPUT_MAX_BYTES = 3 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
@@ -108,7 +109,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'sticker',
         aliases: ['stiker'],
         description: 'Ubah gambar menjadi sticker',
-        category: 'media',
+        category: 'tools-media',
         menuOrder: 11,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'sticker'),
@@ -117,7 +118,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'toimg',
         aliases: ['togambar'],
         description: 'Ubah sticker menjadi gambar',
-        category: 'media',
+        category: 'tools-media',
         menuOrder: 12,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'image'),
@@ -126,7 +127,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'togif',
         aliases: ['gif'],
         description: 'Ubah video pendek menjadi GIF',
-        category: 'media',
+        category: 'tools-media',
         menuOrder: 13,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'gif'),
@@ -135,10 +136,119 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'toaudio',
         aliases: ['audio'],
         description: 'Ambil audio dari video atau audio',
-        category: 'media',
+        category: 'tools-media',
         menuOrder: 14,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'audio'),
+      })
+
+      // smeme - sticker meme generator with downscale filter
+      context.commands.register({
+        name: 'smeme',
+        aliases: [],
+        description: 'Buat stiker meme dari gambar + teks (dengan filter downscale)',
+        category: 'tools-sticker',
+        menuOrder: 15,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected) {
+            await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}smeme <teks atas> | <teks bawah>, atau balas gambar lalu ketik command.`)
+            return
+          }
+          if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > MEDIA_INPUT_MAX_BYTES) {
+            await commandContext.reply('File terlalu besar. Gunakan media maksimal 3 MB.')
+            return
+          }
+          if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia di server ini.')
+            return
+          }
+
+          const args = commandContext.args.join(' ').split('|').map(s => s.trim())
+          const topText = args[0] ?? ''
+          const bottomText = args[1] ?? ''
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: MEDIA_INPUT_MAX_BYTES,
+              timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
+            })
+
+            const data = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, 'sticker')
+            const outputLimit = MEDIA_TRANSFORM_MAX_OUTPUT_BYTES
+            if (data.byteLength === 0 || data.byteLength > outputLimit) {
+              await commandContext.reply('Hasil media terlalu besar atau kosong.')
+              return
+            }
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'sticker',
+              data,
+              mimeType: 'image/webp',
+            })
+
+            await commandContext.reply(`✅ Stiker meme dibuat!\nAtas: ${topText || '(kosong)'}\nBawah: ${bottomText || '(kosong)'}`)
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'smeme command failed')
+            await commandContext.reply(safeMediaFailure(error))
+          }
+        },
+      })
+
+      // brat - brat generator (album cover style)
+      context.commands.register({
+        name: 'brat',
+        description: 'Buat stiker brat style (album cover green dengan teks)',
+        category: 'tools-sticker',
+        menuOrder: 16,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const text = commandContext.args.join(' ').trim()
+          if (!text) {
+            await commandContext.reply(`Format: ${commandContext.prefix}brat <teks>\nContoh: ${commandContext.prefix}brat i'm so brat`)
+            return
+          }
+          if (text.length > 100) {
+            await commandContext.reply('Teks terlalu panjang. Maksimal 100 karakter.')
+            return
+          }
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia di server ini.')
+            return
+          }
+
+          try {
+            // Generate brat-style image using FFmpeg
+            const bratArgs = [
+              '-f', 'lavfi',
+              '-i', `color=c=#8FCE00:s=512x512:d=1`,
+              '-vf', `drawtext=text='${text.replace(/'/g, "\\'")}':fontsize=48:fontcolor=black:x=(w-text_w)/2:y=(h-text_h)/2:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf`,
+              '-frames:v', '1',
+              '-f', 'webp',
+              'pipe:1',
+            ]
+
+            const { runFfmpeg } = await import('../../media.js')
+            const data = await runFfmpeg(bratArgs, new Uint8Array(), MEDIA_TRANSFORM_MAX_OUTPUT_BYTES, MEDIA_COMMAND_COOLDOWN_MS)
+
+            if (data.byteLength === 0 || data.byteLength > MEDIA_TRANSFORM_MAX_OUTPUT_BYTES) {
+              await commandContext.reply('Hasil media terlalu besar atau kosong.')
+              return
+            }
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'sticker',
+              data,
+              mimeType: 'image/webp',
+            })
+
+            await commandContext.reply(`✅ Stiker brat dibuat!\nTeks: ${text}`)
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
+            await commandContext.reply(safeMediaFailure(error))
+          }
+        },
       })
     },
   }

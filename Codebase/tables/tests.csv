@@ -78,8 +78,8 @@ tests/framework.test.js,CharacterService dependency resolves through the real se
 tests/framework.test.js,"CommandRegistry supports alias, validation, cooldown, and reply context",framework,76
 tests/group-configuration.test.js,setrules returns guidance when no rule text is provided,group-configuration,117
 tests/group-configuration.test.js,welcome and leave configuration commands are admin-only and expose active settings,group-configuration,132
-tests/group-configuration.test.js,"prefix and language configuration are validated, group-scoped, and persistent",group-configuration,163
-tests/group-configuration.test.js,"rules history and timezone are admin-only, validated, and persistent",group-configuration,219
+tests/group-configuration.test.js,"prefix configuration remains validated, group-scoped, and persistent",group-configuration,159
+tests/group-configuration.test.js,deprecated group preference commands are not registered,group-configuration,203
 tests/group-configuration.test.js,"group rules require admin access, stay isolated by group, validate input, and persist after restart",group-configuration,68
 tests/group-context-service.test.js,Group Context service hashes identities and preserves server-authoritative mode result,group-context-service,32
 tests/group-context-service.test.js,disabled Group Context returns safe normal defaults without a client,group-context-service,53
@@ -117,20 +117,20 @@ tests/media-plugin.test.js,sticker transforms a direct image and sends server-se
 tests/media-plugin.test.js,toimg transforms quoted WebP sticker and sends PNG image payload,media-plugin,69
 tests/media-plugin.test.js,togif converts a short video to looping MP4 playback,media-plugin,81
 tests/media-plugin.test.js,toaudio converts quoted video to bounded OGG audio,media-plugin,94
-tests/menu.test.js,menu presents Economy under Your Character and rejects removed categories,menu,103
-tests/menu.test.js,menu hides Developer and Owner categories from members but shows them to the Owner,menu,131
-tests/menu.test.js,menu plugin follows the effective group prefix while retaining global fallback,menu,155
-tests/menu.test.js,replying with a category number navigates only from a quoted main menu,menu,189
-tests/menu.test.js,menu plugin sends native buttons and routes a button callback to the category submenu,menu,237
-tests/menu.test.js,menu plugin sends a local JPEG thumbnail before native quick replies when media is supported,menu,280
-tests/menu.test.js,menu plugin keeps native menu when thumbnail delivery fails,menu,296
-tests/menu.test.js,menu plugin falls back to text when the native button sender fails,menu,309
-tests/menu.test.js,menu plugin renders paginated submenus and unknown-category guidance,menu,326
-tests/menu.test.js,main native menu paginates categories with NEXT and keeps Coming Soon text-only,menu,352
-tests/menu.test.js,menu plugin renders the decorative main menu and supports numbered categories,menu,61
-tests/neon-chat-log-control.test.js,chatlog command remains unavailable when the global Neon chat-log flag is disabled,neon-chat-log-control,128
-tests/neon-chat-log-control.test.js,chatlog suppression survives restart and status remains group-scoped,neon-chat-log-control,137
-tests/neon-chat-log-control.test.js,chatlog is admin-or-owner gated and suppresses only the current allowlisted group,neon-chat-log-control,84
+tests/menu.test.js,menu presents Economy under Your Character and rejects removed categories,menu,109
+tests/menu.test.js,menu hides Developer and Owner categories from members but shows them to the Owner,menu,137
+tests/menu.test.js,menu plugin follows the effective group prefix while retaining global fallback,menu,161
+tests/menu.test.js,replying with a category number navigates only from a quoted main menu,menu,195
+tests/menu.test.js,menu plugin sends location plus native navigation and routes a button callback to the category submenu,menu,243
+tests/menu.test.js,menu plugin sends a local JPEG thumbnail before native quick replies when media is supported,menu,287
+tests/menu.test.js,menu plugin keeps native menu when thumbnail delivery fails,menu,303
+tests/menu.test.js,menu plugin falls back to text when the native button sender fails,menu,316
+tests/menu.test.js,menu plugin renders a complete single-bubble submenu and unknown-category guidance,menu,333
+tests/menu.test.js,main native menu paginates categories with NEXT and keeps Coming Soon text-only,menu,359
+tests/menu.test.js,menu plugin renders the decorative main menu and supports numbered categories,menu,67
+tests/neon-chat-log-control.test.js,deprecated chatlog state is not exposed after restart,neon-chat-log-control,105
+tests/neon-chat-log-control.test.js,deprecated chatlog command is not registered even when the global flag is enabled,neon-chat-log-control,84
+tests/neon-chat-log-control.test.js,chatlog command remains unavailable when the global Neon chat-log flag is disabled,neon-chat-log-control,96
 tests/neon-chat-log-migration.test.js,Neon chat-log migration is review-only DDL with writer invariants,neon-chat-log-migration,10
 tests/neon-chat-log-plugin.test.js,chat-log groups require explicit WhatsApp group JIDs,neon-chat-log-plugin,26
 tests/neon-chat-log-plugin.test.js,chat-log configuration is default-off and requires Neon when enabled,neon-chat-log-plugin,6
@@ -316,12 +316,12 @@ tests/r9-event.test.js,"R9 timezone, timestamp, phase ordering, and location val
 tests/r9-event.test.js,"R9 plugin is default-off, admin-gated, group-only, and text fallback based",r9-event,345
 tests/recovery-rehearsal.test.js,SQLite recovery rehearsal preserves mission state and audit archive,recovery-rehearsal,33
 tests/release-manifest.test.js,release manifest allows Character verifier and Supabase migrations,release-manifest,10
-tests/runtime-acceptance.test.js,"runtime acceptance rejects fromMe, unknown, and invalid commands without handler side effects",runtime-acceptance,129
-tests/runtime-acceptance.test.js,permission denial is enforced before protected handler execution,runtime-acceptance,155
-tests/runtime-acceptance.test.js,menu uses native buttons only for the main menu and keeps submenu text-only with numeric fallback,runtime-acceptance,184
-tests/runtime-acceptance.test.js,framework stop unbinds inbound listeners and prevents post-stop dispatch,runtime-acceptance,229
-tests/runtime-acceptance.test.js,message gate denies before message.received and command dispatch,runtime-acceptance,251
-tests/runtime-acceptance.test.js,runtime acceptance traces inbound message through command handler to response,runtime-acceptance,98
+tests/runtime-acceptance.test.js,runtime acceptance traces inbound message through command handler to response,runtime-acceptance,103
+tests/runtime-acceptance.test.js,"runtime acceptance rejects fromMe, unknown, and invalid commands without handler side effects",runtime-acceptance,134
+tests/runtime-acceptance.test.js,permission denial is enforced before protected handler execution,runtime-acceptance,160
+tests/runtime-acceptance.test.js,menu uses location plus native navigation and keeps submenu text-only with numeric fallback,runtime-acceptance,189
+tests/runtime-acceptance.test.js,framework stop unbinds inbound listeners and prevents post-stop dispatch,runtime-acceptance,235
+tests/runtime-acceptance.test.js,message gate denies before message.received and command dispatch,runtime-acceptance,257
 tests/sentry.test.js,Sentry telemetry requires an HTTPS DSN when enabled,sentry,26
 tests/sentry.test.js,Sentry labels and environment are bounded,sentry,41
 tests/sentry.test.js,Sentry telemetry is disabled and side-effect free by default,sentry,6
@@ -346,12 +346,12 @@ tests/upstash-redis.test.js,"Upstash Redis validates bounded timeout, attempts, 
 tests/upstash-redis.test.js,Upstash Redis health-check reports healthy without exposing configuration,upstash-redis,66
 tests/upstash-redis.test.js,Upstash Redis retries only within configured bounded attempts,upstash-redis,94
 tests/user-friendly-aliases.test.js,user-friendly aliases remain attached to canonical commands,user-friendly-aliases,47
-tests/utility.test.js,fun commands stay within bounded ranges and reject malformed dice,utility,113
-tests/utility.test.js,utility module split preserves canonical command registration parity,utility,45
-tests/utility.test.js,"status, uptime, and features expose bounded non-sensitive runtime summaries",utility,55
-tests/utility.test.js,utility command index and search expose registered commands without hidden entries,utility,74
-tests/utility.test.js,calculator accepts bounded arithmetic and rejects executable syntax,utility,87
-tests/utility.test.js,unit and timezone utilities validate input and return bounded output,utility,98
+tests/utility.test.js,fun commands stay within bounded ranges and reject malformed dice,utility,114
+tests/utility.test.js,utility module split preserves canonical command registration parity,utility,46
+tests/utility.test.js,"status, uptime, and features expose bounded non-sensitive runtime summaries",utility,56
+tests/utility.test.js,utility command index and search expose registered commands without hidden entries,utility,75
+tests/utility.test.js,calculator accepts bounded arithmetic and rejects executable syntax,utility,88
+tests/utility.test.js,unit and timezone utilities validate input and return bounded output,utility,99
 tests/welcome-leave-context.test.js,generic Welcome/Leave is locked outside OOC mode,welcome-leave-context,80
 tests/whatsapp-interaction.test.js,WhatsApp adapter forwards quoted message id and sender for Character Guide reply validation,whatsapp-interaction,110
 tests/whatsapp-interaction.test.js,WhatsApp adapter preserves phone identity from private-message remoteJidAlt when primary chat JID is a LID,whatsapp-interaction,16

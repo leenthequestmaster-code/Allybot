@@ -20,6 +20,7 @@ const PAGE_SIZE = 8
 const MAIN_MENU_BUTTON_CATEGORY_COUNT = 2
 const MENU_THUMBNAIL_MIME_TYPE = 'image/jpeg'
 const MENU_THUMBNAIL_CAPTION = "Allybot's Menu — pilih kategori lewat tombol atau gunakan perintah teks."
+const NATIVE_MENU_EXPIRY_MS = 5 * 60 * 1000
 
 let menuThumbnailPromise: Promise<Uint8Array | undefined> | undefined
 
@@ -34,35 +35,42 @@ const categoryPresentation: Record<string, CategoryPresentation> = {
   group: { label: 'GROUP', icon: '👥' },
   moderation: { label: 'MODERATION', icon: '🛡️' },
   'your-character': { label: 'YOUR CHARACTER', icon: '🎭' },
-  personal: { label: 'PERSONAL', icon: '🪪' },
-  tools: { label: 'TOOLS', icon: '🧰' },
+  economy: { label: 'EKONOMI', icon: '💰' },
+  'tools-media': { label: 'TOOLS: MEDIA', icon: '🖼️' },
+  'tools-search': { label: 'TOOLS: SEARCH', icon: '🔍' },
+  'tools-sticker': { label: 'TOOLS: STICKER', icon: '🎨' },
+  'tools-ai': { label: 'TOOLS: AI', icon: '🤖' },
   fun: { label: 'FUN', icon: '🎲' },
   developer: { label: 'DEVELOPER', icon: '🛠️' },
   owner: { label: 'OWNER', icon: '👑' },
 }
 
 const CATEGORY_ALIASES: Record<string, string> = {
-  ai: 'tools',
+  ai: 'tools-ai',
   creativity: 'fun',
-  download: 'tools',
-  economy: 'your-character',
-  general: 'personal',
+  download: 'tools-media',
+  economy: 'economy',
+  general: 'your-character',
   governance: 'moderation',
-  media: 'tools',
-  personalization: 'personal',
+  media: 'tools-media',
+  personalization: 'your-character',
   roleplay: 'your-character',
   yourcharacter: 'your-character',
-  search: 'tools',
-  system: 'tools',
-  utility: 'tools',
+  search: 'tools-search',
+  system: 'tools-media',
+  utility: 'tools-media',
+  sticker: 'tools-sticker',
 }
 
 const ROADMAP_CATEGORY_NAMES = [
   'group',
   'moderation',
   'your-character',
-  'personal',
-  'tools',
+  'economy',
+  'tools-media',
+  'tools-search',
+  'tools-sticker',
+  'tools-ai',
   'fun',
   'developer',
   'owner',
@@ -70,8 +78,8 @@ const ROADMAP_CATEGORY_NAMES = [
 
 function normalizeCategory(command: CommandDefinition): string {
   const category = command.category?.trim().toLowerCase()
-  if (!category || !/^[a-z][a-z0-9_-]{0,31}$/.test(category)) return 'personal'
-  return CATEGORY_ALIASES[category] ?? (category in categoryPresentation ? category : 'tools')
+  if (!category || !/^[a-z][a-z0-9_-]{0,31}$/.test(category)) return 'your-character'
+  return CATEGORY_ALIASES[category] ?? (category in categoryPresentation ? category : 'tools-media')
 }
 
 function sortCommands(commands: readonly CommandDefinition[]): CommandDefinition[] {
@@ -116,31 +124,6 @@ function formatCommand(command: CommandDefinition, prefix: string, position: num
   return `𖥻 ׁ ׅ *${position}.* ${prefix}${command.name}${aliases}${accessMarker} — _${description}_`
 }
 
-function renderNativeMainMenuBody(
-  categories: readonly MenuCategory[],
-  page: number,
-  totalPages: number,
-  pageCategories: readonly MenuCategory[],
-  prefix: string,
-): string {
-  const lines = [
-    `📚 *Listmenu* · Halaman ${page}/${totalPages}`,
-    `Kategori pada tombol ini: ${pageCategories.map(categoryLabel).join(' · ')}`,
-    '',
-    ...categories.map((category, index) => {
-      const { icon } = presentationFor(category.name)
-      const availability = category.commands.length > 0
-        ? `${category.commands.length} command tersedia`
-        : 'Coming Soon'
-      return `${index + 1}. ${icon} ${categoryLabel(category)} — _${availability}_`
-    }),
-    '',
-    'Tekan tombol untuk membuka submenu kategori. Tombol hanya untuk navigasi; command tetap diketik sesuai kebutuhan.',
-    `Fallback teks: ketik \`${prefix}menu <angka>\` atau balas menu dengan angka.`,
-  ]
-  return lines.join('\n')
-}
-
 function renderMainMenu(categories: readonly MenuCategory[], prefix: string): string {
   const lines = [
     '𖥦 ׂׅ─── ꫶֗ ୨ 🤖 ୧ ꫶֗ ───ׂׅ',
@@ -177,12 +160,8 @@ function renderMainMenu(categories: readonly MenuCategory[], prefix: string): st
   return lines.join('\n')
 }
 
-function renderCategoryMenu(category: MenuCategory, requestedPage: number, prefix: string): string {
+function renderCategoryMenu(category: MenuCategory, prefix: string): string {
   const { icon, label } = presentationFor(category.name)
-  const totalPages = Math.max(1, Math.ceil(category.commands.length / PAGE_SIZE))
-  const page = Math.min(Math.max(requestedPage, 1), totalPages)
-  const start = (page - 1) * PAGE_SIZE
-  const pageCommands = category.commands.slice(start, start + PAGE_SIZE)
   const lines = [
     `𖥦 ׂׅ─── ꫶֗ ୨ ${icon} ୧ ꫶֗ ───ׂׅ`,
     `⿴⃟۪۪⃕᎒⃟ *𝐒𝘂𝗯𝗺𝗲𝗻𝘂: ${label}* ꕤꪆ`,
@@ -190,20 +169,16 @@ function renderCategoryMenu(category: MenuCategory, requestedPage: number, prefi
     '',
     '_"Kamu ada di sini~ pilih salah satu ya!"_',
     '',
-    `⑅ ⃞📄 *Pilihan* :: ${totalPages > 1 ? `_Halaman ${page}/${totalPages}_` : ''}`.trim(),
-    ...(pageCommands.length > 0
-      ? pageCommands.map((command, index) => formatCommand(command, prefix, start + index + 1))
+    `⑅ ⃞📄 *Pilihan* ::`,
+    ...(category.commands.length > 0
+      ? category.commands.map((command, index) => formatCommand(command, prefix, index + 1))
       : ['🚧 _Coming Soon — command untuk kategori ini belum tersedia._']),
     '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
     `📖◌ㅤ\`\`\`${prefix}menu\`\`\` ㅤkembali ke menu utama`,
     `📖◌ㅤ\`\`\`${prefix}help\`\`\` ㅤuntuk bantuan`,
+    '━━━━━━━━━━━━━━━━━━━━',
+    '*© Allyssea Roleplay Community*',
   ]
-
-  if (totalPages > 1) {
-    lines.push(`📖◌ㅤ\`\`\`${prefix}menu ${category.name} ${page < totalPages ? page + 1 : 1}\`\`\` ㅤhalaman ${page < totalPages ? page + 1 : 1}/${totalPages}`)
-  }
-
-  lines.push('━━━━━━━━━━━━━━━━━━━━', '*© Allyssea Roleplay Community*')
   return lines.join('\n')
 }
 
@@ -255,8 +230,6 @@ function canSeePrivilegedCategory(category: MenuCategory, commandContext: Pick<C
   }
 }
 
-const NATIVE_MENU_EXPIRY_MS = 5 * 60 * 1000
-
 type MainMenuTarget =
   | { readonly kind: 'category'; readonly value: string }
   | { readonly kind: 'page'; readonly value: number }
@@ -264,6 +237,8 @@ type MainMenuTarget =
 type ActiveNativeMenu = {
   readonly expiresAt: number
   readonly prefix: string
+  readonly page: number
+  readonly totalPages: number
   readonly targets: ReadonlyMap<string, MainMenuTarget>
 }
 
@@ -289,9 +264,132 @@ function mainMenuPage(categories: readonly MenuCategory[], requestedPage: number
   }
 }
 
+function buildLocationMenuBody(
+  categories: readonly MenuCategory[],
+  page: number,
+  totalPages: number,
+  pageCategories: readonly MenuCategory[],
+  prefix: string,
+): string {
+  const lines = [
+    `📚 *Listmenu* · Halaman ${page}/${totalPages}`,
+    `Kategori pada tombol ini: ${pageCategories.map(categoryLabel).join(' · ')}`,
+    '',
+    ...categories.map((category, index) => {
+      const { icon } = presentationFor(category.name)
+      const availability = category.commands.length > 0
+        ? `${category.commands.length} command tersedia`
+        : 'Coming Soon'
+      return `${index + 1}. ${icon} ${categoryLabel(category)} — _${availability}_`
+    }),
+    '',
+    'Tekan tombol untuk membuka submenu kategori. Tombol hanya untuk navigasi; command tetap diketik sesuai kebutuhan.',
+    `Fallback teks: ketik \`${prefix}menu <angka>\` atau balas menu dengan angka.`,
+  ]
+  return lines.join('\n')
+}
+
+function createCategoryButtons(
+  pageCategories: readonly MenuCategory[],
+  prefix: string,
+): Array<{ id: string; label: string; description: string; availability: 'active' | 'disabled' }> {
+  const buttons: Array<{ id: string; label: string; description: string; availability: 'active' | 'disabled' }> = []
+
+  for (const category of pageCategories) {
+    const token = randomUUID().replaceAll('-', '').slice(0, 16)
+    const buttonId = `menu:${token}:${category.name}`
+    const presentation = presentationFor(category.name)
+    buttons.push({
+      id: buttonId,
+      label: `${presentation.icon} ${categoryLabel(category)}`,
+      description: category.commands.length > 0
+        ? `${category.commands.length} command tersedia`
+        : 'Coming Soon',
+      availability: 'active' as const,
+    })
+  }
+
+  return buttons
+}
+
+function createNavigationButtons(
+  page: number,
+  totalPages: number,
+  prefix: string,
+): Array<{ id: string; label: string; description: string; availability: 'active' | 'disabled' }> {
+  const buttons: Array<{ id: string; label: string; description: string; availability: 'active' | 'disabled' }> = []
+
+  // Prev button - disabled on page 1
+  if (page > 1) {
+    const prevPage = page - 1
+    const token = randomUUID().replaceAll('-', '').slice(0, 16)
+    const buttonId = `menu:${token}:page:${prevPage}`
+    buttons.push({
+      id: buttonId,
+      label: 'PREV',
+      description: `Halaman ${prevPage}/${totalPages}`,
+      availability: 'active' as const,
+    })
+  } else {
+    const token = randomUUID().replaceAll('-', '').slice(0, 16)
+    const buttonId = `menu:${token}:page:disabled:prev`
+    buttons.push({
+      id: buttonId,
+      label: 'PREV',
+      description: 'Halaman pertama',
+      availability: 'disabled' as const,
+    })
+  }
+
+  // Next button - disabled on last page
+  if (page < totalPages) {
+    const nextPage = page + 1
+    const token = randomUUID().replaceAll('-', '').slice(0, 16)
+    const buttonId = `menu:${token}:page:${nextPage}`
+    buttons.push({
+      id: buttonId,
+      label: 'NEXT',
+      description: `Halaman ${nextPage}/${totalPages}`,
+      availability: 'active' as const,
+    })
+  } else {
+    const token = randomUUID().replaceAll('-', '').slice(0, 16)
+    const buttonId = `menu:${token}:page:disabled:next`
+    buttons.push({
+      id: buttonId,
+      label: 'NEXT',
+      description: 'Halaman terakhir',
+      availability: 'disabled' as const,
+    })
+  }
+
+  // Back button - disabled on page 1
+  if (page > 1) {
+    const token = randomUUID().replaceAll('-', '').slice(0, 16)
+    const buttonId = `menu:${token}:page:1`
+    buttons.push({
+      id: buttonId,
+      label: 'BACK',
+      description: 'Kembali ke halaman 1',
+      availability: 'active' as const,
+    })
+  } else {
+    const token = randomUUID().replaceAll('-', '').slice(0, 16)
+    const buttonId = `menu:${token}:page:disabled:back`
+    buttons.push({
+      id: buttonId,
+      label: 'BACK',
+      description: 'Sudah di halaman pertama',
+      availability: 'disabled' as const,
+    })
+  }
+
+  return buttons
+}
+
 export const menuPlugin: Plugin = {
   name: 'menu',
-  version: '0.3.0',
+  version: '0.4.0',
   load(context) {
     const textInteraction = new TextInteractionAdapter()
     const buttonInteraction = new CapabilityAwareButtonAdapter(textInteraction)
@@ -305,7 +403,9 @@ export const menuPlugin: Plugin = {
     ): Promise<void> => {
       const sendNativeQuickReplies = commandContext.whatsapp.sendNativeQuickReplies
       const sendMedia = commandContext.whatsapp.sendMedia
+      const sendLocation = commandContext.whatsapp.sendLocation
       const thumbnail = sendMedia ? await loadMenuThumbnail() : undefined
+
       const sendThumbnail = async (caption: string): Promise<boolean> => {
         if (!sendMedia || !thumbnail) return false
         try {
@@ -322,85 +422,155 @@ export const menuPlugin: Plugin = {
         }
       }
 
-      if (!sendNativeQuickReplies) {
-        if (!(await sendThumbnail(fallbackText))) await commandContext.reply(fallbackText)
-        return
-      }
-
       const orderedCategories = mainMenuButtonCategories(categories)
       const { page, totalPages, pageCategories } = mainMenuPage(orderedCategories, requestedPage)
+
       if (pageCategories.length === 0) {
         await commandContext.reply(fallbackText)
         return
       }
 
-      const expiresAt = Date.now() + NATIVE_MENU_EXPIRY_MS
-      const targets = new Map<string, MainMenuTarget>()
-      const items = pageCategories.map((category) => {
-        const token = randomUUID().replaceAll('-', '').slice(0, 16)
-        const buttonId = `menu:${token}:${category.name}`
-        targets.set(buttonId, { kind: 'category', value: category.name })
-        const presentation = presentationFor(category.name)
-        return {
-          id: buttonId,
-          label: `${presentation.icon} ${categoryLabel(category)}`,
-          description: category.commands.length > 0
-            ? `${category.commands.length} command tersedia`
-            : 'Coming Soon',
-          availability: 'active' as const,
+      // Try Location Type message first (single bubble with thumbnail + text)
+      if (sendLocation) {
+        try {
+          const locationBody = buildLocationMenuBody(categories, page, totalPages, pageCategories, commandContext.prefix)
+
+          await sendLocation.call(commandContext.whatsapp, commandContext.message.remoteJid, {
+            degreesLatitude: -6.2088, // Jakarta coordinates as placeholder
+            degreesLongitude: 106.8456,
+            name: "Allybot's Menu",
+            address: locationBody,
+            contextInfo: {
+              externalAdReply: {
+                showAdAttribution: false,
+                title: "𝐀𝗹𝗹𝘆𝗯𝗼𝘁'𝘀 𝐌𝗲𝗻𝘂",
+                body: `_\"Nyahoo~!! Allybot disini. Ada yang bisa dibantu tuan atau nona penyintas?\"_`,
+                mediaType: 1, // Image
+                thumbnail,
+                thumbnailUrl: undefined,
+                sourceUrl: undefined,
+              },
+            },
+          })
+
+          // Send navigation buttons as native quick replies
+          if (sendNativeQuickReplies) {
+            const categoryButtons = createCategoryButtons(pageCategories, commandContext.prefix)
+            const navButtons = createNavigationButtons(page, totalPages, commandContext.prefix)
+            const allButtons = [...categoryButtons, ...navButtons]
+
+            const targets = new Map<string, MainMenuTarget>()
+            for (const [index, btn] of categoryButtons.entries()) {
+              const category = pageCategories[index]
+              if (category) targets.set(btn.id, { kind: 'category', value: category.name })
+            }
+            for (const btn of navButtons) {
+              if (btn.id.includes('page:')) {
+                const pageMatch = btn.id.match(/page:(\d+|disabled:(prev|next|back))/)
+                if (pageMatch) {
+                  const pageValue = pageMatch[1]
+                  if (pageValue.startsWith('disabled')) {
+                    targets.set(btn.id, { kind: 'page', value: page }) // stays on current page
+                  } else {
+                    targets.set(btn.id, { kind: 'page', value: Number(pageValue) })
+                  }
+                }
+              }
+            }
+
+            const expiresAt = Date.now() + NATIVE_MENU_EXPIRY_MS
+
+            await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
+              type: 'native_quick_reply',
+              body: `Halaman ${page}/${totalPages}`,
+              footer: `Ketik ${commandContext.prefix}menu <angka> untuk navigasi manual`,
+              buttons: allButtons.map(b => ({ id: b.id, title: b.label })),
+            })
+
+            activeNativeMenus.set(commandContext.message.remoteJid, {
+              expiresAt,
+              prefix: commandContext.prefix,
+              page,
+              totalPages,
+              targets,
+            })
+
+            while (activeNativeMenus.size > 1000) {
+              const oldest = activeNativeMenus.keys().next().value
+              if (!oldest) break
+              activeNativeMenus.delete(oldest)
+            }
+
+            return
+          }
+        } catch (error) {
+          commandContext.logger.warn({ err: error }, 'Location menu failed; falling back to native quick replies')
         }
-      })
-
-      if (totalPages > 1) {
-        const nextPage = page < totalPages ? page + 1 : 1
-        const token = randomUUID().replaceAll('-', '').slice(0, 16)
-        const buttonId = `menu:${token}:page:${nextPage}`
-        targets.set(buttonId, { kind: 'page', value: nextPage })
-        items.push({
-          id: buttonId,
-          label: 'NEXT',
-          description: `Halaman ${nextPage}/${totalPages}`,
-          availability: 'active' as const,
-        })
       }
 
-      const interactionMenu = {
-        id: `menu:main:${page}`,
-        version: 1,
-        kind: 'menu' as const,
-        title: "Allybot's Menu",
-        body: renderNativeMainMenuBody(categories, page, totalPages, pageCategories, commandContext.prefix),
-        items,
-        fallbackText: `Atau ketik ${commandContext.prefix}menu <angka> untuk melihat semua kategori.`,
-        expiresAt,
-      }
+      // Fallback to native quick replies with thumbnail
+      if (sendNativeQuickReplies) {
+        const categoryButtons = createCategoryButtons(pageCategories, commandContext.prefix)
+        const navButtons = createNavigationButtons(page, totalPages, commandContext.prefix)
+        const allButtons = [...categoryButtons, ...navButtons]
 
-      const rendered = await buttonInteraction.render(interactionMenu, { nativeQuickReply: true })
-      if (rendered.mode !== 'native') {
-        await commandContext.reply(fallbackText)
-        return
-      }
-
-      await sendThumbnail(MENU_THUMBNAIL_CAPTION)
-
-      try {
-        await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
-          ...rendered.payload,
-          footer: `Fallback: ${commandContext.prefix}menu <angka>`,
-        })
-        activeNativeMenus.set(commandContext.message.remoteJid, {
-          expiresAt,
-          prefix: commandContext.prefix,
-          targets,
-        })
-        while (activeNativeMenus.size > 1000) {
-          const oldest = activeNativeMenus.keys().next().value
-          if (!oldest) break
-          activeNativeMenus.delete(oldest)
+        const targets = new Map<string, MainMenuTarget>()
+        for (let i = 0; i < categoryButtons.length; i++) {
+          const btn = categoryButtons[i]
+          const category = pageCategories[i]
+          if (category) {
+            targets.set(btn.id, { kind: 'category', value: category.name })
+          }
         }
-      } catch (error) {
-        activeNativeMenus.delete(commandContext.message.remoteJid)
-        commandContext.logger.warn({ err: error }, 'native menu send failed; using text fallback')
+        for (const btn of navButtons) {
+          if (btn.id.includes('page:')) {
+            const pageMatch = btn.id.match(/page:(\d+|disabled:(prev|next|back))/)
+            if (pageMatch) {
+              const pageValue = pageMatch[1]
+              if (pageValue.startsWith('disabled')) {
+                targets.set(btn.id, { kind: 'page', value: page })
+              } else {
+                targets.set(btn.id, { kind: 'page', value: Number(pageValue) })
+              }
+            }
+          }
+        }
+
+        const expiresAt = Date.now() + NATIVE_MENU_EXPIRY_MS
+
+        try {
+          await sendThumbnail(MENU_THUMBNAIL_CAPTION)
+
+          await sendNativeQuickReplies.call(commandContext.whatsapp, commandContext.message.remoteJid, {
+            type: 'native_quick_reply',
+            body: buildLocationMenuBody(categories, page, totalPages, pageCategories, commandContext.prefix),
+            footer: `Ketik ${commandContext.prefix}menu <angka> untuk navigasi manual`,
+            buttons: allButtons.map(b => ({ id: b.id, title: b.label })),
+          })
+
+          activeNativeMenus.set(commandContext.message.remoteJid, {
+            expiresAt,
+            prefix: commandContext.prefix,
+            page,
+            totalPages,
+            targets,
+          })
+
+          while (activeNativeMenus.size > 1000) {
+            const oldest = activeNativeMenus.keys().next().value
+            if (!oldest) break
+            activeNativeMenus.delete(oldest)
+          }
+
+          return
+        } catch (error) {
+          activeNativeMenus.delete(commandContext.message.remoteJid)
+          commandContext.logger.warn({ err: error }, 'native menu send failed; using text fallback')
+        }
+      }
+
+      // Final fallback: text menu
+      if (!(await sendThumbnail(fallbackText))) {
         await commandContext.reply(fallbackText)
       }
     }
@@ -427,7 +597,7 @@ export const menuPlugin: Plugin = {
       if (!category) {
         await reply([
           '𖥦 ׂׅ─── ꫶֗ ୨ 🤖 ୧ ꫶֗ ───ׂׅ',
-          "⿴⃟۪۪⃕᎒⃟ *𝐀𝗹𝗹𝘆𝗯𝗼𝘁'𝘀 𝐌𝗲𝗻𝘂* ꕤꪆ",
+          "⿴⃟۪۪⃕᎒⃟ *𝐀𝗹𝗹𝘆𝗯𝗼𝘁'𝐌𝐞𝐧𝐮* ꕤꪆ",
           '',
           `Kategori *${args[0]}* tidak ditemukan.`,
           `Ketik \`\`\`${prefix}menu\`\`\` untuk melihat Listmenu.`,
@@ -437,7 +607,8 @@ export const menuPlugin: Plugin = {
         return
       }
 
-      await reply(renderCategoryMenu(category, parsePage(args[1]), prefix))
+      // Sub-menu: single bubble, full text, no pagination
+      await reply(renderCategoryMenu(category, prefix))
     }
 
     context.commands.register({
@@ -475,6 +646,12 @@ export const menuPlugin: Plugin = {
         const target = activeMenu.targets.get(buttonId)
         if (!target) return
         activeNativeMenus.delete(message.remoteJid)
+
+        // Handle disabled buttons - they just stay on current page
+        if (buttonId.includes('disabled')) {
+          return
+        }
+
         const text = target.kind === 'category'
           ? `${activeMenu.prefix}menu-reply ${target.value}`
           : `${activeMenu.prefix}menu-reply page ${target.value}`

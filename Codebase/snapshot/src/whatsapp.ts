@@ -376,6 +376,37 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework image response')
   }
 
+  async sendLocation(remoteJid: string, payload: {
+    readonly degreesLatitude: number
+    readonly degreesLongitude: number
+    readonly name?: string
+    readonly address?: string
+    readonly contextInfo?: {
+      readonly externalAdReply?: {
+        readonly showAdAttribution: boolean
+        readonly title: string
+        readonly body: string
+        readonly mediaType: number
+        readonly thumbnail?: Uint8Array
+        readonly thumbnailUrl?: string
+        readonly sourceUrl?: string
+      }
+    }
+  }): Promise<void> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const content = {
+      location: {
+        degreesLatitude: payload.degreesLatitude,
+        degreesLongitude: payload.degreesLongitude,
+        ...(payload.name ? { name: payload.name } : {}),
+        ...(payload.address ? { address: payload.address } : {}),
+      },
+      ...(payload.contextInfo ? { contextInfo: payload.contextInfo } : {}),
+    }
+    await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework location response')
+  }
+
   async downloadMedia(message: CoreMessage, source: 'direct' | 'quoted', limits: WhatsAppMediaLimits): Promise<WhatsAppMediaPayload> {
     const socket = this.socket
     if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')

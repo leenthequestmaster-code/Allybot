@@ -9,6 +9,8 @@ import {
   type EconomyAccountSnapshot,
   type EconomyHistoryEntry,
   type EconomyMembershipTier,
+  type TaxStatus,
+  type TaxFrozenScope,
 } from '../../services/economy-service.js'
 
 function economyService(context: CommandContext): EconomyService {
@@ -330,7 +332,7 @@ export const economyPlugin: Plugin = {
       name: 'vela',
       aliases: ['wallet'],
       description: 'Lihat saldo Wallet dan Safe Vela',
-      category: 'your-character',
+      category: 'economy',
       menuOrder: 35,
       cooldownMs: 3_000,
       handler: async (commandContext) => {
@@ -348,7 +350,7 @@ export const economyPlugin: Plugin = {
     context.commands.register({
       name: 'bank',
       description: 'Kelola rekening Wallet dan Safe Vela',
-      category: 'your-character',
+      category: 'economy',
       menuOrder: 36,
       cooldownMs: 3_000,
       handler: handleBank,
@@ -420,6 +422,62 @@ export const economyPlugin: Plugin = {
           return
         }
         await runEconomyAction(commandContext, async () => renderMutation('Pemeriksaan overage selesai.', await service.sweepOverage(groupJid, target, actor, operationKey(commandContext, 'bank-sweep'))))
+      },
+    })
+
+    context.commands.register({
+      name: 'tax',
+      description: 'Lihat status pajak Vela',
+      category: 'economy',
+      menuOrder: 40,
+      cooldownMs: 3_000,
+      handler: async (commandContext) => {
+        const groupJid = await requireGroup(commandContext, 'Tax')
+        if (!groupJid) return
+        const actor = await requireActor(commandContext)
+        if (!actor) return
+        await runEconomyAction(commandContext, async () => {
+          const summary = await economyService(commandContext).getTaxSummary(groupJid, actor)
+          if (!summary) return '🏦 Sistem pajak belum tersedia untuk akun ini.'
+          const lines = [
+            '💰 *Pajak Vela Kerajaan Velseus*',
+            '',
+            `📊 *Total Harta* : ${formatVela(summary.totalWealth)} Vela`,
+            `📋 *Tarif Dasar* : ${(summary.baseTaxRate * 100).toFixed(0)}%`,
+            `💵 *Pajak Dasar* : ${formatVela(summary.currentTax)} Vela`,
+            `⚠️ *Bunga Denda* : ${(summary.penaltyRate * 100).toFixed(0)}%`,
+            `💰 *Total Kewajiban* : ${formatVela(summary.totalDue)} Vela`,
+            `📌 *Status* : ${summary.status === 'current' ? 'Lunas' : summary.status === 'warning' ? 'Minggu 1 - Surat Peringatan' : summary.status === 'penalty_1' ? 'Minggu 2 - Denda +2%' : summary.status === 'penalty_2' ? 'Minggu 3 - Denda +4% + Safe Dibekukan' : 'Minggu 4+ - Denda +6%+ + Total Dibekukan'}`,
+            `🔒 *Cakupan Pembekuan* : ${summary.frozenScope === 'none' ? 'Tidak ada' : summary.frozenScope === 'safe' ? 'Safe dibekukan' : 'Wallet & Safe dibekukan total'}`,
+            `📅 *Minggu Ke-* : ${summary.weekNumber}`,
+            `⏰ *Jatuh Tempo* : <t:${Math.floor(new Date(summary.dueAt).getTime() / 1000)}:R>`,
+            summary.isOverdue ? '🚨 *TERLAMBAT - Segera bayar untuk menghindari penalti!*' : '',
+            '',
+            'Bayar pajak: `!taxbayar`',
+          ].filter(Boolean)
+          return lines.join('\n')
+        })
+      },
+    })
+
+    context.commands.register({
+      name: 'taxbayar',
+      aliases: ['bayarpajak'],
+      description: 'Bayar pajak Vela yang tertunggak',
+      category: 'economy',
+      menuOrder: 41,
+      cooldownMs: 5_000,
+      handler: async (commandContext) => {
+        const groupJid = await requireGroup(commandContext, 'Tax Bayar')
+        if (!groupJid) return
+        const actor = await requireActor(commandContext)
+        if (!actor) return
+        await runEconomyAction(commandContext, async () => {
+          const summary = await economyService(commandContext).getTaxSummary(groupJid, actor)
+          if (!summary) return '🏦 Sistem pajak belum tersedia untuk akun ini.'
+          if (summary.totalDue <= 0) return '✅ Tidak ada pajak yang harus dibayar saat ini.'
+          return renderMutation(`Pajak berhasil dibayar.`, await economyService(commandContext).payTax(groupJid, actor, actor, operationKey(commandContext, 'tax-pay'), `Pembayaran pajak minggu ke-${summary.weekNumber}`))
+        })
       },
     })
   },

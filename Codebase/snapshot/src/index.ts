@@ -15,11 +15,12 @@ import { groupPlugin } from './framework/plugins/group.js'
 import { createGroupSafetyPlugin } from './framework/plugins/group-safety.js'
 import { createGroupModerationPlugin } from './framework/plugins/group-moderation.js'
 import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-mission.js'
-import { createPersonalizationPlugin } from './framework/plugins/personalization.js'
+
 import { createGroupGovernancePlugin } from './framework/plugins/group-governance.js'
 import { suggestionRelayPlugin } from './framework/plugins/suggestion-relay.js'
 import { utilityPlugin } from './framework/plugins/utility.js'
 import { mediaPlugin } from './framework/plugins/media.js'
+import { toolsSearchPlugin } from './framework/plugins/tools-search.js'
 import { createAiHandler, MAX_AI_INPUT_LENGTH } from './ai-handler.js'
 import { createLogger, type AppLogger } from './logger.js'
 import { createSentryReporter } from './sentry.js'
@@ -34,7 +35,6 @@ import { PlatformGuardrailService } from './services/platform-guardrail-service.
 import { GroupSafetyService } from './services/group-safety-service.js'
 import { GroupModerationService } from './services/group-moderation-service.js'
 import { KnowledgeService } from './services/knowledge-service.js'
-import { PersonalizationService } from './services/personalization-service.js'
 import { SceneService } from './services/scene-service.js'
 import { GroupGovernanceService } from './services/group-governance-service.js'
 import { SuggestionRelayService, type SuggestionProviderInput } from './services/suggestion-relay-service.js'
@@ -118,7 +118,6 @@ async function main(): Promise<void> {
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(new KnowledgeService(config.DATABASE_PATH, logger))
-  framework.registerService(new PersonalizationService(config.DATABASE_PATH, logger))
   framework.registerService(new SceneService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupGovernanceService(config.DATABASE_PATH, logger))
   framework.registerService(new SuggestionRelayService(config.DATABASE_PATH, logger, {
@@ -142,12 +141,12 @@ async function main(): Promise<void> {
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
-  framework.registerPlugin(createPersonalizationPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
   framework.registerPlugin(suggestionRelayPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
+  framework.registerPlugin(toolsSearchPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework, sentry)
   try {

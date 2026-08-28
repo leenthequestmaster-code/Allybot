@@ -13,6 +13,39 @@ export type EconomyMembershipTier = 'basic' | 'bronze' | 'silver' | 'gold' | 'st
 export type EconomySafeStatus = 'not_open' | 'pending' | 'active' | 'frozen'
 export type EconomySnapshotSource = 'postgres' | 'cache'
 
+// Tax System (PRD §5.2)
+export type TaxStatus = 'current' | 'warning' | 'penalty_1' | 'penalty_2' | 'penalty_3_plus'
+export type TaxFrozenScope = 'none' | 'safe' | 'total'
+
+export interface TaxRecord {
+  readonly taxId: string
+  readonly groupJid: string
+  readonly subjectJid: string
+  readonly wealth: number
+  readonly baseTax: number
+  readonly penaltyRate: number
+  readonly totalTax: number
+  readonly status: TaxStatus
+  readonly frozenScope: TaxFrozenScope
+  readonly weekNumber: number
+  readonly dueAt: string
+  readonly paidAt?: string
+  readonly createdAt: string
+}
+
+export interface TaxSummary {
+  readonly totalWealth: number
+  readonly baseTaxRate: number
+  readonly currentTax: number
+  readonly penaltyRate: number
+  readonly totalDue: number
+  readonly status: TaxStatus
+  readonly frozenScope: TaxFrozenScope
+  readonly weekNumber: number
+  readonly dueAt: string
+  readonly isOverdue: boolean
+}
+
 export interface EconomyAccountSnapshot {
   readonly economyEnabled: boolean
   readonly walletBalance: number
@@ -418,6 +451,124 @@ export class EconomyService implements Service {
     this.client = undefined
     this.redis = undefined
     this.enabled = false
+  }
+
+  // Tax System (PRD §5.2)
+  private static readonly TAX_BASE_RATE = 0.02 // 2% base tax
+  private static readonly TAX_PENALTY_INCREMENT = 0.02 // +2% per week
+  private static readonly TAX_DUE_DAY = 1 // Monday (0=Sunday, 1=Monday)
+  private static readonly TAX_DUE_HOUR_WIB = 0 // 00:00 WIB
+
+  calculateTax(wealth: number): { baseTax: number; totalTax: number; penaltyRate: number } {
+    const baseTax = Math.floor(wealth * EconomyService.TAX_BASE_RATE)
+    return { baseTax, totalTax: baseTax, penaltyRate: 0 }
+  }
+
+  calculateTaxWithPenalty(wealth: number, weekNumber: number): { baseTax: number; totalTax: number; penaltyRate: number; status: TaxStatus; frozenScope: TaxFrozenScope } {
+    const baseTax = Math.floor(wealth * EconomyService.TAX_BASE_RATE)
+    let penaltyRate = 0
+    let status: TaxStatus = 'current'
+    let frozenScope: TaxFrozenScope = 'none'
+
+    if (weekNumber === 1) {
+      status = 'warning'
+    } else if (weekNumber === 2) {
+      penaltyRate = EconomyService.TAX_PENALTY_INCREMENT
+      status = 'penalty_1'
+    } else if (weekNumber === 3) {
+      penaltyRate = EconomyService.TAX_PENALTY_INCREMENT * 2
+      status = 'penalty_2'
+      frozenScope = 'safe'
+    } else if (weekNumber >= 4) {
+      penaltyRate = EconomyService.TAX_PENALTY_INCREMENT * (weekNumber - 1)
+      status = 'penalty_3_plus'
+      frozenScope = 'total'
+    }
+
+    const totalTax = Math.floor(baseTax * (1 + penaltyRate))
+    return { baseTax, totalTax, penaltyRate, status, frozenScope }
+  }
+
+  getCurrentTaxWeek(realMs = Date.now()): number {
+    const wibMs = realMs + 7 * 60 * 60 * 1000
+    const wibDate = new Date(wibMs)
+    const dayOfWeek = wibDate.getUTCDay()
+    const hour = wibDate.getUTCHours()
+
+    // Tax is due every Monday at 00:00 WIB
+    // If today is Monday after 00:00, it's the new week
+    // If today is before Monday, it's the previous week
+    let weekOffset = 0
+    if (dayOfWeek === 1 && hour >= EconomyService.TAX_DUE_HOUR_WIB) {
+      weekOffset = 0
+    } else if (dayOfWeek > 1 || (dayOfWeek === 1 && hour < EconomyService.TAX_DUE_HOUR_WIB)) {
+      weekOffset = 1
+    } else {
+      weekOffset = 0
+    }
+
+    // Calculate weeks since epoch (simplified - in production use actual epoch)
+    const epochMs = new Date('2024-01-01T00:00:00+07:00').getTime()
+    const weeksSinceEpoch = Math.floor((wibMs - epochMs) / (7 * 24 * 60 * 60 * 1000))
+    return weeksSinceEpoch + weekOffset + 1
+  }
+
+  async getTaxSummary(groupJid: string, subjectJid: string): Promise<TaxSummary | undefined> {
+    this.assertAccountIdentity(groupJid, subjectJid)
+    if (!this.client) throw new EconomyUnavailableError()
+
+    const snapshotResult = await this.getAccountSnapshot(groupJid, subjectJid)
+    const wealth = snapshotResult.snapshot.walletBalance + snapshotResult.snapshot.safeBalance
+    const weekNumber = this.getCurrentTaxWeek()
+    const taxCalc = this.calculateTaxWithPenalty(wealth, weekNumber)
+
+    const now = this.clock()
+    const wibMs = now + 7 * 60 * 60 * 1000
+    const wibDate = new Date(wibMs)
+    const dayOfWeek = wibDate.getUTCDay()
+    const isOverdue = dayOfWeek > 1 || (dayOfWeek === 1 && wibDate.getUTCHours() >= EconomyService.TAX_DUE_HOUR_WIB)
+
+    return {
+      totalWealth: wealth,
+      baseTaxRate: EconomyService.TAX_BASE_RATE,
+      currentTax: taxCalc.baseTax,
+      penaltyRate: taxCalc.penaltyRate,
+      totalDue: taxCalc.totalTax,
+      status: taxCalc.status,
+      frozenScope: taxCalc.frozenScope,
+      weekNumber,
+      dueAt: new Date(now + (8 - dayOfWeek) * 24 * 60 * 60 * 1000).toISOString(),
+      isOverdue,
+    }
+  }
+
+  async payTax(
+    groupJid: string,
+    subjectJid: string,
+    actorJid: string,
+    operationKey: string,
+    reason: string,
+  ): Promise<Record<string, unknown>> {
+    this.assertAccountIdentity(groupJid, subjectJid)
+    this.assertActorIdentity(actorJid)
+    if (!this.client) throw new EconomyUnavailableError()
+
+    const summary = await this.getTaxSummary(groupJid, subjectJid)
+    if (!summary || summary.totalDue <= 0) {
+      throw new EconomyOperationError('Tidak ada pajak yang harus dibayar.')
+    }
+
+    const result = await this.mutate('economy_pay_tax', {
+      p_scope_key: hashIdentity(canonicalJid(groupJid)),
+      p_subject_key: hashIdentity(canonicalJid(subjectJid)),
+      p_amount: summary.totalDue,
+      p_operation_key: operationKey,
+      p_actor_key: hashIdentity(canonicalJid(actorJid)),
+      p_reason: reason,
+    })
+
+    await this.invalidateAccount(groupJid, subjectJid)
+    return result
   }
 
   private async invalidateAccountsFromResult(groupJid: string, result: Record<string, unknown>, fallbackSubjectJid: string): Promise<void> {

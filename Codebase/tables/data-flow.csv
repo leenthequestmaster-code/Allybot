@@ -127,6 +127,7 @@ src/framework/plugins/suggestion-relay.ts,src/services/suggestion-relay-service.
 src/framework/plugins/technical.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/technical.ts,src/permissions.ts,module import,static import graph,high
 src/framework/plugins/technical.ts,src/platform/validation.ts,module import,static import graph,high
+src/framework/plugins/tools-search.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/utility-fun.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/utility.ts,src/framework/command-copy.ts,module import,static import graph,high
 src/framework/plugins/utility.ts,src/framework/contracts.ts,module import,static import graph,high
@@ -155,10 +156,10 @@ src/index.ts,src/framework/plugins/group.ts,module import,static import graph,hi
 src/index.ts,src/framework/plugins/media.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/menu.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/neon-chat-log.ts,module import,static import graph,high
-src/index.ts,src/framework/plugins/personalization.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/sentry.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/suggestion-relay.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/technical.ts,module import,static import graph,high
+src/index.ts,src/framework/plugins/tools-search.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/utility.ts,module import,static import graph,high
 src/index.ts,src/framework/plugins/welcome-leave.ts,module import,static import graph,high
 src/index.ts,src/lifecycle.ts,module import,static import graph,high
@@ -177,7 +178,6 @@ src/index.ts,src/services/group-governance-service.ts,module import,static impor
 src/index.ts,src/services/group-moderation-service.ts,module import,static import graph,high
 src/index.ts,src/services/group-safety-service.ts,module import,static import graph,high
 src/index.ts,src/services/knowledge-service.ts,module import,static import graph,high
-src/index.ts,src/services/personalization-service.ts,module import,static import graph,high
 src/index.ts,src/services/platform-guardrail-service.ts,module import,static import graph,high
 src/index.ts,src/services/scene-service.ts,module import,static import graph,high
 src/index.ts,src/services/suggestion-relay-service.ts,module import,static import graph,high
@@ -386,7 +386,6 @@ tests/neon-chat-log-control.test.js,createNeonChatLogPlugin({ NEON_CHAT_LOG_ENAB
 src/index.ts,createNeonChatLogPlugin(config),registers plugin,static registration call,high
 tests/neon-chat-log-control.test.js,createNeonChatLogPlugin(pluginConfig()),registers plugin,static registration call,high
 tests/r5-personalization.test.js,createPersonalizationPlugin(core),registers plugin,static registration call,high
-src/index.ts,createPersonalizationPlugin(whatsapp),registers plugin,static registration call,high
 tests/r6-scene.test.js,createScenePlugin(core),registers plugin,static registration call,high
 src/index.ts,createSentryPlugin(sentry),registers plugin,static registration call,high
 tests/welcome-leave-context.test.js,createWelcomeLeavePlugin(core),registers plugin,static registration call,high
@@ -411,6 +410,7 @@ tests/r10-onboarding.test.js,onboardingPlugin,registers plugin,static registrati
 src/index.ts,suggestionRelayPlugin,registers plugin,static registration call,high
 src/index.ts,technicalPlugin,registers plugin,static registration call,high
 tests/integration.test.js,technicalPlugin,registers plugin,static registration call,high
+src/index.ts,toolsSearchPlugin,registers plugin,static registration call,high
 src/index.ts,utilityPlugin,registers plugin,static registration call,high
 tests/neon-chat-log-control.test.js,"{
     name: 'neon-client',
@@ -458,7 +458,6 @@ tests/r7-canon.test.js,knowledge,registers service,static registration call,high
 src/index.ts,KnowledgeService,registers service,static registration call,high
 src/index.ts,NeonClientService,registers service,static registration call,high
 tests/r5-personalization.test.js,personalization,registers service,static registration call,high
-src/index.ts,PersonalizationService,registers service,static registration call,high
 src/index.ts,PlatformGuardrailService,registers service,static registration call,high
 tests/neon-chat-log-control.test.js,PlatformGuardrailService,registers service,static registration call,high
 src/index.ts,redis,registers service,static registration call,high

@@ -58,13 +58,13 @@ export const onboardingPlugin: Plugin = {
   name: 'onboarding',
   version: '0.1.0',
   load(context) {
-    context.commands.register({
-      name: 'onboarding',
-      aliases: ['onboard'],
-      description: 'Bounded group onboarding workflow',
-      category: 'community',
-      menuOrder: 60,
-      handler: async (commandContext) => {
+context.commands.register({
+        name: 'onboarding',
+        aliases: ['onboard'],
+        description: 'Bounded group onboarding workflow',
+        category: 'group',
+        menuOrder: 60,
+        handler: async (commandContext) => {
         const group = groupJid(commandContext.message)
         if (!group) return groupOnlyReply(commandContext)
         const actor = actorJid(commandContext.message, commandContext.whatsapp)

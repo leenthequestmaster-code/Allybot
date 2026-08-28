@@ -63,13 +63,13 @@ export const suggestionRelayPlugin: Plugin = {
   version: '0.1.0',
   load(context) {
     const suggestions = service(context)
-    context.commands.register({
-      name: 'suggest',
-      aliases: ['suggestion', 'usul'],
-      description: 'Typed suggestion from explicit approved context',
-      category: 'ai',
-      menuOrder: 85,
-      handler: async (commandContext) => {
+context.commands.register({
+        name: 'suggest',
+        aliases: ['suggestion', 'usul'],
+        description: 'Typed suggestion from explicit approved context',
+        category: 'tools-ai',
+        menuOrder: 85,
+        handler: async (commandContext) => {
         const group = groupJid(commandContext.message)
         if (!group) {
           await commandContext.reply('Suggestion Relay hanya dapat digunakan di dalam grup WhatsApp.')

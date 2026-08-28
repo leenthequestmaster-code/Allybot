@@ -120,7 +120,19 @@ function videoToGifArgs(): readonly string[] {
   ]
 }
 
-function mediaToAudioArgs(): readonly string[] {
+function mediaToAudioArgs(outputFormat: 'ogg' | 'mp3' = 'ogg'): readonly string[] {
+  if (outputFormat === 'mp3') {
+    return [
+      '-i', 'pipe:0',
+      '-t', '60',
+      '-vn',
+      '-ac', '2',
+      '-c:a', 'libmp3lame',
+      '-b:a', '128k',
+      '-f', 'mp3',
+      'pipe:1',
+    ]
+  }
   return [
     '-i', 'pipe:0',
     '-t', '60',

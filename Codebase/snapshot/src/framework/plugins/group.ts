@@ -318,53 +318,7 @@ export const groupPlugin: Plugin = {
       },
     })
 
-    context.commands.register({
-      name: 'ruleshistory',
-      description: 'Show recent group rules changes',
-      category: 'group',
-      menuOrder: 21,
-      permission: permissionNames.groupAdmin,
-      handler: async (commandContext) => {
-        if (!(await requireGroup(commandContext))) return
-        const configuration = groupConfiguration(commandContext)
-        const settings = configuration.getSettings(commandContext.message.remoteJid)
-        const history = configuration.getRulesHistory(
-          commandContext.message.remoteJid,
-          parseHistoryLimit(commandContext.args[0]),
-        )
-        if (history.length === 0) {
-          await commandContext.reply([
-            '📜 ⑅【 𝐑𝘂𝗹𝗲𝘀 𝐇𝗶𝘀𝘁𝗼𝗿𝘆 】',
-            '⏜ׄ꤮᷼⌒︵',
-            'Belum ada perubahan rules yang tercatat.',
-            '',
-            ...renderFooter(),
-          ].join('\n'))
-          return
-        }
 
-        const timezone = settings.timezone?.timezone ?? 'UTC'
-        const language = settings.language?.language ?? 'id'
-        const mentions = [...new Set(history.map((entry) => entry.updatedBy))]
-        const lines = [
-          '📜 ⑅【 𝐑𝘂𝗹𝗲𝘀 𝐇𝗶𝘀𝘁𝗼𝗿𝘆 】',
-          '⏜ׄ꤮᷼⌒︵',
-          `↳ *Timezone* : ${timezone}`,
-          '',
-        ]
-        history.forEach((entry, index) => {
-          lines.push(
-            `*${index + 1}. ${entry.action === 'set' ? 'Rules disimpan' : 'Rules dihapus'}*`,
-            `↳ *Waktu* : ${formatHistoryTime(entry.updatedAt, timezone, language)}`,
-            `↳ *Oleh* : ${userLabel(entry.updatedBy)}`,
-          )
-          if (entry.rules) lines.push(`↳ *Isi* : ${historyPreview(entry.rules)}`)
-          if (index < history.length - 1) lines.push('')
-        })
-        lines.push('', ...renderFooter())
-        await commandContext.reply(lines.join('\n'), mentionOptions(mentions))
-      },
-    })
 
     context.commands.register({
       name: 'setrules',
@@ -506,29 +460,7 @@ export const groupPlugin: Plugin = {
       },
     })
 
-    context.commands.register({
-      name: 'groupsettings',
-      description: 'Show active group configuration',
-      category: 'group',
-      menuOrder: 17,
-      permission: permissionNames.groupAdmin,
-      handler: async (commandContext) => {
-        if (!(await requireGroup(commandContext))) return
-        const settings = groupConfiguration(commandContext).getSettings(commandContext.message.remoteJid)
-        await commandContext.reply([
-          '⚙️ ⑅【 𝐆𝗿𝗼𝘂𝗽 𝐒𝗲𝘁𝘁𝗶𝗻𝗴𝘀 】',
-          '⏜ׄ꤮᷼⌒︵',
-          `↳ *Rules* : ${settings.rules ? 'Custom' : 'Default / belum diatur'}`,
-          `↳ *Welcome* : ${settings.welcome ? 'Custom' : 'Default'}`,
-          `↳ *Leave* : ${settings.leave ? 'Custom' : 'Default'}`,
-          `↳ *Prefix* : \`${commandContext.prefix}\``,
-          `↳ *Language* : ${settings.language?.language ?? 'id'}`,
-          `↳ *Timezone* : ${settings.timezone?.timezone ?? 'UTC'}`,
-          '',
-          ...renderFooter(),
-        ].join('\n'))
-      },
-    })
+
 
     context.commands.register({
       name: 'prefix',
@@ -594,52 +526,9 @@ export const groupPlugin: Plugin = {
       },
     })
 
-    context.commands.register({
-      name: 'setlanguage',
-      description: 'Set the language preference for the current group',
-      category: 'group',
-      menuOrder: 20,
-      permission: permissionNames.groupAdmin,
-      handler: async (commandContext) => {
-        if (!(await requireGroup(commandContext))) return
-        const language = commandContext.args[0]?.toLowerCase()
-        if (!language || !SUPPORTED_GROUP_LANGUAGES.includes(language as typeof SUPPORTED_GROUP_LANGUAGES[number])) {
-          await commandContext.reply(`Format: ${commandContext.prefix}setlanguage <${SUPPORTED_GROUP_LANGUAGES.join('|')}>`)
-          return
-        }
-        const record = groupConfiguration(commandContext).setLanguage(
-          commandContext.message.remoteJid,
-          language,
-          updateActor(commandContext),
-        )
-        await commandContext.reply(`✅ Bahasa grup berhasil diubah menjadi \`${record.language}\`.`)
-      },
-    })
 
-    context.commands.register({
-      name: 'settimezone',
-      description: 'Set the IANA timezone for the current group',
-      category: 'group',
-      menuOrder: 22,
-      permission: permissionNames.groupAdmin,
-      handler: async (commandContext) => {
-        if (!(await requireGroup(commandContext))) return
-        const timezone = commandContext.args.join(' ').trim()
-        if (!timezone || !isValidGroupTimezone(timezone)) {
-          await commandContext.reply([
-            `Format: ${commandContext.prefix}settimezone <IANA timezone>`,
-            `Contoh: ${commandContext.prefix}settimezone Asia/Jakarta`,
-          ].join('\n'))
-          return
-        }
-        const record = groupConfiguration(commandContext).setTimezone(
-          commandContext.message.remoteJid,
-          timezone,
-          updateActor(commandContext),
-        )
-        await commandContext.reply(`✅ Timezone grup berhasil diubah menjadi \`${record.timezone}\`.`)
-      },
-    })
+
+
 
     context.commands.register({
       name: 'role',

@@ -88,7 +88,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'knowledge',
         aliases: ['know'],
         description: 'Show explicit knowledge status',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 1,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -102,7 +102,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'setknowledge',
         aliases: ['catatan'],
         description: 'Enable or disable explicit knowledge capture',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 2,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -122,7 +122,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'quote',
         description: 'Show explicitly quoted message text without saving it',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 3,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -140,7 +140,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'bookmark',
         description: 'Bookmark an explicitly quoted message as a bounded source',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 4,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -172,7 +172,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'bookmarks',
         aliases: ['tersimpan'],
         description: 'List explicit bookmarks visible in the group',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 5,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -190,7 +190,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'source',
         aliases: ['sourceinfo'],
         description: 'Read one explicit source by short id',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 6,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -210,7 +210,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'forget',
         aliases: ['knowledgeforget'],
         description: 'Delete your explicit source record',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 7,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -230,7 +230,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'find',
         aliases: ['cari'],
         description: 'Search explicit knowledge visible in the group',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 8,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -254,7 +254,7 @@ export function createKnowledgePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'knowledgeexport',
         aliases: ['knowexport', 'exportcatatan'],
         description: 'Export visible explicit knowledge records',
-        category: 'knowledge',
+        category: 'tools-search',
         menuOrder: 9,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)

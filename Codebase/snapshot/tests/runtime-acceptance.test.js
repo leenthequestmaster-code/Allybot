@@ -12,6 +12,7 @@ function createFakeWhatsapp(options = {}) {
   const connectionListeners = []
   const sentTexts = []
   const sentQuickReplies = []
+  const sentLocations = []
   const metadata = options.metadata ?? {
     jid: 'group@g.us',
     subject: 'Acceptance Group',
@@ -28,6 +29,7 @@ function createFakeWhatsapp(options = {}) {
     userJid: 'bot@s.whatsapp.net',
     sentTexts,
     sentQuickReplies,
+    sentLocations,
     onMessage(listener) {
       messageListeners.push(listener)
       return () => {
@@ -54,6 +56,9 @@ function createFakeWhatsapp(options = {}) {
     },
     async sendNativeQuickReplies(remoteJid, payload) {
       sentQuickReplies.push({ remoteJid, payload })
+    },
+    async sendLocation(remoteJid, payload) {
+      sentLocations.push({ remoteJid, payload })
     },
     async getGroupMetadata() {
       return metadata
@@ -181,7 +186,7 @@ test('permission denial is enforced before protected handler execution', async (
   await framework.stop()
 })
 
-test('menu uses native buttons only for the main menu and keeps submenu text-only with numeric fallback', async () => {
+test('menu uses location plus native navigation and keeps submenu text-only with numeric fallback', async () => {
   const whatsapp = createFakeWhatsapp()
   const framework = createFramework(whatsapp)
   framework.registerPlugin({
@@ -200,10 +205,11 @@ test('menu uses native buttons only for the main menu and keeps submenu text-onl
   await framework.start()
   await whatsapp.emitMessage(message({ id: 'menu-main', text: '!menu' }))
 
+  assert.equal(whatsapp.sentLocations.length, 1)
   assert.equal(whatsapp.sentQuickReplies.length, 1)
   const mainPayload = whatsapp.sentQuickReplies[0].payload
   assert.equal(mainPayload.type, 'native_quick_reply')
-  assert.ok(mainPayload.buttons.length >= 2 && mainPayload.buttons.length <= 3)
+  assert.equal(mainPayload.buttons.length, 5)
   assert.ok(mainPayload.buttons.some((button) => button.title === 'NEXT'))
 
   const categoryButton = mainPayload.buttons.find((button) => button.title !== 'NEXT')

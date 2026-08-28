@@ -339,6 +339,7 @@ function hasNarrativeContent(value: string): boolean {
 
 function isNarrativeLine(line: string): boolean {
   const trimmed = line.trim()
+  if (!trimmed) return false
   if (/^>\s*/u.test(trimmed)) return hasNarrativeContent(trimmed.replace(/^>\s*/u, ''))
   if (/^(?:["“「『]).+(?:["”」』])$/u.test(trimmed)) return hasNarrativeContent(trimmed.slice(1, -1))
   if (/^『[^』]{1,60}』\s*[:：-]\s*\S/u.test(trimmed)) return hasNarrativeContent(trimmed.replace(/^『[^』]{1,60}』\s*[:：-]\s*/u, ''))

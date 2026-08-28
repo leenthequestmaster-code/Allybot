@@ -12,6 +12,8 @@ import {
   CharacterGuideService,
   CharacterGuideValidationError,
   type CharacterRegistrationSession,
+  calculateTimeRp,
+  formatTimeRp,
 } from '../../services/character-guide-service.js'
 import { extractCommandPayload, parseCharacterSheet } from '../../services/character-sheet-parser.js'
 import { GroupContextService } from '../../services/group-context-service.js'
@@ -563,6 +565,18 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
               await service.markDelivery(pendingDelivery, 'failed', 'private_delivery_failed')
             }
           }
+        },
+      })
+
+      context.commands.register({
+        name: 'timerp',
+        aliases: ['timerp', 'rpwaktu'],
+        description: 'Lihat waktu RP Allyssea saat ini',
+        category: 'your-character',
+        menuOrder: 8,
+        handler: async (commandContext) => {
+          const result = calculateTimeRp()
+          await commandContext.reply(formatTimeRp(result))
         },
       })
 

@@ -4,7 +4,7 @@ tests/runtime-acceptance.test.js,plugin,"{
     load(context) {
       context.commands.register({
         name: 'status',
-   ",187,197,"{
+   ",192,202,"{
     name: 'acceptance-menu-command',
     load(context) {
       context.commands.register({
@@ -18,7 +18,7 @@ tests/runtime-acceptance.test.js,plugin,"{
 tests/runtime-acceptance.test.js,plugin,"{
     name: 'acceptance-message-gate',
     load(context) {
-      context.messageGates.register('deny-acceptance-message'",257,267,"{
+      context.messageGates.register('deny-acceptance-message'",263,273,"{
     name: 'acceptance-message-gate',
     load(context) {
       context.messageGates.register('deny-acceptance-message', () => ({ allowed: false, reason: 'test-denied' }))
@@ -34,7 +34,7 @@ tests/runtime-acceptance.test.js,plugin,"{
     load(context) {
       context.commands.register({
         name: 'protected',
-  ",162,171,"{
+  ",167,176,"{
     name: 'acceptance-permission',
     load(context) {
       context.commands.register({
@@ -49,7 +49,7 @@ tests/runtime-acceptance.test.js,plugin,"{
     load(context) {
       context.commands.register({
         name: 'validated',
-  ",134,143,"{
+  ",139,148,"{
     name: 'acceptance-rejections',
     load(context) {
       context.commands.register({
@@ -64,7 +64,7 @@ tests/runtime-acceptance.test.js,plugin,"{
     load(context) {
       context.commands.register({
         name: 'echo',
-        al",103,116,"{
+        al",108,121,"{
     name: 'acceptance-runtime',
     load(context) {
       context.commands.register({
@@ -83,7 +83,7 @@ tests/runtime-acceptance.test.js,plugin,"{
     load(context) {
       context.commands.register({
         name: 'stop-check',
-       ",232,240,"{
+       ",238,246,"{
     name: 'acceptance-stop',
     load(context) {
       context.commands.register({
@@ -136,13 +136,13 @@ tests/integration.test.js,plugin,"{
     ready() { lifecycle.push('plugin:ready') },
     unload() { lifecycle.push('plugin:unload') },
   }"
-src/index.ts,plugin,codebasePlugin,135,135,codebasePlugin
+src/index.ts,plugin,codebasePlugin,134,134,codebasePlugin
 tests/codebase-export.test.js,plugin,codebasePlugin,62,62,codebasePlugin
 tests/codebase-export.test.js,plugin,codebasePlugin,86,86,codebasePlugin
 tests/codebase-export.test.js,plugin,codebasePlugin,111,111,codebasePlugin
 tests/codebase-export.test.js,plugin,codebasePlugin,132,132,codebasePlugin
 tests/afk.test.js,plugin,createAfkPlugin(core),74,74,createAfkPlugin(core)
-src/index.ts,plugin,createAfkPlugin(whatsapp),151,151,createAfkPlugin(whatsapp)
+src/index.ts,plugin,createAfkPlugin(whatsapp),150,150,createAfkPlugin(whatsapp)
 tests/xkiro-ai.test.js,plugin,"createAiPlugin({
     transport: async () => ({ content: 'jawaban prefix titik' }),
   })",161,163,"createAiPlugin({
@@ -157,36 +157,35 @@ tests/xkiro-ai.test.js,plugin,"createAiPlugin({
       return { content: 'jawaban untuk WhatsApp' }
     },
   })"
-src/index.ts,plugin,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }),133,133,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED })
+src/index.ts,plugin,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }),132,132,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED })
 tests/r11-announcement-suggestion.test.js,plugin,createAnnouncementPlugin(fixture.whatsapp),305,305,createAnnouncementPlugin(fixture.whatsapp)
 tests/r7-canon.test.js,plugin,createCanonPlugin(core),276,276,createCanonPlugin(core)
-src/index.ts,plugin,createCharacterGuidePlugin(whatsapp),140,140,createCharacterGuidePlugin(whatsapp)
+src/index.ts,plugin,createCharacterGuidePlugin(whatsapp),139,139,createCharacterGuidePlugin(whatsapp)
 tests/r3-collaboration.test.js,plugin,createCollaborationPlugin(core),234,234,createCollaborationPlugin(core)
 tests/r9-event.test.js,plugin,createEventPlugin(core),361,361,createEventPlugin(core)
 tests/welcome-leave-context.test.js,plugin,createGroupContextPlugin(core),65,65,createGroupContextPlugin(core)
-src/index.ts,plugin,createGroupContextPlugin(whatsapp),139,139,createGroupContextPlugin(whatsapp)
+src/index.ts,plugin,createGroupContextPlugin(whatsapp),138,138,createGroupContextPlugin(whatsapp)
 tests/r8-group-governance.test.js,plugin,createGroupGovernancePlugin(core),266,266,createGroupGovernancePlugin(core)
-src/index.ts,plugin,createGroupGovernancePlugin(whatsapp),147,147,createGroupGovernancePlugin(whatsapp)
-src/index.ts,plugin,createGroupModerationPlugin(whatsapp),143,143,createGroupModerationPlugin(whatsapp)
+src/index.ts,plugin,createGroupGovernancePlugin(whatsapp),145,145,createGroupGovernancePlugin(whatsapp)
+src/index.ts,plugin,createGroupModerationPlugin(whatsapp),142,142,createGroupModerationPlugin(whatsapp)
 tests/r1-group-safety.test.js,plugin,createGroupSafetyPlugin(core),155,155,createGroupSafetyPlugin(core)
-src/index.ts,plugin,createGroupSafetyPlugin(whatsapp),142,142,createGroupSafetyPlugin(whatsapp)
-src/index.ts,plugin,createGroupSetupMissionPlugin(whatsapp),144,144,createGroupSetupMissionPlugin(whatsapp)
+src/index.ts,plugin,createGroupSafetyPlugin(whatsapp),141,141,createGroupSafetyPlugin(whatsapp)
+src/index.ts,plugin,createGroupSetupMissionPlugin(whatsapp),143,143,createGroupSetupMissionPlugin(whatsapp)
 tests/r4-knowledge.test.js,plugin,createKnowledgePlugin(core),216,216,createKnowledgePlugin(core)
-tests/neon-chat-log-control.test.js,plugin,createNeonChatLogPlugin({ NEON_CHAT_LOG_ENABLED: false }),131,131,createNeonChatLogPlugin({ NEON_CHAT_LOG_ENABLED: false })
-src/index.ts,plugin,createNeonChatLogPlugin(config),131,131,createNeonChatLogPlugin(config)
+tests/neon-chat-log-control.test.js,plugin,createNeonChatLogPlugin({ NEON_CHAT_LOG_ENABLED: false }),99,99,createNeonChatLogPlugin({ NEON_CHAT_LOG_ENABLED: false })
+src/index.ts,plugin,createNeonChatLogPlugin(config),130,130,createNeonChatLogPlugin(config)
 tests/neon-chat-log-control.test.js,plugin,createNeonChatLogPlugin(pluginConfig()),75,75,createNeonChatLogPlugin(pluginConfig())
 tests/r5-personalization.test.js,plugin,createPersonalizationPlugin(core),288,288,createPersonalizationPlugin(core)
-src/index.ts,plugin,createPersonalizationPlugin(whatsapp),145,145,createPersonalizationPlugin(whatsapp)
 tests/r6-scene.test.js,plugin,createScenePlugin(core),272,272,createScenePlugin(core)
-src/index.ts,plugin,createSentryPlugin(sentry),130,130,createSentryPlugin(sentry)
+src/index.ts,plugin,createSentryPlugin(sentry),129,129,createSentryPlugin(sentry)
 tests/welcome-leave-context.test.js,plugin,createWelcomeLeavePlugin(core),66,66,createWelcomeLeavePlugin(core)
-src/index.ts,plugin,createWelcomeLeavePlugin(whatsapp),141,141,createWelcomeLeavePlugin(whatsapp)
-src/index.ts,plugin,developerModePlugin,134,134,developerModePlugin
+src/index.ts,plugin,createWelcomeLeavePlugin(whatsapp),140,140,createWelcomeLeavePlugin(whatsapp)
+src/index.ts,plugin,developerModePlugin,133,133,developerModePlugin
 tests/developer-mode.test.js,plugin,developerModePlugin,124,124,developerModePlugin
-src/index.ts,plugin,diagnosticsPlugin,136,136,diagnosticsPlugin
+src/index.ts,plugin,diagnosticsPlugin,135,135,diagnosticsPlugin
 tests/integration.test.js,plugin,diagnosticsPlugin,223,223,diagnosticsPlugin
-src/index.ts,plugin,economyPlugin,146,146,economyPlugin
-src/index.ts,plugin,groupPlugin,138,138,groupPlugin
+src/index.ts,plugin,economyPlugin,144,144,economyPlugin
+src/index.ts,plugin,groupPlugin,137,137,groupPlugin
 tests/group-configuration.test.js,plugin,groupPlugin,64,64,groupPlugin
 tests/group.test.js,plugin,groupPlugin,48,48,groupPlugin
 tests/group.test.js,plugin,groupPlugin,142,142,groupPlugin
@@ -195,19 +194,20 @@ tests/integration.test.js,plugin,groupPlugin,212,212,groupPlugin
 tests/permissions.test.js,plugin,groupPlugin,56,56,groupPlugin
 tests/permissions.test.js,plugin,groupPlugin,155,155,groupPlugin
 tests/welcome-leave-context.test.js,plugin,groupPlugin,64,64,groupPlugin
-src/index.ts,plugin,mediaPlugin,150,150,mediaPlugin
-src/index.ts,plugin,menuPlugin,137,137,menuPlugin
+src/index.ts,plugin,mediaPlugin,148,148,mediaPlugin
+src/index.ts,plugin,menuPlugin,136,136,menuPlugin
 tests/afk.test.js,plugin,menuPlugin,73,73,menuPlugin
-tests/runtime-acceptance.test.js,plugin,menuPlugin,198,198,menuPlugin
+tests/runtime-acceptance.test.js,plugin,menuPlugin,203,203,menuPlugin
 tests/welcome-leave-context.test.js,plugin,menuPlugin,63,63,menuPlugin
 tests/r10-onboarding.test.js,plugin,onboardingPlugin,221,221,onboardingPlugin
-src/index.ts,plugin,suggestionRelayPlugin,148,148,suggestionRelayPlugin
-src/index.ts,plugin,technicalPlugin,132,132,technicalPlugin
+src/index.ts,plugin,suggestionRelayPlugin,146,146,suggestionRelayPlugin
+src/index.ts,plugin,technicalPlugin,131,131,technicalPlugin
 tests/integration.test.js,plugin,technicalPlugin,115,115,technicalPlugin
 tests/integration.test.js,plugin,technicalPlugin,156,156,technicalPlugin
 tests/integration.test.js,plugin,technicalPlugin,211,211,technicalPlugin
 tests/integration.test.js,plugin,technicalPlugin,259,259,technicalPlugin
-src/index.ts,plugin,utilityPlugin,149,149,utilityPlugin
+src/index.ts,plugin,toolsSearchPlugin,149,149,toolsSearchPlugin
+src/index.ts,plugin,utilityPlugin,147,147,utilityPlugin
 tests/neon-chat-log-control.test.js,service,"{
     name: 'neon-client',
     isEnabled: true,
@@ -250,9 +250,9 @@ tests/group.test.js,service,GroupConfigurationService,47,47,"new GroupConfigurat
 tests/welcome-leave-context.test.js,service,GroupConfigurationService,61,61,"new GroupConfigurationService(databasePath, logger)"
 tests/welcome-leave-context.test.js,service,groupContext,62,62,groupContext
 src/index.ts,service,GroupContextService,116,116,"new GroupContextService(logger, { env: process.env })"
-src/index.ts,service,GroupGovernanceService,123,123,"new GroupGovernanceService(config.DATABASE_PATH, logger)"
+src/index.ts,service,GroupGovernanceService,122,122,"new GroupGovernanceService(config.DATABASE_PATH, logger)"
 src/index.ts,service,GroupModerationService,119,119,"new GroupModerationService(config.DATABASE_PATH, logger)"
-src/index.ts,service,GroupSafetyService,129,129,"new GroupSafetyService(config.DATABASE_PATH, logger)"
+src/index.ts,service,GroupSafetyService,128,128,"new GroupSafetyService(config.DATABASE_PATH, logger)"
 tests/r1-group-safety.test.js,service,guardrails,153,153,guardrails
 tests/r3-collaboration.test.js,service,guardrails,232,232,guardrails
 tests/r4-knowledge.test.js,service,guardrails,214,214,guardrails
@@ -264,16 +264,15 @@ tests/r9-event.test.js,service,guardrails,359,359,guardrails
 tests/r4-knowledge.test.js,service,knowledge,215,215,knowledge
 tests/r7-canon.test.js,service,knowledge,274,274,knowledge
 src/index.ts,service,KnowledgeService,120,120,"new KnowledgeService(config.DATABASE_PATH, logger)"
-src/index.ts,service,NeonClientService,127,127,new NeonClientService(logger)
+src/index.ts,service,NeonClientService,126,126,new NeonClientService(logger)
 tests/r5-personalization.test.js,service,personalization,287,287,personalization
-src/index.ts,service,PersonalizationService,121,121,"new PersonalizationService(config.DATABASE_PATH, logger)"
 src/index.ts,service,PlatformGuardrailService,118,118,"new PlatformGuardrailService(config.DATABASE_PATH, logger)"
 tests/neon-chat-log-control.test.js,service,PlatformGuardrailService,69,69,"new PlatformGuardrailService(databasePath, logger)"
-src/index.ts,service,redis,128,128,redis
+src/index.ts,service,redis,127,127,redis
 tests/r1-group-safety.test.js,service,safety,154,154,safety
 tests/r6-scene.test.js,service,scenes,271,271,scenes
-src/index.ts,service,SceneService,122,122,"new SceneService(config.DATABASE_PATH, logger)"
+src/index.ts,service,SceneService,121,121,"new SceneService(config.DATABASE_PATH, logger)"
 tests/developer-mode.test.js,service,service,123,123,service
-src/index.ts,service,SuggestionRelayService,124,126,"new SuggestionRelayService(config.DATABASE_PATH, logger, {
+src/index.ts,service,SuggestionRelayService,123,125,"new SuggestionRelayService(config.DATABASE_PATH, logger, {
     provider: createSuggestionProvider(config, logger),
   })"

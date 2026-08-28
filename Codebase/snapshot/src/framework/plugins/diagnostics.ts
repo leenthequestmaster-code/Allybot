@@ -56,7 +56,7 @@ export const diagnosticsPlugin: Plugin = {
     context.commands.register({
       name: 'health',
       description: 'Show a concise non-sensitive framework health snapshot',
-      category: 'system',
+      category: 'tools-media',
       menuOrder: 5,
       cooldownMs: 3000,
       hidden: true,
@@ -68,7 +68,7 @@ export const diagnosticsPlugin: Plugin = {
     context.commands.register({
       name: 'diag',
       description: 'Show a detailed non-sensitive framework diagnostics snapshot',
-      category: 'system',
+      category: 'tools-media',
       menuOrder: 6,
       cooldownMs: 3000,
       handler: async (commandContext) => {

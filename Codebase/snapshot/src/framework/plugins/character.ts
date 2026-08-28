@@ -78,7 +78,7 @@ export function createCharacterPlugin(_whatsapp: WhatsAppPort): Plugin {
         name: 'character',
         aliases: ['char'],
         description: 'Buat dan kelola character roleplay sosial',
-        category: 'roleplay',
+        category: 'your-character',
         menuOrder: 20,
         handler: async (commandContext) => {
           const group = groupJid(commandContext.message)
@@ -152,7 +152,7 @@ export function createCharacterPlugin(_whatsapp: WhatsAppPort): Plugin {
         name: 'emote',
         aliases: ['aksi'],
         description: 'Kirim aksi singkat untuk roleplay sosial',
-        category: 'roleplay',
+        category: 'your-character',
         menuOrder: 22,
         handler: async (commandContext) => {
           if (!groupJid(commandContext.message)) {
@@ -171,7 +171,7 @@ export function createCharacterPlugin(_whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'mood',
         description: 'Atur mood character aktif',
-        category: 'roleplay',
+        category: 'your-character',
         menuOrder: 21,
         handler: async (commandContext) => {
           const group = groupJid(commandContext.message)
