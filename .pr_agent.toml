@@ -1,0 +1,5 @@
+[config]
+model = "deepseek/deepseek-v4-pro"
+fallback_models = ["deepseek/deepseek-v4-pro"]
+git_provider = "github"
+publish_output = true
