@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "215dd023b2461aaa0bafc5fda180042d95930134",
-  "generatedAt": "2026-08-28T00:29:28Z",
+  "commitSha": "c4c1de6a0acae6b99b1ad70bcb7c4613374f8b6f",
+  "generatedAt": "2026-08-28T15:18:35+08:00",
   "sourceFileCount": 278,
   "counts": {
     "files": 278,
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "90bf0dc90f65a682b46d93bfd06e11a72e013847744e79705123957fadda8794"
+      "sha256": "f744bb6f640298a0dbba5ea688009394f6c794e6143ff25c873bc88b02241336"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "88967af8ae20ef70ab62d89b63fdb723a5da5295b0632c23a379670f51966c6a"
+      "sha256": "2fa52b8eef9b03d86e1ae93c3de424e83cf83c866da4b81c03f5dd656066f247"
     },
     {
       "path": "snapshot/.env.example",
