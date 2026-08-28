@@ -75,7 +75,7 @@ export function createAnnouncementPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'announce',
         aliases: ['announcement', 'pengumuman'],
         description: 'Explicit-target consent window announcement',
-        category: 'community',
+        category: 'group',
         menuOrder: 75,
         handler: async (commandContext) => {
           const group = groupJid(commandContext.message)

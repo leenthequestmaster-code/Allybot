@@ -128,6 +128,23 @@ export interface WhatsAppPort {
     readonly footer?: string
     readonly buttons: readonly { readonly id: string; readonly title: string }[]
   }): Promise<void>
+  sendLocation?(remoteJid: string, payload: {
+    readonly degreesLatitude: number
+    readonly degreesLongitude: number
+    readonly name?: string
+    readonly address?: string
+    readonly contextInfo?: {
+      readonly externalAdReply?: {
+        readonly showAdAttribution: boolean
+        readonly title: string
+        readonly body: string
+        readonly mediaType: number
+        readonly thumbnail?: Uint8Array
+        readonly thumbnailUrl?: string
+        readonly sourceUrl?: string
+      }
+    }
+  }): Promise<void>
   getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata>
   listParticipatingGroups?(): Promise<readonly WhatsAppGroupSummary[]>
   groupParticipantsUpdate?(groupJid: string, participantJids: readonly string[], action: GroupModerationAction): Promise<readonly WhatsAppGroupParticipantActionResult[]>

@@ -22,7 +22,7 @@ function fakeWhatsapp() {
   }
 }
 
-function message(index, text) {
+function message(index, text, overrides = {}) {
   return {
     id: `utility-${index}`,
     remoteJid: `utility-${index}@s.whatsapp.net`,
@@ -30,6 +30,7 @@ function message(index, text) {
     text,
     timestamp: Date.now(),
     fromMe: false,
+    ...overrides,
   }
 }
 
@@ -135,10 +136,31 @@ test('fun commands stay within bounded ranges and reject malformed dice', async 
   await registry.dispatch(message(14, '!dare'))
   assert.match(whatsapp.sent[6].text, /Dare:/)
 
-  await registry.dispatch(message(15, '!rps batu'))
-  assert.match(whatsapp.sent[7].text, /Kamu: batu/)
-  assert.match(whatsapp.sent[7].text, /Allybot:/)
+  const challenger = '628120000001@s.whatsapp.net'
+  const challenged = '628120000002@s.whatsapp.net'
+  await registry.dispatch(message(15, '!rps challenge @pemain', {
+    remoteJid: 'rps-group@g.us',
+    senderJid: challenger,
+    mentionedJids: [challenged],
+  }))
+  assert.match(whatsapp.sent.at(-1).text, /Tantangan Suit PvP/)
 
-  await registry.dispatch(message(16, '!rps laser'))
-  assert.match(whatsapp.sent[8].text, /Format:/)
+  await registry.dispatch(message(16, '!rps accept', {
+    remoteJid: challenged,
+    senderJid: challenged,
+  }))
+  assert.match(whatsapp.sent.at(-1).text, /Tantangan diterima/)
+
+  await new Promise((resolve) => setTimeout(resolve, 1_600))
+  await registry.dispatch(message(17, '!rps batu', {
+    remoteJid: challenger,
+    senderJid: challenger,
+  }))
+  assert.match(whatsapp.sent.at(-1).text, /Pilihan.*batu.*dicatat/)
+
+  await registry.dispatch(message(18, '!rps laser', {
+    remoteJid: challenged,
+    senderJid: challenged,
+  }))
+  assert.match(whatsapp.sent.at(-1).text, /Format:/)
 })

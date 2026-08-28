@@ -196,7 +196,7 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'afk',
         aliases: ['away'],
         description: 'Set status AFK or view your private AFK status',
-        category: 'general',
+        category: 'group',
         menuOrder: 2,
         cooldownMs: 3000,
         handler: async ({ args, message, reply }) => {

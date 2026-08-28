@@ -46,7 +46,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'translate',
         aliases: ['terjemah', 'trans'],
         description: 'Terjemahkan teks yang kamu kirim secara langsung',
-        category: 'ai',
+        category: 'tools-ai',
         menuOrder: 2,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -69,7 +69,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'summarize',
         aliases: ['ringkas'],
         description: 'Ringkas teks yang kamu kirim secara langsung',
-        category: 'ai',
+        category: 'tools-ai',
         menuOrder: 3,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -92,7 +92,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'ai',
         aliases: ['ally', 'tanya'],
         description: 'Ask Allybot AI without conversation memory',
-        category: 'ai',
+        category: 'tools-ai',
         menuOrder: 1,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -111,6 +111,33 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             await commandContext.reply(`🤖 *Allybot AI*\n\n${response}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI command failed safely')
+            await commandContext.reply(safeFailureMessage(error))
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'aidetection',
+        aliases: ['deteksiai', 'aidetect'],
+        description: 'Deteksi teks AI via reply message atau teks input',
+        category: 'tools-ai',
+        menuOrder: 4,
+        cooldownMs: AI_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const text = commandContext.message.quotedText ?? commandContext.args.join(' ').trim()
+          if (!text) {
+            await commandContext.reply(`Format: ${commandContext.prefix}aidetection <teks>\nAtau reply pesan lalu ketik ${commandContext.prefix}aidetection`)
+            return
+          }
+          if (text.length > MAX_AI_INPUT_LENGTH) {
+            await commandContext.reply(`Teks terlalu panjang. Batasnya ${MAX_AI_INPUT_LENGTH} karakter.`)
+            return
+          }
+          try {
+            const response = await handler(`Analisis teks berikut dan tentukan apakah ditulis oleh AI atau manusia. Berikan skor kepercayaan 0-100% dan alasan singkat:\n\n${text}`)
+            await commandContext.reply(`🔍 *AI Detection*\n${response}`)
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI detection failed safely')
             await commandContext.reply(safeFailureMessage(error))
           }
         },

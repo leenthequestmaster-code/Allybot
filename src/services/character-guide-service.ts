@@ -60,6 +60,175 @@ export interface CharacterActiveRecord {
   readonly revision: number
 }
 
+// Time RP System (PRD §5.1)
+export const TIME_RP_DAYS = [
+  'Solarys',
+  'Lunaris',
+  'Astryx',
+  'Caelion',
+  'Vireon',
+  'Noctyra',
+  'Elaris',
+] as const
+
+export const TIME_RP_MONTHS = [
+  'Aurion',
+  'Florentis',
+  'Zephyra',
+  'Emberfall',
+  'Luminara',
+  'Verdantia',
+  'Solmora',
+  'Astravia',
+  'Umbralis',
+  'Crystelle',
+  'Nocturne',
+  'Everglen',
+] as const
+
+export const TIME_RP_SEASONS = [
+  { name: 'Bloomcrest', label: 'Musim Semi', startMonth: 1, endMonth: 3 },
+  { name: 'Sunspire', label: 'Musim Panas', startMonth: 4, endMonth: 6 },
+  { name: 'Goldleaf', label: 'Musim Gugur', startMonth: 7, endMonth: 8 },
+  { name: 'Frostveil', label: 'Musim Dingin', startMonth: 9, endMonth: 10 },
+  { name: 'Starfall', label: 'Musim Fenomena', startMonth: 11, endMonth: 12 },
+] as const
+
+export interface TimeRpResult {
+  readonly rpTimestamp: number
+  readonly rpDay: string
+  readonly rpMonth: string
+  readonly rpYear: number
+  readonly rpSeason: string
+  readonly rpSeasonLabel: string
+  readonly rpHour: number
+  readonly rpMinute: number
+  readonly isDayTransition: boolean
+  readonly nextTransitionAt: number
+  readonly realTimestamp: number
+}
+
+const TIME_RP_EPOCH = new Date('2024-01-01T00:00:00+07:00').getTime() // Reference epoch in WIB
+const TIME_RP_SCALE = 2 // 1 RL hour = 2 RP hours
+const TIME_RP_DAY_TRANSITION_HOURS = [6, 18] // 06:00 and 18:00 WIB
+
+function getWibOffset(): number {
+  return 7 * 60 * 60 * 1000 // WIB = UTC+7
+}
+
+function getRpTimestamp(realMs: number): number {
+  // RP time passes at 2x speed
+  return TIME_RP_EPOCH + (realMs - TIME_RP_EPOCH) * TIME_RP_SCALE
+}
+
+function getRpDayOfYear(rpTimestamp: number): number {
+  const rpDayMs = rpTimestamp - TIME_RP_EPOCH
+  const rpDays = Math.floor(rpDayMs / (24 * 60 * 60 * 1000))
+  return rpDays
+}
+
+function getRpYear(rpTimestamp: number): number {
+  const rpDayOfYear = getRpDayOfYear(rpTimestamp)
+  return 1 + Math.floor(rpDayOfYear / 360) // 360 RP days per year (12 months × 30 days)
+}
+
+function getRpMonth(rpTimestamp: number): { monthIndex: number; dayOfMonth: number } {
+  const rpDayOfYear = getRpDayOfYear(rpTimestamp)
+  const dayOfYear = rpDayOfYear % 360
+  const monthIndex = Math.floor(dayOfYear / 30) // 0-11
+  const dayOfMonth = (dayOfYear % 30) + 1 // 1-30
+  return { monthIndex, dayOfMonth }
+}
+
+function getRpDayOfWeek(rpTimestamp: number): number {
+  const rpDayOfYear = getRpDayOfYear(rpTimestamp)
+  return rpDayOfYear % 7 // 0-6
+}
+
+function getRpHour(rpTimestamp: number): number {
+  return Math.floor((rpTimestamp % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+}
+
+function getRpMinute(rpTimestamp: number): number {
+  return Math.floor((rpTimestamp % (60 * 60 * 1000)) / (60 * 1000))
+}
+
+function getRpSeason(monthIndex: number): { name: string; label: string } {
+  const monthNumber = monthIndex + 1 // 1-12
+  const season = TIME_RP_SEASONS.find(s => monthNumber >= s.startMonth && monthNumber <= s.endMonth)
+  return season ? { name: season.name, label: season.label } : { name: 'Unknown', label: 'Unknown' }
+}
+
+function getNextDayTransition(realMs: number): number {
+  const wibMs = realMs + getWibOffset()
+  const wibDate = new Date(wibMs)
+  const currentHour = wibDate.getUTCHours()
+
+  let nextTransitionHour = 24
+  for (const h of TIME_RP_DAY_TRANSITION_HOURS) {
+    if (h > currentHour) {
+      nextTransitionHour = h
+      break
+    }
+  }
+
+  const nextTransition = new Date(wibDate)
+  nextTransition.setUTCHours(nextTransitionHour, 0, 0, 0)
+  if (nextTransitionHour === 24) {
+    nextTransition.setUTCDate(nextTransition.getUTCDate() + 1)
+    nextTransition.setUTCHours(6, 0, 0, 0)
+  }
+
+  return nextTransition.getTime() - getWibOffset()
+}
+
+function isDayTransitionHour(realMs: number): boolean {
+  const wibMs = realMs + getWibOffset()
+  const wibDate = new Date(wibMs)
+  const hour = wibDate.getUTCHours()
+  return TIME_RP_DAY_TRANSITION_HOURS.includes(hour) && wibDate.getUTCMinutes() === 0
+}
+
+export function calculateTimeRp(realMs = Date.now()): TimeRpResult {
+  const rpTimestamp = getRpTimestamp(realMs)
+  const { monthIndex, dayOfMonth } = getRpMonth(rpTimestamp)
+  const dayOfWeek = getRpDayOfWeek(rpTimestamp)
+  const season = getRpSeason(monthIndex)
+  const nextTransitionAt = getNextDayTransition(realMs)
+  const isDayTransition = isDayTransitionHour(realMs)
+
+  return {
+    rpTimestamp,
+    rpDay: TIME_RP_DAYS[dayOfWeek],
+    rpMonth: TIME_RP_MONTHS[monthIndex],
+    rpYear: getRpYear(rpTimestamp),
+    rpSeason: season.name,
+    rpSeasonLabel: season.label,
+    rpHour: getRpHour(rpTimestamp),
+    rpMinute: getRpMinute(rpTimestamp),
+    isDayTransition,
+    nextTransitionAt,
+    realTimestamp: realMs,
+  }
+}
+
+export function formatTimeRp(result: TimeRpResult): string {
+  const lines = [
+    '⏰ *Time RP Allyssea*',
+    '',
+    `📅 *Hari* : ${result.rpDay}, ${result.rpMonth} ${result.rpYear} KAR`,
+    `🌸 *Musim* : ${result.rpSeasonLabel} (${result.rpSeason})`,
+    `🕐 *Waktu* : ${String(result.rpHour).padStart(2, '0')}:${String(result.rpMinute).padStart(2, '0')} RP`,
+    '',
+    `🔄 Pergantian hari RP: 06:00 & 18:00 WIB`,
+    `📊 Skala: 1 Jam RL = 2 Jam RP`,
+    `⏭️ Transisi berikutnya: <t:${Math.floor(result.nextTransitionAt / 1000)}:R>`,
+    '',
+    '*© Allyssea Roleplay Community*',
+  ]
+  return lines.join('\n')
+}
+
 export class CharacterGuideUnavailableError extends Error {
   constructor() {
     super('Character Guide sedang tidak tersedia. Coba lagi nanti.')

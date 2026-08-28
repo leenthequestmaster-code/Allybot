@@ -81,46 +81,14 @@ function tempDatabase() {
   return { directory, path: join(directory, 'runtime.sqlite') }
 }
 
-test('chatlog is admin-or-owner gated and suppresses only the current allowlisted group', async () => {
+test('deprecated chatlog command is not registered even when the global flag is enabled', async () => {
   const { directory, path } = tempDatabase()
-  const sqlCalls = []
-  const sql = { async unsafe(query, params) { sqlCalls.push({ query, params }) } }
   const core = new ChatLogCore()
-  const app = appFor(core, path, sql)
+  const app = appFor(core, path, { async unsafe() {} })
   await app.start()
-
-  await core.emitMessage(message('member-off', memberJid, '!chatlog off'))
-  assert.equal(core.sent.at(-1).text, 'Maaf, command ini hanya dapat digunakan oleh Owner Allybot atau admin grup.')
-  assert.equal(sqlCalls.length, 1)
-
-  await core.emitMessage(message('admin-off', adminJid, '!chatlog off'))
-  assert.match(core.sent.at(-1).text, /dihentikan/)
-  assert.equal(sqlCalls.length, 2)
-
-  await core.emitMessage(message('after-off', adminJid))
-  assert.equal(sqlCalls.length, 2)
-
-  await core.emitMessage(message('other-group-on', adminJid, '!chatlog on', '120363000000000001@g.us'))
-  assert.match(core.sent.at(-1).text, /belum tercantum dalam allowlist/)
-  assert.equal(sqlCalls.length, 2)
-
-  await core.emitMessage(message('admin-on', adminJid, '!chatlog on'))
-  assert.match(core.sent.at(-1).text, /diaktifkan kembali/)
-  assert.equal(sqlCalls.length, 2)
-
-  await core.emitMessage(message('after-on', adminJid))
-  assert.equal(sqlCalls.length, 3)
-
-  await core.emitMessage(message('owner-off', ownerJid, '!chatlog off'))
-  assert.match(core.sent.at(-1).text, /dihentikan/)
-  assert.equal(sqlCalls.length, 4)
-  const guardrails = app.services.get('platform-guardrails')
-  assert.equal(guardrails.isFeatureEnabled(groupJid, NEON_CHAT_LOG_SUPPRESSION_FEATURE_ID), true)
-  const auditText = JSON.stringify(guardrails.listAudit({ limit: 20 }))
-  assert.equal(auditText.includes(groupJid), false)
-  assert.equal(auditText.includes(ownerJid), false)
-  assert.match(auditText, /\"outcome\":\"changed\"/)
-
+  assert.equal(app.commands.get('chatlog'), undefined)
+  await core.emitMessage(message('deprecated-chatlog', memberJid, '!chatlog off'))
+  assert.equal(core.sent.length, 0)
   await app.stop()
   rmSync(directory, { recursive: true, force: true })
 })
@@ -134,20 +102,12 @@ test('chatlog command remains unavailable when the global Neon chat-log flag is 
   await app.stop()
 })
 
-test('chatlog suppression survives restart and status remains group-scoped', async () => {
+test('deprecated chatlog state is not exposed after restart', async () => {
   const { directory, path } = tempDatabase()
-  const sql = { async unsafe() {} }
-  const firstCore = new ChatLogCore()
-  const first = appFor(firstCore, path, sql)
-  await first.start()
-  await firstCore.emitMessage(message('off', adminJid, '!chatlog off'))
-  await first.stop()
-
   const secondCore = new ChatLogCore()
-  const second = appFor(secondCore, path, sql)
+  const second = appFor(secondCore, path, { async unsafe() {} })
   await second.start()
-  await secondCore.emitMessage(message('status', adminJid, '!chatlog status'))
-  assert.match(secondCore.sent.at(-1).text, /Nonaktif \(opt-out\)/)
+  assert.equal(second.commands.get('chatlog'), undefined)
   await second.stop()
   rmSync(directory, { recursive: true, force: true })
 })

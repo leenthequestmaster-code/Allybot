@@ -266,7 +266,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'status',
       description: 'Lihat status umum Allybot',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 1,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -284,7 +284,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'uptime',
       description: 'Lihat lama Allybot berjalan',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 2,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => commandContext.reply(`⏱️ Allybot sudah berjalan selama *${formatUptime(process.uptime())}*.`),
@@ -293,7 +293,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'features',
       description: 'Lihat ringkasan fitur yang tersedia',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 3,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => commandContext.reply(renderFeatureSummary(context.commands.list(), commandContext.prefix)),
@@ -303,7 +303,7 @@ export const utilityPlugin: Plugin = {
       name: 'commands',
       aliases: ['cmds'],
       description: 'Lihat daftar command yang aktif',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 10,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -319,7 +319,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'searchcmd',
       description: 'Cari command berdasarkan kata kunci',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 11,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -335,7 +335,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'about',
       description: 'Lihat penjelasan singkat tentang Allybot',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 12,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => commandContext.reply(renderAbout()),
@@ -344,7 +344,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'version',
       description: 'Lihat informasi runtime non-sensitif',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 13,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => commandContext.reply(`Allybot berjalan pada Node.js ${process.versions.node}. Gunakan ${commandContext.prefix}about untuk ringkasan fitur.`),
@@ -353,7 +353,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'privacy',
       description: 'Baca ringkasan cara Allybot menjaga data',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 14,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => commandContext.reply(renderPrivacy()),
@@ -362,7 +362,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'support',
       description: 'Lihat langkah bantuan saat command bermasalah',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 15,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => commandContext.reply(renderSupport(commandContext)),
@@ -371,7 +371,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'calc',
       description: 'Hitung operasi matematika sederhana',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 20,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -388,7 +388,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'convert',
       description: 'Konversi satuan dasar',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 21,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -406,7 +406,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'time',
       description: 'Lihat waktu pada zona tertentu',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 22,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -431,7 +431,7 @@ export const utilityPlugin: Plugin = {
     context.commands.register({
       name: 'date',
       description: 'Lihat tanggal hari ini',
-      category: 'tools',
+      category: 'tools-media',
       menuOrder: 23,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {

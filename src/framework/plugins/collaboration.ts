@@ -112,7 +112,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'collab',
         description: 'Show Collaboration status',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 1,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -126,7 +126,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'setcollab',
         aliases: ['collabmode'],
         description: 'Enable or disable Collaboration per group',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 2,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -147,7 +147,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'setnativepoll',
         aliases: ['pollmode'],
         description: 'Enable optional native poll presentation',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 3,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -168,7 +168,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'poll',
         aliases: ['jajak'],
         description: 'Create, inspect, or close a collaboration poll',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 4,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -234,7 +234,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'vote',
         description: 'Record one vote in a collaboration poll',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 5,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -265,7 +265,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'remind',
         aliases: ['ingatkan'],
         description: 'Schedule a persistent group reminder',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 6,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -290,7 +290,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'reminders',
         aliases: ['reminder'],
         description: 'List active group reminders',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 7,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -303,7 +303,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'remindcancel',
         description: 'Cancel a group reminder created by you',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 8,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -324,7 +324,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'task',
         aliases: ['tugas'],
         description: 'Create a collaboration task',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 9,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -348,7 +348,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'tasks',
         description: 'List collaboration tasks',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 10,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -361,7 +361,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'taskdone',
         description: 'Complete your assigned or created task',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 11,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -382,7 +382,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'decision',
         aliases: ['putuskan'],
         description: 'Record an explicit group decision',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 12,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -401,7 +401,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'decisions',
         description: 'List explicit group decisions',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 13,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -414,7 +414,7 @@ export function createCollaborationPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'agenda',
         description: 'Show collaboration agenda',
-        category: 'collaboration',
+        category: 'tools-media',
         menuOrder: 14,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)

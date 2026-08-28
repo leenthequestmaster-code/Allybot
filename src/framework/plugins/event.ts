@@ -99,7 +99,7 @@ export function createEventPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'event',
         aliases: ['events', 'acara'],
         description: 'Event Conductor multi-phase',
-        category: 'events',
+        category: 'tools-media',
         menuOrder: 60,
         handler: async (commandContext) => {
           const group = groupJid(commandContext.message)
@@ -214,7 +214,7 @@ export function createEventPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'calendar',
         aliases: ['kalender'],
         description: 'Show event calendar',
-        category: 'events',
+        category: 'tools-media',
         menuOrder: 61,
         handler: async (commandContext) => {
           const group = groupJid(commandContext.message)

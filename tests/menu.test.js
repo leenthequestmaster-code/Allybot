@@ -9,13 +9,14 @@ import { menuPlugin } from '../dist/framework/plugins/menu.js'
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
 
-function fakeWhatsapp({ native = false, nativeFailure = false, media = false, mediaFailure = false } = {}) {
+function fakeWhatsapp({ native = false, nativeFailure = false, media = false, mediaFailure = false, location = false } = {}) {
   const transport = {
     isConnected: true,
     userJid: 'bot@s.whatsapp.net',
     sent: [],
     native: [],
     media: [],
+    locations: [],
     onMessage() { return () => {} },
     onGroupParticipantUpdate() { return () => {} },
     onConnectionState() { return () => {} },
@@ -27,6 +28,11 @@ function fakeWhatsapp({ native = false, nativeFailure = false, media = false, me
     transport.sendNativeQuickReplies = async function sendNativeQuickReplies(remoteJid, payload) {
       this.native.push({ remoteJid, payload })
       if (nativeFailure) throw new Error('native transport unavailable')
+    }
+  }
+  if (location) {
+    transport.sendLocation = async function sendLocation(remoteJid, payload) {
+      this.locations.push({ remoteJid, payload })
     }
   }
   if (media) {
@@ -84,16 +90,16 @@ test('menu plugin renders the decorative main menu and supports numbered categor
 
   await registry.dispatch(message('menu-main', 'main@s.whatsapp.net', '!menu'))
   assert.match(whatsapp.sent[0].text, /Listmenu/)
-  assert.match(whatsapp.sent[0].text, /PERSONAL/)
+  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
   assert.match(whatsapp.sent[0].text, /!help/)
   assert.doesNotMatch(whatsapp.sent[0].text, /!secret/)
 
   await registry.dispatch(message('menu-roadmap', 'roadmap@s.whatsapp.net', '!menu ai'))
-  assert.match(whatsapp.sent[1].text, /TOOLS/)
+  assert.match(whatsapp.sent[1].text, /TOOLS: AI/)
   assert.match(whatsapp.sent[1].text, /Coming Soon/)
 
-  await registry.dispatch(message('menu-numbered', 'numbered@s.whatsapp.net', '!menu 4'))
-  assert.match(whatsapp.sent[2].text, /PERSONAL/)
+  await registry.dispatch(message('menu-numbered', 'numbered@s.whatsapp.net', '!menu 3'))
+  assert.match(whatsapp.sent[2].text, /YOUR CHARACTER/)
   assert.match(whatsapp.sent[2].text, /\*1\.\* !ping/)
 
   await registry.dispatch(message('menu-main-again', 'back@s.whatsapp.net', '!menu'))
@@ -234,8 +240,8 @@ test('replying with a category number navigates only from a quoted main menu', a
   assert.match(whatsapp.sent[2].text, /tidak ditemukan/)
 })
 
-test('menu plugin sends native buttons and routes a button callback to the category submenu', async () => {
-  const whatsapp = fakeWhatsapp({ native: true })
+test('menu plugin sends location plus native navigation and routes a button callback to the category submenu', async () => {
+  const whatsapp = fakeWhatsapp({ native: true, location: true })
   const { events, registry } = createRegistry(whatsapp)
 
   registry.register({
@@ -259,12 +265,13 @@ test('menu plugin sends native buttons and routes a button callback to the categ
 
   await registry.dispatch(message('button-menu-main', 'button@s.whatsapp.net', '!menu'))
   assert.equal(whatsapp.sent.length, 0)
+  assert.equal(whatsapp.locations.length, 1)
   assert.equal(whatsapp.native.length, 1)
   assert.equal(whatsapp.native[0].payload.type, 'native_quick_reply')
-  assert.equal(whatsapp.native[0].payload.buttons.length, 3)
-  assert.match(whatsapp.native[0].payload.body, /Listmenu/)
-  assert.match(whatsapp.native[0].payload.body, /GROUP/)
-  assert.match(whatsapp.native[0].payload.body, /Tekan tombol untuk membuka submenu kategori/)
+  assert.equal(whatsapp.native[0].payload.buttons.length, 5)
+  assert.match(whatsapp.locations[0].payload.address, /Listmenu/)
+  assert.match(whatsapp.locations[0].payload.address, /GROUP/)
+  assert.match(whatsapp.locations[0].payload.address, /Tekan tombol untuk membuka submenu kategori/)
   assert.match(whatsapp.native[0].payload.footer, /!menu <angka>/)
 
   const groupButton = whatsapp.native[0].payload.buttons.find((button) => button.title.includes('GROUP'))
@@ -323,7 +330,7 @@ test('menu plugin falls back to text when the native button sender fails', async
   assert.match(whatsapp.sent[0].text, /Listmenu/)
 })
 
-test('menu plugin renders paginated submenus and unknown-category guidance', async () => {
+test('menu plugin renders a complete single-bubble submenu and unknown-category guidance', async () => {
   const whatsapp = fakeWhatsapp()
   const { registry } = createRegistry(whatsapp)
 
@@ -331,16 +338,16 @@ test('menu plugin renders paginated submenus and unknown-category guidance', asy
     registry.register({
       name: `tool${index}`,
       description: `Tool command ${index}`,
-      category: 'tools',
+      category: 'tools-media',
       handler: async () => {},
     })
   }
 
-  await registry.dispatch(message('menu-page', 'page@s.whatsapp.net', '!menu tools 2'))
-  assert.match(whatsapp.sent[0].text, /TOOLS/)
-  assert.match(whatsapp.sent[0].text, /Halaman 2\/2/)
+  await registry.dispatch(message('menu-page', 'page@s.whatsapp.net', '!menu tools-media'))
+  assert.match(whatsapp.sent[0].text, /TOOLS: MEDIA/)
+  assert.doesNotMatch(whatsapp.sent[0].text, /Halaman 2\/2/)
   assert.match(whatsapp.sent[0].text, /\*9\.\* !tool9/)
-  assert.doesNotMatch(whatsapp.sent[0].text, /\*1\.\* !tool1/)
+  assert.match(whatsapp.sent[0].text, /\*1\.\* !tool1/)
   assert.match(whatsapp.sent[0].text, /!menu/)
   assert.doesNotMatch(whatsapp.sent[0].text, /!back/)
 
@@ -373,20 +380,20 @@ test('main native menu paginates categories with NEXT and keeps Coming Soon text
   })
 
   await registry.dispatch(message('paged-menu-main', 'paged@s.whatsapp.net', '!menu'))
-  assert.equal(whatsapp.native[0].payload.buttons.length, 3)
-  assert.equal(whatsapp.native[0].payload.buttons[2].title, 'NEXT')
+  assert.equal(whatsapp.native[0].payload.buttons.length, 5)
+  assert.equal(whatsapp.native[0].payload.buttons[3].title, 'NEXT')
 
   await events.emit('message.received', message('paged-menu-next', 'paged@s.whatsapp.net', undefined, {
-    buttonId: whatsapp.native[0].payload.buttons[2].id,
+    buttonId: whatsapp.native[0].payload.buttons[3].id,
   }))
   assert.equal(whatsapp.native.length, 2)
   assert.equal(whatsapp.sent.length, 0)
-  assert.equal(whatsapp.native[1].payload.buttons.length, 3)
-  assert.match(whatsapp.native[1].payload.body, /Halaman 2\/3/)
+  assert.equal(whatsapp.native[1].payload.buttons.length, 5)
+  assert.match(whatsapp.native[1].payload.body, /Halaman 2\/5/)
   assert.match(whatsapp.native[1].payload.body, /MODERATION/)
   assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('TOOLS')))
   assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('MODERATION')))
-  assert.equal(whatsapp.native[1].payload.buttons[2].title, 'NEXT')
+  assert.equal(whatsapp.native[1].payload.buttons[3].title, 'NEXT')
 
   const comingSoonButton = whatsapp.native[1].payload.buttons.find((button) => button.title.includes('MODERATION'))
   assert.ok(comingSoonButton)

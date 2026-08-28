@@ -98,7 +98,7 @@ export function createCanonPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'canon',
         description: 'Manage bounded community canon',
-        category: 'roleplay',
+        category: 'your-character',
         menuOrder: 7,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -152,7 +152,7 @@ export function createCanonPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'setcanon',
         aliases: ['cerita'],
         description: 'Enable or disable Canon per group',
-        category: 'roleplay',
+        category: 'your-character',
         menuOrder: 8,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -172,7 +172,7 @@ export function createCanonPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'lore',
         description: 'Show approved lore/canon entries',
-        category: 'roleplay',
+        category: 'your-character',
         menuOrder: 9,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)

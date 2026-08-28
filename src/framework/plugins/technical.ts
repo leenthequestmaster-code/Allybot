@@ -110,7 +110,7 @@ export const technicalPlugin: Plugin = {
     context.commands.register({
       name: 'ping',
       description: 'Check Allybot response latency and uptime',
-      category: 'system',
+      category: 'tools-media',
       menuOrder: 1,
       cooldownMs: 3000,
       handler: async (commandContext) => {
@@ -127,7 +127,7 @@ export const technicalPlugin: Plugin = {
     context.commands.register({
       name: 'owner',
       description: 'Show the safe public Owner profile and control-plane status',
-      category: 'system',
+      category: 'tools-media',
       menuOrder: 5,
       cooldownMs: 3000,
       handler: async (commandContext) => {
@@ -153,7 +153,7 @@ export const technicalPlugin: Plugin = {
       name: 'botprofile',
       aliases: ['bprofile'],
       description: 'Show the safe public Allybot profile',
-      category: 'system',
+      category: 'tools-media',
       menuOrder: 4,
       cooldownMs: 3000,
       handler: async (commandContext) => {

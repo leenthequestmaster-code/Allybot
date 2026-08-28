@@ -1,8 +1,10 @@
 import { randomInt } from 'node:crypto'
-import type { CommandContext, PluginContext } from '../contracts.js'
+import { createHash } from 'node:crypto'
+import type { CommandContext, PluginContext, WhatsAppPort } from '../contracts.js'
 
 const FUN_COOLDOWN_MS = 1_500
 const MAX_QUERY_LENGTH = 80
+const RPS_CHALLENGE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 const TRUTH_PROMPTS = [
   'Apa hal kecil yang paling membuatmu senang minggu ini?',
@@ -33,6 +35,16 @@ const EIGHT_BALL_ANSWERS = [
   'Jawabannya: iya.',
 ] as const
 
+interface RpsChallenge {
+  readonly challengerJid: string
+  readonly challengedJid: string
+  challengerChoice?: string
+  challengedChoice?: string
+  readonly createdAt: number
+  readonly expiresAt: number
+  readonly groupJid?: string
+}
+
 function usage(context: CommandContext, command: string, example: string): string {
   return `Format: ${context.prefix}${command} ${example}`
 }
@@ -55,7 +67,82 @@ function randomChoice<T>(values: readonly T[]): T {
   return values[randomInt(values.length)]
 }
 
+function normalizeJid(jid: string): string {
+  const at = jid.lastIndexOf('@')
+  if (at <= 0) return jid
+  const local = jid.slice(0, at).split(':', 1)[0]
+  return `${local}@${jid.slice(at + 1)}`
+}
+
+function challengeKey(challengerJid: string, challengedJid: string): string {
+  return createHash('sha256').update(`${normalizeJid(challengerJid)}:${normalizeJid(challengedJid)}`).digest('hex').slice(0, 32)
+}
+
 export function registerUtilityFunCommands(context: PluginContext): void {
+  const rpsChallenges = new Map<string, RpsChallenge>()
+  const whatsapp = (context as { whatsapp?: WhatsAppPort }).whatsapp
+
+  const pruneChallenges = (): void => {
+    const now = Date.now()
+    for (const [key, challenge] of rpsChallenges) {
+      if (now >= challenge.expiresAt) rpsChallenges.delete(key)
+    }
+  }
+
+  const getChallenge = (challengerJid: string, challengedJid: string): RpsChallenge | undefined => {
+    return rpsChallenges.get(challengeKey(challengerJid, challengedJid))
+  }
+
+  const createChallenge = (challengerJid: string, challengedJid: string, groupJid?: string): RpsChallenge => {
+    const now = Date.now()
+    const challenge: RpsChallenge = {
+      challengerJid: normalizeJid(challengerJid),
+      challengedJid: normalizeJid(challengedJid),
+      createdAt: now,
+      expiresAt: now + RPS_CHALLENGE_TTL_MS,
+      groupJid,
+    }
+    rpsChallenges.set(challengeKey(challengerJid, challengedJid), challenge)
+    return challenge
+  }
+
+  const setChoice = (challengerJid: string, challengedJid: string, playerJid: string, choice: string): boolean => {
+    const key = challengeKey(challengerJid, challengedJid)
+    const challenge = rpsChallenges.get(key)
+    if (!challenge) return false
+    const normalizedPlayer = normalizeJid(playerJid)
+    if (normalizedPlayer === challenge.challengerJid) {
+      challenge.challengerChoice = choice
+    } else if (normalizedPlayer === challenge.challengedJid) {
+      challenge.challengedChoice = choice
+    } else {
+      return false
+    }
+    return true
+  }
+
+  const resolveChallenge = (challengerJid: string, challengedJid: string): { result: string; challengerChoice: string; challengedChoice: string } | undefined => {
+    const key = challengeKey(challengerJid, challengedJid)
+    const challenge = rpsChallenges.get(key)
+    if (!challenge || !challenge.challengerChoice || !challenge.challengedChoice) return undefined
+    const player = challenge.challengerChoice
+    const opponent = challenge.challengedChoice
+    let result: string
+    if (player === opponent) {
+      result = 'Seri!'
+    } else if (
+      (player === 'batu' && opponent === 'gunting') ||
+      (player === 'gunting' && opponent === 'kertas') ||
+      (player === 'kertas' && opponent === 'batu')
+    ) {
+      result = 'Challenger menang!'
+    } else {
+      result = 'Challenged menang!'
+    }
+    rpsChallenges.delete(key)
+    return { result, challengerChoice: player, challengedChoice: opponent }
+  }
+
   context.commands.register({
     name: 'random',
     description: 'Pilih angka acak dalam rentang tertentu',
@@ -140,19 +227,201 @@ export function registerUtilityFunCommands(context: PluginContext): void {
   context.commands.register({
     name: 'rps',
     aliases: ['suit'],
-    description: 'Main batu gunting kertas melawan Allybot',
+    description: 'Main batu gunting kertas PvP (Private Chat)',
     category: 'fun',
     menuOrder: 16,
     cooldownMs: FUN_COOLDOWN_MS,
     handler: async (commandContext) => {
-      const player = commandContext.args[0]?.toLowerCase()
-      if (!RPS_CHOICES.includes(player as typeof RPS_CHOICES[number])) {
-        await commandContext.reply(usage(commandContext, 'rps', '<batu|gunting|kertas>'))
+      pruneChallenges()
+      const args = commandContext.args
+      const subcommand = args[0]?.toLowerCase()
+      const senderJid = commandContext.message.senderJid
+      if (!senderJid) return
+
+      const isGroup = commandContext.message.remoteJid.endsWith('@g.us')
+      const isPrivate = !isGroup
+
+      // Usage: !rps challenge @user - tantang pemain lain
+      //        !rps accept - terima tantangan
+      //        !rps <batu|gunting|kertas> - pilih pilihan (di PM)
+      //        !rps cancel - batalkan tantangan
+
+      if (!subcommand || subcommand === 'help') {
+        await commandContext.reply([
+          '✊ *Suit PvP (Player vs Player)*',
+          '',
+          'Cara main:',
+          '1. Di grup: `!rps challenge @pemain` untuk menantang',
+          '2. Kedua pemain akan diminta pilih di **Private Chat (PM)**',
+          '3. Di PM: `!rps batu|gunting|kertas` untuk memilih',
+          '4. Hasil akan diumumkan setelah keduanya memilih',
+          '',
+          'Command:',
+          '• `!rps challenge @user` - Tantang pemain',
+          '• `!rps accept` - Terima tantangan (di PM)',
+          '• `!rps <batu|gunting|kertas>` - Pilih (di PM)',
+          '• `!rps cancel` - Batalkan tantangan',
+          '• `!rps status` - Lihat status tantangan aktif',
+        ].join('\n'))
         return
       }
-      const bot = randomChoice(RPS_CHOICES)
-      const result = player === bot ? 'Seri.' : (player === 'batu' && bot === 'gunting') || (player === 'gunting' && bot === 'kertas') || (player === 'kertas' && bot === 'batu') ? 'Kamu menang.' : 'Allybot menang.'
-      await commandContext.reply(`✊ *Suit*\nKamu: ${player}\nAllybot: ${bot}\n\n*${result}*`)
+
+      if (subcommand === 'challenge') {
+        if (isPrivate) {
+          await commandContext.reply('Command challenge hanya bisa digunakan di grup.')
+          return
+        }
+        const target = commandContext.message.mentionedJids?.[0] ?? commandContext.message.quotedSenderJid
+        if (!target) {
+          await commandContext.reply('Mention atau reply pemain yang ingin ditantang. Contoh: `!rps challenge @user`')
+          return
+        }
+        if (normalizeJid(target) === normalizeJid(senderJid)) {
+          await commandContext.reply('Tidak bisa menantang diri sendiri.')
+          return
+        }
+
+        const challenge = createChallenge(senderJid, target, commandContext.message.remoteJid)
+
+        // Send challenge notification to both players via PM
+        const challengeMsg = [
+          '✊ *Tantangan Suit PvP*',
+          '',
+          `🎯 *Challenger* : @${normalizeJid(senderJid).split('@')[0]}`,
+          `🎯 *Challenged* : @${normalizeJid(target).split('@')[0]}`,
+          '',
+          'Kedua pemain: silakan buka Private Chat dengan Allybot dan ketik:',
+          '`!rps batu` atau `!rps gunting` atau `!rps kertas`',
+          '',
+          `⏰ Tantangan berlaku ${RPS_CHALLENGE_TTL_MS / 60000} menit.`,
+        ].join('\n')
+
+        await commandContext.reply(challengeMsg, { mentions: [senderJid, target] })
+
+        // Also send PM to both players
+        if (whatsapp) {
+          try {
+            await whatsapp.sendText(normalizeJid(senderJid), `✊ Kamu menantang @${normalizeJid(target).split('@')[0]} untuk Suit PvP!\n\nKetik pilihanmu di sini: \`!rps batu\`, \`!rps gunting\`, atau \`!rps kertas\`\n\n⏰ Berlaku ${RPS_CHALLENGE_TTL_MS / 60000} menit.`)
+            await whatsapp.sendText(normalizeJid(target), `✊ @${normalizeJid(senderJid).split('@')[0]} menantangmu untuk Suit PvP!\n\nKetik pilihanmu di sini: \`!rps batu\`, \`!rps gunting\`, atau \`!rps kertas\`\n\nAtau ketik \`!rps accept\` untuk menerima.\n\n⏰ Berlaku ${RPS_CHALLENGE_TTL_MS / 60000} menit.`)
+          } catch {}
+        }
+        return
+      }
+
+      if (subcommand === 'accept') {
+        if (isGroup) {
+          await commandContext.reply('Command accept hanya bisa digunakan di Private Chat.')
+          return
+        }
+        // Find challenge where this user is challenged
+        let foundChallenge: RpsChallenge | undefined
+        for (const challenge of rpsChallenges.values()) {
+          if (challenge.challengedJid === normalizeJid(senderJid) && !challenge.challengedChoice) {
+            foundChallenge = challenge
+            break
+          }
+        }
+        if (!foundChallenge) {
+          await commandContext.reply('Tidak ada tantangan yang menunggu konfirmasimu.')
+          return
+        }
+        await commandContext.reply('✅ Tantangan diterima! Sekarang pilih: `!rps batu`, `!rps gunting`, atau `!rps kertas`')
+        return
+      }
+
+      if (subcommand === 'cancel') {
+        let cancelled = false
+        for (const [key, challenge] of rpsChallenges) {
+          if (challenge.challengerJid === normalizeJid(senderJid) || challenge.challengedJid === normalizeJid(senderJid)) {
+            rpsChallenges.delete(key)
+            cancelled = true
+          }
+        }
+        await commandContext.reply(cancelled ? '✅ Tantangan dibatalkan.' : 'Tidak ada tantangan aktif untuk dibatalkan.')
+        return
+      }
+
+      if (subcommand === 'status') {
+        const challenges = Array.from(rpsChallenges.values()).filter(
+          c => c.challengerJid === normalizeJid(senderJid) || c.challengedJid === normalizeJid(senderJid)
+        )
+        if (challenges.length === 0) {
+          await commandContext.reply('Tidak ada tantangan aktif.')
+          return
+        }
+        await commandContext.reply(challenges.map(c =>
+          `✊ @${c.challengerJid.split('@')[0]} vs @${c.challengedJid.split('@')[0]}\n` +
+          `   Challenger: ${c.challengerChoice ?? 'belum pilih'}\n` +
+          `   Challenged: ${c.challengedChoice ?? 'belum pilih'}\n` +
+          `   Expired: <t:${Math.floor(c.expiresAt / 1000)}:R>`
+        ).join('\n\n'), { mentions: challenges.flatMap(c => [c.challengerJid, c.challengedJid]) })
+        return
+      }
+
+      // Handle choice input: batu, gunting, kertas
+      if (!RPS_CHOICES.includes(subcommand as typeof RPS_CHOICES[number])) {
+        await commandContext.reply(usage(commandContext, 'rps', '<batu|gunting|kertas>') + '\nAtau gunakan `!rps help` untuk bantuan.')
+        return
+      }
+
+      if (isGroup) {
+        await commandContext.reply('Pilih pilihan di **Private Chat** dengan Allybot, bukan di grup.')
+        return
+      }
+
+      // Find challenge where this user is a participant
+      let foundChallenge: RpsChallenge | undefined
+      for (const challenge of rpsChallenges.values()) {
+        if ((challenge.challengerJid === normalizeJid(senderJid) || challenge.challengedJid === normalizeJid(senderJid)) &&
+            (!challenge.challengerChoice || !challenge.challengedChoice)) {
+          foundChallenge = challenge
+          break
+        }
+      }
+
+      if (!foundChallenge) {
+        await commandContext.reply('Tidak ada tantangan aktif untukmu. Minta seseorang menantangmu dengan `!rps challenge @kamu` di grup.')
+        return
+      }
+
+      const choice = subcommand
+      const success = setChoice(foundChallenge.challengerJid, foundChallenge.challengedJid, senderJid, choice)
+      if (!success) {
+        await commandContext.reply('Gagal mencatat pilihan. Coba lagi.')
+        return
+      }
+
+      await commandContext.reply(`✅ Pilihan *${choice}* dicatat. Menunggu lawan...`)
+
+      // Check if both have chosen
+      const resolved = resolveChallenge(foundChallenge.challengerJid, foundChallenge.challengedJid)
+      if (resolved) {
+        const resultMsg = [
+          '✊ *Suit PvP Selesai!*',
+          '',
+          `🎯 *Challenger* : ${resolved.challengerChoice}`,
+          `🎯 *Challenged* : ${resolved.challengedChoice}`,
+          '',
+          `*${resolved.result}*`,
+        ].join('\n')
+
+        // Send result to both players via PM
+        if (whatsapp) {
+          try {
+            await whatsapp.sendText(normalizeJid(foundChallenge.challengerJid), resultMsg)
+            await whatsapp.sendText(normalizeJid(foundChallenge.challengedJid), resultMsg)
+          } catch {}
+        }
+
+        // Also announce in group if challenge was from group
+        if (foundChallenge.groupJid && whatsapp) {
+          try {
+            await whatsapp.sendText(foundChallenge.groupJid, resultMsg, {
+              mentions: [foundChallenge.challengerJid, foundChallenge.challengedJid]
+            })
+          } catch {}
+        }
+      }
     },
   })
 

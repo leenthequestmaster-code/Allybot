@@ -398,7 +398,7 @@ test('Economy registers operational bank commands and handles a deposit command'
     services: servicesFor(fixture.service),
   })
 
-  assert.deepEqual(commands.map((command) => command.name), ['vela', 'bank', 'bankpolicy', 'bankreward', 'banksweep'])
+  assert.deepEqual(commands.map((command) => command.name), ['vela', 'bank', 'bankpolicy', 'bankreward', 'banksweep', 'tax', 'taxbayar'])
   assert.equal(commands.find((command) => command.name === 'bankpolicy').permission, 'group.admin.or.bot.owner')
 
   const replies = []
