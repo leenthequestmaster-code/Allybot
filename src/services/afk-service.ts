@@ -1,8 +1,7 @@
-import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join, dirname } from 'node:path'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
+import { initSqliteDatabase, normalizeBoundedText, positiveIntegerOption, type DatabaseInstance } from '../storage-helpers.js'
 
 export type AfkRecord = {
   readonly userJid: string
@@ -82,7 +81,7 @@ function mapAfk(row: AfkRow): AfkRecord {
 export class AfkService implements Service {
   readonly name = 'afk'
 
-  private db: Database.Database | undefined
+  private db: DatabaseInstance | undefined
 
   constructor(
     coreDatabasePath: string,
@@ -101,11 +100,7 @@ export class AfkService implements Service {
   private readonly mentionRetentionMs: number
 
   initialize(_context: ServiceContext): void {
-    mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath)
     this.migrate()
     this.pruneMentions(Date.now())
     this.logger.info({ databasePath: this.databasePath }, 'AFK storage initialized')
@@ -321,7 +316,7 @@ export class AfkService implements Service {
     return row.total
   }
 
-  private database(): Database.Database {
+  private database(): DatabaseInstance {
     if (!this.db) throw new Error('AFK storage is not initialized')
     return this.db
   }
@@ -396,15 +391,4 @@ export class AfkService implements Service {
   }
 }
 
-function normalizeBoundedText(value: string | undefined, maxLength: number): string | undefined {
-  if (value === undefined) return undefined
-  const normalized = value.replace(/\s+/g, ' ').trim()
-  if (!normalized) return undefined
-  return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized
-}
 
-function positiveIntegerOption(value: number | undefined, fallback: number, name: string): number {
-  const selected = value ?? fallback
-  if (!Number.isSafeInteger(selected) || selected <= 0) throw new Error(`${name} must be a positive safe integer`)
-  return selected
-}

@@ -1,8 +1,7 @@
-import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join, dirname } from 'node:path'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
+import { initSqliteDatabase, type DatabaseInstance } from '../storage-helpers.js'
 
 export const MAX_GROUP_RULES_LENGTH = 2000
 export const MAX_GROUP_MESSAGE_LENGTH = 2000
@@ -193,7 +192,7 @@ function mapGroupRulesHistory(row: GroupRulesHistoryRow): GroupRulesHistoryRecor
 export class GroupConfigurationService implements Service {
   readonly name = 'group-configuration'
 
-  private db: Database.Database | undefined
+  private db: DatabaseInstance | undefined
   private readonly databasePath: string
 
   constructor(
@@ -204,11 +203,7 @@ export class GroupConfigurationService implements Service {
   }
 
   initialize(_context: ServiceContext): void {
-    mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath)
     this.migrate()
     this.logger.info({ databasePath: this.databasePath }, 'group configuration storage initialized')
   }
@@ -560,7 +555,7 @@ export class GroupConfigurationService implements Service {
     return result.changes > 0
   }
 
-  private database(): Database.Database {
+  private database(): DatabaseInstance {
     if (!this.db) throw new Error('Group configuration storage is not initialized')
     return this.db
   }
