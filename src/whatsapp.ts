@@ -238,9 +238,11 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private readonly seenMessages = new Map<string, number>()
   private readonly groupNameCache = new Map<string, { name: string; expiresAt: number }>()
   private readonly profilePictureCache = new Map<string, { url?: string; expiresAt: number }>()
+  private static readonly MAX_PROFILE_PICTURE_CACHE_SIZE = 500
   private readonly messageListeners = new Set<(message: CoreMessage) => Promise<void> | void>()
   private readonly groupParticipantListeners = new Set<(event: CoreGroupParticipantUpdate) => Promise<void> | void>()
   private readonly connectionListeners = new Set<(event: CoreConnectionState) => Promise<void> | void>()
+  private lastDedupCleanupAt = 0
 
   constructor(
     private readonly config: AppConfig,
@@ -249,6 +251,16 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     private readonly redis?: UpstashRedisService,
   ) {
     this.retryCounterCache = new NodeCache({ stdTTL: 300, useClones: false }) as unknown as CacheStore
+  }
+
+  private requireSocket(): WASocket {
+    const socket = this.socket
+    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    return socket
+  }
+
+  private resolvePnForLid(lid: string): Promise<string | null> {
+    return this.socket?.signalRepository.lidMapping.getPNForLID(lid) ?? Promise.resolve(null)
   }
 
   get currentStatus(): CoreConnectionStatus {
@@ -293,17 +305,15 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async sendText(remoteJid: string, text: string, options?: WhatsAppSendOptions): Promise<void> {
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     const content = options?.mentions?.length
       ? { text, mentions: [...options.mentions], linkPreview: null }
       : { text, linkPreview: null }
-    await withTimeout(socket.sendMessage(remoteJid, content), 20000, 'framework text response')
+    await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework text response')
   }
 
   async sendNativePoll(remoteJid: string, options: WhatsAppPollOptions): Promise<void> {
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     const name = options.name.trim()
     const values = options.values.map((value) => value.trim())
     if (!name || name.length > 200 || values.length < 2 || values.length > 12 || values.some((value) => !value || value.length > 100)) {
@@ -357,6 +367,10 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         url: safeUrl,
         expiresAt: Date.now() + PROFILE_PICTURE_CACHE_TTL_MS,
       })
+      if (this.profilePictureCache.size > WhatsAppConnection.MAX_PROFILE_PICTURE_CACHE_SIZE) {
+        const oldestKey = this.profilePictureCache.keys().next().value
+        if (oldestKey) this.profilePictureCache.delete(oldestKey)
+      }
       return safeUrl
     } catch (error) {
       this.logger.debug({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'profile picture lookup unavailable')
@@ -368,8 +382,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async sendImage(remoteJid: string, imageUrl: string, caption?: string): Promise<void> {
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     const parsed = new URL(imageUrl)
     if (parsed.protocol !== 'https:') throw new Error('Image URL must use HTTPS')
     const content = caption ? { image: { url: parsed.toString() }, caption } : { image: { url: parsed.toString() } }
@@ -393,8 +406,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       }
     }
   }): Promise<void> {
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     const content = {
       location: {
         degreesLatitude: payload.degreesLatitude,
@@ -470,8 +482,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async sendMedia(remoteJid: string, payload: WhatsAppMediaPayload): Promise<void> {
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     const data = Buffer.from(payload.data)
     if (!remoteJid || data.length === 0 || data.length > MEDIA_SEND_MAX_BYTES) throw new Error('Media payload is out of bounds')
     const mimeType = payload.mimeType.trim().toLowerCase()
@@ -511,8 +522,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async sendNativeQuickReplies(remoteJid: string, payload: NativeQuickReplyPayload): Promise<void> {
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     if (!remoteJid || payload.buttons.length === 0 || payload.buttons.length > 3) throw new Error('Invalid native quick-reply payload')
 
     const message = proto.Message.create({
@@ -540,8 +550,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   async listParticipatingGroups(): Promise<readonly WhatsAppGroupSummary[]> {
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
 
     const groups = await withTimeout(socket.groupFetchAllParticipating(), 10_000, 'participating group lookup')
     return Object.entries(groups)
@@ -555,8 +564,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
   async getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata> {
     if (!isGroupJid(groupJid)) throw new Error('group metadata is only available for WhatsApp groups')
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
 
     const metadata = await withTimeout(socket.groupMetadata(groupJid), 10_000, 'group metadata lookup')
     const resolvePnForLid = (lid: string) => socket.signalRepository.lidMapping.getPNForLID(lid)
@@ -592,18 +600,16 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   ): Promise<readonly WhatsAppGroupParticipantActionResult[]> {
     if (!isGroupJid(groupJid)) throw new Error('group participant update is only available for WhatsApp groups')
     if (participantJids.length < 1 || participantJids.length > 20) throw new Error('group participant update target count is out of bounds')
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
 
-    const resolvePnForLid = (lid: string) => socket.signalRepository.lidMapping.getPNForLID(lid)
-    const normalizedJids = [...new Set(await Promise.all(participantJids.map((jid) => normalizeContactJid(jid, resolvePnForLid))))]
+    const normalizedJids = [...new Set(await Promise.all(participantJids.map((jid) => normalizeContactJid(jid, this.resolvePnForLid))))]
     if (normalizedJids.length === 0) throw new Error('group participant update requires at least one target')
 
     try {
       const results = await withTimeout(socket.groupParticipantsUpdate(groupJid, normalizedJids, action), 20_000, 'group participant update')
       return Promise.all(results.map(async (result, index) => ({
         participantJid: result.jid
-          ? await normalizeContactJid(result.jid, resolvePnForLid)
+          ? await normalizeContactJid(result.jid, this.resolvePnForLid)
           : normalizedJids[index] ?? 'unknown',
         status: result.status === '200' ? 'ok' : (typeof result.status === 'string' && result.status ? result.status : 'unknown'),
       })))
@@ -611,12 +617,9 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'group participant update failed')
       throw error
     }
-  }
-
-  async groupSettingUpdate(groupJid: string, setting: GroupSettingValue): Promise<void> {
+  }    async groupSettingUpdate(groupJid: string, setting: GroupSettingValue): Promise<void> {
     if (!isGroupJid(groupJid)) throw new Error('group setting update is only available for WhatsApp groups')
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
 
     try {
       await withTimeout(socket.groupSettingUpdate(groupJid, setting), 20_000, 'group setting update')
@@ -628,16 +631,14 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
   async getGroupInviteLink(groupJid: string): Promise<string | undefined> {
     if (!isGroupJid(groupJid)) throw new Error('group invite link is only available for WhatsApp groups')
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     const code = await withTimeout(socket.groupInviteCode(groupJid), 10_000, 'group invite link lookup')
     return code ? `https://chat.whatsapp.com/${code}` : undefined
   }
 
   async groupRevokeInvite(groupJid: string): Promise<string | undefined> {
     if (!isGroupJid(groupJid)) throw new Error('group invite revoke is only available for WhatsApp groups')
-    const socket = this.socket
-    if (!socket || !this.isConnected) throw new Error('WhatsApp socket is not connected')
+    const socket = this.requireSocket()
     try {
       return await withTimeout(socket.groupRevokeInvite(groupJid), 20_000, 'group invite revoke')
     } catch (error) {
@@ -888,21 +889,21 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       }
       const receivedAt = Date.now()
       const timestamp = normalizeMessageTimestamp(message.messageTimestamp)
-      const resolvePnForLid = (lid: string) => this.socket?.signalRepository.lidMapping.getPNForLID(lid) ?? Promise.resolve(null)
+      const contextInfo = extractContextInfo(message)
       const rawSenderJid = message.key.participantAlt ?? message.key.remoteJidAlt ?? message.key.participant ?? (message.key.fromMe ? undefined : remoteJid)
-      const senderJid = rawSenderJid ? await normalizeContactJid(rawSenderJid, resolvePnForLid) : undefined
+      const senderJid = rawSenderJid ? await normalizeContactJid(rawSenderJid, this.resolvePnForLid) : undefined
       const mentionedJids: readonly string[] = [...new Set(await Promise.all(
-        extractMentionedJids(message).map((jid) => normalizeContactJid(jid, resolvePnForLid)),
+        extractMentionedJids(message).map((jid) => normalizeContactJid(jid, this.resolvePnForLid)),
       ))]
       const text = extractText(message)
       const buttonId = extractButtonId(message)
-      const quotedText = extractQuotedText(message)
-      const quotedMessageId = extractContextInfo(message)?.stanzaId
+      const quotedText = extractMessageText(contextInfo?.quotedMessage)
+      const quotedMessageId = contextInfo?.stanzaId
       const media = mediaDescriptorFromContent(message.message)
-      const quotedMedia = mediaDescriptorFromContent(extractContextInfo(message)?.quotedMessage, true)
-      const rawQuotedSenderJid = extractQuotedSenderJid(message)
+      const quotedMedia = mediaDescriptorFromContent(contextInfo?.quotedMessage, true)
+      const rawQuotedSenderJid = contextInfo?.participant
       const quotedSenderJid = rawQuotedSenderJid
-        ? await normalizeContactJid(rawQuotedSenderJid, resolvePnForLid)
+        ? await normalizeContactJid(rawQuotedSenderJid, this.resolvePnForLid)
         : undefined
       const groupName = mentionedJids.length > 0 || quotedSenderJid
         ? await this.resolveGroupName(remoteJid)
@@ -1018,8 +1019,11 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
   private async isDuplicate(key: string): Promise<boolean> {
     const now = Date.now()
-    for (const [oldKey, seenAt] of this.seenMessages) {
-      if (now - seenAt > 10 * 60 * 1000) this.seenMessages.delete(oldKey)
+    if (now - this.lastDedupCleanupAt > 60_000) {
+      this.lastDedupCleanupAt = now
+      for (const [oldKey, seenAt] of this.seenMessages) {
+        if (now - seenAt > 10 * 60 * 1000) this.seenMessages.delete(oldKey)
+      }
     }
     if (this.seenMessages.has(key)) return true
 
