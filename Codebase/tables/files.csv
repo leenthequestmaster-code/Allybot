@@ -30,7 +30,7 @@ docs/mission-platform-architecture.md,10350,.md,documentation,snapshot/docs/miss
 docs/neon-chat-log-activation-checklist.md,4240,.md,documentation,snapshot/docs/neon-chat-log-activation-checklist.md
 docs/neon-chat-log-architecture.md,7494,.md,documentation,snapshot/docs/neon-chat-log-architecture.md
 docs/observability-contract.md,5748,.md,documentation,snapshot/docs/observability-contract.md
-docs/OBSERVABILITY-SENTRY.md,4734,.md,documentation,snapshot/docs/OBSERVABILITY-SENTRY.md
+docs/OBSERVABILITY-SENTRY.md,4946,.md,documentation,snapshot/docs/OBSERVABILITY-SENTRY.md
 docs/owner-control-plane-implementation-plan.md,5315,.md,documentation,snapshot/docs/owner-control-plane-implementation-plan.md
 docs/owner-foundation-audit.md,5608,.md,documentation,snapshot/docs/owner-foundation-audit.md
 docs/panel-startup-observation-2026-08-23.md,1568,.md,documentation,snapshot/docs/panel-startup-observation-2026-08-23.md
@@ -176,7 +176,7 @@ src/platform/sessions.ts,11874,.ts,source,snapshot/src/platform/sessions.ts
 src/platform/validation.ts,583,.ts,source,snapshot/src/platform/validation.ts
 src/postgres-monitor.ts,3464,.ts,source,snapshot/src/postgres-monitor.ts
 src/postgres-verifier.ts,2261,.ts,source,snapshot/src/postgres-verifier.ts
-src/sentry.ts,4159,.ts,source,snapshot/src/sentry.ts
+src/sentry.ts,4271,.ts,source,snapshot/src/sentry.ts
 src/services/afk-service.ts,12899,.ts,source,snapshot/src/services/afk-service.ts
 src/services/announcement-service.ts,37154,.ts,source,snapshot/src/services/announcement-service.ts
 src/services/canon-service.ts,21433,.ts,source,snapshot/src/services/canon-service.ts
