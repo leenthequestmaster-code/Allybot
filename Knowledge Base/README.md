@@ -8,6 +8,7 @@ Dokumentasi operasional untuk AI dan kontributor berikutnya. Mulai dari file ini
 2. `01-shortcuts.md` — rute cepat dari tujuan kerja ke file/simbol yang relevan.
 3. `02-security-operations.md` — boundary keamanan, data, integrasi, dan prosedur validasi.
 4. `changes/2026-08-29-audit-fixes.md` — perubahan audit yang dilakukan dan alasan desainnya.
+5. `changes/2026-08-29-menu-refactor.md` — kontrak UX `!menu`, keputusan YAGNI, dan aturan ekstensi berikutnya.
 
 ## Aturan kerja AI
 

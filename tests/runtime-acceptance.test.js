@@ -186,7 +186,7 @@ test('permission denial is enforced before protected handler execution', async (
   await framework.stop()
 })
 
-test('menu uses location plus native navigation and keeps submenu text-only with numeric fallback', async () => {
+test('menu uses a text fallback with numeric navigation', async () => {
   const whatsapp = createFakeWhatsapp()
   const framework = createFramework(whatsapp)
   framework.registerPlugin({
@@ -205,30 +205,19 @@ test('menu uses location plus native navigation and keeps submenu text-only with
   await framework.start()
   await whatsapp.emitMessage(message({ id: 'menu-main', text: '!menu' }))
 
-  assert.equal(whatsapp.sentLocations.length, 1)
-  assert.equal(whatsapp.sentQuickReplies.length, 1)
-  const mainPayload = whatsapp.sentQuickReplies[0].payload
-  assert.equal(mainPayload.type, 'native_quick_reply')
-  assert.equal(mainPayload.buttons.length, 5)
-  assert.ok(mainPayload.buttons.some((button) => button.title === 'NEXT'))
+  assert.equal(whatsapp.sentLocations.length, 0)
+  assert.equal(whatsapp.sentQuickReplies.length, 0)
+  assert.equal(whatsapp.sentTexts.length, 1)
+  assert.match(whatsapp.sentTexts[0].text, /PROFILE BOT/)
+  assert.match(whatsapp.sentTexts[0].text, /\*1\.\*/)
+  assert.match(whatsapp.sentTexts[0].text, /\*!menu 1\*/)
 
-  const categoryButton = mainPayload.buttons.find((button) => button.title !== 'NEXT')
-  assert.ok(categoryButton)
-  await whatsapp.emitMessage(message({ id: 'menu-button', buttonId: categoryButton.id, text: undefined }))
+  await whatsapp.emitMessage(message({ id: 'menu-numeric', text: '!menu 1' }))
 
-  assert.equal(whatsapp.sentQuickReplies.length, 1)
-  assert.ok(whatsapp.sentTexts.some((item) => item.text.includes('𝐒𝘂𝗯𝗺𝗲𝗻𝘂:')))
-
-  const beforeNumeric = whatsapp.sentTexts.length
-  await whatsapp.emitMessage(message({
-    id: 'menu-numeric',
-    text: '1',
-    quotedText: "𝐀𝗹𝗹𝘆𝗯𝗼𝘁'𝘀 𝐌𝗲𝗻𝘂\nListmenu\n```!help```",
-  }))
-
-  assert.equal(whatsapp.sentQuickReplies.length, 1)
-  assert.ok(whatsapp.sentTexts.length > beforeNumeric)
-  assert.ok(whatsapp.sentTexts.at(-1).text.includes('𝐒𝘂𝗯𝗺𝗲𝗻𝘂:'))
+  assert.equal(whatsapp.sentQuickReplies.length, 0)
+  assert.equal(whatsapp.sentTexts.length, 2)
+  assert.match(whatsapp.sentTexts[1].text, /YOUR CHARACTER/)
+  assert.match(whatsapp.sentTexts[1].text, /!status/)
   await framework.stop()
 })
 
