@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "c4c1de6a0acae6b99b1ad70bcb7c4613374f8b6f",
-  "generatedAt": "2026-08-28T15:18:35+08:00",
-  "sourceFileCount": 278,
+  "commitSha": "b201c246b682667b5a02d0b4d062b75bc382e68a",
+  "generatedAt": "2026-08-29T01:54:31Z",
+  "sourceFileCount": 279,
   "counts": {
-    "files": 278,
-    "symbols": 7140,
-    "imports": 930,
-    "calls": 15891,
+    "files": 279,
+    "symbols": 7155,
+    "imports": 925,
+    "calls": 15880,
     "commands": 207,
     "services": 118,
     "config": 57,
     "featureFlags": 14,
     "dependencies": 15,
     "tests": 375,
-    "dataFlow": 412
+    "dataFlow": 416
   },
   "excluded": [
     ".env",
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "f744bb6f640298a0dbba5ea688009394f6c794e6143ff25c873bc88b02241336"
+      "sha256": "3d415a1d89dbddcc5922b450b6791783539efb407ec81a5433e51e2001428d30"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "2fa52b8eef9b03d86e1ae93c3de424e83cf83c866da4b81c03f5dd656066f247"
+      "sha256": "3999355fceec527beed83a44d78a2d7976e3e13e35abbff7aac9d2233708afa2"
     },
     {
       "path": "snapshot/.env.example",
@@ -955,8 +955,8 @@
     },
     {
       "path": "snapshot/src/services/afk-service.ts",
-      "bytes": 13636,
-      "sha256": "ed55931d95b6df514bab0f3404238086599d4b37abb0170ad5f73f13d994eefa"
+      "bytes": 12899,
+      "sha256": "cbf342c6521744ab3bc2e215f95dcddc221fbae75657a2d9ab265cfbf2a7c900"
     },
     {
       "path": "snapshot/src/services/announcement-service.ts",
@@ -990,8 +990,8 @@
     },
     {
       "path": "snapshot/src/services/developer-mode-service.ts",
-      "bytes": 16429,
-      "sha256": "54373170232a45e101a417fea80a838cdf930017c3fe4808789430c3354c799c"
+      "bytes": 16075,
+      "sha256": "ebb801a78732728979ac52110596ff2122d67d1ed30b7c15e5abc8220149f12b"
     },
     {
       "path": "snapshot/src/services/economy-service.ts",
@@ -1005,8 +1005,8 @@
     },
     {
       "path": "snapshot/src/services/group-configuration-service.ts",
-      "bytes": 21436,
-      "sha256": "6f98493c2a4e03a7a132512a3bbcecb5c07b29230aac2d5785ba989e2dc9509c"
+      "bytes": 21246,
+      "sha256": "b141010d309c5e23b1602b6d55e3737278472a1202db7ad7e017d0c26b96cfe9"
     },
     {
       "path": "snapshot/src/services/group-context-service.ts",
@@ -1020,18 +1020,18 @@
     },
     {
       "path": "snapshot/src/services/group-moderation-service.ts",
-      "bytes": 30248,
-      "sha256": "8a0721ab034c54938db95494d17313a641a18129ba695bef346ccdf621b53fb0"
+      "bytes": 29798,
+      "sha256": "88a45703966216fd07b5ff2326405793f44bc3a7c1154f7cc034102b0117e616"
     },
     {
       "path": "snapshot/src/services/group-safety-service.ts",
-      "bytes": 28302,
-      "sha256": "b25493600b6294b9fda5595ac9a5ac05d0358af1adc893f425921ecd95190c57"
+      "bytes": 28046,
+      "sha256": "6fb35a3f2c6299086364dac7d5568aa36921575f7cdb9ed20136d05a6ba7b1b4"
     },
     {
       "path": "snapshot/src/services/knowledge-service.ts",
-      "bytes": 16309,
-      "sha256": "4125eb435dacfaaafff5a75f8bb821822cb8691896b14d0211e02165ed1e88ce"
+      "bytes": 16232,
+      "sha256": "3fc92d628c9a80ca1e6be7ba528a975e017391c21a3ed69a334600426e605b81"
     },
     {
       "path": "snapshot/src/services/onboarding-service.ts",
@@ -1064,6 +1064,11 @@
       "sha256": "05e1e3d92a8dcb20ce23c0987908d0fb577f690d9893f55aee074d30715e6a56"
     },
     {
+      "path": "snapshot/src/storage-helpers.ts",
+      "bytes": 4065,
+      "sha256": "b10845e87379ba34b0a99256921f573657f82cf29077e5cf1245ee6dfd62216a"
+    },
+    {
       "path": "snapshot/src/storage.ts",
       "bytes": 13134,
       "sha256": "96ba9c82fff168e2fad790d77ca7437000523840bbec31040a9be602b8f7b401"
@@ -1080,8 +1085,8 @@
     },
     {
       "path": "snapshot/src/whatsapp.ts",
-      "bytes": 42081,
-      "sha256": "5a8b9a4b45bb8ffeb159a8ad0858aa7315196fe55f88dee4cbfeefa124a71803"
+      "bytes": 41723,
+      "sha256": "ee0a5a4deaaed2851ec48c4077679f54e230c4ae47ceda3cc7a209504fbd3221"
     },
     {
       "path": "snapshot/tests/active-command-surface.test.js",
@@ -1455,8 +1460,8 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 2066293,
-      "sha256": "22a3d4051ed8a55a09374f419dc514df46390d378b3e5e3c5815e90581485a8a"
+      "bytes": 2062991,
+      "sha256": "3c1e66db19d99629217566d56ea6925766f249964ea043f8ed41b34fbe39464a"
     },
     {
       "path": "tables/commands.csv",
@@ -1470,8 +1475,8 @@
     },
     {
       "path": "tables/data-flow.csv",
-      "bytes": 40865,
-      "sha256": "4142d13973fec75212e4311c3fa1b8f4800e10e966ac07c4d1157fa61d241190"
+      "bytes": 41239,
+      "sha256": "5e769c2147e8ac4473295223fa601e75a998d1d6b779ab0e0a7d369c44a256ad"
     },
     {
       "path": "tables/dependencies.csv",
@@ -1485,13 +1490,13 @@
     },
     {
       "path": "tables/files.csv",
-      "bytes": 24731,
-      "sha256": "d863baf6d70430a35568b4df6dfd4af1a2dfe63f0742772968389b71b11194d5"
+      "bytes": 24802,
+      "sha256": "d7c4135918f9a4ae9aae0f0d0ded9f772452a5eda7d008ce8e746dfdc061014d"
     },
     {
       "path": "tables/imports.csv",
-      "bytes": 80930,
-      "sha256": "8404a9f38bc402ab8e713f5325a1645ec65140efa10d9ac90cead8c91ce0aadf"
+      "bytes": 80749,
+      "sha256": "70f34cbca77e9bc5f87f6f89ff16b34eefc228ba11609d56c51dbe762747d1eb"
     },
     {
       "path": "tables/services.csv",
@@ -1500,8 +1505,8 @@
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 599520,
-      "sha256": "61c24e71d03aec58ca552a7bf7167a7c83f4b5fad3fcccebb4f34ede7ea6a7b2"
+      "bytes": 600595,
+      "sha256": "06bbb8264d51de43ef2dd3083579063a90c1c0471b2add74ddfe5eb69cd0fdd3"
     },
     {
       "path": "tables/tests.csv",
