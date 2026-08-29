@@ -576,7 +576,11 @@ function validateLimit(value: number, max: number): number {
 }
 
 function normalizeReason(value: string, maxLength: number): string {
-  return normalizeBounded(value, maxLength, 'reason').replace(/\s+/g, ' ')
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (!normalized) throw new Error('reason must not be empty')
+  if (normalized.length > maxLength) throw new Error('reason is too long')
+  if (SECRET_LIKE_REASON.test(normalized)) throw new Error('reason contains sensitive-looking data')
+  return normalized
 }
 
 function normalizeBounded(value: string, maxLength: number, field: string): string {
