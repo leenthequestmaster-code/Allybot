@@ -1,9 +1,8 @@
-import Database from 'better-sqlite3'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
-import { isJid } from '../platform/validation.js'
+import { initSqliteDatabase, sha256, validateJid as validateJidShared, validateGroupJid as validateGroupJidShared, type DatabaseInstance } from '../storage-helpers.js'
 
 export const KNOWLEDGE_FEATURE_ID = 'group.knowledge.core'
 const DEFAULT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
@@ -58,27 +57,28 @@ export interface KnowledgeOptions {
   readonly defaultRetentionMs?: number
 }
 
+const hashIdentifier = (value: string): string => sha256(value, 64)
+const hashReference = (value: string): string => sha256(value, 16)
+
 function validateJid(value: string, field: string): void {
-  if (!isJid(value)) throw new Error(`${field} must be a valid JID`)
+  validateJidShared(value, field)
 }
 
 function validateGroupJid(value: string): void {
-  if (!isJid(value) || !value.endsWith('@g.us')) throw new Error('groupJid must be a valid group JID')
-}
-
-function hashIdentifier(value: string): string {
-  return createHash('sha256').update(value).digest('hex')
-}
-
-function hashReference(value: string): string {
-  return createHash('sha256').update(value).digest('hex').slice(0, 16)
+  try {
+    validateGroupJidShared(value)
+  } catch {
+    throw new Error('groupJid must be a valid group JID')
+  }
 }
 
 function normalizeText(value: string, maxLength: number, field: string): string {
   const normalized = value.trim()
   if (!normalized) throw new Error(`${field} must not be empty`)
   if (normalized.length > maxLength) throw new Error(`${field} is too long`)
-  if (/bearer\s+[A-Za-z0-9._-]+/i.test(normalized) || /BEGIN (?:RSA|OPENSSH|PRIVATE)/i.test(normalized)) throw new Error(`${field} contains sensitive-looking content`)
+  if (/bearer\s+[A-Za-z0-9._-]+/i.test(normalized) || /BEGIN (?:RSA|OPENSSH|PRIVATE)/i.test(normalized)) {
+    throw new Error(`${field} contains sensitive-looking content`)
+  }
   return normalized
 }
 
@@ -121,7 +121,7 @@ export class KnowledgeService implements Service {
   private readonly maxListLimit: number
   private readonly defaultRetentionMs: number
   private readonly logger: Logger
-  private db: Database.Database | undefined
+  private db: DatabaseInstance | undefined
   private guardrails: PlatformGuardrailService | undefined
 
   constructor(databasePath: string, logger: Logger, options: KnowledgeOptions = {}) {
@@ -138,8 +138,7 @@ export class KnowledgeService implements Service {
 
   initialize(context: ServiceContext): void {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
+    this.db = initSqliteDatabase(this.databasePath)
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS knowledge_sources (
         id TEXT PRIMARY KEY,
@@ -328,7 +327,7 @@ export class KnowledgeService implements Service {
     return this.guardrails
   }
 
-  private database(): Database.Database {
+  private database(): DatabaseInstance {
     if (!this.db) throw new Error('KnowledgeService has not been initialized')
     return this.db
   }

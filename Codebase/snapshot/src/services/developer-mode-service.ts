@@ -1,9 +1,7 @@
-import Database from 'better-sqlite3'
-import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
+import { initSqliteDatabase, sha256, type DatabaseInstance } from '../storage-helpers.js'
 
 export type DeveloperModeScope = 'observer' | 'operator'
 export type DeveloperModeAuditOutcome = 'allowed' | 'denied' | 'created' | 'revoked' | 'expired' | 'disabled' | 'enabled'
@@ -99,9 +97,7 @@ function normalizeReason(value: string): string {
   return normalized
 }
 
-function hashJid(jid: string): string {
-  return createHash('sha256').update(jid).digest('hex').slice(0, 16)
-}
+const hashJid = (jid: string): string => sha256(jid, 16)
 
 function mapActivation(row: ActivationRow): DeveloperModeActivation {
   return {
@@ -137,7 +133,7 @@ function scopeAllows(granted: DeveloperModeScope, requested: DeveloperModeScope)
 export class DeveloperModeService implements Service {
   readonly name = 'developer-mode'
 
-  private db: Database.Database | undefined
+  private db: DatabaseInstance | undefined
   private readonly databasePath: string
   private readonly clock: () => number
   private readonly maxActivations: number
@@ -161,14 +157,7 @@ export class DeveloperModeService implements Service {
   }
 
   initialize(_context: ServiceContext): void {
-    if (this.databasePath !== ':memory:') {
-      mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    }
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.logger.info({ component: 'developer-mode' }, 'Developer Mode control plane initialized')
   }
@@ -343,7 +332,7 @@ export class DeveloperModeService implements Service {
   }
 
   private insertAudit(
-    db: Database.Database,
+    db: DatabaseInstance,
     event: string,
     actorJid: string,
     targetJid: string | undefined,
@@ -410,7 +399,7 @@ export class DeveloperModeService implements Service {
     `)
   }
 
-  private database(): Database.Database {
+  private database(): DatabaseInstance {
     if (!this.db?.open) throw new Error('Developer Mode service is not initialized')
     return this.db
   }

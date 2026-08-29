@@ -1,12 +1,9 @@
-import Database from 'better-sqlite3'
-import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { UpstashRedisService } from '../upstash-redis.js'
 import type { Service, ServiceContext } from '../framework/contracts.js'
-import { isJid } from '../platform/validation.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
+import { initSqliteDatabase, sha256, validateJid, validateGroupJid as validateGroupJidCommon, normalizeBoundedText, type DatabaseInstance } from '../storage-helpers.js'
 
 export type GroupSafetyMode = 'off' | 'dry-run'
 export type WarningStatus = 'active' | 'revoked' | 'expired'
@@ -135,7 +132,7 @@ export class GroupSafetyService implements Service {
   private readonly maxReasonLength: number
   private readonly maxListLimit: number
   private readonly logger: Logger
-  private db: Database.Database | undefined
+  private db: DatabaseInstance | undefined
   private guardrails: PlatformGuardrailService | undefined
   private redis: UpstashRedisService | undefined
   private readonly dryRunCaseWindows = new Map<string, number>()
@@ -157,12 +154,7 @@ export class GroupSafetyService implements Service {
     this.redis = typeof context.services.has === 'function' && context.services.has('upstash-redis')
       ? context.services.get<UpstashRedisService>('upstash-redis')
       : undefined
-    if (this.databasePath !== ':memory:') mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.guardrails.registerRateProfile({ id: ANTI_SPAM_PROFILE_ID, maxRequests: 5, windowMs: 10_000 })
     this.logger.info('group safety storage initialized')
@@ -507,7 +499,7 @@ export class GroupSafetyService implements Service {
     return this.database().transaction(operation)()
   }
 
-  private database(): Database.Database {
+  private database(): DatabaseInstance {
     if (!this.db?.open) throw new Error('Group safety service is not initialized')
     return this.db
   }
@@ -563,11 +555,11 @@ function mapAppeal(row: AppealRow): AppealRecord {
 }
 
 function validateGroupJid(value: string): void {
-  if (!isJid(value) || !value.endsWith('@g.us')) throw new Error('Group safety requires a group JID')
-}
-
-function validateJid(value: string, field: string): void {
-  if (!isJid(value)) throw new Error(`${field} must be a valid JID`)
+  try {
+    validateGroupJidCommon(value)
+  } catch {
+    throw new Error('Group safety requires a group JID')
+  }
 }
 
 function validateId(value: string, field: string): void {
@@ -584,20 +576,21 @@ function validateLimit(value: number, max: number): number {
 }
 
 function normalizeReason(value: string, maxLength: number): string {
-  return normalizeBounded(value, maxLength, 'reason').replace(/\s+/g, ' ')
-}
-
-function normalizeBounded(value: string, maxLength: number, field: string): string {
-  const normalized = value.trim()
-  if (!normalized) throw new Error(`${field} must not be empty`)
-  if (normalized.length > maxLength) throw new Error(`${field} is too long`)
-  if (SECRET_LIKE_REASON.test(normalized)) throw new Error(`${field} contains sensitive-looking data`)
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (!normalized) throw new Error('reason must not be empty')
+  if (normalized.length > maxLength) throw new Error('reason is too long')
+  if (SECRET_LIKE_REASON.test(normalized)) throw new Error('reason contains sensitive-looking data')
   return normalized
 }
 
-function hashText(value: string): string {
-  return createHash('sha256').update(value).digest('hex').slice(0, 32)
+function normalizeBounded(value: string, maxLength: number, field: string): string {
+  const result = normalizeBoundedText(value, maxLength)
+  if (!result) throw new Error(`${field} must not be empty`)
+  if (SECRET_LIKE_REASON.test(result)) throw new Error(`${field} contains sensitive-looking data`)
+  return result
 }
+
+const hashText = (value: string): string => sha256(value, 32)
 
 function isCaseStatus(value: string): value is ModerationCaseStatus {
   return ['open', 'claimed', 'resolved', 'dismissed', 'appealed'].includes(value)

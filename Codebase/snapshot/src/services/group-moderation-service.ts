@@ -1,7 +1,4 @@
-import Database from 'better-sqlite3'
-import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type {
   GroupModerationAction,
@@ -13,8 +10,8 @@ import type {
 } from '../framework/contracts.js'
 import { runPlatformOperation, type OperationResult } from '../platform/operations.js'
 import type { PlatformEventSink } from '../platform/contracts.js'
-import { isJid } from '../platform/validation.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
+import { initSqliteDatabase, sha256, validateJid, validateGroupJid as validateGroupJidCommon, type DatabaseInstance } from '../storage-helpers.js'
 
 export type GroupModerationMode = 'dry-run' | 'live'
 export type GroupModerationConfiguredMode = 'off' | GroupModerationMode
@@ -135,7 +132,7 @@ export class GroupModerationService implements Service {
   private readonly maxListLimit: number
   private readonly events?: PlatformEventSink
   private readonly logger: Logger
-  private db: Database.Database | undefined
+  private db: DatabaseInstance | undefined
   private guardrails: PlatformGuardrailService | undefined
   private readonly pending = new Map<string, PendingOperation>()
   private unregisters: Array<() => void> = []
@@ -167,12 +164,7 @@ export class GroupModerationService implements Service {
 
   initialize(context: ServiceContext): void {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
-    if (this.databasePath !== ':memory:') mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.unregisters = [
       this.guardrails.registerPolicy({
@@ -532,7 +524,7 @@ export class GroupModerationService implements Service {
     return this.database().transaction(operation)()
   }
 
-  private database(): Database.Database {
+  private database(): DatabaseInstance {
     if (!this.db?.open) throw new Error('Group moderation service is not initialized')
     return this.db
   }
@@ -584,11 +576,11 @@ function validateRequest(request: GroupModerationActionRequest, maxTargetCount: 
 }
 
 function validateGroupJid(value: string): void {
-  if (!isJid(value) || !value.endsWith('@g.us')) throw new Error('Group moderation requires a group JID')
-}
-
-function validateJid(value: string, field: string): void {
-  if (!isJid(value)) throw new Error(`${field} must be a valid JID`)
+  try {
+    validateGroupJidCommon(value)
+  } catch {
+    throw new Error('Group moderation requires a group JID')
+  }
 }
 
 function validateCorrelationId(value: string): void {
@@ -603,9 +595,7 @@ function isOperationStatus(value: string): value is GroupModerationOperationStat
   return ['planned', 'running', 'dry-run', 'succeeded', 'failed', 'expired'].includes(value)
 }
 
-function hashText(value: string): string {
-  return createHash('sha256').update(value).digest('hex').slice(0, 32)
-}
+const hashText = (value: string): string => sha256(value, 32)
 
 function isAdmin(metadata: { readonly participants: readonly { readonly jid: string; readonly role: string }[] }, jid: string): boolean {
   const bare = jid.split(':')[0]
