@@ -92,6 +92,7 @@ export function createSentryReporter(config: AppConfig, logger: AppLogger): Sent
           scope.setTag('operation', safeOperation)
           scope.setTag('error_class', errorName)
           if (errorCode) scope.setTag('error_code', errorCode)
+          scope.setFingerprint(['allybot-operational-error', safeOperation, errorName, errorCode ?? 'uncoded'])
           Sentry.captureMessage('Allybot operational error', 'error')
         })
       } catch (captureError) {

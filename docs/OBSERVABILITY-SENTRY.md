@@ -26,7 +26,7 @@ SENTRY_TRACES_SAMPLE_RATE=0
 
 ## Data boundary
 
-Reporter hanya mengirim fixed message dan tag ber-batas. Tag yang diperbolehkan adalah operasi, status, error class, dan error code yang telah dibatasi karakter serta panjangnya. SDK dijalankan dengan `sendDefaultPii=false` dan default integrations dinonaktifkan agar tidak menangkap request, breadcrumb, user, atau body secara otomatis.
+Reporter hanya mengirim fixed message dan tag ber-batas. Tag yang diperbolehkan adalah operasi, status, error class, dan error code yang telah dibatasi karakter serta panjangnya. Error event juga memakai fingerprint deterministik berbasis safe operation, error class, dan optional error code agar kegagalan dari operasi berbeda tidak ter-group menjadi satu issue generik. SDK dijalankan dengan `sendDefaultPii=false` dan default integrations dinonaktifkan agar tidak menangkap request, breadcrumb, user, atau body secara otomatis.
 
 Data berikut tidak boleh dikirim ke Sentry:
 
@@ -40,7 +40,7 @@ Data berikut tidak boleh dikirim ke Sentry:
 | Allybot signal | Sentry operation tag | Payload |
 | --- | --- | --- |
 | Framework error | source yang sudah dibatasi | error class dan optional error code |
-| Plugin initialization failure | `plugin:<name>` | error class dan optional error code |
+| Plugin initialization failure | `plugin:<name>` | error class, optional error code, dan fingerprint aman |
 | WhatsApp failed/needs auth | `connection:<status>` | status terbatas |
 | Startup failure | `lifecycle:start` | error class dan optional error code |
 | Shutdown failure | `lifecycle:shutdown` | error class dan optional error code |
