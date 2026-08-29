@@ -17,7 +17,6 @@ src/framework/plugins/announcement.ts,announce,announcement|pengumuman,Explicit-
 src/framework/plugins/group-safety.ts,appeal,,Appeal your own resolved or dismissed case,moderation,public,,296,318
 tests/integration.test.js,bad,,,,public,,87,87
 src/framework/plugins/economy.ts,bank,,Kelola rekening Wallet dan Safe Vela,economy,public,3000,350,357
-tests/menu.test.js,bank,,Manage Vela account,your-character,public,,112,117
 src/framework/plugins/economy.ts,bankpolicy,economypolicy,Aktifkan atau nonaktifkan Economy untuk grup,owner,public,5000,359,379
 src/framework/plugins/economy.ts,bankreward,,Berikan reward Vela kepada anggota,owner,public,5000,381,405
 src/framework/plugins/economy.ts,banksweep,,Proses overage Wallet yang telah jatuh tempo,owner,public,5000,407,426
@@ -58,11 +57,7 @@ src/framework/plugins/collaboration.ts,decision,putuskan,Record an explicit grou
 src/framework/plugins/collaboration.ts,decisions,,List explicit group decisions,tools-media,public,,401,412
 src/framework/plugins/character-guide.ts,deletecharacter,deletechar|offcharacter,Nonaktifkan Character aktif dan mulai ulang,your-character,public,5000,583,611
 src/framework/plugins/developer-mode.ts,dev,debug,Owner-controlled Developer Mode diagnostics,developer,public,1000,96,234
-tests/menu.test.js,developer-help,,Developer command,developer,public,,140,140
-tests/menu.test.js,developer-help,,Developer command,developer,public,,149,149
 src/framework/plugins/diagnostics.ts,diag,,Show a detailed non-sensitive framework diagnostics snapshot,tools-media,public,3000,68,77
-tests/menu.test.js,diagnostics,,Show diagnostics,system,public,,259,264
-tests/menu.test.js,diagnostics,,Show diagnostics,system,public,,375,380
 tests/runtime-acceptance.test.js,echo,e,,general,public,,111,119
 src/framework/plugins/character.ts,emote,aksi,Kirim aksi singkat untuk roleplay sosial,your-character,public,,151,169
 src/framework/plugins/event.ts,event,events|acara,Event Conductor multi-phase,tools-media,public,,98,211
@@ -71,15 +66,12 @@ src/framework/plugins/knowledge.ts,find,cari,Search explicit knowledge visible i
 src/framework/plugins/utility-fun.ts,flip,,Lempar koin,fun,public,,180,187
 src/framework/plugins/knowledge.ts,forget,knowledgeforget,Delete your explicit source record,tools-search,public,,209,227
 src/framework/plugins/personalization.ts,format,,Set personal accessibility format,personalization,public,,263,271
-tests/runtime-acceptance.test.js,gated,,,,public,,268,271
+tests/runtime-acceptance.test.js,gated,,,,public,,257,260
 tests/integration.test.js,good,,,,public,,88,88
 src/framework/plugins/technical.ts,groupid,jid,Show the current WhatsApp group JID for allowlist setup,developer,public,0,164,175
 tests/framework.test.js,groupid,jid,,,public,,168,168
 tests/framework.test.js,groupid,,,,public,,169,169
 src/framework/plugins/group.ts,groupinfo,ginfo,Show group metadata and bot status,group,public,,199,215
-tests/menu.test.js,groupinfo,,Show group information,group,public,,206,212
-tests/menu.test.js,groupinfo,,Show group information,group,public,,253,258
-tests/menu.test.js,groupinfo,,Show group information,group,public,,369,374
 src/framework/plugins/group-moderation.ts,groupmode,,Update guarded group settings,moderation,public,,120,163
 tests/permissions.test.js,groupownerprobe,,,,group.owner,,111,115
 src/framework/plugins/group-setup-mission.ts,groupsetup,setupgroup,Start or resume the persistent group setup mission,group,group.admin,3000,49,97
@@ -98,8 +90,7 @@ src/framework/plugins/canon.ts,lore,,Show approved lore/canon entries,your-chara
 src/framework/plugins/group.ts,membercount,,Show total members and administrators,group,public,,217,228
 src/framework/plugins/group.ts,memberinfo,,Show role information for a mentioned member,group,public,,259,282
 src/framework/plugins/group.ts,members,memberlist,List group members with pagination,group,public,,245,257
-src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,3000,614,623
-src/framework/plugins/menu.ts,menu-reply,,Internal menu reply navigation,system,public,0,625,632
+src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,0,262,271
 src/framework/plugins/group-moderation.ts,modaction,moderate,Run a guarded participant moderation action,moderation,public,,68,118
 src/framework/plugins/group-moderation.ts,modstatus,,Show guarded moderation action status,moderation,public,,165,183
 src/framework/plugins/character.ts,mood,,Atur mood character aktif,your-character,public,,171,199
@@ -111,8 +102,6 @@ src/framework/plugins/onboarding.ts,onboarding,onboard,Bounded group onboarding 
 src/framework/plugins/group-context.ts,ooc,,Kirim pesan di luar karakter pada grup IC,group,public,0,218,277
 tests/framework.test.js,other,jid,,,public,,170,170
 src/framework/plugins/technical.ts,owner,,Show the safe public Owner profile and control-plane status,tools-media,public,3000,127,150
-tests/menu.test.js,owner-help,,Owner command,owner,public,,141,141
-tests/menu.test.js,owner-help,,Owner command,owner,public,,150,150
 tests/permissions.test.js,ownerprobe,,,,bot.owner,,106,110
 tests/framework.test.js,partial-boom,,,,public,,130,130
 tests/framework.test.js,partial-command,,,,public,,260,260
@@ -122,15 +111,6 @@ src/framework/plugins/group.ts,permissions,,Show the basic permissions associate
 src/framework/plugins/personalization.ts,personalization,personal,Show Personalization status and scope,personalization,public,,116,128
 src/framework/plugins/tools-search.ts,pin,pinterest,Cari gambar di Pinterest,tools-search,public,,19,34
 src/framework/plugins/technical.ts,ping,,Check Allybot response latency and uptime,tools-media,public,3000,110,125
-tests/menu.test.js,ping,,Check bot latency,general,public,,71,77
-tests/menu.test.js,ping,,Check bot latency,general,public,,167,173
-tests/menu.test.js,ping,,Check bot latency,general,public,,184,190
-tests/menu.test.js,ping,,Check bot latency,general,public,,199,205
-tests/menu.test.js,ping,,Check bot latency,general,public,,247,252
-tests/menu.test.js,ping,,Check bot latency,general,public,,290,290
-tests/menu.test.js,ping,,Check bot latency,general,public,,306,306
-tests/menu.test.js,ping,,Check bot latency,general,public,,320,325
-tests/menu.test.js,ping,,Check bot latency,general,public,,363,368
 src/framework/plugins/tools-search.ts,pixiv,,Cari ilustrasi di Pixiv,tools-search,public,,36,50
 src/framework/plugins/collaboration.ts,poll,jajak,"Create, inspect, or close a collaboration poll",tools-media,public,,167,232
 src/framework/plugins/personalization.ts,preferences,groupprefs,Set group notification and presentation policy,personalization,public,,172,210
@@ -159,7 +139,6 @@ src/framework/plugins/group-safety.ts,safety,,Show group safety mode,moderation,
 src/framework/plugins/character-guide.ts,savecharacter,savechar,Simpan Character Sheet dari reply ID Card,your-character,public,5000,431,498
 src/framework/plugins/scene.ts,scene,,Manage bounded roleplay scenes,your-character,public,,100,148
 src/framework/plugins/utility.ts,searchcmd,,Cari command berdasarkan kata kunci,tools-media,public,,319,333
-tests/menu.test.js,secret,,Hidden internal command,owner,public,,78,84
 tests/framework.test.js,self-test,,,,public,,191,194
 src/framework/plugins/canon.ts,setcanon,cerita,Enable or disable Canon per group,your-character,public,,151,170
 src/framework/plugins/collaboration.ts,setcollab,collabmode,Enable or disable Collaboration per group,tools-media,public,,125,144
@@ -178,7 +157,7 @@ src/framework/plugins/knowledge.ts,source,sourceinfo,Read one explicit source by
 src/framework/plugins/utility.ts,status,,Lihat status umum Allybot,tools-media,public,,266,282
 tests/runtime-acceptance.test.js,status,,Acceptance status command,general,public,,195,200
 src/framework/plugins/media.ts,sticker,stiker,Ubah gambar menjadi sticker,tools-media,public,,108,116
-tests/runtime-acceptance.test.js,stop-check,,,,public,,241,244
+tests/runtime-acceptance.test.js,stop-check,,,,public,,230,233
 src/framework/plugins/suggestion-relay.ts,suggest,suggestion|usul,Typed suggestion from explicit approved context,tools-ai,public,,66,112
 src/framework/plugins/ai.ts,summarize,ringkas,Ringkas teks yang kamu kirim secara langsung,tools-ai,public,,68,89
 src/framework/plugins/utility.ts,support,,Lihat langkah bantuan saat command bermasalah,tools-media,public,,362,369

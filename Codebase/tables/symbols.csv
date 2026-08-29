@@ -1507,140 +1507,64 @@ src/framework/plugins/media.ts,232,232,VariableDeclaration,{ runFfmpeg },false,l
 src/framework/plugins/media.ts,233,233,VariableDeclaration,data,false,load
 src/framework/plugins/media.ts,247,247,VariableDeclaration,error,false,load
 src/framework/plugins/media.ts,257,257,VariableDeclaration,mediaPlugin,false,
-src/framework/plugins/menu.ts,9,12,TypeAliasDeclaration,MenuCategory,false,
-src/framework/plugins/menu.ts,14,17,TypeAliasDeclaration,CategoryPresentation,false,
-src/framework/plugins/menu.ts,19,19,VariableDeclaration,PAGE_SIZE,false,
-src/framework/plugins/menu.ts,20,20,VariableDeclaration,MAIN_MENU_BUTTON_CATEGORY_COUNT,false,
-src/framework/plugins/menu.ts,21,21,VariableDeclaration,MENU_THUMBNAIL_MIME_TYPE,false,
-src/framework/plugins/menu.ts,22,22,VariableDeclaration,MENU_THUMBNAIL_CAPTION,false,
-src/framework/plugins/menu.ts,23,23,VariableDeclaration,NATIVE_MENU_EXPIRY_MS,false,
-src/framework/plugins/menu.ts,25,25,VariableDeclaration,menuThumbnailPromise,false,
-src/framework/plugins/menu.ts,27,32,FunctionDeclaration,loadMenuThumbnail,false,
+src/framework/plugins/menu.ts,6,9,TypeAliasDeclaration,MenuCategory,false,
+src/framework/plugins/menu.ts,11,14,TypeAliasDeclaration,CategoryPresentation,false,
+src/framework/plugins/menu.ts,16,16,VariableDeclaration,BOT_NAME,false,
+src/framework/plugins/menu.ts,17,17,VariableDeclaration,BOT_VERSION,false,
+src/framework/plugins/menu.ts,18,18,VariableDeclaration,MENU_THUMBNAIL_MIME_TYPE,false,
+src/framework/plugins/menu.ts,19,19,VariableDeclaration,MENU_THUMBNAIL_CAPTION,false,
+src/framework/plugins/menu.ts,20,32,VariableDeclaration,ROADMAP_CATEGORY_NAMES,false,
 src/framework/plugins/menu.ts,34,46,VariableDeclaration,categoryPresentation,false,
-src/framework/plugins/menu.ts,48,63,VariableDeclaration,CATEGORY_ALIASES,false,
-src/framework/plugins/menu.ts,65,77,VariableDeclaration,ROADMAP_CATEGORY_NAMES,false,
-src/framework/plugins/menu.ts,79,83,FunctionDeclaration,normalizeCategory,false,
-src/framework/plugins/menu.ts,80,80,VariableDeclaration,category,false,normalizeCategory
-src/framework/plugins/menu.ts,85,90,FunctionDeclaration,sortCommands,false,
-src/framework/plugins/menu.ts,87,87,VariableDeclaration,orderDifference,false,sortCommands
-src/framework/plugins/menu.ts,92,108,FunctionDeclaration,collectCategories,false,
-src/framework/plugins/menu.ts,93,93,VariableDeclaration,grouped,false,collectCategories
-src/framework/plugins/menu.ts,94,94,VariableDeclaration,command,false,collectCategories
-src/framework/plugins/menu.ts,95,95,VariableDeclaration,category,false,collectCategories
-src/framework/plugins/menu.ts,96,96,VariableDeclaration,existing,false,collectCategories
-src/framework/plugins/menu.ts,101,101,VariableDeclaration,name,false,collectCategories
-src/framework/plugins/menu.ts,110,112,FunctionDeclaration,presentationFor,false,
-src/framework/plugins/menu.ts,114,116,FunctionDeclaration,categoryLabel,false,
-src/framework/plugins/menu.ts,118,125,FunctionDeclaration,formatCommand,false,
-src/framework/plugins/menu.ts,119,121,VariableDeclaration,aliases,false,formatCommand
-src/framework/plugins/menu.ts,122,122,VariableDeclaration,accessMarker,false,formatCommand
-src/framework/plugins/menu.ts,123,123,VariableDeclaration,description,false,formatCommand
-src/framework/plugins/menu.ts,127,161,FunctionDeclaration,renderMainMenu,false,
-src/framework/plugins/menu.ts,128,136,VariableDeclaration,lines,false,renderMainMenu
-src/framework/plugins/menu.ts,141,141,VariableDeclaration,"[index, category]",false,renderMainMenu
-src/framework/plugins/menu.ts,142,142,VariableDeclaration,{ icon },false,renderMainMenu
-src/framework/plugins/menu.ts,143,143,VariableDeclaration,commandCount,false,renderMainMenu
-src/framework/plugins/menu.ts,163,183,FunctionDeclaration,renderCategoryMenu,false,
-src/framework/plugins/menu.ts,164,164,VariableDeclaration,"{ icon, label }",false,renderCategoryMenu
-src/framework/plugins/menu.ts,165,181,VariableDeclaration,lines,false,renderCategoryMenu
-src/framework/plugins/menu.ts,185,188,FunctionDeclaration,parsePage,false,
-src/framework/plugins/menu.ts,190,193,FunctionDeclaration,isMainMenuQuote,false,
-src/framework/plugins/menu.ts,195,198,FunctionDeclaration,prefixFromMenuQuote,false,
-src/framework/plugins/menu.ts,196,196,VariableDeclaration,match,false,prefixFromMenuQuote
-src/framework/plugins/menu.ts,200,206,FunctionDeclaration,resolveCategory,false,
-src/framework/plugins/menu.ts,203,203,VariableDeclaration,normalized,false,resolveCategory
-src/framework/plugins/menu.ts,204,204,VariableDeclaration,canonical,false,resolveCategory
-src/framework/plugins/menu.ts,208,212,FunctionDeclaration,normalizeJid,false,
-src/framework/plugins/menu.ts,210,210,VariableDeclaration,bare,false,normalizeJid
-src/framework/plugins/menu.ts,214,218,FunctionDeclaration,isBotOwner,false,
-src/framework/plugins/menu.ts,215,215,VariableDeclaration,sender,false,isBotOwner
-src/framework/plugins/menu.ts,216,216,VariableDeclaration,owner,false,isBotOwner
-src/framework/plugins/menu.ts,220,231,FunctionDeclaration,canSeePrivilegedCategory,false,
-src/framework/plugins/menu.ts,224,224,VariableDeclaration,sender,false,canSeePrivilegedCategory
-src/framework/plugins/menu.ts,233,235,TypeAliasDeclaration,MainMenuTarget,false,
-src/framework/plugins/menu.ts,237,243,TypeAliasDeclaration,ActiveNativeMenu,false,
-src/framework/plugins/menu.ts,245,250,FunctionDeclaration,mainMenuButtonCategories,false,
-src/framework/plugins/menu.ts,252,265,FunctionDeclaration,mainMenuPage,false,
-src/framework/plugins/menu.ts,257,257,VariableDeclaration,totalPages,false,mainMenuPage
-src/framework/plugins/menu.ts,258,258,VariableDeclaration,page,false,mainMenuPage
-src/framework/plugins/menu.ts,259,259,VariableDeclaration,start,false,mainMenuPage
-src/framework/plugins/menu.ts,267,290,FunctionDeclaration,buildLocationMenuBody,false,
-src/framework/plugins/menu.ts,274,288,VariableDeclaration,lines,false,buildLocationMenuBody
-src/framework/plugins/menu.ts,279,279,VariableDeclaration,{ icon },false,buildLocationMenuBody
-src/framework/plugins/menu.ts,280,282,VariableDeclaration,availability,false,buildLocationMenuBody
-src/framework/plugins/menu.ts,292,313,FunctionDeclaration,createCategoryButtons,false,
-src/framework/plugins/menu.ts,296,296,VariableDeclaration,buttons,false,createCategoryButtons
-src/framework/plugins/menu.ts,298,298,VariableDeclaration,category,false,createCategoryButtons
-src/framework/plugins/menu.ts,299,299,VariableDeclaration,token,false,createCategoryButtons
-src/framework/plugins/menu.ts,300,300,VariableDeclaration,buttonId,false,createCategoryButtons
-src/framework/plugins/menu.ts,301,301,VariableDeclaration,presentation,false,createCategoryButtons
-src/framework/plugins/menu.ts,315,388,FunctionDeclaration,createNavigationButtons,false,
-src/framework/plugins/menu.ts,320,320,VariableDeclaration,buttons,false,createNavigationButtons
-src/framework/plugins/menu.ts,324,324,VariableDeclaration,prevPage,false,createNavigationButtons
-src/framework/plugins/menu.ts,325,325,VariableDeclaration,token,false,createNavigationButtons
-src/framework/plugins/menu.ts,326,326,VariableDeclaration,buttonId,false,createNavigationButtons
-src/framework/plugins/menu.ts,334,334,VariableDeclaration,token,false,createNavigationButtons
-src/framework/plugins/menu.ts,335,335,VariableDeclaration,buttonId,false,createNavigationButtons
-src/framework/plugins/menu.ts,346,346,VariableDeclaration,nextPage,false,createNavigationButtons
-src/framework/plugins/menu.ts,347,347,VariableDeclaration,token,false,createNavigationButtons
-src/framework/plugins/menu.ts,348,348,VariableDeclaration,buttonId,false,createNavigationButtons
-src/framework/plugins/menu.ts,356,356,VariableDeclaration,token,false,createNavigationButtons
-src/framework/plugins/menu.ts,357,357,VariableDeclaration,buttonId,false,createNavigationButtons
-src/framework/plugins/menu.ts,368,368,VariableDeclaration,token,false,createNavigationButtons
-src/framework/plugins/menu.ts,369,369,VariableDeclaration,buttonId,false,createNavigationButtons
-src/framework/plugins/menu.ts,377,377,VariableDeclaration,token,false,createNavigationButtons
-src/framework/plugins/menu.ts,378,378,VariableDeclaration,buttonId,false,createNavigationButtons
-src/framework/plugins/menu.ts,390,677,VariableDeclaration,menuPlugin,false,
-src/framework/plugins/menu.ts,393,676,MethodDeclaration,load,false,
-src/framework/plugins/menu.ts,394,394,VariableDeclaration,textInteraction,false,load
-src/framework/plugins/menu.ts,395,395,VariableDeclaration,buttonInteraction,false,load
-src/framework/plugins/menu.ts,396,396,VariableDeclaration,activeNativeMenus,false,load
-src/framework/plugins/menu.ts,398,576,VariableDeclaration,sendMainMenu,false,load
-src/framework/plugins/menu.ts,404,404,VariableDeclaration,sendNativeQuickReplies,false,load
-src/framework/plugins/menu.ts,405,405,VariableDeclaration,sendMedia,false,load
-src/framework/plugins/menu.ts,406,406,VariableDeclaration,sendLocation,false,load
-src/framework/plugins/menu.ts,407,407,VariableDeclaration,thumbnail,false,load
-src/framework/plugins/menu.ts,409,423,VariableDeclaration,sendThumbnail,false,load
-src/framework/plugins/menu.ts,419,419,VariableDeclaration,error,false,load
-src/framework/plugins/menu.ts,425,425,VariableDeclaration,orderedCategories,false,load
-src/framework/plugins/menu.ts,426,426,VariableDeclaration,"{ page, totalPages, pageCategories }",false,load
-src/framework/plugins/menu.ts,436,436,VariableDeclaration,locationBody,false,load
-src/framework/plugins/menu.ts,458,458,VariableDeclaration,categoryButtons,false,load
-src/framework/plugins/menu.ts,459,459,VariableDeclaration,navButtons,false,load
-src/framework/plugins/menu.ts,460,460,VariableDeclaration,allButtons,false,load
-src/framework/plugins/menu.ts,462,462,VariableDeclaration,targets,false,load
-src/framework/plugins/menu.ts,463,463,VariableDeclaration,"[index, btn]",false,load
-src/framework/plugins/menu.ts,464,464,VariableDeclaration,category,false,load
-src/framework/plugins/menu.ts,467,467,VariableDeclaration,btn,false,load
-src/framework/plugins/menu.ts,469,469,VariableDeclaration,pageMatch,false,load
-src/framework/plugins/menu.ts,471,471,VariableDeclaration,pageValue,false,load
-src/framework/plugins/menu.ts,481,481,VariableDeclaration,expiresAt,false,load
-src/framework/plugins/menu.ts,499,499,VariableDeclaration,oldest,false,load
-src/framework/plugins/menu.ts,506,506,VariableDeclaration,error,false,load
-src/framework/plugins/menu.ts,513,513,VariableDeclaration,categoryButtons,false,load
-src/framework/plugins/menu.ts,514,514,VariableDeclaration,navButtons,false,load
-src/framework/plugins/menu.ts,515,515,VariableDeclaration,allButtons,false,load
-src/framework/plugins/menu.ts,517,517,VariableDeclaration,targets,false,load
-src/framework/plugins/menu.ts,518,518,VariableDeclaration,i,false,load
-src/framework/plugins/menu.ts,519,519,VariableDeclaration,btn,false,load
-src/framework/plugins/menu.ts,520,520,VariableDeclaration,category,false,load
-src/framework/plugins/menu.ts,525,525,VariableDeclaration,btn,false,load
-src/framework/plugins/menu.ts,527,527,VariableDeclaration,pageMatch,false,load
-src/framework/plugins/menu.ts,529,529,VariableDeclaration,pageValue,false,load
-src/framework/plugins/menu.ts,539,539,VariableDeclaration,expiresAt,false,load
-src/framework/plugins/menu.ts,560,560,VariableDeclaration,oldest,false,load
-src/framework/plugins/menu.ts,566,566,VariableDeclaration,error,false,load
-src/framework/plugins/menu.ts,578,612,VariableDeclaration,handleMenu,false,load
-src/framework/plugins/menu.ts,579,581,VariableDeclaration,commands,false,load
-src/framework/plugins/menu.ts,582,583,VariableDeclaration,categories,false,load
-src/framework/plugins/menu.ts,584,584,VariableDeclaration,category,false,load
-src/framework/plugins/menu.ts,585,585,VariableDeclaration,fallbackText,false,load
-src/framework/plugins/menu.ts,637,637,VariableDeclaration,buttonId,false,load
-src/framework/plugins/menu.ts,639,639,VariableDeclaration,activeMenu,false,load
-src/framework/plugins/menu.ts,646,646,VariableDeclaration,target,false,load
-src/framework/plugins/menu.ts,655,657,VariableDeclaration,text,false,load
-src/framework/plugins/menu.ts,666,666,VariableDeclaration,selection,false,load
-src/framework/plugins/menu.ts,669,669,VariableDeclaration,prefix,false,load
+src/framework/plugins/menu.ts,48,60,VariableDeclaration,CATEGORY_ALIASES,false,
+src/framework/plugins/menu.ts,62,62,VariableDeclaration,menuThumbnailPromise,false,
+src/framework/plugins/menu.ts,64,69,FunctionDeclaration,loadMenuThumbnail,false,
+src/framework/plugins/menu.ts,71,75,FunctionDeclaration,normalizeCategory,false,
+src/framework/plugins/menu.ts,72,72,VariableDeclaration,category,false,normalizeCategory
+src/framework/plugins/menu.ts,77,82,FunctionDeclaration,sortCommands,false,
+src/framework/plugins/menu.ts,79,79,VariableDeclaration,orderDifference,false,sortCommands
+src/framework/plugins/menu.ts,84,99,FunctionDeclaration,collectCategories,false,
+src/framework/plugins/menu.ts,85,85,VariableDeclaration,grouped,false,collectCategories
+src/framework/plugins/menu.ts,86,86,VariableDeclaration,command,false,collectCategories
+src/framework/plugins/menu.ts,87,87,VariableDeclaration,name,false,collectCategories
+src/framework/plugins/menu.ts,94,94,VariableDeclaration,leftOrder,false,collectCategories
+src/framework/plugins/menu.ts,95,95,VariableDeclaration,rightOrder,false,collectCategories
+src/framework/plugins/menu.ts,101,103,FunctionDeclaration,presentationFor,false,
+src/framework/plugins/menu.ts,105,107,FunctionDeclaration,categoryLabel,false,
+src/framework/plugins/menu.ts,109,121,FunctionDeclaration,formatUptime,false,
+src/framework/plugins/menu.ts,110,110,VariableDeclaration,totalSeconds,false,formatUptime
+src/framework/plugins/menu.ts,111,111,VariableDeclaration,days,false,formatUptime
+src/framework/plugins/menu.ts,112,112,VariableDeclaration,hours,false,formatUptime
+src/framework/plugins/menu.ts,113,113,VariableDeclaration,minutes,false,formatUptime
+src/framework/plugins/menu.ts,114,114,VariableDeclaration,remainingSeconds,false,formatUptime
+src/framework/plugins/menu.ts,115,115,VariableDeclaration,parts,false,formatUptime
+src/framework/plugins/menu.ts,123,128,FunctionDeclaration,formatOwner,false,
+src/framework/plugins/menu.ts,125,125,VariableDeclaration,phone,false,formatOwner
+src/framework/plugins/menu.ts,130,133,FunctionDeclaration,isSameJid,false,
+src/framework/plugins/menu.ts,135,137,FunctionDeclaration,isBotOwner,false,
+src/framework/plugins/menu.ts,139,153,FunctionDeclaration,canSeePrivilegedCategory,false,
+src/framework/plugins/menu.ts,146,146,VariableDeclaration,sender,false,canSeePrivilegedCategory
+src/framework/plugins/menu.ts,155,161,FunctionDeclaration,formatCommand,false,
+src/framework/plugins/menu.ts,156,158,VariableDeclaration,aliases,false,formatCommand
+src/framework/plugins/menu.ts,159,159,VariableDeclaration,accessMarker,false,formatCommand
+src/framework/plugins/menu.ts,163,172,FunctionDeclaration,renderBotProfile,false,
+src/framework/plugins/menu.ts,174,206,FunctionDeclaration,renderMainMenu,false,
+src/framework/plugins/menu.ts,179,188,VariableDeclaration,lines,false,renderMainMenu
+src/framework/plugins/menu.ts,194,194,VariableDeclaration,{ icon },false,renderMainMenu
+src/framework/plugins/menu.ts,208,211,FunctionDeclaration,resolveCategory,false,
+src/framework/plugins/menu.ts,213,224,FunctionDeclaration,renderCategoryMenu,false,
+src/framework/plugins/menu.ts,214,214,VariableDeclaration,{ icon },false,renderCategoryMenu
+src/framework/plugins/menu.ts,215,220,VariableDeclaration,lines,false,renderCategoryMenu
+src/framework/plugins/menu.ts,226,244,FunctionDeclaration,sendMenu,false,
+src/framework/plugins/menu.ts,227,227,VariableDeclaration,sendMedia,false,sendMenu
+src/framework/plugins/menu.ts,228,228,VariableDeclaration,thumbnail,false,sendMenu
+src/framework/plugins/menu.ts,239,239,VariableDeclaration,error,false,sendMenu
+src/framework/plugins/menu.ts,246,273,VariableDeclaration,menuPlugin,false,
+src/framework/plugins/menu.ts,249,272,MethodDeclaration,load,false,
+src/framework/plugins/menu.ts,250,260,VariableDeclaration,handleMenu,false,load
+src/framework/plugins/menu.ts,251,251,VariableDeclaration,visibleCommands,false,load
+src/framework/plugins/menu.ts,252,252,VariableDeclaration,categories,false,load
+src/framework/plugins/menu.ts,253,253,VariableDeclaration,category,false,load
+src/framework/plugins/menu.ts,254,258,VariableDeclaration,body,false,load
 src/framework/plugins/neon-chat-log.ts,10,10,VariableDeclaration,GROUP_JID_PATTERN,false,
 src/framework/plugins/neon-chat-log.ts,11,11,VariableDeclaration,NEON_CHAT_LOG_SUPPRESSION_FEATURE_ID,false,
 src/framework/plugins/neon-chat-log.ts,12,12,VariableDeclaration,CONTROL_CORRELATION_ID,false,
@@ -5789,52 +5713,35 @@ tests/media-plugin.test.js,174,177,VariableDeclaration,harness,false,
 tests/media-plugin.test.js,176,176,MethodDeclaration,transform,false,
 tests/menu.test.js,9,9,VariableDeclaration,logger,false,
 tests/menu.test.js,10,10,VariableDeclaration,config,false,
-tests/menu.test.js,12,45,FunctionDeclaration,fakeWhatsapp,false,
-tests/menu.test.js,13,26,VariableDeclaration,transport,false,fakeWhatsapp
-tests/menu.test.js,20,20,MethodDeclaration,onMessage,false,fakeWhatsapp
-tests/menu.test.js,21,21,MethodDeclaration,onGroupParticipantUpdate,false,fakeWhatsapp
-tests/menu.test.js,22,22,MethodDeclaration,onConnectionState,false,fakeWhatsapp
-tests/menu.test.js,23,23,MethodDeclaration,sendText,false,fakeWhatsapp
-tests/menu.test.js,24,24,MethodDeclaration,start,false,fakeWhatsapp
-tests/menu.test.js,25,25,MethodDeclaration,close,false,fakeWhatsapp
-tests/menu.test.js,47,56,FunctionDeclaration,message,false,
-tests/menu.test.js,58,65,FunctionDeclaration,createRegistry,false,
-tests/menu.test.js,59,59,VariableDeclaration,events,false,createRegistry
-tests/menu.test.js,60,60,VariableDeclaration,services,false,createRegistry
-tests/menu.test.js,61,61,VariableDeclaration,effectiveConfig,false,createRegistry
-tests/menu.test.js,62,62,VariableDeclaration,registry,false,createRegistry
-tests/menu.test.js,68,68,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,69,69,VariableDeclaration,"{ events, registry }",false,
-tests/menu.test.js,110,110,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,111,111,VariableDeclaration,{ registry },false,
-tests/menu.test.js,138,138,VariableDeclaration,memberWhatsapp,false,
-tests/menu.test.js,139,139,VariableDeclaration,{ registry: memberRegistry },false,
-tests/menu.test.js,147,147,VariableDeclaration,ownerWhatsapp,false,
-tests/menu.test.js,148,148,VariableDeclaration,{ registry: ownerRegistry },false,
-tests/menu.test.js,162,162,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,163,165,VariableDeclaration,{ registry },false,
-tests/menu.test.js,180,180,VariableDeclaration,fallbackWhatsapp,false,
-tests/menu.test.js,181,183,VariableDeclaration,{ registry: fallbackRegistry },false,
-tests/menu.test.js,196,196,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,197,197,VariableDeclaration,"{ events, registry }",false,
-tests/menu.test.js,215,215,VariableDeclaration,mainMenu,false,
-tests/menu.test.js,225,225,VariableDeclaration,sentBeforePlainNumber,false,
-tests/menu.test.js,229,229,VariableDeclaration,submenu,false,
-tests/menu.test.js,244,244,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,245,245,VariableDeclaration,"{ events, registry }",false,
-tests/menu.test.js,277,277,VariableDeclaration,groupButton,false,
-tests/menu.test.js,288,288,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,289,289,VariableDeclaration,{ registry },false,
-tests/menu.test.js,304,304,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,305,305,VariableDeclaration,{ registry },false,
-tests/menu.test.js,317,317,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,318,318,VariableDeclaration,{ registry },false,
-tests/menu.test.js,334,334,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,335,335,VariableDeclaration,{ registry },false,
-tests/menu.test.js,337,337,VariableDeclaration,index,false,
-tests/menu.test.js,360,360,VariableDeclaration,whatsapp,false,
-tests/menu.test.js,361,361,VariableDeclaration,"{ events, registry }",false,
-tests/menu.test.js,398,398,VariableDeclaration,comingSoonButton,false,
+tests/menu.test.js,12,32,FunctionDeclaration,fakeWhatsapp,false,
+tests/menu.test.js,13,24,VariableDeclaration,transport,false,fakeWhatsapp
+tests/menu.test.js,18,18,MethodDeclaration,onMessage,false,fakeWhatsapp
+tests/menu.test.js,19,19,MethodDeclaration,onGroupParticipantUpdate,false,fakeWhatsapp
+tests/menu.test.js,20,20,MethodDeclaration,onConnectionState,false,fakeWhatsapp
+tests/menu.test.js,21,21,MethodDeclaration,sendText,false,fakeWhatsapp
+tests/menu.test.js,22,22,MethodDeclaration,start,false,fakeWhatsapp
+tests/menu.test.js,23,23,MethodDeclaration,close,false,fakeWhatsapp
+tests/menu.test.js,34,36,FunctionDeclaration,message,false,
+tests/menu.test.js,38,45,FunctionDeclaration,createRegistry,false,
+tests/menu.test.js,39,39,VariableDeclaration,events,false,createRegistry
+tests/menu.test.js,40,40,VariableDeclaration,services,false,createRegistry
+tests/menu.test.js,41,41,VariableDeclaration,effectiveConfig,false,createRegistry
+tests/menu.test.js,42,42,VariableDeclaration,registry,false,createRegistry
+tests/menu.test.js,47,49,FunctionDeclaration,registerCommand,false,
+tests/menu.test.js,52,52,VariableDeclaration,whatsapp,false,
+tests/menu.test.js,53,53,VariableDeclaration,{ registry },false,
+tests/menu.test.js,72,72,VariableDeclaration,unavailableWhatsapp,false,
+tests/menu.test.js,73,73,VariableDeclaration,{ registry: unavailableRegistry },false,
+tests/menu.test.js,80,80,VariableDeclaration,failedWhatsapp,false,
+tests/menu.test.js,81,81,VariableDeclaration,{ registry: failedRegistry },false,
+tests/menu.test.js,90,90,VariableDeclaration,whatsapp,false,
+tests/menu.test.js,91,91,VariableDeclaration,{ registry },false,
+tests/menu.test.js,116,116,VariableDeclaration,memberWhatsapp,false,
+tests/menu.test.js,117,117,VariableDeclaration,{ registry: memberRegistry },false,
+tests/menu.test.js,124,124,VariableDeclaration,ownerWhatsapp,false,
+tests/menu.test.js,125,125,VariableDeclaration,{ registry: ownerRegistry },false,
+tests/menu.test.js,136,136,VariableDeclaration,whatsapp,false,
+tests/menu.test.js,137,139,VariableDeclaration,{ registry },false,
 tests/neon-chat-log-control.test.js,12,12,VariableDeclaration,logger,false,
 tests/neon-chat-log-control.test.js,13,13,VariableDeclaration,groupJid,false,
 tests/neon-chat-log-control.test.js,14,14,VariableDeclaration,adminJid,false,
@@ -6925,17 +6832,14 @@ tests/runtime-acceptance.test.js,169,175,MethodDeclaration,load,false,
 tests/runtime-acceptance.test.js,190,190,VariableDeclaration,whatsapp,false,
 tests/runtime-acceptance.test.js,191,191,VariableDeclaration,framework,false,
 tests/runtime-acceptance.test.js,194,201,MethodDeclaration,load,false,
-tests/runtime-acceptance.test.js,210,210,VariableDeclaration,mainPayload,false,
-tests/runtime-acceptance.test.js,215,215,VariableDeclaration,categoryButton,false,
-tests/runtime-acceptance.test.js,222,222,VariableDeclaration,beforeNumeric,false,
-tests/runtime-acceptance.test.js,236,236,VariableDeclaration,whatsapp,false,
-tests/runtime-acceptance.test.js,237,237,VariableDeclaration,framework,false,
-tests/runtime-acceptance.test.js,240,245,MethodDeclaration,load,false,
-tests/runtime-acceptance.test.js,258,258,VariableDeclaration,whatsapp,false,
-tests/runtime-acceptance.test.js,259,259,VariableDeclaration,framework,false,
-tests/runtime-acceptance.test.js,260,260,VariableDeclaration,received,false,
-tests/runtime-acceptance.test.js,261,261,VariableDeclaration,executions,false,
-tests/runtime-acceptance.test.js,265,272,MethodDeclaration,load,false,
+tests/runtime-acceptance.test.js,225,225,VariableDeclaration,whatsapp,false,
+tests/runtime-acceptance.test.js,226,226,VariableDeclaration,framework,false,
+tests/runtime-acceptance.test.js,229,234,MethodDeclaration,load,false,
+tests/runtime-acceptance.test.js,247,247,VariableDeclaration,whatsapp,false,
+tests/runtime-acceptance.test.js,248,248,VariableDeclaration,framework,false,
+tests/runtime-acceptance.test.js,249,249,VariableDeclaration,received,false,
+tests/runtime-acceptance.test.js,250,250,VariableDeclaration,executions,false,
+tests/runtime-acceptance.test.js,254,261,MethodDeclaration,load,false,
 tests/sentry.test.js,7,7,VariableDeclaration,config,false,
 tests/sentry.test.js,8,8,VariableDeclaration,reporter,false,
 tests/sentry.test.js,17,17,VariableDeclaration,exposed,false,

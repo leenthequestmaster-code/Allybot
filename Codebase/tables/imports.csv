@@ -134,13 +134,10 @@ src/framework/plugins/knowledge.ts,src/services/knowledge-service.ts,KnowledgeSe
 src/framework/plugins/media.ts,external:node:crypto,randomInt,3,3
 src/framework/plugins/media.ts,src/framework/contracts.ts,CommandContext|CoreMediaDescriptor|Plugin|WhatsAppMediaSource|type-only,2,2
 src/framework/plugins/media.ts,src/media.ts,FfmpegMediaTransformer|MEDIA_TRANSFORM_HARD_OUTPUT_MAX_BYTES|MEDIA_TRANSFORM_MAX_OUTPUT_BYTES|MediaTransformError|MediaTransformer,1,1
-src/framework/plugins/menu.ts,external:node:crypto,randomUUID,1,1
-src/framework/plugins/menu.ts,external:node:fs/promises,readFile,2,2
-src/framework/plugins/menu.ts,src/framework/command-copy.ts,commandDescription,7,7
-src/framework/plugins/menu.ts,src/framework/contracts.ts,CommandContext|CommandDefinition|Plugin|type-only,5,5
-src/framework/plugins/menu.ts,src/platform/buttons.ts,CapabilityAwareButtonAdapter,3,3
-src/framework/plugins/menu.ts,src/platform/interaction.ts,TextInteractionAdapter,4,4
-src/framework/plugins/menu.ts,src/services/developer-mode-service.ts,DeveloperModeService|type-only,6,6
+src/framework/plugins/menu.ts,external:node:fs/promises,readFile,1,1
+src/framework/plugins/menu.ts,src/framework/command-copy.ts,commandDescription,4,4
+src/framework/plugins/menu.ts,src/framework/contracts.ts,CommandContext|CommandDefinition|Plugin|type-only,2,2
+src/framework/plugins/menu.ts,src/services/developer-mode-service.ts,DeveloperModeService|type-only,3,3
 src/framework/plugins/neon-chat-log.ts,external:pino,Logger|type-only,2,2
 src/framework/plugins/neon-chat-log.ts,src/config.ts,AppConfig|type-only,1,1
 src/framework/plugins/neon-chat-log.ts,src/framework/contracts.ts,CommandContext|Plugin|type-only,3,3

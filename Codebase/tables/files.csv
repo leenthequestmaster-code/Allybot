@@ -138,7 +138,7 @@ src/framework/plugins/group-setup-mission.ts,6267,.ts,source,snapshot/src/framew
 src/framework/plugins/group.ts,23628,.ts,source,snapshot/src/framework/plugins/group.ts
 src/framework/plugins/knowledge.ts,11759,.ts,source,snapshot/src/framework/plugins/knowledge.ts
 src/framework/plugins/media.ts,11461,.ts,source,snapshot/src/framework/plugins/media.ts
-src/framework/plugins/menu.ts,25212,.ts,source,snapshot/src/framework/plugins/menu.ts
+src/framework/plugins/menu.ts,10605,.ts,source,snapshot/src/framework/plugins/menu.ts
 src/framework/plugins/neon-chat-log.ts,4424,.ts,source,snapshot/src/framework/plugins/neon-chat-log.ts
 src/framework/plugins/onboarding.ts,7625,.ts,source,snapshot/src/framework/plugins/onboarding.ts
 src/framework/plugins/personalization.ts,13014,.ts,source,snapshot/src/framework/plugins/personalization.ts
@@ -231,7 +231,7 @@ tests/integration.test.js,12269,.js,test,snapshot/tests/integration.test.js
 tests/logger-privacy.test.js,1517,.js,test,snapshot/tests/logger-privacy.test.js
 tests/maintenance.test.js,2445,.js,test,snapshot/tests/maintenance.test.js
 tests/media-plugin.test.js,7690,.js,test,snapshot/tests/media-plugin.test.js
-tests/menu.test.js,16564,.js,test,snapshot/tests/menu.test.js
+tests/menu.test.js,7287,.js,test,snapshot/tests/menu.test.js
 tests/neon-chat-log-control.test.js,4328,.js,test,snapshot/tests/neon-chat-log-control.test.js
 tests/neon-chat-log-migration.test.js,1089,.js,test,snapshot/tests/neon-chat-log-migration.test.js
 tests/neon-chat-log-plugin.test.js,1203,.js,test,snapshot/tests/neon-chat-log-plugin.test.js
@@ -264,7 +264,7 @@ tests/r8-group-governance.test.js,16337,.js,test,snapshot/tests/r8-group-governa
 tests/r9-event.test.js,17553,.js,test,snapshot/tests/r9-event.test.js
 tests/recovery-rehearsal.test.js,3484,.js,test,snapshot/tests/recovery-rehearsal.test.js
 tests/release-manifest.test.js,1359,.js,test,snapshot/tests/release-manifest.test.js
-tests/runtime-acceptance.test.js,8847,.js,test,snapshot/tests/runtime-acceptance.test.js
+tests/runtime-acceptance.test.js,8280,.js,test,snapshot/tests/runtime-acceptance.test.js
 tests/sentry.test.js,3517,.js,test,snapshot/tests/sentry.test.js
 tests/storage.test.js,2726,.js,test,snapshot/tests/storage.test.js
 tests/supabase-character-migration.test.js,477,.js,test,snapshot/tests/supabase-character-migration.test.js

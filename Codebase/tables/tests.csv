@@ -117,17 +117,11 @@ tests/media-plugin.test.js,sticker transforms a direct image and sends server-se
 tests/media-plugin.test.js,toimg transforms quoted WebP sticker and sends PNG image payload,media-plugin,69
 tests/media-plugin.test.js,togif converts a short video to looping MP4 playback,media-plugin,81
 tests/media-plugin.test.js,toaudio converts quoted video to bounded OGG audio,media-plugin,94
-tests/menu.test.js,menu presents Economy under Your Character and rejects removed categories,menu,109
-tests/menu.test.js,menu hides Developer and Owner categories from members but shows them to the Owner,menu,137
-tests/menu.test.js,menu plugin follows the effective group prefix while retaining global fallback,menu,161
-tests/menu.test.js,replying with a category number navigates only from a quoted main menu,menu,195
-tests/menu.test.js,menu plugin sends location plus native navigation and routes a button callback to the category submenu,menu,243
-tests/menu.test.js,menu plugin sends a local JPEG thumbnail before native quick replies when media is supported,menu,287
-tests/menu.test.js,menu plugin keeps native menu when thumbnail delivery fails,menu,303
-tests/menu.test.js,menu plugin falls back to text when the native button sender fails,menu,316
-tests/menu.test.js,menu plugin renders a complete single-bubble submenu and unknown-category guidance,menu,333
-tests/menu.test.js,main native menu paginates categories with NEXT and keeps Coming Soon text-only,menu,359
-tests/menu.test.js,menu plugin renders the decorative main menu and supports numbered categories,menu,67
+tests/menu.test.js,kategori privileged tidak tampil untuk member dan tampil untuk owner,menu,115
+tests/menu.test.js,menu mengikuti effective prefix tanpa mengandalkan nama kategori,menu,135
+tests/menu.test.js,!menu mengirim satu thumbnail dengan biodata dan deskripsi menu,menu,51
+tests/menu.test.js,!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal,menu,71
+tests/menu.test.js,navigasi kategori hanya menerima angka dan menampilkan submenu yang benar,menu,89
 tests/neon-chat-log-control.test.js,deprecated chatlog state is not exposed after restart,neon-chat-log-control,105
 tests/neon-chat-log-control.test.js,deprecated chatlog command is not registered even when the global flag is enabled,neon-chat-log-control,84
 tests/neon-chat-log-control.test.js,chatlog command remains unavailable when the global Neon chat-log flag is disabled,neon-chat-log-control,96
@@ -319,9 +313,9 @@ tests/release-manifest.test.js,release manifest allows Character verifier and Su
 tests/runtime-acceptance.test.js,runtime acceptance traces inbound message through command handler to response,runtime-acceptance,103
 tests/runtime-acceptance.test.js,"runtime acceptance rejects fromMe, unknown, and invalid commands without handler side effects",runtime-acceptance,134
 tests/runtime-acceptance.test.js,permission denial is enforced before protected handler execution,runtime-acceptance,160
-tests/runtime-acceptance.test.js,menu uses location plus native navigation and keeps submenu text-only with numeric fallback,runtime-acceptance,189
-tests/runtime-acceptance.test.js,framework stop unbinds inbound listeners and prevents post-stop dispatch,runtime-acceptance,235
-tests/runtime-acceptance.test.js,message gate denies before message.received and command dispatch,runtime-acceptance,257
+tests/runtime-acceptance.test.js,menu uses a text fallback with numeric navigation,runtime-acceptance,189
+tests/runtime-acceptance.test.js,framework stop unbinds inbound listeners and prevents post-stop dispatch,runtime-acceptance,224
+tests/runtime-acceptance.test.js,message gate denies before message.received and command dispatch,runtime-acceptance,246
 tests/sentry.test.js,Sentry telemetry requires an HTTPS DSN when enabled,sentry,26
 tests/sentry.test.js,Sentry labels and environment are bounded,sentry,41
 tests/sentry.test.js,Sentry telemetry is disabled and side-effect free by default,sentry,6

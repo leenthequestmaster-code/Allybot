@@ -98,8 +98,6 @@ src/framework/plugins/media.ts,src/framework/contracts.ts,module import,static i
 src/framework/plugins/media.ts,src/media.ts,module import,static import graph,high
 src/framework/plugins/menu.ts,src/framework/command-copy.ts,module import,static import graph,high
 src/framework/plugins/menu.ts,src/framework/contracts.ts,module import,static import graph,high
-src/framework/plugins/menu.ts,src/platform/buttons.ts,module import,static import graph,high
-src/framework/plugins/menu.ts,src/platform/interaction.ts,module import,static import graph,high
 src/framework/plugins/menu.ts,src/services/developer-mode-service.ts,module import,static import graph,high
 src/framework/plugins/neon-chat-log.ts,src/config.ts,module import,static import graph,high
 src/framework/plugins/neon-chat-log.ts,src/framework/contracts.ts,module import,static import graph,high

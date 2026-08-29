@@ -9,31 +9,18 @@ import { menuPlugin } from '../dist/framework/plugins/menu.js'
 const logger = pino({ level: 'silent' })
 const config = { commandPrefix: '!', defaultCooldownMs: 0 }
 
-function fakeWhatsapp({ native = false, nativeFailure = false, media = false, mediaFailure = false, location = false } = {}) {
+function fakeWhatsapp({ media = false, mediaFailure = false } = {}) {
   const transport = {
     isConnected: true,
     userJid: 'bot@s.whatsapp.net',
     sent: [],
-    native: [],
     media: [],
-    locations: [],
     onMessage() { return () => {} },
     onGroupParticipantUpdate() { return () => {} },
     onConnectionState() { return () => {} },
     async sendText(remoteJid, text) { this.sent.push({ remoteJid, text }) },
     async start() {},
     async close() {},
-  }
-  if (native) {
-    transport.sendNativeQuickReplies = async function sendNativeQuickReplies(remoteJid, payload) {
-      this.native.push({ remoteJid, payload })
-      if (nativeFailure) throw new Error('native transport unavailable')
-    }
-  }
-  if (location) {
-    transport.sendLocation = async function sendLocation(remoteJid, payload) {
-      this.locations.push({ remoteJid, payload })
-    }
   }
   if (media) {
     transport.sendMedia = async function sendMedia(remoteJid, payload) {
@@ -45,14 +32,7 @@ function fakeWhatsapp({ native = false, nativeFailure = false, media = false, me
 }
 
 function message(id, remoteJid, text, options = {}) {
-  return {
-    id,
-    remoteJid,
-    text,
-    timestamp: Date.now(),
-    fromMe: false,
-    ...options,
-  }
+  return { id, remoteJid, text, timestamp: Date.now(), fromMe: false, ...options }
 }
 
 function createRegistry(whatsapp, prefixResolver, configOverrides = {}) {
@@ -61,346 +41,108 @@ function createRegistry(whatsapp, prefixResolver, configOverrides = {}) {
   const effectiveConfig = { ...config, ...configOverrides }
   const registry = new CommandRegistry(effectiveConfig, logger, whatsapp, services, events, undefined, [], prefixResolver)
   menuPlugin.load?.({ logger, config: effectiveConfig, events, commands: registry, services })
-  return { events, registry }
+  return { registry }
 }
 
-test('menu plugin renders the decorative main menu and supports numbered categories', async () => {
-  const whatsapp = fakeWhatsapp()
-  const { events, registry } = createRegistry(whatsapp)
+function registerCommand(registry, name, category, description = `${name} description`, options = {}) {
+  registry.register({ name, category, description, handler: async () => {}, ...options })
+}
 
-  registry.register({
-    name: 'ping',
-    description: 'Check bot latency',
-    category: 'general',
-    menuOrder: 1,
-    handler: async () => {},
-  })
-  registry.register({
-    name: 'secret',
-    description: 'Hidden internal command',
-    category: 'owner',
-    hidden: true,
-    handler: async () => {},
-  })
-
-  assert.equal(registry.get('menu')?.name, 'menu')
-  assert.equal(registry.get('m')?.name, 'menu')
-  assert.equal(registry.get('help')?.name, 'menu')
-  assert.equal(registry.get('back'), undefined)
+test('!menu mengirim satu thumbnail dengan biodata dan deskripsi menu', async () => {
+  const whatsapp = fakeWhatsapp({ media: true })
+  const { registry } = createRegistry(whatsapp, undefined, { botOwnerJid: '<jid-redacted@s.whatsapp.net>' })
+  registerCommand(registry, 'ping', 'general', 'Check bot latency')
 
   await registry.dispatch(message('menu-main', 'main@s.whatsapp.net', '!menu'))
-  assert.match(whatsapp.sent[0].text, /Listmenu/)
-  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
-  assert.match(whatsapp.sent[0].text, /!help/)
-  assert.doesNotMatch(whatsapp.sent[0].text, /!secret/)
 
-  await registry.dispatch(message('menu-roadmap', 'roadmap@s.whatsapp.net', '!menu ai'))
-  assert.match(whatsapp.sent[1].text, /TOOLS: AI/)
-  assert.match(whatsapp.sent[1].text, /Coming Soon/)
-
-  await registry.dispatch(message('menu-numbered', 'numbered@s.whatsapp.net', '!menu 3'))
-  assert.match(whatsapp.sent[2].text, /YOUR CHARACTER/)
-  assert.match(whatsapp.sent[2].text, /\*1\.\* !ping/)
-
-  await registry.dispatch(message('menu-main-again', 'back@s.whatsapp.net', '!menu'))
-  assert.match(whatsapp.sent[3].text, /Listmenu/)
+  assert.equal(whatsapp.media.length, 1)
+  assert.equal(whatsapp.sent.length, 0)
+  assert.equal(whatsapp.media[0].payload.kind, 'image')
+  assert.equal(whatsapp.media[0].payload.mimeType, 'image/jpeg')
+  assert.ok(whatsapp.media[0].payload.data.length > 1000)
+  assert.match(whatsapp.media[0].payload.caption, /Nama\s+: \*Allybot\*/)
+  assert.match(whatsapp.media[0].payload.caption, /Uptime\s+: \*\d+[sm]/)
+  assert.match(whatsapp.media[0].payload.caption, /Owner\s+: \*628••••6789\*/)
+  assert.match(whatsapp.media[0].payload.caption, /Versi\s+: \*v0\.1\.0\*/)
+  assert.match(whatsapp.media[0].payload.caption, /Balas dengan \*!menu 1\*/)
+  assert.doesNotMatch(whatsapp.media[0].payload.caption, /DEVELOPER/)
 })
 
-test('menu presents Economy under Your Character and rejects removed categories', async () => {
+test('!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal', async () => {
+  const unavailableWhatsapp = fakeWhatsapp()
+  const { registry: unavailableRegistry } = createRegistry(unavailableWhatsapp)
+  registerCommand(unavailableRegistry, 'ping', 'general')
+  await unavailableRegistry.dispatch(message('text-menu', 'text@s.whatsapp.net', '!menu'))
+  assert.equal(unavailableWhatsapp.sent.length, 1)
+  assert.match(unavailableWhatsapp.sent[0].text, /PROFILE BOT/)
+  assert.match(unavailableWhatsapp.sent[0].text, /Listmenu|ALLYBOT MENU/)
+
+  const failedWhatsapp = fakeWhatsapp({ media: true, mediaFailure: true })
+  const { registry: failedRegistry } = createRegistry(failedWhatsapp)
+  registerCommand(failedRegistry, 'ping', 'general')
+  await failedRegistry.dispatch(message('failed-menu', 'failed@s.whatsapp.net', '!menu'))
+  assert.equal(failedWhatsapp.media.length, 1)
+  assert.equal(failedWhatsapp.sent.length, 1)
+  assert.match(failedWhatsapp.sent[0].text, /ALLYBOT MENU/)
+})
+
+test('navigasi kategori hanya menerima angka dan menampilkan submenu yang benar', async () => {
   const whatsapp = fakeWhatsapp()
   const { registry } = createRegistry(whatsapp)
-  registry.register({
-    name: 'bank',
-    description: 'Manage Vela account',
-    category: 'your-character',
-    handler: async () => {},
-  })
+  registerCommand(registry, 'groupinfo', 'group', 'Show group information')
+  registerCommand(registry, 'ping', 'general', 'Check bot latency')
 
-  await registry.dispatch(message('your-character-submenu', 'character@s.whatsapp.net', '!menu your-character'))
-  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
-  assert.match(whatsapp.sent[0].text, /!bank/)
-  assert.doesNotMatch(whatsapp.sent[0].text, /ROLEPLAY/)
+  await registry.dispatch(message('main', 'numeric@s.whatsapp.net', '!menu'))
+  assert.match(whatsapp.sent[0].text, /\*1\.\* 👥 \*GROUP\*/)
+  assert.match(whatsapp.sent[0].text, /\*2\.\* 🎭 \*YOUR CHARACTER\*/)
 
-  await registry.dispatch(message('removed-collaboration-category', 'removed@s.whatsapp.net', '!menu collaboration'))
-  assert.match(whatsapp.sent[1].text, /tidak ditemukan/)
+  await registry.dispatch(message('group-submenu', 'numeric@s.whatsapp.net', '!menu 1'))
+  assert.match(whatsapp.sent[1].text, /GROUP/)
+  assert.match(whatsapp.sent[1].text, /!groupinfo/)
+  assert.doesNotMatch(whatsapp.sent[1].text, /!ping/)
 
-  await registry.dispatch(message('removed-community-category', 'community@s.whatsapp.net', '!menu community'))
-  assert.match(whatsapp.sent[2].text, /tidak ditemukan/)
+  await registry.dispatch(message('character-submenu', 'numeric@s.whatsapp.net', '!menu 2'))
+  assert.match(whatsapp.sent[2].text, /YOUR CHARACTER/)
+  assert.match(whatsapp.sent[2].text, /!ping/)
 
-  await registry.dispatch(message('removed-events-category', 'events@s.whatsapp.net', '!menu events'))
-  assert.match(whatsapp.sent[3].text, /tidak ditemukan/)
+  await registry.dispatch(message('named-category', 'numeric@s.whatsapp.net', '!menu tools-media'))
+  assert.match(whatsapp.sent[3].text, /Kategori nomor \*tools-media\* tidak ditemukan/)
 
-  await registry.dispatch(message('roleplay-alias', 'alias@s.whatsapp.net', '!menu roleplay'))
-  assert.match(whatsapp.sent[4].text, /YOUR CHARACTER/)
+  await registry.dispatch(message('out-of-range', 'numeric@s.whatsapp.net', '!menu 99'))
+  assert.match(whatsapp.sent[4].text, /Kategori nomor \*99\* tidak ditemukan/)
 })
 
-test('menu hides Developer and Owner categories from members but shows them to the Owner', async () => {
+test('kategori privileged tidak tampil untuk member dan tampil untuk owner', async () => {
   const memberWhatsapp = fakeWhatsapp()
   const { registry: memberRegistry } = createRegistry(memberWhatsapp)
-  memberRegistry.register({ name: 'developer-help', description: 'Developer command', category: 'developer', handler: async () => {} })
-  memberRegistry.register({ name: 'owner-help', description: 'Owner command', category: 'owner', handler: async () => {} })
-
+  registerCommand(memberRegistry, 'developer-help', 'developer')
+  registerCommand(memberRegistry, 'owner-help', 'owner')
   await memberRegistry.dispatch(message('member-menu', 'member@s.whatsapp.net', '!menu'))
   assert.doesNotMatch(memberWhatsapp.sent[0].text, /DEVELOPER/)
   assert.doesNotMatch(memberWhatsapp.sent[0].text, /OWNER/)
 
   const ownerWhatsapp = fakeWhatsapp()
   const { registry: ownerRegistry } = createRegistry(ownerWhatsapp, undefined, { botOwnerJid: 'owner@s.whatsapp.net' })
-  ownerRegistry.register({ name: 'developer-help', description: 'Developer command', category: 'developer', handler: async () => {} })
-  ownerRegistry.register({ name: 'owner-help', description: 'Owner command', category: 'owner', handler: async () => {} })
-
-  await ownerRegistry.dispatch(message('owner-menu', 'owner-chat@s.whatsapp.net', '!menu', { senderJid: 'owner@s.whatsapp.net' }))
+  registerCommand(ownerRegistry, 'developer-help', 'developer')
+  registerCommand(ownerRegistry, 'owner-help', 'owner')
+  await ownerRegistry.dispatch(message('owner-menu', 'owner@s.whatsapp.net', '!menu', { senderJid: 'owner@s.whatsapp.net' }))
   assert.match(ownerWhatsapp.sent[0].text, /DEVELOPER/)
   assert.match(ownerWhatsapp.sent[0].text, /OWNER/)
-  await ownerRegistry.dispatch(message('owner-developer-submenu', 'owner-dev-chat@s.whatsapp.net', '!menu developer', { senderJid: 'owner@s.whatsapp.net:1' }))
-  await ownerRegistry.dispatch(message('owner-owner-submenu', 'owner-owner-chat@s.whatsapp.net', '!menu owner', { senderJid: 'owner@s.whatsapp.net:2' }))
-  assert.match(ownerWhatsapp.sent[1].text, /!developer-help/)
-  assert.match(ownerWhatsapp.sent[2].text, /!owner-help/)
+  await ownerRegistry.dispatch(message('owner-developer', 'owner@s.whatsapp.net', '!menu 1', { senderJid: 'owner@s.whatsapp.net' }))
+  assert.match(ownerWhatsapp.sent[1].text, /DEVELOPER/)
 })
 
-test('menu plugin follows the effective group prefix while retaining global fallback', async () => {
+test('menu mengikuti effective prefix tanpa mengandalkan nama kategori', async () => {
   const whatsapp = fakeWhatsapp()
   const { registry } = createRegistry(whatsapp, (incomingMessage, _services, fallback) => (
     incomingMessage.remoteJid.endsWith('@g.us') ? '##' : fallback
   ))
-
-  registry.register({
-    name: 'ping',
-    description: 'Check bot latency',
-    category: 'general',
-    menuOrder: 1,
-    handler: async () => {},
-  })
+  registerCommand(registry, 'ping', 'general')
 
   await registry.dispatch(message('custom-menu', 'group@g.us', '##menu'))
-  assert.match(whatsapp.sent[0].text, /##help/)
-  assert.match(whatsapp.sent[0].text, /##menu <angka>/)
-  assert.doesNotMatch(whatsapp.sent[0].text, /!help/)
+  assert.match(whatsapp.sent[0].text, /\*##menu 1\*/)
+  assert.match(whatsapp.sent[0].text, /\*##menu\*/)
 
-  const fallbackWhatsapp = fakeWhatsapp()
-  const { registry: fallbackRegistry } = createRegistry(fallbackWhatsapp, (incomingMessage, _services, fallback) => (
-    incomingMessage.remoteJid.endsWith('@g.us') ? '##' : fallback
-  ))
-  fallbackRegistry.register({
-    name: 'ping',
-    description: 'Check bot latency',
-    category: 'general',
-    menuOrder: 1,
-    handler: async () => {},
-  })
-  await fallbackRegistry.dispatch(message('fallback-menu', 'group@g.us', '!menu'))
-  assert.match(fallbackWhatsapp.sent[0].text, /##help/)
-})
-
-test('replying with a category number navigates only from a quoted main menu', async () => {
-  const whatsapp = fakeWhatsapp()
-  const { events, registry } = createRegistry(whatsapp)
-
-  registry.register({
-    name: 'ping',
-    description: 'Check bot latency',
-    category: 'general',
-    menuOrder: 1,
-    handler: async () => {},
-  })
-  registry.register({
-    name: 'groupinfo',
-    description: 'Show group information',
-    category: 'group',
-    menuOrder: 1,
-    handler: async () => {},
-  })
-
-  await registry.dispatch(message('reply-menu-main', 'reply@s.whatsapp.net', '!menu'))
-  const mainMenu = whatsapp.sent[0].text
-  assert.match(mainMenu, /Atau balas pesan menu ini dengan angka kategorinya/)
-
-  await events.emit('message.received', message('reply-menu-number', 'reply@s.whatsapp.net', '1', {
-    quotedText: mainMenu,
-    quotedSenderJid: 'bot@s.whatsapp.net',
-  }))
-  assert.match(whatsapp.sent[1].text, /GROUP/)
-  assert.match(whatsapp.sent[1].text, /!groupinfo/)
-
-  const sentBeforePlainNumber = whatsapp.sent.length
-  await events.emit('message.received', message('plain-number', 'reply@s.whatsapp.net', '2'))
-  assert.equal(whatsapp.sent.length, sentBeforePlainNumber)
-
-  const submenu = whatsapp.sent[1].text
-  await events.emit('message.received', message('submenu-number', 'reply@s.whatsapp.net', '1', {
-    quotedText: submenu,
-    quotedSenderJid: 'bot@s.whatsapp.net',
-  }))
-  assert.equal(whatsapp.sent.length, sentBeforePlainNumber)
-
-  await events.emit('message.received', message('out-of-range-number', 'reply@s.whatsapp.net', '99', {
-    quotedText: mainMenu,
-    quotedSenderJid: 'bot@s.whatsapp.net',
-  }))
-  assert.match(whatsapp.sent[2].text, /tidak ditemukan/)
-})
-
-test('menu plugin sends location plus native navigation and routes a button callback to the category submenu', async () => {
-  const whatsapp = fakeWhatsapp({ native: true, location: true })
-  const { events, registry } = createRegistry(whatsapp)
-
-  registry.register({
-    name: 'ping',
-    description: 'Check bot latency',
-    category: 'general',
-    handler: async () => {},
-  })
-  registry.register({
-    name: 'groupinfo',
-    description: 'Show group information',
-    category: 'group',
-    handler: async () => {},
-  })
-  registry.register({
-    name: 'diagnostics',
-    description: 'Show diagnostics',
-    category: 'system',
-    handler: async () => {},
-  })
-
-  await registry.dispatch(message('button-menu-main', 'button@s.whatsapp.net', '!menu'))
-  assert.equal(whatsapp.sent.length, 0)
-  assert.equal(whatsapp.locations.length, 1)
-  assert.equal(whatsapp.native.length, 1)
-  assert.equal(whatsapp.native[0].payload.type, 'native_quick_reply')
-  assert.equal(whatsapp.native[0].payload.buttons.length, 5)
-  assert.match(whatsapp.locations[0].payload.address, /Listmenu/)
-  assert.match(whatsapp.locations[0].payload.address, /GROUP/)
-  assert.match(whatsapp.locations[0].payload.address, /Tekan tombol untuk membuka submenu kategori/)
-  assert.match(whatsapp.native[0].payload.footer, /!menu <angka>/)
-
-  const groupButton = whatsapp.native[0].payload.buttons.find((button) => button.title.includes('GROUP'))
-  assert.ok(groupButton)
-  await events.emit('message.received', message('button-group-selection', 'button@s.whatsapp.net', undefined, {
-    buttonId: groupButton.id,
-  }))
-  assert.equal(whatsapp.native.length, 1)
-  assert.match(whatsapp.sent[0].text, /GROUP/)
-  assert.match(whatsapp.sent[0].text, /!groupinfo/)
-})
-
-test('menu plugin sends a local JPEG thumbnail before native quick replies when media is supported', async () => {
-  const whatsapp = fakeWhatsapp({ native: true, media: true })
-  const { registry } = createRegistry(whatsapp)
-  registry.register({ name: 'ping', description: 'Check bot latency', category: 'general', handler: async () => {} })
-
-  await registry.dispatch(message('thumbnail-menu', 'thumbnail@s.whatsapp.net', '!menu'))
-
-  assert.equal(whatsapp.media.length, 1)
-  assert.equal(whatsapp.media[0].payload.kind, 'image')
-  assert.equal(whatsapp.media[0].payload.mimeType, 'image/jpeg')
-  assert.ok(whatsapp.media[0].payload.data.length > 1000)
-  assert.match(whatsapp.media[0].payload.caption, /Allybot's Menu/)
-  assert.equal(whatsapp.native.length, 1)
-  assert.match(whatsapp.native[0].payload.body, /Listmenu/)
-})
-
-test('menu plugin keeps native menu when thumbnail delivery fails', async () => {
-  const whatsapp = fakeWhatsapp({ native: true, media: true, mediaFailure: true })
-  const { registry } = createRegistry(whatsapp)
-  registry.register({ name: 'ping', description: 'Check bot latency', category: 'general', handler: async () => {} })
-
-  await registry.dispatch(message('thumbnail-failure-menu', 'thumbnail-failure@s.whatsapp.net', '!menu'))
-
-  assert.equal(whatsapp.media.length, 1)
-  assert.equal(whatsapp.native.length, 1)
-  assert.equal(whatsapp.sent.length, 0)
-  assert.match(whatsapp.native[0].payload.body, /Listmenu/)
-})
-
-test('menu plugin falls back to text when the native button sender fails', async () => {
-  const whatsapp = fakeWhatsapp({ native: true, nativeFailure: true })
-  const { registry } = createRegistry(whatsapp)
-
-  registry.register({
-    name: 'ping',
-    description: 'Check bot latency',
-    category: 'general',
-    handler: async () => {},
-  })
-
-  await registry.dispatch(message('button-fallback', 'fallback@s.whatsapp.net', '!menu'))
-  assert.equal(whatsapp.native.length, 1)
-  assert.equal(whatsapp.sent.length, 1)
-  assert.match(whatsapp.sent[0].text, /Listmenu/)
-})
-
-test('menu plugin renders a complete single-bubble submenu and unknown-category guidance', async () => {
-  const whatsapp = fakeWhatsapp()
-  const { registry } = createRegistry(whatsapp)
-
-  for (let index = 1; index <= 10; index += 1) {
-    registry.register({
-      name: `tool${index}`,
-      description: `Tool command ${index}`,
-      category: 'tools-media',
-      handler: async () => {},
-    })
-  }
-
-  await registry.dispatch(message('menu-page', 'page@s.whatsapp.net', '!menu tools-media'))
-  assert.match(whatsapp.sent[0].text, /TOOLS: MEDIA/)
-  assert.doesNotMatch(whatsapp.sent[0].text, /Halaman 2\/2/)
-  assert.match(whatsapp.sent[0].text, /\*9\.\* !tool9/)
-  assert.match(whatsapp.sent[0].text, /\*1\.\* !tool1/)
-  assert.match(whatsapp.sent[0].text, /!menu/)
-  assert.doesNotMatch(whatsapp.sent[0].text, /!back/)
-
-  await registry.dispatch(message('menu-unknown', 'unknown@s.whatsapp.net', '!m missing'))
-  assert.match(whatsapp.sent[1].text, /tidak ditemukan/)
-  assert.match(whatsapp.sent[1].text, /!menu/)
-})
-
-test('main native menu paginates categories with NEXT and keeps Coming Soon text-only', async () => {
-  const whatsapp = fakeWhatsapp({ native: true })
-  const { events, registry } = createRegistry(whatsapp)
-
-  registry.register({
-    name: 'ping',
-    description: 'Check bot latency',
-    category: 'general',
-    handler: async () => {},
-  })
-  registry.register({
-    name: 'groupinfo',
-    description: 'Show group information',
-    category: 'group',
-    handler: async () => {},
-  })
-  registry.register({
-    name: 'diagnostics',
-    description: 'Show diagnostics',
-    category: 'system',
-    handler: async () => {},
-  })
-
-  await registry.dispatch(message('paged-menu-main', 'paged@s.whatsapp.net', '!menu'))
-  assert.equal(whatsapp.native[0].payload.buttons.length, 5)
-  assert.equal(whatsapp.native[0].payload.buttons[3].title, 'NEXT')
-
-  await events.emit('message.received', message('paged-menu-next', 'paged@s.whatsapp.net', undefined, {
-    buttonId: whatsapp.native[0].payload.buttons[3].id,
-  }))
-  assert.equal(whatsapp.native.length, 2)
-  assert.equal(whatsapp.sent.length, 0)
-  assert.equal(whatsapp.native[1].payload.buttons.length, 5)
-  assert.match(whatsapp.native[1].payload.body, /Halaman 2\/5/)
-  assert.match(whatsapp.native[1].payload.body, /MODERATION/)
-  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('TOOLS')))
-  assert.ok(whatsapp.native[1].payload.buttons.some((button) => button.title.includes('MODERATION')))
-  assert.equal(whatsapp.native[1].payload.buttons[3].title, 'NEXT')
-
-  const comingSoonButton = whatsapp.native[1].payload.buttons.find((button) => button.title.includes('MODERATION'))
-  assert.ok(comingSoonButton)
-  await events.emit('message.received', message('paged-coming-soon', 'paged@s.whatsapp.net', undefined, {
-    buttonId: comingSoonButton.id,
-  }))
-  assert.equal(whatsapp.native.length, 2)
-  assert.equal(whatsapp.sent.length, 1)
-  assert.match(whatsapp.sent[0].text, /Coming Soon/)
+  await registry.dispatch(message('custom-submenu', 'group@g.us', '##menu 1'))
+  assert.match(whatsapp.sent[1].text, /##ping/)
 })

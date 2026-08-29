@@ -18,7 +18,7 @@ tests/runtime-acceptance.test.js,plugin,"{
 tests/runtime-acceptance.test.js,plugin,"{
     name: 'acceptance-message-gate',
     load(context) {
-      context.messageGates.register('deny-acceptance-message'",263,273,"{
+      context.messageGates.register('deny-acceptance-message'",252,262,"{
     name: 'acceptance-message-gate',
     load(context) {
       context.messageGates.register('deny-acceptance-message', () => ({ allowed: false, reason: 'test-denied' }))
@@ -83,7 +83,7 @@ tests/runtime-acceptance.test.js,plugin,"{
     load(context) {
       context.commands.register({
         name: 'stop-check',
-       ",238,246,"{
+       ",227,235,"{
     name: 'acceptance-stop',
     load(context) {
       context.commands.register({

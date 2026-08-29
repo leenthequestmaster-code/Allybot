@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "b201c246b682667b5a02d0b4d062b75bc382e68a",
-  "generatedAt": "2026-08-29T01:54:31Z",
+  "commitSha": "4ac3a4b986065fa1bac5624347ed66cb8544c150",
+  "generatedAt": "2026-08-29T02:27:29Z",
   "sourceFileCount": 279,
   "counts": {
     "files": 279,
-    "symbols": 7155,
-    "imports": 925,
-    "calls": 15880,
-    "commands": 207,
+    "symbols": 7059,
+    "imports": 922,
+    "calls": 15644,
+    "commands": 186,
     "services": 118,
     "config": 57,
     "featureFlags": 14,
     "dependencies": 15,
-    "tests": 375,
-    "dataFlow": 416
+    "tests": 369,
+    "dataFlow": 414
   },
   "excluded": [
     ".env",
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "3d415a1d89dbddcc5922b450b6791783539efb407ec81a5433e51e2001428d30"
+      "sha256": "c82141fc54daeaae09440ac5f7a893948741ba43e6bed96a08733a59495e8d90"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "3999355fceec527beed83a44d78a2d7976e3e13e35abbff7aac9d2233708afa2"
+      "sha256": "43eedddabf8a2c92adc0f758046ed26c276edddaeef2176632d2395db55e99aa"
     },
     {
       "path": "snapshot/.env.example",
@@ -760,8 +760,8 @@
     },
     {
       "path": "snapshot/src/framework/plugins/menu.ts",
-      "bytes": 25213,
-      "sha256": "739168dd704568c9588345867acebd41ea965c7503bf91fdede17c29eeb2c98a"
+      "bytes": 10605,
+      "sha256": "7179659b51e1b9ac4f8d8cebc6b19be9313e8c904c31affaf8c62fadc21fe58b"
     },
     {
       "path": "snapshot/src/framework/plugins/neon-chat-log.ts",
@@ -1225,8 +1225,8 @@
     },
     {
       "path": "snapshot/tests/menu.test.js",
-      "bytes": 16564,
-      "sha256": "55cd8a56fa433ea226c4cda26c94b95a75fcd82dea0dd3b2d1f64fbdae945843"
+      "bytes": 7289,
+      "sha256": "b6831db3cc390178bcd7675bcac8c58384cf5298c86890170d63cc8c37a1bde1"
     },
     {
       "path": "snapshot/tests/neon-chat-log-control.test.js",
@@ -1390,8 +1390,8 @@
     },
     {
       "path": "snapshot/tests/runtime-acceptance.test.js",
-      "bytes": 8847,
-      "sha256": "ffaaf05ee5aefacdf82ce7a319be36dd39a7c863f7e84c2e58805e0ef8035a90"
+      "bytes": 8280,
+      "sha256": "82d9a00c36cf3a80b410f7d930a84133c3077518794fd939383068aec31c3313"
     },
     {
       "path": "snapshot/tests/sentry.test.js",
@@ -1460,13 +1460,13 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 2062991,
-      "sha256": "3c1e66db19d99629217566d56ea6925766f249964ea043f8ed41b34fbe39464a"
+      "bytes": 2039424,
+      "sha256": "edcd068093ec3104eee133b30d7122e9b79c21de5d00a6929db17d6255834ca4"
     },
     {
       "path": "tables/commands.csv",
-      "bytes": 20812,
-      "sha256": "05083433bcb4e39fd6c0a36c743f2d9f10b4bf0c99cdc1a77a15b0f43e4f62ee"
+      "bytes": 19303,
+      "sha256": "438768533a2442f67860d0e9f2b7b0e7effdf6f849469c9cfa0bd946fb832ded"
     },
     {
       "path": "tables/config-catalog.csv",
@@ -1475,8 +1475,8 @@
     },
     {
       "path": "tables/data-flow.csv",
-      "bytes": 41239,
-      "sha256": "5e769c2147e8ac4473295223fa601e75a998d1d6b779ab0e0a7d369c44a256ad"
+      "bytes": 41049,
+      "sha256": "a68b9b5fa1376931105743652ae25e1d40b05a927fee41543abbd4795c467b04"
     },
     {
       "path": "tables/dependencies.csv",
@@ -1490,28 +1490,28 @@
     },
     {
       "path": "tables/files.csv",
-      "bytes": 24802,
-      "sha256": "d7c4135918f9a4ae9aae0f0d0ded9f772452a5eda7d008ce8e746dfdc061014d"
+      "bytes": 24801,
+      "sha256": "7d486fffb084de46f05af09b4e6773f3cee215df5960f3118c6e2a207df899d3"
     },
     {
       "path": "tables/imports.csv",
-      "bytes": 80749,
-      "sha256": "70f34cbca77e9bc5f87f6f89ff16b34eefc228ba11609d56c51dbe762747d1eb"
+      "bytes": 80511,
+      "sha256": "ae2d6851a78ce2bb32f3b44ca95d3f65cecb08e23f48930da8b808005fb838ae"
     },
     {
       "path": "tables/services.csv",
       "bytes": 14012,
-      "sha256": "d5a7acfddcdbe92872f2553e2b2b09fada51a4de7da97f9586a832fbcf7dcce0"
+      "sha256": "50fd45f97784abbb83dea472ab346483c27cd566a3fab224f6612ea13f0089c2"
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 600595,
-      "sha256": "06bbb8264d51de43ef2dd3083579063a90c1c0471b2add74ddfe5eb69cd0fdd3"
+      "bytes": 592647,
+      "sha256": "0faf0ceda29c1bb1f32c092dac35d65cf331b83831d7b02b7d6414a233323cff"
     },
     {
       "path": "tables/tests.csv",
-      "bytes": 44177,
-      "sha256": "5865d363beddd4c50267bcb59ad825ebe410a7e59dab49bfc5672c31237d5560"
+      "bytes": 43441,
+      "sha256": "f5f6c33276dda0dacb9d35590a3a5c816711a2c4bc199d4509cc7e6c7e23e3aa"
     }
   ]
 }
