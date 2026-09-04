@@ -8,7 +8,7 @@ import type {
 } from '../../services/afk-service.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
 import { AfkService } from '../../services/afk-service.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 
 const DEFAULT_REASON = 'Tidak ada alasan.'
 

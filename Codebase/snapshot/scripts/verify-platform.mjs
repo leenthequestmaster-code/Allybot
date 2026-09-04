@@ -4,8 +4,8 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const sourceDir = join(root, 'src', 'platform')
-const distDir = join(root, 'dist', 'platform')
+const sourceDir = join(root, 'src', 'framework')
+const distDir = join(root, 'dist', 'framework')
 
 for (const file of readdirSync(sourceDir).filter((name) => name.endsWith('.ts'))) {
   const distFile = join(distDir, file.replace(/\.ts$/, '.js'))

@@ -4,7 +4,7 @@ import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
-import { isJid, isSafeIdentifier } from '../platform/validation.js'
+import { isJid, isSafeIdentifier } from '../framework/validation.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 
 export const SCENE_FEATURE_ID = 'group.scene.core'

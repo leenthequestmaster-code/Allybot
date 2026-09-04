@@ -10,10 +10,10 @@ import {
   GROUP_SETUP_MISSION_ID,
   createGroupSetupMissionDefinition,
   type GroupSetupDraft,
-} from '../../platform/group-setup.js'
-import { MissionEngine, SqliteMissionStore } from '../../platform/mission.js'
+} from '../group-setup.js'
+import { MissionEngine, SqliteMissionStore } from '../mission.js'
 import type { GroupConfigurationService } from '../../services/group-configuration-service.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 
 const INITIAL_PROMPT = 'Group Setup Mission dimulai. Kirim aturan grup, atau ketik `skip` untuk melewati.'
 

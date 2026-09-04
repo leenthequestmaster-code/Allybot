@@ -16,7 +16,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import qrcode from 'qrcode-terminal'
 import type { AppConfig } from './config.js'
-import type { NativeQuickReplyPayload, NativeQuickReplyTransport } from './platform/buttons.js'
+import type { NativeQuickReplyPayload, NativeQuickReplyTransport } from './framework/buttons.js'
 import type {
   CoreConnectionState,
   CoreConnectionStatus,
@@ -40,8 +40,8 @@ import type {
 import { AllybotError, errorMessage, statusCodeFromError } from './errors.js'
 import type { AppLogger } from './logger.js'
 import { SqliteStorage } from './storage.js'
-import type { UpstashRedisService } from './upstash-redis.js'
-import { isGroupJid } from './platform/validation.js'
+import type { RedisService } from './redis.js'
+import { isGroupJid } from './framework/validation.js'
 
 function extractMessageText(message: WAMessage['message'] | null | undefined): string | undefined {
   const text = (
@@ -248,7 +248,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     private readonly config: AppConfig,
     private readonly storage: SqliteStorage,
     private readonly logger: AppLogger,
-    private readonly redis?: UpstashRedisService,
+    private readonly redis?: RedisService,
   ) {
     this.retryCounterCache = new NodeCache({ stdTTL: 300, useClones: false }) as unknown as CacheStore
   }

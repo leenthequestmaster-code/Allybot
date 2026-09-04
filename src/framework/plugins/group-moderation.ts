@@ -8,7 +8,7 @@ import type {
   WhatsAppPort,
 } from '../contracts.js'
 import { GroupModerationService } from '../../services/group-moderation-service.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 
 const ACTIONS: readonly GroupModerationAction[] = ['add', 'remove', 'promote', 'demote']
 const SETTINGS: readonly GroupSettingValue[] = ['announcement', 'not_announcement', 'locked', 'unlocked']

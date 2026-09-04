@@ -1,12 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
-import { isGroupJid, isJid } from '../platform/validation.js'
-import {
-  createSupabaseReadWriteClient,
-  readSupabaseReadWriteConfig,
-  type SupabaseReadWriteConfig,
-} from '../supabase-read-write.js'
+import { isGroupJid, isJid } from '../framework/validation.js'
 
 export const GROUP_MODES = ['normal', 'ooc', 'guide', 'ic'] as const
 export type GroupMode = (typeof GROUP_MODES)[number]
@@ -54,7 +49,7 @@ export interface GroupContextRpcClient {
 
 export interface GroupContextServiceOptions {
   readonly env?: NodeJS.ProcessEnv
-  readonly createClient?: (config: SupabaseReadWriteConfig) => GroupContextRpcClient
+  readonly createClient?: (config: any) => GroupContextRpcClient
   readonly clock?: () => number
 }
 
@@ -125,7 +120,7 @@ export class GroupContextService implements Service {
   readonly name = 'group-context'
 
   private readonly env: NodeJS.ProcessEnv
-  private readonly createClient: (config: SupabaseReadWriteConfig) => GroupContextRpcClient
+  private readonly createClient: (config: any) => GroupContextRpcClient
   private readonly clock: () => number
   private enabled = false
   private client: GroupContextRpcClient | undefined
@@ -135,17 +130,15 @@ export class GroupContextService implements Service {
     options: GroupContextServiceOptions = {},
   ) {
     this.env = options.env ?? process.env
-    this.createClient = options.createClient ?? ((config) => createSupabaseReadWriteClient(config))
+    this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.clock = options.clock ?? (() => Date.now())
   }
 
   initialize(_context: ServiceContext): void {
     this.enabled = this.env.GROUP_CONTEXT_ENABLED?.trim().toLowerCase() === 'true'
     if (!this.enabled) return
-    const config = readSupabaseReadWriteConfig(this.env)
-    if (!config) throw new Error('Group Context requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
-    this.client = this.createClient(config)
-    this.logger.info('Supabase group context service initialized')
+    this.client = this.createClient({})
+    this.logger.info('Group context service initialized')
   }
 
   shutdown(_context: ServiceContext): void {

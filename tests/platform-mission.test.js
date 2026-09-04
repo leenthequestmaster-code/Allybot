@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
-import { InMemoryMissionStore, MissionEngine, SqliteMissionStore } from '../dist/platform/index.js'
+import { InMemoryMissionStore, MissionEngine, SqliteMissionStore } from '../dist/framework/index.js'
 
 const definition = {
   id: 'test-mission',

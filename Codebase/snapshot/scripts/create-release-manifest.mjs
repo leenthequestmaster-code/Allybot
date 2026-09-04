@@ -13,21 +13,13 @@ const forbiddenPath = /(^|\/)(?:\.env|.*\.(?:sqlite|db|pem|key)|creds\.json|cred
 const allowedPath = (path) => path === 'package.json'
   || path === 'package-lock.json'
   || path === 'bash-exec-list.txt'
-  || path === 'scripts/verify-postgres.mjs'
-  || path === 'scripts/verify-supabase-access.mjs'
-  || path === 'scripts/verify-neon.mjs'
-  || path === 'scripts/monitor-postgres.mjs'
-  || path === 'scripts/verify-neon-chat-log-migration.mjs'
-  || path === 'scripts/verify-upstash-redis.mjs'
-  || path === 'scripts/verify-supabase-economy-migration.mjs'
-  || path === 'scripts/verify-supabase-character-migration.mjs'
-  || path.startsWith('migrations/neon/')
-  || path.startsWith('migrations/supabase/')
+  || path === 'scripts/verify-platform.mjs'
+  || path === 'scripts/generate-codebase-export.mjs'
   || path === 'Codebase/allybot-codebase-latest.zip'
   || path.startsWith('dist/')
-  || path.startsWith('node_modules/postgres/')
+  || path.startsWith('node_modules/mongodb/')
+  || path.startsWith('node_modules/ioredis/')
   || path.startsWith('node_modules/dotenv/')
-  || path.startsWith('node_modules/@supabase/')
   || path.startsWith('node_modules/@upstash/')
   || path.startsWith('node_modules/buffer/')
   || path.startsWith('node_modules/ws/')

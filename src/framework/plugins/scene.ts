@@ -1,6 +1,6 @@
 import type { CommandContext, CoreMessage, Plugin, ServiceRegistryLike, WhatsAppPort } from '../../framework/contracts.js'
 import { permissionNames } from '../../permissions.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 import {
   SceneService,
   type SceneConsentRecord,

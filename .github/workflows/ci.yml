@@ -56,15 +56,6 @@ jobs:
       - name: Verify platform source-dist parity and repository hygiene
         run: npm run verify:platform
 
-      - name: Validate Neon chat-log migration offline
-        run: npm run verify:neon-schema
-
-      - name: Validate Supabase Economy migration offline
-        run: node scripts/verify-supabase-economy-migration.mjs .
-
-      - name: Validate Supabase Character and Group Context migrations offline
-        run: npm run verify:supabase-character
-
       - name: Validate compiled JavaScript
         run: |
           set -euo pipefail
@@ -172,12 +163,7 @@ jobs:
             .ci-artifact/dist \
             .ci-artifact/Codebase \
             .ci-artifact/scripts \
-            .ci-artifact/migrations/neon \
-            .ci-artifact/migrations/supabase \
-            .ci-artifact/node_modules/postgres \
             .ci-artifact/node_modules/dotenv \
-            .ci-artifact/node_modules/@supabase \
-            .ci-artifact/node_modules/@upstash \
             .ci-artifact/node_modules/buffer \
             .ci-artifact/node_modules/ws \
             .ci-artifact/node_modules/iceberg-js \
@@ -204,13 +190,8 @@ jobs:
             .ci-artifact/node_modules/source-map
           cp -a dist/. .ci-artifact/dist/
           cp Codebase/allybot-codebase-latest.zip .ci-artifact/Codebase/
-          cp scripts/verify-postgres.mjs scripts/verify-supabase-access.mjs scripts/verify-neon.mjs scripts/monitor-postgres.mjs scripts/verify-neon-chat-log-migration.mjs scripts/verify-upstash-redis.mjs scripts/verify-supabase-economy-migration.mjs scripts/verify-supabase-character-migration.mjs .ci-artifact/scripts/
-          cp migrations/neon/0001_whatsapp_chat_logs.sql .ci-artifact/migrations/neon/
-          cp migrations/supabase/0001_economy_schema.sql migrations/supabase/0002_economy_functions.sql migrations/supabase/0003_economy_transfer_cache_keys.sql migrations/supabase/0004_economy_pgcrypto_search_path.sql migrations/supabase/0005_character_guide_group_context.sql migrations/supabase/0006_character_delivery_lookup.sql migrations/supabase/0007_character_group_context_function_grants.sql migrations/supabase/0008_character_group_context_fk_indexes.sql .ci-artifact/migrations/supabase/
-          cp -a node_modules/postgres/. .ci-artifact/node_modules/postgres/
+          cp scripts/verify-platform.mjs .ci-artifact/scripts/
           cp -a node_modules/dotenv/. .ci-artifact/node_modules/dotenv/
-          cp -a node_modules/@supabase/. .ci-artifact/node_modules/@supabase/
-          cp -a node_modules/@upstash/. .ci-artifact/node_modules/@upstash/
           cp -a node_modules/buffer/. .ci-artifact/node_modules/buffer/
           cp -a node_modules/ws/. .ci-artifact/node_modules/ws/
           cp -a node_modules/iceberg-js/. .ci-artifact/node_modules/iceberg-js/
@@ -254,7 +235,7 @@ jobs:
               ! -name '*.*' \
             \) \
             -delete
-          cp package.json package-lock.json bash-exec-list.txt .ci-artifact/
+          cp package.json package-lock.json .ci-artifact/
           node --input-type=module <<'NODE'
           await import('./.ci-artifact/dist/sentry.js')
           console.log('Sentry runtime dependency smoke test passed')
@@ -366,25 +347,7 @@ jobs:
           test -f stage/package-lock.json
           test -f stage/release-manifest.json
           test -s stage/release-manifest.json
-          test -f stage/scripts/verify-postgres.mjs
-          test -f stage/scripts/verify-supabase-access.mjs
-          test -f stage/scripts/verify-neon.mjs
-          test -f stage/scripts/monitor-postgres.mjs
-          test -f stage/scripts/verify-neon-chat-log-migration.mjs
-          test -f stage/scripts/verify-upstash-redis.mjs
-          test -f stage/scripts/verify-supabase-economy-migration.mjs
-          test -f stage/scripts/verify-supabase-character-migration.mjs
-          test -f stage/migrations/neon/0001_whatsapp_chat_logs.sql
-          test -f stage/migrations/supabase/0001_economy_schema.sql
-          test -f stage/migrations/supabase/0002_economy_functions.sql
-          test -f stage/migrations/supabase/0003_economy_transfer_cache_keys.sql
-          test -f stage/migrations/supabase/0004_economy_pgcrypto_search_path.sql
-          test -f stage/migrations/supabase/0005_character_guide_group_context.sql
-          test -f stage/migrations/supabase/0006_character_delivery_lookup.sql
-          test -f stage/migrations/supabase/0007_character_group_context_function_grants.sql
-          test -f stage/migrations/supabase/0008_character_group_context_fk_indexes.sql
-          (cd stage && node scripts/verify-supabase-economy-migration.mjs .)
-          (cd stage && node scripts/verify-supabase-character-migration.mjs .)
+          test -f stage/scripts/verify-platform.mjs
           test -f stage/SHA256SUMS.txt
           (cd stage && sha256sum -c SHA256SUMS.txt)
           if find stage -type f \( -name '.env' -o -name '*.sqlite*' -o -name '*.db*' -o -name 'creds.json' -o -name 'credentials.json' -o -name '*.pem' -o -name '*.key' -o \( -path '*/node_modules/*' ! -path '*/node_modules/postgres/*' ! -path '*/node_modules/dotenv/*' ! -path '*/node_modules/@supabase/*' ! -path '*/node_modules/@upstash/*' ! -path '*/node_modules/buffer/*' ! -path '*/node_modules/ws/*' ! -path '*/node_modules/iceberg-js/*' ! -path '*/node_modules/tslib/*' ! -path '*/node_modules/uncrypto/*' ! -path '*/node_modules/@sentry/*' ! -path '*/node_modules/@opentelemetry/*' ! -path '*/node_modules/@apm-js-collab/*' ! -path '*/node_modules/@jridgewell/*' ! -path '*/node_modules/@types/estree/*' ! -path '*/node_modules/astring/*' ! -path '*/node_modules/cjs-module-lexer/*' ! -path '*/node_modules/debug/*' ! -path '*/node_modules/es-module-lexer/*' ! -path '*/node_modules/esquery/*' ! -path '*/node_modules/estraverse/*' ! -path '*/node_modules/import-in-the-middle/*' ! -path '*/node_modules/magic-string/*' ! -path '*/node_modules/meriyah/*' ! -path '*/node_modules/module-details-from-path/*' ! -path '*/node_modules/ms/*' ! -path '*/node_modules/require-in-the-middle/*' ! -path '*/node_modules/semifies/*' ! -path '*/node_modules/source-map/*' \) -o -path 'stage/src/*' -o -path 'stage/tests/*' \) -print -quit | grep -q .; then

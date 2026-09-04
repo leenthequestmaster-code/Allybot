@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
-import type { UpstashRedisService } from '../upstash-redis.js'
+import type { RedisService } from '../redis.js'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 import { initSqliteDatabase, sha256, validateJid, validateGroupJid as validateGroupJidCommon, normalizeBoundedText, type DatabaseInstance } from '../storage-helpers.js'
@@ -134,7 +134,7 @@ export class GroupSafetyService implements Service {
   private readonly logger: Logger
   private db: DatabaseInstance | undefined
   private guardrails: PlatformGuardrailService | undefined
-  private redis: UpstashRedisService | undefined
+  private redis: RedisService | undefined
   private readonly dryRunCaseWindows = new Map<string, number>()
 
   constructor(databasePath: string, logger: Logger, options: GroupSafetyOptions = {}) {
@@ -151,8 +151,8 @@ export class GroupSafetyService implements Service {
 
   initialize(context: ServiceContext): void {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
-    this.redis = typeof context.services.has === 'function' && context.services.has('upstash-redis')
-      ? context.services.get<UpstashRedisService>('upstash-redis')
+    this.redis = typeof context.services.has === 'function' && context.services.has('redis')
+      ? context.services.get<RedisService>('redis')
       : undefined
     this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()

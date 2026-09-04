@@ -1,5 +1,5 @@
 import type { CommandContext, WhatsAppPort } from './framework/contracts.js'
-import { isGroupJid } from './platform/validation.js'
+import { isGroupJid } from './framework/validation.js'
 import type { DeveloperModeService } from './services/developer-mode-service.js'
 
 export const permissionNames = {

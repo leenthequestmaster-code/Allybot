@@ -1,6 +1,6 @@
 import type { CoreMessage, Plugin, ServiceRegistryLike, WhatsAppGroupMetadata, WhatsAppPort } from '../contracts.js'
 import { permissionNames } from '../../permissions.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 import { GroupSafetyService, type ModerationCaseRecord, type WarningRecord } from '../../services/group-safety-service.js'
 
 const LINK_PATTERN = /(?:https?:\/\/|www\.)[^\s<>]+/i

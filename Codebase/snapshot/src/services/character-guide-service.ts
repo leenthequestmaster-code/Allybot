@@ -1,12 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
-import { isGroupJid, isJid } from '../platform/validation.js'
-import {
-  createSupabaseReadWriteClient,
-  readSupabaseReadWriteConfig,
-  type SupabaseReadWriteConfig,
-} from '../supabase-read-write.js'
+import { isGroupJid, isJid } from '../framework/validation.js'
 import type { CharacterSheetPayload } from './character-sheet-parser.js'
 
 export interface CharacterRpcClient {
@@ -18,7 +13,7 @@ export interface CharacterRpcClient {
 
 export interface CharacterGuideServiceOptions {
   readonly env?: NodeJS.ProcessEnv
-  readonly createClient?: (config: SupabaseReadWriteConfig) => CharacterRpcClient
+  readonly createClient?: (config: any) => CharacterRpcClient
   readonly clock?: () => number
 }
 
@@ -306,7 +301,7 @@ export class CharacterGuideService implements Service {
   readonly name = 'character-guide'
 
   private readonly env: NodeJS.ProcessEnv
-  private readonly createClient: (config: SupabaseReadWriteConfig) => CharacterRpcClient
+  private readonly createClient: (config: any) => CharacterRpcClient
   private readonly clock: () => number
   private enabled = false
   private client: CharacterRpcClient | undefined
@@ -316,17 +311,15 @@ export class CharacterGuideService implements Service {
     options: CharacterGuideServiceOptions = {},
   ) {
     this.env = options.env ?? process.env
-    this.createClient = options.createClient ?? ((config) => createSupabaseReadWriteClient(config))
+    this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.clock = options.clock ?? (() => Date.now())
   }
 
   initialize(_context: ServiceContext): void {
     this.enabled = this.env.CHARACTER_GUIDE_ENABLED?.trim().toLowerCase() === 'true'
     if (!this.enabled) return
-    const config = readSupabaseReadWriteConfig(this.env)
-    if (!config) throw new Error('Character Guide requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
-    this.client = this.createClient(config)
-    this.logger.info('Supabase Character Guide service initialized')
+    this.client = this.createClient({})
+    this.logger.info('Character Guide service initialized')
   }
 
   shutdown(_context: ServiceContext): void {

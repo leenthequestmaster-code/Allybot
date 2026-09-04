@@ -1,5 +1,5 @@
 import type { CommandContext, Plugin } from '../contracts.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 
 function formatUptime(seconds: number): string {
   const totalSeconds = Math.max(0, Math.floor(seconds))

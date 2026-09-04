@@ -26,7 +26,7 @@ import { createLogger, type AppLogger } from './logger.js'
 import { createSentryReporter } from './sentry.js'
 import { createSentryPlugin } from './framework/plugins/sentry.js'
 import { createPermissionResolver } from './permissions.js'
-import { isGroupJid } from './platform/validation.js'
+import { isGroupJid } from './framework/validation.js'
 import { SqliteStorage } from './storage.js'
 import { AfkService } from './services/afk-service.js'
 import { GroupConfigurationService } from './services/group-configuration-service.js'
@@ -39,14 +39,15 @@ import { SceneService } from './services/scene-service.js'
 import { GroupGovernanceService } from './services/group-governance-service.js'
 import { SuggestionRelayService, type SuggestionProviderInput } from './services/suggestion-relay-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
-import { NeonClientService } from './neon-client.js'
-import { createNeonChatLogPlugin } from './framework/plugins/neon-chat-log.js'
-import { UpstashRedisService } from './upstash-redis.js'
+import { RedisService } from './redis.js'
+import { MongoService } from './mongodb.js'
 import { EconomyService } from './services/economy-service.js'
 import { CharacterGuideService } from './services/character-guide-service.js'
 import { GroupContextService } from './services/group-context-service.js'
 import { createGroupContextPlugin } from './framework/plugins/group-context.js'
 import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
+import { createScenePlugin } from './framework/plugins/scene.js'
+import { createKnowledgePlugin } from './framework/plugins/knowledge.js'
 
 function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input: SuggestionProviderInput) => Promise<string>) | undefined {
   if (!config.XKIRO_AI_ENABLED) return undefined
@@ -81,7 +82,8 @@ async function main(): Promise<void> {
     return
   }
 
-  const redis = new UpstashRedisService(logger, { env: process.env })
+  const redis = new RedisService({ env: process.env })
+  const mongodb = new MongoService({ env: process.env })
   const whatsapp = new WhatsAppConnection(config, storage, logger, redis)
   const framework = new ApplicationFramework(
     {
@@ -111,7 +113,7 @@ async function main(): Promise<void> {
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
   framework.registerService(new EconomyService(logger, {
     env: process.env,
-    cacheTtlSeconds: config.SUPABASE_ECONOMY_CACHE_TTL_SECONDS,
+    cacheTtlSeconds: 15,
   }))
   framework.registerService(new GroupContextService(logger, { env: process.env }))
   framework.registerService(new CharacterGuideService(logger, { env: process.env }))
@@ -123,11 +125,10 @@ async function main(): Promise<void> {
   framework.registerService(new SuggestionRelayService(config.DATABASE_PATH, logger, {
     provider: createSuggestionProvider(config, logger),
   }))
-  framework.registerService(new NeonClientService(logger))
+  framework.registerService(mongodb)
   framework.registerService(redis)
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(createSentryPlugin(sentry))
-  framework.registerPlugin(createNeonChatLogPlugin(config))
   framework.registerPlugin(technicalPlugin)
   if (config.XKIRO_AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }))
   framework.registerPlugin(developerModePlugin)
@@ -143,6 +144,8 @@ async function main(): Promise<void> {
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
+  framework.registerPlugin(createScenePlugin(whatsapp))
+  framework.registerPlugin(createKnowledgePlugin(whatsapp))
   framework.registerPlugin(suggestionRelayPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)

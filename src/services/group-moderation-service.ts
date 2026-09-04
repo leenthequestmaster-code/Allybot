@@ -8,8 +8,8 @@ import type {
   WhatsAppPort,
   WhatsAppGroupParticipantActionResult,
 } from '../framework/contracts.js'
-import { runPlatformOperation, type OperationResult } from '../platform/operations.js'
-import type { PlatformEventSink } from '../platform/contracts.js'
+import { runPlatformOperation, type OperationResult } from '../framework/operations.js'
+import type { PlatformEventSink } from '../framework/contracts.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 import { initSqliteDatabase, sha256, validateJid, validateGroupJid as validateGroupJidCommon, type DatabaseInstance } from '../storage-helpers.js'
 

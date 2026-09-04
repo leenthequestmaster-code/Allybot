@@ -7,7 +7,7 @@ import pino from 'pino'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { groupPlugin } from '../dist/framework/plugins/group.js'
 import { GroupConfigurationService } from '../dist/services/group-configuration-service.js'
-import { isGroupJid } from '../dist/platform/validation.js'
+import { isGroupJid } from '../dist/framework/validation.js'
 
 const logger = pino({ level: 'silent' })
 

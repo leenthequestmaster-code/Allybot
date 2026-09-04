@@ -7,7 +7,7 @@ import type {
   WhatsAppPort,
 } from '../contracts.js'
 import { permissionNames } from '../../permissions.js'
-import { isGroupJid, isJid } from '../../platform/validation.js'
+import { isGroupJid, isJid } from '../validation.js'
 import {
   CharacterGuideService,
   CharacterGuideValidationError,

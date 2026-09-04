@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CapabilityAwareButtonAdapter, TextInteractionAdapter } from '../dist/platform/index.js'
+import { CapabilityAwareButtonAdapter, TextInteractionAdapter } from '../dist/framework/index.js'
 
 const menu = (overrides = {}) => ({
   id: 'button-menu', version: 1, kind: 'menu', title: 'Allybot', body: 'Pilih:',

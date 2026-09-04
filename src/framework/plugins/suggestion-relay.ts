@@ -1,6 +1,6 @@
 import type { CoreMessage, Plugin, ServiceRegistryLike, WhatsAppPort } from '../contracts.js'
 import { SuggestionRelayService, type SuggestionOutcomeCode, type SuggestionRecord } from '../../services/suggestion-relay-service.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 
 function groupJid(message: CoreMessage): string | undefined {
   return isGroupJid(message.remoteJid) ? message.remoteJid : undefined

@@ -8,21 +8,16 @@ tests/ai-tools.test.js,AI tools translate and summarize use bounded explicit inp
 tests/ai-tools.test.js,AI translate rejects missing separator without contacting provider,ai-tools,44
 tests/ai-tools.test.js,AI summarize rejects oversized explicit text before provider call,ai-tools,53
 tests/architecture-fitness.test.js,architecture fitness keeps lifecycle ownership and cleanup seams intact,architecture-fitness,10
-tests/architecture-fitness.test.js,architecture fitness keeps bounded scheduler and CAS claim invariants,architecture-fitness,24
-tests/architecture-fitness.test.js,architecture fitness keeps guardrail outcomes and feature flags fail-closed,architecture-fitness,33
-tests/architecture-fitness.test.js,architecture fitness keeps sanitized artifact and locked deployment boundaries,architecture-fitness,46
-tests/architecture-fitness.test.js,architecture fitness keeps Codebase export automation least-privilege and provenance-bound,architecture-fitness,59
-tests/architecture-fitness.test.js,"architecture fitness rejects tracked secrets, database files, and session artifacts",architecture-fitness,81
+tests/architecture-fitness.test.js,architecture fitness keeps guardrail outcomes and feature flags fail-closed,architecture-fitness,24
+tests/architecture-fitness.test.js,architecture fitness keeps sanitized artifact and locked deployment boundaries,architecture-fitness,35
+tests/architecture-fitness.test.js,architecture fitness keeps Codebase export automation least-privilege and provenance-bound,architecture-fitness,48
+tests/architecture-fitness.test.js,"architecture fitness rejects tracked secrets, database files, and session artifacts",architecture-fitness,70
 tests/character-guide-service.test.js,Character RPC uses one stable world scope across Guide and IC groups,character-guide-service,62
 tests/character-guide-service.test.js,Character service stays disabled without feature flag and does not construct a client,character-guide-service,79
 tests/character-guide.test.js,Character Guide handles experience selection without quotedMessageId and issues one coherent card session,character-guide,106
 tests/character-guide.test.js,Character Guide refuses to silently map a new card to a different existing session,character-guide,119
 tests/character-guide.test.js,Character Guide save path validates reply/card and calls service only after parser succeeds,character-guide,130
 tests/character-guide.test.js,Guide participant add creates onboarding prompt but does not create durable session before card issuance,character-guide,147
-tests/character-plugin.test.js,"Character plugin emote is group-only, bounded, and strips presentation markup",character-plugin,22
-tests/character-plugin.test.js,Character plugin supports text-first roleplay profile workflow with owner checks,character-plugin,38
-tests/character-service.test.js,"CharacterService persists bounded profiles, enforces ownership, and archives without deletion",character-service,22
-tests/character-service.test.js,CharacterService limits active characters per owner and validates identifiers,character-service,55
 tests/character-sheet-parser.test.js,Character Sheet parser normalizes WhatsApp formatting and ignores server-owned fields,character-sheet-parser,26
 tests/character-sheet-parser.test.js,Character Sheet parser rejects duplicate and unknown labeled fields,character-sheet-parser,47
 tests/character-sheet-parser.test.js,Character Sheet parser rejects invalid gameplay values without guessing typos,character-sheet-parser,55
@@ -30,7 +25,7 @@ tests/character-sheet-parser.test.js,IC narrative grammar accepts anchored actio
 tests/character-sheet-parser.test.js,IC narrative grammar does not treat markup or manual OOC markers as narrative,character-sheet-parser,71
 tests/codebase-config.test.js,Codebase export configuration rejects unsafe paths and oversized limits,codebase-config,16
 tests/codebase-config.test.js,Character Guide and Group Context are default-off with bounded safe defaults,codebase-config,24
-tests/codebase-config.test.js,Supabase-backed Character/Group Context flags require server-side credentials and valid bounds,codebase-config,38
+tests/codebase-config.test.js,Mongo-backed Character/Group Context flags require server-side credentials and valid bounds,codebase-config,38
 tests/codebase-config.test.js,Codebase export configuration is disabled and bounded by default,codebase-config,5
 tests/codebase-export.test.js,codebase command is permission-gated,codebase-export,123
 tests/codebase-export.test.js,codebase command sends a bounded ZIP document to an authorized developer,codebase-export,53
@@ -61,21 +56,20 @@ tests/economy-cache.test.js,Economy bankreward accepts a real mention with pipe-
 tests/economy-cache.test.js,Economy bankreward does not guess a target from display text,economy-cache,497
 tests/errors.test.js,retryable option overrides category default,errors,11
 tests/errors.test.js,retryable defaults to network and protocol categories,errors,5
-tests/framework.test.js,Invalid command input does not consume the command cooldown,framework,103
-tests/framework.test.js,CommandRegistry sends a safe fallback when a handler fails before replying,framework,124
-tests/framework.test.js,CommandRegistry retries the safe fallback when the first reply delivery fails,framework,141
-tests/framework.test.js,CommandRegistry rejects duplicate command names and aliases,framework,163
-tests/framework.test.js,CommandRegistry accepts safe numeric-leading command names,framework,173
-tests/framework.test.js,CommandRegistry ignores commands from the bot itself,framework,185
-tests/framework.test.js,EventBus isolates listener failures and emits framework.error,framework,19
-tests/framework.test.js,PluginManager cleans plugin registrations on unload and supports reload,framework,210
-tests/framework.test.js,PluginManager unloads partially loaded failed plugins safely,framework,249
-tests/framework.test.js,CommandRegistry denies permission before handler execution,framework,275
-tests/framework.test.js,ServiceRegistry rejects missing and circular dependencies before initialization,framework,294
-tests/framework.test.js,PluginManager cleans registrations when ready hook fails,framework,305
-tests/framework.test.js,ServiceRegistry initializes dependencies and shuts them down in reverse order,framework,37
-tests/framework.test.js,CharacterService dependency resolves through the real service registry,framework,57
-tests/framework.test.js,"CommandRegistry supports alias, validation, cooldown, and reply context",framework,76
+tests/framework.test.js,CommandRegistry sends a safe fallback when a handler fails before replying,framework,101
+tests/framework.test.js,CommandRegistry retries the safe fallback when the first reply delivery fails,framework,118
+tests/framework.test.js,CommandRegistry rejects duplicate command names and aliases,framework,140
+tests/framework.test.js,EventBus isolates listener failures and emits framework.error,framework,15
+tests/framework.test.js,CommandRegistry accepts safe numeric-leading command names,framework,150
+tests/framework.test.js,CommandRegistry ignores commands from the bot itself,framework,162
+tests/framework.test.js,PluginManager cleans plugin registrations on unload and supports reload,framework,187
+tests/framework.test.js,PluginManager unloads partially loaded failed plugins safely,framework,226
+tests/framework.test.js,CommandRegistry denies permission before handler execution,framework,252
+tests/framework.test.js,ServiceRegistry rejects missing and circular dependencies before initialization,framework,271
+tests/framework.test.js,PluginManager cleans registrations when ready hook fails,framework,282
+tests/framework.test.js,ServiceRegistry initializes dependencies and shuts them down in reverse order,framework,33
+tests/framework.test.js,"CommandRegistry supports alias, validation, cooldown, and reply context",framework,53
+tests/framework.test.js,Invalid command input does not consume the command cooldown,framework,80
 tests/group-configuration.test.js,setrules returns guidance when no rule text is provided,group-configuration,117
 tests/group-configuration.test.js,welcome and leave configuration commands are admin-only and expose active settings,group-configuration,132
 tests/group-configuration.test.js,"prefix configuration remains validated, group-scoped, and persistent",group-configuration,159
@@ -122,24 +116,9 @@ tests/menu.test.js,menu mengikuti effective prefix tanpa mengandalkan nama kateg
 tests/menu.test.js,!menu mengirim satu thumbnail dengan biodata dan deskripsi menu,menu,51
 tests/menu.test.js,!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal,menu,71
 tests/menu.test.js,navigasi kategori hanya menerima angka dan menampilkan submenu yang benar,menu,89
-tests/neon-chat-log-control.test.js,deprecated chatlog state is not exposed after restart,neon-chat-log-control,105
-tests/neon-chat-log-control.test.js,deprecated chatlog command is not registered even when the global flag is enabled,neon-chat-log-control,84
-tests/neon-chat-log-control.test.js,chatlog command remains unavailable when the global Neon chat-log flag is disabled,neon-chat-log-control,96
-tests/neon-chat-log-migration.test.js,Neon chat-log migration is review-only DDL with writer invariants,neon-chat-log-migration,10
-tests/neon-chat-log-plugin.test.js,chat-log groups require explicit WhatsApp group JIDs,neon-chat-log-plugin,26
-tests/neon-chat-log-plugin.test.js,chat-log configuration is default-off and requires Neon when enabled,neon-chat-log-plugin,6
-tests/neon-chat-log-writer.test.js,writer close reports bounded drain timeout and rejects new records,neon-chat-log-writer,111
-tests/neon-chat-log-writer.test.js,writer drops malformed or oversized records without throwing,neon-chat-log-writer,127
-tests/neon-chat-log-writer.test.js,retry classification excludes authentication and schema failures,neon-chat-log-writer,138
-tests/neon-chat-log-writer.test.js,writer builds a stable integrity record and classifies message type,neon-chat-log-writer,35
-tests/neon-chat-log-writer.test.js,writer retries transient Neon failures and persists after recovery,neon-chat-log-writer,44
-tests/neon-chat-log-writer.test.js,writer does not retry permanent SQL failures,neon-chat-log-writer,67
-tests/neon-chat-log-writer.test.js,writer enforces group scope and bounded queue,neon-chat-log-writer,85
-tests/neon-client.test.js,Neon client is disabled by default,neon-client,14
-tests/neon-client.test.js,Neon client requires a URL when enabled,neon-client,19
-tests/neon-client.test.js,Neon client validates URL and pool mode,neon-client,26
-tests/neon-client.test.js,Neon client defaults to transaction mode and redacts URI errors,neon-client,41
-tests/neon-client.test.js,Neon service initializes and shuts down independently,neon-client,57
+tests/mongodb-redis-services.test.js,RedisService readConfig and health status disabled by default,mongodb-redis-services,19
+tests/mongodb-redis-services.test.js,RedisService rate limiting and caching fallback gracefully when disabled,mongodb-redis-services,32
+tests/mongodb-redis-services.test.js,MongoService readConfig and health status disabled by default,mongodb-redis-services,6
 tests/observability-contract.test.js,"observability contract keeps guardrail audit bounded, scalar, and redacted",observability-contract,23
 tests/observability-contract.test.js,observability contract exposes Developer Mode audit as bounded hashes and outcomes,observability-contract,66
 tests/permissions.test.js,bot owner permission works outside groups and group owner permission remains separate,permissions,102
@@ -147,43 +126,18 @@ tests/permissions.test.js,BOT_OWNER_JID accepts a phone JID and stays out of pub
 tests/permissions.test.js,group role and permissions identify the configured bot owner,permissions,151
 tests/permissions.test.js,group admin permission allows admins and denies regular members with a denial response,permissions,53
 tests/permissions.test.js,configured bot owner bypasses group admin permission in groups,permissions,82
-tests/platform-adapter.test.js,framework command conversion preserves menu order and metadata,platform-adapter,22
-tests/platform-adapter.test.js,framework adapter maps CoreMessage and rejects self or foreign quoted menu input,platform-adapter,5
 tests/platform-buttons.test.js,button adapter uses native quick replies only when capability and constraints allow it,platform-buttons,14
 tests/platform-buttons.test.js,button adapter parses callback id and falls back to text parser,platform-buttons,33
 tests/platform-buttons.test.js,button adapter rejects expired callback,platform-buttons,45
 tests/platform-group-setup.test.js,"Group Setup Mission validates each stage, reviews draft, and applies atomically through gateway",platform-group-setup,14
 tests/platform-group-setup.test.js,Group Setup Mission supports skip and cancel without applying changes,platform-group-setup,38
 tests/platform-group-setup.test.js,Group Setup Mission contains gateway failure and marks mission failed,platform-group-setup,51
-tests/platform-lifecycle.test.js,lifecycle starts dependencies first and stops in reverse order,platform-lifecycle,16
-tests/platform-lifecycle.test.js,lifecycle rolls back initialized feature when ready fails,platform-lifecycle,41
-tests/platform-lifecycle.test.js,lifecycle rejects dependency cycles and duplicate starts,platform-lifecycle,62
 tests/platform-mission.test.js,in-memory Mission Engine handles transitions and recovery invariants,platform-mission,56
 tests/platform-mission.test.js,SQLite Mission Engine persists state and reloads records,platform-mission,60
 tests/platform-mission.test.js,Mission Engine rejects oversized inputs and undefined transitions,platform-mission,68
-tests/platform-operations.test.js,operation runner retries retryable errors and emits success after recovery,platform-operations,22
-tests/platform-operations.test.js,operation runner does not retry non-retryable errors and reports safe error name,platform-operations,39
-tests/platform-operations.test.js,operation runner applies permission gate before execution and audits denial,platform-operations,5
-tests/platform-security.test.js,permission evaluator is default-deny and respects deterministic first-match policy,platform-security,11
-tests/platform-security.test.js,event sink keeps a bounded copy suitable for audit inspection,platform-security,25
-tests/platform-security.test.js,validation utilities reject unsafe identifiers and malformed JIDs,platform-security,35
 tests/platform-sessions.test.js,"in-memory session store enforces ownership, expiry, revision, and idempotency",platform-sessions,41
 tests/platform-sessions.test.js,SQLite session store has parity with in-memory behavior and persists across instances,platform-sessions,45
 tests/platform-sessions.test.js,session input rejects invalid expiry and empty identity fields,platform-sessions,54
-tests/platform.test.js,canonical group Jid validation accepts supported WhatsApp group formats,platform,30
-tests/platform.test.js,platform registry rejects duplicate ids and unregisters deterministically,platform,38
-tests/platform.test.js,text interaction renders menu and parses direct menu command or reply number,platform,47
-tests/platform.test.js,quoted menu selection requires the configured bot sender,platform,76
-tests/postgres-monitor.test.js,PostgreSQL monitor emits a read-only pass event and closes the verifier,postgres-monitor,10
-tests/postgres-monitor.test.js,PostgreSQL monitor stops its timer and rejects new checks after stop,postgres-monitor,106
-tests/postgres-monitor.test.js,PostgreSQL monitor prevents overlapping checks,postgres-monitor,32
-tests/postgres-monitor.test.js,PostgreSQL monitor reports bounded timeout and still closes the verifier,postgres-monitor,63
-tests/postgres-monitor.test.js,PostgreSQL monitor redacts connection details from failures,postgres-monitor,83
-tests/postgres-verifier.test.js,PostgreSQL verifier accepts a session pooler configuration without exposing secrets,postgres-verifier,12
-tests/postgres-verifier.test.js,PostgreSQL verifier rejects invalid URL and pool mode,postgres-verifier,23
-tests/postgres-verifier.test.js,PostgreSQL verifier defaults to session mode,postgres-verifier,37
-tests/postgres-verifier.test.js,PostgreSQL error redaction removes connection credentials,postgres-verifier,44
-tests/postgres-verifier.test.js,PostgreSQL verifier is optional when POSTGRES_URL is absent,postgres-verifier,8
 tests/r0s-guardrails.test.js,R0-S archive failure rolls back the hot insert atomically,r0s-guardrails,109
 tests/r0s-guardrails.test.js,R0-S policy evaluation fails closed when audit persistence is unavailable,r0s-guardrails,123
 tests/r0s-guardrails.test.js,R0-S policy registry is deterministic and default-deny,r0s-guardrails,29
@@ -196,26 +150,6 @@ tests/r0s-guardrails.test.js,R0-S audit overflow archives old records transactio
 tests/r1-group-safety.test.js,R1 plugin keeps admin boundary and creates dry-run cases without destructive actions,r1-group-safety,147
 tests/r1-group-safety.test.js,"R1 warning ledger enforces expiry, bounded state, and group isolation",r1-group-safety,51
 tests/r1-group-safety.test.js,"R1 case workflow is idempotent, revision-checked, appeal-owned, and evidence-minimized",r1-group-safety,80
-tests/r10-onboarding.test.js,R10 onboarding is default-off and blocks persistence across groups,r10-onboarding,107
-tests/r10-onboarding.test.js,"R10 onboarding apply is bounded, idempotent for active applicant, and group-scoped",r10-onboarding,120
-tests/r10-onboarding.test.js,"R10 onboarding review requires admin, uses revision CAS, and supports reopen",r10-onboarding,138
-tests/r10-onboarding.test.js,R10 onboarding expiry is bounded and reopen is allowed only from denied state,r10-onboarding,162
-tests/r10-onboarding.test.js,"R10 onboarding audit redacts raw JIDs, application text, and IDs",r10-onboarding,179
-tests/r10-onboarding.test.js,R10 onboarding state survives service restart and admin list is bounded,r10-onboarding,197
-tests/r10-onboarding.test.js,"R10 onboarding plugin is text-first, default-off, and admin-gated",r10-onboarding,216
-tests/r10-onboarding.test.js,R10 onboarding content retention redacts application text without removing state,r10-onboarding,242
-tests/r10-onboarding.test.js,R10 onboarding rejects oversized input and feature-off admin reads without persistence,r10-onboarding,259
-tests/r10-onboarding.test.js,R10 onboarding cannot review an application through another group scope,r10-onboarding,271
-tests/r11-announcement-suggestion.test.js,"R11 announcement is default-off, rejects implicit targets, and preserves group isolation",r11-announcement-suggestion,163
-tests/r11-announcement-suggestion.test.js,"R11 announcement preview fingerprint, approval CAS, idempotency, and bounded delivery work",r11-announcement-suggestion,178
-tests/r11-announcement-suggestion.test.js,R11 cancellation and disable kill switch beat not-yet-claimed delivery,r11-announcement-suggestion,207
-tests/r11-announcement-suggestion.test.js,"R11 announcement expires previews, records partial transport failure, and does not retry",r11-announcement-suggestion,227
-tests/r11-announcement-suggestion.test.js,R11 suggestion relay requires explicit receive/share consent and approved sources,r11-announcement-suggestion,251
-tests/r11-announcement-suggestion.test.js,"R11 suggestion provider failure is bounded, circuit-protected, and never retried automatically",r11-announcement-suggestion,275
-tests/r11-announcement-suggestion.test.js,R11 audit records stay redacted and announcement plugin remains text-first,r11-announcement-suggestion,289
-tests/r11-announcement-suggestion.test.js,R11 concurrent approvals have one CAS winner and no duplicate transition,r11-announcement-suggestion,318
-tests/r11-announcement-suggestion.test.js,R11 concurrent dispatchers claim each target at most once,r11-announcement-suggestion,337
-tests/r11-announcement-suggestion.test.js,R11 duplicate suggestion requests return in-progress while provider call is still bounded,r11-announcement-suggestion,357
 tests/r2-group-moderation.test.js,R2 default-off blocks transport call before role/side effect,r2-group-moderation,117
 tests/r2-group-moderation.test.js,R2 dry-run audits and completes without transport side effect,r2-group-moderation,129
 tests/r2-group-moderation.test.js,R2 duplicate correlation returns duplicate and never replays mutation,r2-group-moderation,146
@@ -227,17 +161,6 @@ tests/r2-group-moderation.test.js,R2 keeps raw JID and error details out of oper
 tests/r2-group-moderation.test.js,R2 atomically claims a planned operation and rejects concurrent execute,r2-group-moderation,253
 tests/r2-group-moderation.test.js,R2 executes group setting through optional adapter capability,r2-group-moderation,278
 tests/r2-group-moderation.test.js,R2 records partial participant result as failed without retry,r2-group-moderation,294
-tests/r3-collaboration.test.js,R3 invalid poll input is rejected before persistence,r3-collaboration,108
-tests/r3-collaboration.test.js,R3 native poll is optional and records capability failure without losing text domain state,r3-collaboration,120
-tests/r3-collaboration.test.js,R3 reminders survive service restart and dispatch only once,r3-collaboration,135
-tests/r3-collaboration.test.js,R3 reminder timeout marks operation failed without retry,r3-collaboration,152
-tests/r3-collaboration.test.js,R3 task completion enforces creator or assignee ownership,r3-collaboration,166
-tests/r3-collaboration.test.js,R3 decisions are explicit and group-isolated,r3-collaboration,178
-tests/r3-collaboration.test.js,"R3 plugin is default-off, admin-gated, and supports text poll/vote fallback",r3-collaboration,226
-tests/r3-collaboration.test.js,R3 default-off prevents poll state mutation until group flag is enabled,r3-collaboration,53
-tests/r3-collaboration.test.js,"R3 poll lifecycle is group-scoped, expires, and uses CAS close",r3-collaboration,63
-tests/r3-collaboration.test.js,R3 poll origin key is idempotent and payload-bound,r3-collaboration,79
-tests/r3-collaboration.test.js,R3 vote is idempotent per voter and does not accept cross-group access,r3-collaboration,92
 tests/r4-knowledge.test.js,R4 retention retires expired records and excludes them from active lookup,r4-knowledge,109
 tests/r4-knowledge.test.js,R4 delete removes excerpt from hot record and export,r4-knowledge,123
 tests/r4-knowledge.test.js,R4 source prefixes are group-scoped and ambiguous prefixes fail closed,r4-knowledge,136
@@ -248,18 +171,6 @@ tests/r4-knowledge.test.js,R4 default-off prevents explicit bookmark persistence
 tests/r4-knowledge.test.js,R4 bookmark requires explicit bounded source and keeps source identities hashed in returned metadata,r4-knowledge,63
 tests/r4-knowledge.test.js,R4 private visibility is creator-only while group visibility is readable by group members,r4-knowledge,78
 tests/r4-knowledge.test.js,"R4 search is group-scoped, visibility-aware, and escapes LIKE wildcards",r4-knowledge,93
-tests/r5-personalization.test.js,R5 quiet hours suppress notifications inside a normal interval,r5-personalization,111
-tests/r5-personalization.test.js,R5 quiet hours support an overnight interval,r5-personalization,124
-tests/r5-personalization.test.js,R5 resolves explicit user override before group policy and global defaults,r5-personalization,136
-tests/r5-personalization.test.js,R5 isolates users and groups,r5-personalization,160
-tests/r5-personalization.test.js,R5 export and delete only affect the requesting user scope,r5-personalization,173
-tests/r5-personalization.test.js,R5 audit metadata does not expose raw actor or group JIDs,r5-personalization,188
-tests/r5-personalization.test.js,R5 notification policy returns an explicit disabled decision,r5-personalization,203
-tests/r5-personalization.test.js,R5 reminder dispatcher defers during group quiet hours and resumes later,r5-personalization,215
-tests/r5-personalization.test.js,"R5 plugin is default-off, admin-gated, text-only, and reports effective precedence",r5-personalization,280
-tests/r5-personalization.test.js,R5 rejects malformed quiet intervals and equal endpoints,r5-personalization,310
-tests/r5-personalization.test.js,R5 default-off blocks preference persistence and leaves default resolution,r5-personalization,70
-tests/r5-personalization.test.js,R5 accepts canonical IANA timezone and rejects offset or unknown values,r5-personalization,98
 tests/r6-scene.test.js,R6 leaving withdraws consent and rejoining requires consent again,r6-scene,110
 tests/r6-scene.test.js,R6 IC/OOC is presentation metadata and does not grant consent or access,r6-scene,126
 tests/r6-scene.test.js,R6 lifecycle is creator-only and stale revision fails closed,r6-scene,140
@@ -271,17 +182,6 @@ tests/r6-scene.test.js,"R6 plugin is default-off, admin-gated, text-only, and su
 tests/r6-scene.test.js,R6 default-off blocks scene mutation until the group flag is enabled,r6-scene,62
 tests/r6-scene.test.js,R6 keeps two parallel scenes and groups isolated,r6-scene,79
 tests/r6-scene.test.js,R6 public scenes support opt-in join while private scenes fail closed for nonparticipants,r6-scene,95
-tests/r7-canon.test.js,R7 lifecycle requires creator for propose and admin for approval at plugin boundary,r7-canon,100
-tests/r7-canon.test.js,R7 approval uses revision CAS and rejects stale concurrent intent,r7-canon,115
-tests/r7-canon.test.js,R7 approving a replacement supersedes old canon without deleting history,r7-canon,130
-tests/r7-canon.test.js,"R7 source reference is explicit, group-scoped, and never copied as canon instruction",r7-canon,147
-tests/r7-canon.test.js,R7 search returns deterministic uncertainty marker instead of inventing a winner,r7-canon,162
-tests/r7-canon.test.js,R7 rejects cross-group references and preserves source group tenancy,r7-canon,177
-tests/r7-canon.test.js,"R7 audit output redacts raw JIDs, title, content, and canon/source IDs",r7-canon,190
-tests/r7-canon.test.js,R7 canon and history survive service restart,r7-canon,209
-tests/r7-canon.test.js,"R7 plugin is default-off, admin-gated, text-only, and exposes conflict fallback",r7-canon,257
-tests/r7-canon.test.js,R7 default-off blocks canon persistence until group flag is enabled,r7-canon,74
-tests/r7-canon.test.js,R7 draft and proposed entries are hidden from other group members,r7-canon,86
 tests/r8-group-governance.test.js,"R8 retcon lifecycle is explicit, group-scoped, revision-CAS, and append-only",r8-group-governance,110
 tests/r8-group-governance.test.js,"R8 retcon audit redacts raw JIDs, text, source references, and IDs",r8-group-governance,127
 tests/r8-group-governance.test.js,R8 handoff supports claim/decline and expires bounded offers,r8-group-governance,144
@@ -293,23 +193,8 @@ tests/r8-group-governance.test.js,R8 invite revoke fails closed when adapter cap
 tests/r8-group-governance.test.js,R8 governance state survives service restart and continuity remains bounded,r8-group-governance,233
 tests/r8-group-governance.test.js,"R8 plugin is default-off, admin-gated, text-only, and exposes fallback replies",r8-group-governance,250
 tests/r8-group-governance.test.js,R8 default-off blocks governance persistence and cross-group access,r8-group-governance,98
-tests/r9-event.test.js,R9 default-off blocks persistence mutations and isolates groups,r9-event,118
-tests/r9-event.test.js,R9 listEvents prefetches complete bounded records without crossing group scope,r9-event,129
-tests/r9-event.test.js,R9 lifecycle uses creator authorization and CAS state transitions,r9-event,151
-tests/r9-event.test.js,R9 phases transition automatically with bounded scheduler and persisted operation ledger,r9-event,167
-tests/r9-event.test.js,R9 manual phase transition changes only the selected event group,r9-event,187
-tests/r9-event.test.js,"R9 participant join leave is explicit, idempotent, bounded, and group-scoped",r9-event,202
-tests/r9-event.test.js,R9 rejoin is rejected when the event reaches capacity,r9-event,218
-tests/r9-event.test.js,R9 stale phase revision rolls back the event transition,r9-event,233
-tests/r9-event.test.js,R9 participant listing returns bounded references rather than raw JIDs,r9-event,259
-tests/r9-event.test.js,R9 event-linked poll delegates to CollaborationService and persists link,r9-event,274
-tests/r9-event.test.js,R9 poll linkage fails closed when Collaboration is unavailable,r9-event,286
-tests/r9-event.test.js,"R9 restart recovery preserves lifecycle, phases, participants, and operation ledger",r9-event,297
-tests/r9-event.test.js,"R9 audit redaction excludes raw JID, title, description, location, and event ID",r9-event,315
-tests/r9-event.test.js,"R9 timezone, timestamp, phase ordering, and location validation fail closed",r9-event,333
-tests/r9-event.test.js,"R9 plugin is default-off, admin-gated, group-only, and text fallback based",r9-event,345
 tests/recovery-rehearsal.test.js,SQLite recovery rehearsal preserves mission state and audit archive,recovery-rehearsal,33
-tests/release-manifest.test.js,release manifest allows Character verifier and Supabase migrations,release-manifest,10
+tests/release-manifest.test.js,release manifest allows platform verifier and core files,release-manifest,10
 tests/runtime-acceptance.test.js,runtime acceptance traces inbound message through command handler to response,runtime-acceptance,103
 tests/runtime-acceptance.test.js,"runtime acceptance rejects fromMe, unknown, and invalid commands without handler side effects",runtime-acceptance,134
 tests/runtime-acceptance.test.js,permission denial is enforced before protected handler execution,runtime-acceptance,160
@@ -322,24 +207,7 @@ tests/sentry.test.js,Sentry telemetry is disabled and side-effect free by defaul
 tests/sentry.test.js,Sentry plugin observes only safe framework-level failure events,sentry,63
 tests/storage.test.js,local message cache enforces row and byte bounds without affecting auth state,storage,40
 tests/storage.test.js,local message cache removes expired rows on prune and stale read,storage,64
-tests/supabase-character-migration.test.js,Supabase Character/Group Context migration verifier passes repository source,supabase-character-migration,7
-tests/supabase-read-write.test.js,Supabase read-write config requires URL and service-role key together,supabase-read-write,12
-tests/supabase-read-write.test.js,Supabase read-write config requires an HTTPS URL,supabase-read-write,23
-tests/supabase-read-write.test.js,Supabase read-write client initializes server-side without a data operation,supabase-read-write,33
-tests/supabase-read-write.test.js,Supabase read-write client is optional when its environment is absent,supabase-read-write,8
-tests/upstash-redis.test.js,Upstash Redis classifies an aborted health-check as timeout,upstash-redis,120
-tests/upstash-redis.test.js,"Upstash Redis operational primitives are namespaced, bounded, and atomic by contract",upstash-redis,142
-tests/upstash-redis.test.js,Upstash Redis operation failure degrades to undefined instead of blocking callers,upstash-redis,231
-tests/upstash-redis.test.js,Upstash Redis rejects credential-bearing URLs and unsafe identities,upstash-redis,247
-tests/upstash-redis.test.js,Upstash Redis is disabled by default,upstash-redis,25
-tests/upstash-redis.test.js,Upstash Redis dedupe and rate limit remain correct under concurrent calls,upstash-redis,258
-tests/upstash-redis.test.js,Upstash Redis operation timeout aborts the request and falls back,upstash-redis,288
-tests/upstash-redis.test.js,Upstash Redis requires HTTPS URL and token when enabled,upstash-redis,30
-tests/upstash-redis.test.js,Upstash Redis lock release requires the owner token,upstash-redis,304
-tests/upstash-redis.test.js,"Upstash Redis validates bounded timeout, attempts, and retry delay",upstash-redis,51
-tests/upstash-redis.test.js,Upstash Redis health-check reports healthy without exposing configuration,upstash-redis,66
-tests/upstash-redis.test.js,Upstash Redis retries only within configured bounded attempts,upstash-redis,94
-tests/user-friendly-aliases.test.js,user-friendly aliases remain attached to canonical commands,user-friendly-aliases,47
+tests/user-friendly-aliases.test.js,user-friendly aliases remain attached to canonical commands,user-friendly-aliases,44
 tests/utility.test.js,fun commands stay within bounded ranges and reject malformed dice,utility,114
 tests/utility.test.js,utility module split preserves canonical command registration parity,utility,46
 tests/utility.test.js,"status, uptime, and features expose bounded non-sensitive runtime summaries",utility,56

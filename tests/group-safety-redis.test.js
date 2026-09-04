@@ -17,8 +17,8 @@ function createFixture() {
   let dedupeCalls = 0
   let rateCalls = 0
   const redis = {
-    name: 'upstash-redis',
-    isEnabled: true,
+    name: 'redis',
+    isEnabled() { return true },
     async rememberOnce(scope, identity) {
       dedupeCalls += 1
       return dedupeCalls === 1
@@ -32,10 +32,10 @@ function createFixture() {
   const services = {
     get(name) {
       if (name === 'platform-guardrails') return guardrails
-      if (name === 'upstash-redis') return redis
+      if (name === 'redis') return redis
       throw new Error(`unknown service ${name}`)
     },
-    has(name) { return name === 'platform-guardrails' || name === 'upstash-redis' },
+    has(name) { return name === 'platform-guardrails' || name === 'redis' },
   }
   const context = { logger, config: { commandPrefix: '!', defaultCooldownMs: 0, databasePath }, services }
   guardrails.initialize(context)

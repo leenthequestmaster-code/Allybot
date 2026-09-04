@@ -7,16 +7,14 @@ import test from 'node:test'
 
 const root = new URL('..', import.meta.url).pathname
 
-test('release manifest allows Character verifier and Supabase migrations', () => {
+test('release manifest allows platform verifier and core files', () => {
   const directory = mkdtempSync(join(tmpdir(), 'allybot-release-manifest-'))
   try {
     mkdirSync(join(directory, 'scripts'), { recursive: true })
-    mkdirSync(join(directory, 'migrations', 'supabase'), { recursive: true })
     writeFileSync(join(directory, 'package.json'), '{"version":"0.1.0"}\n')
     writeFileSync(join(directory, 'package-lock.json'), '{}\n')
     writeFileSync(join(directory, 'bash-exec-list.txt'), 'node dist/index.js\n')
-    writeFileSync(join(directory, 'scripts', 'verify-supabase-character-migration.mjs'), 'export {}\n')
-    writeFileSync(join(directory, 'migrations', 'supabase', '0008_character_group_context_fk_indexes.sql'), 'BEGIN;\nCOMMIT;\n')
+    writeFileSync(join(directory, 'scripts', 'verify-platform.mjs'), 'export {}\n')
 
     const output = execFileSync(process.execPath, ['scripts/create-release-manifest.mjs', directory, 'release-manifest.json'], {
       cwd: root,

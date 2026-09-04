@@ -21,8 +21,8 @@ import {
   type RateLimitDecision,
   type RateLimitProfile,
   type SafeActionDefinition,
-} from '../platform/guardrails.js'
-import { isJid, isSafeIdentifier } from '../platform/validation.js'
+} from '../framework/guardrails.js'
+import { isJid, isSafeIdentifier } from '../framework/validation.js'
 
 export interface FeatureFlagRecord {
   readonly groupJid: string

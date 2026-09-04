@@ -21,25 +21,14 @@ test('architecture fitness keeps lifecycle ownership and cleanup seams intact', 
   assert.match(application, /await this\.services\.shutdown\(/)
 })
 
-test('architecture fitness keeps bounded scheduler and CAS claim invariants', () => {
-  const announcement = read('src/services/announcement-service.ts')
-  assert.match(announcement, /this\.dispatcher\.unref\?\.\(\)/)
-  assert.match(announcement, /clearInterval\(this\.dispatcher\)/)
-  assert.match(announcement, /LIMIT \?/)
-  assert.match(announcement, /status = 'sending'.*status = 'pending'/s)
-  assert.match(announcement, /revision = revision \+ 1/)
-})
-
 test('architecture fitness keeps guardrail outcomes and feature flags fail-closed', () => {
-  const guardrails = read('src/platform/guardrails.ts')
+  const guardrails = read('src/framework/guardrails.ts')
   const service = read('src/services/platform-guardrail-service.ts')
-  const announcement = read('src/services/announcement-service.ts')
   const suggestion = read('src/services/suggestion-relay-service.ts')
 
   assert.match(guardrails, /'allowed', 'denied', 'changed', 'failed', 'limited', 'opened', 'closed'/)
   assert.match(service, /allowed: false, reason: 'Guardrail audit unavailable'/)
   assert.match(service, /isFeatureEnabled\(groupJid: string, featureId: string\): boolean[\s\S]*enabled === true/)
-  assert.match(announcement, /this\.guardrailService\(\)\.isFeatureEnabled\(/)
   assert.match(suggestion, /this\.guardrailService\(\)\.isFeatureEnabled\(/)
 })
 

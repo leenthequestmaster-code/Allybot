@@ -4,7 +4,7 @@ import { copyFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
-import { SqliteMissionStore } from '../dist/platform/index.js'
+import { SqliteMissionStore } from '../dist/framework/index.js'
 import { PlatformGuardrailService } from '../dist/services/platform-guardrail-service.js'
 
 const logger = {

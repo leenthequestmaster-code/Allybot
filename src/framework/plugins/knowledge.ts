@@ -1,6 +1,6 @@
 import type { CommandContext, CoreMessage, Plugin, ServiceRegistryLike, WhatsAppPort } from '../../framework/contracts.js'
 import { permissionNames } from '../../permissions.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 import { KnowledgeService, type KnowledgeRecord } from '../../services/knowledge-service.js'
 
 function groupJid(message: CoreMessage): string | undefined {

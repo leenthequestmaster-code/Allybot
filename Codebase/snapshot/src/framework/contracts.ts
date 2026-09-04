@@ -305,3 +305,102 @@ export interface FrameworkState {
   readonly readyAt?: number
   readonly connected: boolean
 }
+
+export type FeatureScope = 'global' | 'user' | 'chat' | 'group'
+
+export interface PlatformClock {
+  now(): number
+}
+
+export interface PermissionRequest {
+  readonly subjectJid: string
+  readonly action: string
+  readonly resourceJid?: string
+  readonly scope: FeatureScope
+}
+
+export interface PermissionDecision {
+  readonly allowed: boolean
+  readonly reason: string
+  readonly policy?: string
+}
+
+export interface PermissionPort {
+  evaluate(request: PermissionRequest): PermissionDecision | Promise<PermissionDecision>
+}
+
+export type PlatformEventName =
+  | 'feature.registered'
+  | 'feature.loaded'
+  | 'feature.ready'
+  | 'feature.unloaded'
+  | 'interaction.created'
+  | 'interaction.selected'
+  | 'interaction.expired'
+  | 'permission.denied'
+  | 'operation.started'
+  | 'operation.succeeded'
+  | 'operation.failed'
+  | 'platform.error'
+
+export interface PlatformEvent<TPayload extends object = Record<string, unknown>> {
+  readonly name: PlatformEventName
+  readonly at: number
+  readonly payload: TPayload
+}
+
+export interface PlatformEventSink {
+  emit(event: PlatformEvent): Promise<void> | void
+}
+
+export type InteractionKind = 'menu' | 'selection' | 'confirmation' | 'text_input'
+export type InteractionItemAvailability = 'active' | 'coming_soon' | 'disabled'
+
+export interface InteractionItem {
+  readonly id: string
+  readonly label: string
+  readonly description?: string
+  readonly availability: InteractionItemAvailability
+}
+
+export interface InteractionMenu {
+  readonly id: string
+  readonly version: number
+  readonly kind: InteractionKind
+  readonly title: string
+  readonly body: string
+  readonly items: readonly InteractionItem[]
+  readonly fallbackText: string
+  readonly expiresAt?: number
+}
+
+export interface InteractionContext {
+  readonly interactionId: string
+  readonly menuId: string
+  readonly menuVersion: number
+  readonly remoteJid: string
+  readonly actorJid: string
+  readonly createdAt: number
+  readonly expiresAt?: number
+}
+
+export interface InteractionSelection {
+  readonly context: InteractionContext
+  readonly itemId: string
+  readonly rawInput: string
+}
+
+export interface InteractionMessage {
+  readonly text?: string
+  readonly buttonId?: string
+  readonly quotedText?: string
+  readonly quotedSenderJid?: string
+  readonly remoteJid: string
+  readonly senderJid?: string
+}
+
+export interface InteractionPort {
+  render(menu: InteractionMenu): Promise<string>
+  parseSelection(message: InteractionMessage, menu: InteractionMenu): InteractionSelection | undefined
+}
+

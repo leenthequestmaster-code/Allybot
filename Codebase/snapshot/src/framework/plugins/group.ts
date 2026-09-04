@@ -5,7 +5,7 @@ import type {
   WhatsAppGroupParticipant,
 } from '../contracts.js'
 import { permissionNames } from '../../permissions.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 import {
   GroupConfigurationService,
   MAX_GROUP_MESSAGE_LENGTH,

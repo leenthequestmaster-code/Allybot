@@ -5,7 +5,7 @@ import {
   InMemoryMissionStore,
   MissionEngine,
   createGroupSetupMissionDefinition,
-} from '../dist/platform/index.js'
+} from '../dist/framework/index.js'
 
 async function input(engine, id, actorJid, operationKey, value) {
   return engine.handleInput({ id, actorJid, operationKey, value })

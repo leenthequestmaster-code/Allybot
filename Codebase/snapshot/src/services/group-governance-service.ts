@@ -10,8 +10,8 @@ import type {
   WhatsAppGroupParticipantActionResult,
   WhatsAppPort,
 } from '../framework/contracts.js'
-import { runPlatformOperation, type OperationResult } from '../platform/operations.js'
-import { isJid, isSafeIdentifier } from '../platform/validation.js'
+import { runPlatformOperation, type OperationResult } from '../framework/operations.js'
+import { isJid, isSafeIdentifier } from '../framework/validation.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 
 export type GovernanceRetconStatus = 'draft' | 'proposed' | 'approved' | 'rejected'

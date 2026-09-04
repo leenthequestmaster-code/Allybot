@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
-import { InMemoryInteractionSessionStore, SqliteInteractionSessionStore } from '../dist/platform/index.js'
+import { InMemoryInteractionSessionStore, SqliteInteractionSessionStore } from '../dist/framework/index.js'
 
 const input = (id, overrides = {}) => ({
   id,

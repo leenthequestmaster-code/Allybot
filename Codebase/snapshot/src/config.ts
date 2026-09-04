@@ -41,35 +41,24 @@ const envSchema = z.object({
   DIAGNOSTICS_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_ENABLED: booleanFromEnv.default(false),
   XKIRO_AI_FALLBACK_ENABLED: booleanFromEnv.default(false),
-  SUPABASE_ECONOMY_ENABLED: booleanFromEnv.default(false),
+  ECONOMY_ENABLED: booleanFromEnv.default(false),
   CHARACTER_GUIDE_ENABLED: booleanFromEnv.default(false),
   GROUP_CONTEXT_ENABLED: booleanFromEnv.default(false),
   CHARACTER_GUIDE_SESSION_TTL_SECONDS: boundedInt(300, 86_400).default(1_800),
   GROUP_CONTEXT_OOC_COOLDOWN_MS: boundedInt(1_000, 3_600_000).default(30_000),
   GROUP_CONTEXT_OOC_WINDOW_MS: boundedInt(60_000, 3_600_000).default(600_000),
   GROUP_CONTEXT_OOC_MAX_PER_WINDOW: boundedInt(1, 20).default(3),
-  SUPABASE_URL: z.string().min(1).optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  SUPABASE_ECONOMY_CACHE_TTL_SECONDS: boundedInt(5, 300).default(15),
-  NEON_ENABLED: booleanFromEnv.default(false),
-  NEON_DATABASE_URL: z.string().min(1).optional(),
-  NEON_POOL_MODE: z.enum(['direct', 'transaction']).default('transaction'),
-  NEON_CHAT_LOG_ENABLED: booleanFromEnv.default(false),
-  NEON_CHAT_LOG_GROUPS: z.string().default(''),
-  NEON_CHAT_LOG_QUEUE_CAPACITY: boundedInt(1, 10_000).default(1000),
-  NEON_CHAT_LOG_MAX_ATTEMPTS: boundedInt(1, 5).default(3),
-  NEON_CHAT_LOG_RETRY_DELAY_MS: boundedInt(50, 5_000).default(250),
-  NEON_CHAT_LOG_MAX_RETRY_DELAY_MS: boundedInt(100, 60_000).default(5_000),
-  NEON_CHAT_LOG_WRITE_TIMEOUT_MS: boundedInt(1_000, 60_000).default(10_000),
-  NEON_CHAT_LOG_DRAIN_TIMEOUT_MS: boundedInt(1_000, 60_000).default(10_000),
-  UPSTASH_REDIS_ENABLED: booleanFromEnv.default(false),
-  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
-  UPSTASH_REDIS_TIMEOUT_MS: boundedInt(1_000, 10_000).default(5_000),
-  UPSTASH_REDIS_OPERATION_TIMEOUT_MS: boundedInt(100, 2_000).default(1_000),
-  UPSTASH_REDIS_MAX_ATTEMPTS: boundedInt(1, 3).default(2),
-  UPSTASH_REDIS_RETRY_DELAY_MS: boundedInt(50, 2_000).default(100),
-  UPSTASH_REDIS_KEY_PREFIX: z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,39}$/i).default('allybot:v1'),
+  MONGODB_ENABLED: booleanFromEnv.default(false),
+  MONGODB_URI: z.string().min(1).optional(),
+  MONGODB_DB_NAME: z.string().min(1).default('allybot'),
+  MONGODB_TIMEOUT_MS: boundedInt(1_000, 30_000).default(5_000),
+  REDIS_ENABLED: booleanFromEnv.default(false),
+  REDIS_URL: z.string().min(1).optional(),
+  REDIS_TIMEOUT_MS: boundedInt(1_000, 10_000).default(5_000),
+  REDIS_OPERATION_TIMEOUT_MS: boundedInt(100, 2_000).default(1_000),
+  REDIS_MAX_ATTEMPTS: boundedInt(1, 3).default(2),
+  REDIS_RETRY_DELAY_MS: boundedInt(50, 2_000).default(100),
+  REDIS_KEY_PREFIX: z.string().regex(/^[a-z0-9][a-z0-9:_-]{0,39}$/i).default('allybot:v1'),
   CODEBASE_EXPORT_ENABLED: booleanFromEnv.default(false),
   CODEBASE_EXPORT_PATH: z.string().min(1).default('./Codebase/allybot-codebase-latest.zip'),
   CODEBASE_EXPORT_MAX_BYTES: boundedInt(1, 4 * 1024 * 1024).default(3 * 1024 * 1024),
@@ -94,30 +83,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (parsed.data.PAIRING_ENABLED && !parsed.data.PAIRING_PHONE_NUMBER) {
     throw new Error('PAIRING_PHONE_NUMBER is required when PAIRING_ENABLED=true')
   }
-  if (parsed.data.SUPABASE_ECONOMY_ENABLED || parsed.data.CHARACTER_GUIDE_ENABLED || parsed.data.GROUP_CONTEXT_ENABLED) {
-    if (!parsed.data.SUPABASE_URL) throw new Error('SUPABASE_URL is required when a Supabase-backed feature is enabled')
-    if (!parsed.data.SUPABASE_SERVICE_ROLE_KEY) throw new Error('SUPABASE_SERVICE_ROLE_KEY is required when a Supabase-backed feature is enabled')
-    if (!/^https:\/\//i.test(parsed.data.SUPABASE_URL)) throw new Error('SUPABASE_URL must use https://')
+  if (parsed.data.CHARACTER_GUIDE_ENABLED && !parsed.data.MONGODB_URI) {
+    throw new Error('MONGODB_URI is required when CHARACTER_GUIDE_ENABLED=true')
   }
-  if (parsed.data.NEON_ENABLED && !parsed.data.NEON_DATABASE_URL) {
-    throw new Error('NEON_DATABASE_URL is required when NEON_ENABLED=true')
+  if (parsed.data.GROUP_CONTEXT_ENABLED && !parsed.data.MONGODB_URI) {
+    throw new Error('MONGODB_URI is required when GROUP_CONTEXT_ENABLED=true')
   }
-  if (parsed.data.NEON_DATABASE_URL && !/^postgres(?:ql)?:\/\//i.test(parsed.data.NEON_DATABASE_URL)) {
-    throw new Error('NEON_DATABASE_URL must use postgres:// or postgresql://')
+  if (parsed.data.MONGODB_ENABLED && !parsed.data.MONGODB_URI) {
+    throw new Error('MONGODB_URI is required when MONGODB_ENABLED=true')
   }
-  if (parsed.data.NEON_CHAT_LOG_ENABLED && !parsed.data.NEON_ENABLED) {
-    throw new Error('NEON_ENABLED must be true when NEON_CHAT_LOG_ENABLED=true')
-  }
-  if (parsed.data.NEON_CHAT_LOG_ENABLED && !parsed.data.NEON_CHAT_LOG_GROUPS.trim()) {
-    throw new Error('NEON_CHAT_LOG_GROUPS is required when NEON_CHAT_LOG_ENABLED=true')
-  }
-  if (parsed.data.NEON_CHAT_LOG_MAX_RETRY_DELAY_MS < parsed.data.NEON_CHAT_LOG_RETRY_DELAY_MS) {
-    throw new Error('NEON_CHAT_LOG_MAX_RETRY_DELAY_MS must be at least NEON_CHAT_LOG_RETRY_DELAY_MS')
-  }
-  if (parsed.data.UPSTASH_REDIS_ENABLED) {
-    if (!parsed.data.UPSTASH_REDIS_REST_URL) throw new Error('UPSTASH_REDIS_REST_URL is required when UPSTASH_REDIS_ENABLED=true')
-    if (!parsed.data.UPSTASH_REDIS_REST_TOKEN) throw new Error('UPSTASH_REDIS_REST_TOKEN is required when UPSTASH_REDIS_ENABLED=true')
-    if (!/^https:\/\//i.test(parsed.data.UPSTASH_REDIS_REST_URL)) throw new Error('UPSTASH_REDIS_REST_URL must use https://')
+  if (parsed.data.REDIS_ENABLED && !parsed.data.REDIS_URL) {
+    throw new Error('REDIS_URL is required when REDIS_ENABLED=true')
   }
   if (parsed.data.CODEBASE_EXPORT_PATH.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(parsed.data.CODEBASE_EXPORT_PATH) || parsed.data.CODEBASE_EXPORT_PATH.split(/[\\/]/u).includes('..')) {
     throw new Error('CODEBASE_EXPORT_PATH must remain inside the application directory')
@@ -151,13 +127,10 @@ export function publicConfig(config: AppConfig) {
     diagnosticsEnabled: config.DIAGNOSTICS_ENABLED,
     xkiroAiEnabled: config.XKIRO_AI_ENABLED,
     xkiroAiFallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED,
-    supabaseEconomyEnabled: config.SUPABASE_ECONOMY_ENABLED,
     characterGuideEnabled: config.CHARACTER_GUIDE_ENABLED,
     groupContextEnabled: config.GROUP_CONTEXT_ENABLED,
-    supabaseEconomyCacheTtlSeconds: config.SUPABASE_ECONOMY_CACHE_TTL_SECONDS,
-    neonEnabled: config.NEON_ENABLED,
-    neonChatLogEnabled: config.NEON_CHAT_LOG_ENABLED,
-    upstashRedisEnabled: config.UPSTASH_REDIS_ENABLED,
+    mongoEnabled: config.MONGODB_ENABLED,
+    redisEnabled: config.REDIS_ENABLED,
     codebaseExportEnabled: config.CODEBASE_EXPORT_ENABLED,
     codebaseExportMaxBytes: config.CODEBASE_EXPORT_MAX_BYTES,
     sentryEnabled: config.SENTRY_ENABLED,

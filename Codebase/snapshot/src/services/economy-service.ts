@@ -1,13 +1,8 @@
 import { createHash } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
-import { isGroupJid, isJid } from '../platform/validation.js'
-import {
-  createSupabaseReadWriteClient,
-  readSupabaseReadWriteConfig,
-  type SupabaseReadWriteConfig,
-} from '../supabase-read-write.js'
-import type { UpstashRedisService } from '../upstash-redis.js'
+import { isGroupJid, isJid } from '../framework/validation.js'
+import type { RedisService } from '../redis.js'
 
 export type EconomyMembershipTier = 'basic' | 'bronze' | 'silver' | 'gold' | 'star'
 export type EconomySafeStatus = 'not_open' | 'pending' | 'active' | 'frozen'
@@ -99,7 +94,7 @@ export interface EconomyRedisCache {
 export interface EconomyServiceOptions {
   readonly env?: NodeJS.ProcessEnv
   readonly cacheTtlSeconds?: number
-  readonly createClient?: (config: SupabaseReadWriteConfig) => EconomyRpcClient
+  readonly createClient?: (config: any) => EconomyRpcClient
   readonly redis?: EconomyRedisCache
   readonly clock?: () => number
 }
@@ -133,11 +128,11 @@ export class EconomyOperationError extends Error {
 
 export class EconomyService implements Service {
   readonly name = 'economy'
-  readonly dependencies = ['upstash-redis'] as const
+  readonly dependencies = ['redis'] as const
 
   private readonly env: NodeJS.ProcessEnv
   private readonly cacheTtlSeconds: number
-  private readonly createClient: (config: SupabaseReadWriteConfig) => EconomyRpcClient
+  private readonly createClient: (config: any) => EconomyRpcClient
   private readonly injectedRedis?: EconomyRedisCache
   private readonly clock: () => number
   private enabled = false
@@ -151,25 +146,23 @@ export class EconomyService implements Service {
     this.env = options.env ?? process.env
     this.cacheTtlSeconds = options.cacheTtlSeconds ?? DEFAULT_CACHE_TTL_SECONDS
     if (!Number.isSafeInteger(this.cacheTtlSeconds) || this.cacheTtlSeconds < 5 || this.cacheTtlSeconds > MAX_CACHE_TTL_SECONDS) {
-      throw new Error(`Supabase economy cache TTL must be between 5 and ${MAX_CACHE_TTL_SECONDS} seconds`)
+      throw new Error(`Economy cache TTL must be between 5 and ${MAX_CACHE_TTL_SECONDS} seconds`)
     }
-    this.createClient = options.createClient ?? ((config) => createSupabaseReadWriteClient(config))
+    this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.injectedRedis = options.redis
     this.clock = options.clock ?? (() => Date.now())
   }
 
   initialize(context: ServiceContext): void {
-    this.enabled = this.env.SUPABASE_ECONOMY_ENABLED?.trim().toLowerCase() === 'true'
-    this.redis = this.injectedRedis ?? (context.services.has('upstash-redis')
-      ? context.services.get<UpstashRedisService>('upstash-redis')
+    this.enabled = this.env.ECONOMY_ENABLED?.trim().toLowerCase() === 'true' || this.env.SUPABASE_ECONOMY_ENABLED?.trim().toLowerCase() === 'true'
+    this.redis = this.injectedRedis ?? (context.services.has('redis')
+      ? context.services.get<RedisService>('redis') as unknown as EconomyRedisCache
       : undefined)
 
     if (!this.enabled) return
 
-    const config = readSupabaseReadWriteConfig(this.env)
-    if (!config) throw new Error('Supabase economy requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY')
-    this.client = this.createClient(config)
-    this.logger.info({ cacheTtlSeconds: this.cacheTtlSeconds }, 'Supabase economy service initialized')
+    this.client = this.createClient({})
+    this.logger.info({ cacheTtlSeconds: this.cacheTtlSeconds }, 'Economy service initialized')
   }
 
   get isEnabled(): boolean {

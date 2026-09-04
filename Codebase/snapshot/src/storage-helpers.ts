@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { Logger } from 'pino'
-import { isJid } from './platform/validation.js'
+import { isJid } from './framework/validation.js'
 
 export type DatabaseInstance = Database.Database
 

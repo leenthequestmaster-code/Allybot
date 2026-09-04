@@ -1,7 +1,7 @@
 import type { CommandContext, CoreMessage, Plugin, WhatsAppPort } from '../contracts.js'
-import { UpstashRedisService } from '../../upstash-redis.js'
+import type { RedisService } from '../../redis.js'
 import { permissionNames } from '../../permissions.js'
-import { isGroupJid } from '../../platform/validation.js'
+import { isGroupJid } from '../validation.js'
 import {
   GROUP_MODES,
   IC_SUBTYPES,
@@ -192,7 +192,7 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
           if (mode === 'guide' && !isGuideConfirm) {
             pendingGuide.set(confirmationKey, { expiresAt: Date.now() + GUIDE_CONFIRM_TTL_MS })
             await commandContext.reply([
-              'Mode Guide akan mengaktifkan onboarding dan pendaftaran Character Sheet.',
+              'Mode Guide akan mengaktifkan pendaftaran Character Sheet.',
               `Konfirmasi dengan: ${commandContext.prefix}setgroup guide confirm`,
             ].join('\n'))
             return
@@ -240,9 +240,9 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const now = Date.now()
           const key = `${group}:${actor}`
-          const redis = context.services.has('upstash-redis') ? context.services.get<UpstashRedisService>('upstash-redis') : undefined
+          const redis = context.services.has('redis') ? context.services.get<RedisService>('redis') : undefined
           let rateDecision: { allowed: boolean; resetAt: number; reason: 'cooldown' | 'window' } | undefined
-          if (redis?.isEnabled) {
+          if (redis?.isEnabled()) {
             const [cooldown, window] = await Promise.all([
               redis.consumeFixedWindow('group-context:ooc-cooldown', key, 1, oocCooldownMs, now),
               redis.consumeFixedWindow('group-context:ooc-window', key, oocMaxPerWindow, oocWindowMs, now),

@@ -9,7 +9,7 @@ import {
   GuardrailPolicyRegistry,
   ProviderCircuitBreaker,
   SafeActionRegistry,
-} from '../dist/platform/index.js'
+} from '../dist/framework/index.js'
 import { PlatformGuardrailService } from '../dist/services/platform-guardrail-service.js'
 
 const logger = {

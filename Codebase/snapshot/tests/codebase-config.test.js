@@ -35,16 +35,16 @@ test('Character Guide and Group Context are default-off with bounded safe defaul
   assert.equal('SUPABASE_SERVICE_ROLE_KEY' in exposed, false)
 })
 
-test('Supabase-backed Character/Group Context flags require server-side credentials and valid bounds', () => {
-  assert.throws(() => loadConfig({ CHARACTER_GUIDE_ENABLED: 'true' }), /SUPABASE_URL is required/)
-  assert.throws(() => loadConfig({ GROUP_CONTEXT_ENABLED: 'true', SUPABASE_URL: 'https://example.supabase.co' }), /SUPABASE_SERVICE_ROLE_KEY is required/)
+test('Mongo-backed Character/Group Context flags require server-side credentials and valid bounds', () => {
+  assert.throws(() => loadConfig({ CHARACTER_GUIDE_ENABLED: 'true' }), /MONGODB_URI is required/)
+  assert.throws(() => loadConfig({ GROUP_CONTEXT_ENABLED: 'true' }), /MONGODB_URI is required/)
   assert.throws(() => loadConfig({ CHARACTER_GUIDE_SESSION_TTL_SECONDS: '299' }), /must be between/)
   assert.throws(() => loadConfig({ GROUP_CONTEXT_OOC_MAX_PER_WINDOW: '21' }), /must be between/)
   const config = loadConfig({
     CHARACTER_GUIDE_ENABLED: 'true',
     GROUP_CONTEXT_ENABLED: 'true',
-    SUPABASE_URL: 'https://example.supabase.co',
-    SUPABASE_SERVICE_ROLE_KEY: 'test-server-only-value',
+    MONGODB_ENABLED: 'true',
+    MONGODB_URI: 'mongodb://localhost:27017/allybot',
   })
   assert.equal(config.CHARACTER_GUIDE_ENABLED, true)
   assert.equal(config.GROUP_CONTEXT_ENABLED, true)

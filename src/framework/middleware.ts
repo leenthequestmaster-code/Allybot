@@ -3,7 +3,7 @@ import type {
   MiddlewareContext,
   CommandContext,
 } from './contracts.js'
-import { isGroupJid } from '../platform/validation.js'
+import { isGroupJid } from './validation.js'
 
 export type PermissionResolver = (
   permission: string,
