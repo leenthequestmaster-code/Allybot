@@ -311,6 +311,10 @@ export class CharacterGuideService implements Service {
     options: CharacterGuideServiceOptions = {},
   ) {
     this.env = options.env ?? process.env
+    // PENDING: no RPC backend exists. Without options.createClient every rpc() resolves
+    // to { data: null }, so registration and character reads never persist. src/index.ts
+    // passes no createClient. Needs an infrastructure decision, and the character-guide
+    // plugin does not load at all today (duplicate `timerp` alias).
     this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.clock = options.clock ?? (() => Date.now())
   }

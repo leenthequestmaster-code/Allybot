@@ -125,7 +125,7 @@ export class RedisService implements Service {
     this.clock = options.clock ?? (() => Date.now())
   }
 
-  async start(context: ServiceContext): Promise<void> {
+  async initialize(context: ServiceContext): Promise<void> {
     this.logger = context.logger
     if (!this.config) {
       this.lastHealth = {
@@ -147,7 +147,7 @@ export class RedisService implements Service {
     await this.healthCheck()
   }
 
-  async stop(): Promise<void> {
+  async shutdown(): Promise<void> {
     if (this.client) {
       if (typeof this.client.quit === 'function') {
         await this.client.quit().catch(() => {})
@@ -162,7 +162,9 @@ export class RedisService implements Service {
     return this.lastHealth
   }
 
-  isEnabled(): boolean {
+  // Property, not method: callers guard with `if (redis?.isEnabled)`, and a method
+  // reference is always truthy — which silently disabled every guard behind it.
+  get isEnabled(): boolean {
     return Boolean(this.config)
   }
 
@@ -244,17 +246,16 @@ export class RedisService implements Service {
     }
   }
 
-  async consumeRateWindow(key: string, limit: number, windowMs: number): Promise<RedisRateDecision> {
-    const fallbackReset = this.clock() + windowMs
-    if (!this.client) {
-      return { allowed: true, count: 1, limit, resetAt: fallbackReset }
-    }
+  // Undefined means Redis could not decide, so callers must fall back to their local
+  // limiter. Returning an allow decision here would silently disable every rate guard.
+  async consumeFixedWindow(namespace: string, key: string, limit: number, windowMs: number, _now = this.clock()): Promise<RedisRateDecision | undefined> {
+    if (!this.client) return undefined
 
     try {
       const result = (await this.client.eval(
         RATE_WINDOW_SCRIPT,
         1,
-        this.prefixedKey(key),
+        this.prefixedKey(`${namespace}:${key}`),
         windowMs.toString(),
       )) as [number, number]
 
@@ -267,12 +268,8 @@ export class RedisService implements Service {
         resetAt: this.clock() + Math.max(0, pttl),
       }
     } catch {
-      return { allowed: true, count: 1, limit, resetAt: fallbackReset }
+      return undefined
     }
-  }
-
-  async consumeFixedWindow(namespace: string, key: string, limit: number, windowMs: number, _now = this.clock()): Promise<RedisRateDecision> {
-    return this.consumeRateWindow(`${namespace}:${key}`, limit, windowMs)
   }
 
   async acquireLock(key: string, ttlSeconds: number): Promise<RedisLockLease> {
@@ -349,6 +346,16 @@ export class RedisService implements Service {
       const serialized = JSON.stringify(value)
       await this.client.set(this.prefixedKey(`${namespace}:${key}`), serialized, 'EX', ttlSeconds)
       return true
+    } catch {
+      return false
+    }
+  }
+
+  async cacheDelete(namespace: string, key: string): Promise<boolean> {
+    if (!this.client) return false
+    try {
+      const count = await this.client.del(this.prefixedKey(`${namespace}:${key}`))
+      return count > 0
     } catch {
       return false
     }

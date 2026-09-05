@@ -8,12 +8,12 @@ test('MongoService readConfig and health status disabled by default', async () =
   assert.equal(config, undefined)
 
   const service = new MongoService({ env: {} })
-  assert.equal(service.isEnabled(), false)
+  assert.equal(service.isEnabled, false)
   assert.equal(service.getHealth().status, 'disabled')
 
-  await service.start({ logger: { info() {}, error() {}, debug() {} } })
+  await service.initialize({ logger: { info() {}, error() {}, debug() {} } })
   assert.equal(service.getHealth().status, 'disabled')
-  await service.stop()
+  await service.shutdown()
 })
 
 test('RedisService readConfig and health status disabled by default', async () => {
@@ -21,25 +21,25 @@ test('RedisService readConfig and health status disabled by default', async () =
   assert.equal(config, undefined)
 
   const service = new RedisService({ env: {} })
-  assert.equal(service.isEnabled(), false)
+  assert.equal(service.isEnabled, false)
   assert.equal(service.getHealth().status, 'disabled')
 
-  await service.start({ logger: { info() {}, error() {}, debug() {} } })
+  await service.initialize({ logger: { info() {}, error() {}, debug() {} } })
   assert.equal(service.getHealth().status, 'disabled')
-  await service.stop()
+  await service.shutdown()
 })
 
-test('RedisService rate limiting and caching fallback gracefully when disabled', async () => {
+test('RedisService yields no decision when disabled so callers keep their local guards', async () => {
   const service = new RedisService({ env: {} })
-  const decision = await service.consumeRateWindow('test-user', 5, 1000)
-  assert.equal(decision.allowed, true)
-  assert.equal(decision.count, 1)
+  assert.equal(await service.consumeFixedWindow('spam', 'test-user', 5, 1000), undefined)
 
   const val = await service.cacheGet('test', 'key')
   assert.equal(val, undefined)
 
   const saved = await service.cacheSet('test', 'key', { foo: 'bar' }, 60)
   assert.equal(saved, false)
+
+  assert.equal(await service.cacheDelete('test', 'key'), false)
 
   const dedupe = await service.rememberOnce('test', 'id-1', 60)
   assert.equal(dedupe, undefined)

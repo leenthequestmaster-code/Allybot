@@ -168,6 +168,11 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
         },
       })
 
+      // PENDING: `ooc` collides with the `ooc` command in group-context, which registers
+      // first (src/index.ts). register() throws on the second loop iteration, and
+      // cleanup() rolls back `!scene`, `!setscene`, and `!ic` along with it. Both meanings
+      // are legitimate — group-context sends an OOC message, scene switches scene mode —
+      // so which one keeps the name is a product decision.
       for (const mode of ['ic', 'ooc'] as const) {
         context.commands.register({
           name: mode,

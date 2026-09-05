@@ -53,7 +53,7 @@ export class MongoService implements Service {
     this.clientFactory = options.clientFactory
   }
 
-  async start(context: ServiceContext): Promise<void> {
+  async initialize(context: ServiceContext): Promise<void> {
     this.logger = context.logger
     if (!this.config) {
       this.lastHealth = { status: 'disabled', checkedAt: new Date().toISOString() }
@@ -77,7 +77,7 @@ export class MongoService implements Service {
     }
   }
 
-  async stop(): Promise<void> {
+  async shutdown(): Promise<void> {
     if (this.client) {
       await this.client.close().catch(() => {})
       this.client = undefined
@@ -89,7 +89,7 @@ export class MongoService implements Service {
     return this.lastHealth
   }
 
-  isEnabled(): boolean {
+  get isEnabled(): boolean {
     return Boolean(this.config)
   }
 

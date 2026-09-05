@@ -18,7 +18,7 @@ function createFixture() {
   let rateCalls = 0
   const redis = {
     name: 'redis',
-    isEnabled() { return true },
+    isEnabled: true,
     async rememberOnce(scope, identity) {
       dedupeCalls += 1
       return dedupeCalls === 1

@@ -340,7 +340,7 @@ async function inspectMessage(logger: { info(fields: Record<string, unknown>, me
   try {
     metadata = await whatsapp.getGroupMetadata(group)
   } catch (error) {
-    logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', group }, 'group safety metadata lookup failed')
+    logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', groupJid: group }, 'group safety metadata lookup failed')
     return
   }
   if (isAdmin(metadata, sender)) return

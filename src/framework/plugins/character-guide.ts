@@ -487,7 +487,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
                 await service.markDelivery(saved.deliveryId, 'sent')
               } catch {
                 await service.markDelivery(saved.deliveryId, 'failed', 'private_delivery_failed')
-                context.logger.warn({ group }, 'character guide private delivery failed')
+                context.logger.warn({ groupJid: group }, 'character guide private delivery failed')
               }
             }
           } catch (error) {
@@ -568,6 +568,11 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         },
       })
 
+      // PENDING: `timerp` is listed as both name and alias, so register() rejects it and
+      // PluginManager.cleanup() rolls back every command this plugin already registered.
+      // Dropping the duplicate alias is trivial; it is left in place because this plugin
+      // has no RPC backend either (see CharacterGuideService), so reviving its commands
+      // would only surface handlers that cannot read or write anything.
       context.commands.register({
         name: 'timerp',
         aliases: ['timerp', 'rpwaktu'],

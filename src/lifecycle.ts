@@ -1,5 +1,4 @@
 import type { AppConfig } from './config.js'
-import { errorMessage } from './errors.js'
 import type { AppLogger } from './logger.js'
 import { SqliteStorage } from './storage.js'
 import { WhatsAppConnection } from './whatsapp.js'
@@ -63,7 +62,7 @@ export class AppLifecycle {
     } catch (error) {
       this.sentry.captureError('lifecycle:shutdown', error)
       clearTimeout(timeout)
-      this.logger.error({ err: errorMessage(error) }, 'graceful shutdown failed')
+      this.logger.error({ err: error }, 'graceful shutdown failed')
       process.exit(exitCode === 0 ? 1 : exitCode)
     }
   }
@@ -74,13 +73,13 @@ export class AppLifecycle {
 
     process.on('uncaughtException', (error) => {
       this.sentry.captureError('process:uncaught_exception', error)
-      this.logger.fatal({ err: errorMessage(error) }, 'uncaught exception')
+      this.logger.fatal({ err: error }, 'uncaught exception')
       void this.shutdown('uncaughtException', 1)
     })
 
     process.on('unhandledRejection', (reason) => {
       this.sentry.captureError('process:unhandled_rejection', reason)
-      this.logger.fatal({ err: errorMessage(reason) }, 'unhandled rejection')
+      this.logger.fatal({ err: reason }, 'unhandled rejection')
       void this.shutdown('unhandledRejection', 1)
     })
   }

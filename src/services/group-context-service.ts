@@ -130,6 +130,10 @@ export class GroupContextService implements Service {
     options: GroupContextServiceOptions = {},
   ) {
     this.env = options.env ?? process.env
+    // PENDING: no RPC backend exists. Without options.createClient, get() always returns
+    // DEFAULT_CONTEXT (mode 'normal'), set() throws, and isOocAllowed() is always false.
+    // src/index.ts passes no createClient, so the IC/OOC message gate never activates
+    // because it only runs when mode === 'ic'. Needs an infrastructure decision.
     this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.clock = options.clock ?? (() => Date.now())
   }

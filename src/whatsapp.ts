@@ -37,7 +37,7 @@ import type {
   WhatsAppMediaPayload,
   WhatsAppSendOptions,
 } from './framework/contracts.js'
-import { AllybotError, errorMessage, statusCodeFromError } from './errors.js'
+import { AllybotError, statusCodeFromError } from './errors.js'
 import type { AppLogger } from './logger.js'
 import { SqliteStorage } from './storage.js'
 import type { RedisService } from './redis.js'
@@ -673,7 +673,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       }
       return name || undefined
     } catch (error) {
-      this.logger.debug({ err: errorMessage(error), remoteJid }, 'group metadata lookup failed')
+      this.logger.debug({ err: error, remoteJid }, 'group metadata lookup failed')
       return undefined
     }
   }
@@ -706,7 +706,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       try {
         await socket.ws.close()
       } catch (error) {
-        this.logger.warn({ err: errorMessage(error) }, 'socket close returned an error')
+        this.logger.warn({ err: error }, 'socket close returned an error')
       }
     }
     this.status = 'idle'
@@ -747,7 +747,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       this.attachEventProcessor(socket, creds, generation, childLogger)
     } catch (error) {
       this.status = error instanceof AllybotError && error.category === 'authentication' ? 'needs_auth' : 'failed'
-      childLogger.error({ err: errorMessage(error) }, 'socket creation failed')
+      childLogger.error({ err: error }, 'socket creation failed')
       if (!(error instanceof AllybotError) || error.retryable) {
         this.scheduleReconnect('socket_creation_failed')
       } else {
@@ -816,7 +816,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
           )
           logger.info({ pairingCode: code }, 'pairing code generated')
         } catch (error) {
-          logger.error({ err: errorMessage(error) }, 'pairing code request failed')
+          logger.error({ err: error }, 'pairing code request failed')
         }
       }
     }
@@ -1012,7 +1012,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     try {
       await socket.ws.close()
     } catch (error) {
-      this.logger.debug({ err: errorMessage(error) }, 'watchdog socket close returned an error')
+      this.logger.debug({ err: error }, 'watchdog socket close returned an error')
     }
     this.scheduleReconnect('watchdog_closed_socket')
   }

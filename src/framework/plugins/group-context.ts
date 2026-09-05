@@ -242,7 +242,7 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
           const key = `${group}:${actor}`
           const redis = context.services.has('redis') ? context.services.get<RedisService>('redis') : undefined
           let rateDecision: { allowed: boolean; resetAt: number; reason: 'cooldown' | 'window' } | undefined
-          if (redis?.isEnabled()) {
+          if (redis?.isEnabled) {
             const [cooldown, window] = await Promise.all([
               redis.consumeFixedWindow('group-context:ooc-cooldown', key, 1, oocCooldownMs, now),
               redis.consumeFixedWindow('group-context:ooc-window', key, oocMaxPerWindow, oocWindowMs, now),

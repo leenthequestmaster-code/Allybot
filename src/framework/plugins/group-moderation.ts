@@ -117,6 +117,10 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
         },
       })
 
+      // PENDING: collides with the `groupmode` alias of `setgroup` in group-context, which
+      // registers first (src/index.ts). register() throws here and cleanup() rolls back
+      // this plugin's earlier commands too, so `!modaction` disappears with it. Renaming
+      // either side changes a user-visible command, so it waits on a product decision.
       context.commands.register({
         name: 'groupmode',
         description: 'Update guarded group settings',

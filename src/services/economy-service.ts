@@ -148,6 +148,10 @@ export class EconomyService implements Service {
     if (!Number.isSafeInteger(this.cacheTtlSeconds) || this.cacheTtlSeconds < 5 || this.cacheTtlSeconds > MAX_CACHE_TTL_SECONDS) {
       throw new Error(`Economy cache TTL must be between 5 and ${MAX_CACHE_TTL_SECONDS} seconds`)
     }
+    // PENDING: no RPC backend exists. Without options.createClient every rpc() resolves
+    // to { data: null }, so getAccountSnapshot() throws EconomyUnavailableError and every
+    // mutation fails. src/index.ts passes no createClient, so ECONOMY_ENABLED=true only
+    // registers the command surface. Wiring a real client is an infrastructure decision.
     this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.injectedRedis = options.redis
     this.clock = options.clock ?? (() => Date.now())
@@ -156,7 +160,7 @@ export class EconomyService implements Service {
   initialize(context: ServiceContext): void {
     this.enabled = this.env.ECONOMY_ENABLED?.trim().toLowerCase() === 'true' || this.env.SUPABASE_ECONOMY_ENABLED?.trim().toLowerCase() === 'true'
     this.redis = this.injectedRedis ?? (context.services.has('redis')
-      ? context.services.get<RedisService>('redis') as unknown as EconomyRedisCache
+      ? context.services.get<RedisService>('redis')
       : undefined)
 
     if (!this.enabled) return
