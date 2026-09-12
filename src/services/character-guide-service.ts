@@ -302,6 +302,7 @@ export class CharacterGuideService implements Service {
 
   private readonly env: NodeJS.ProcessEnv
   private readonly createClient: (config: any) => CharacterRpcClient
+  private readonly backendConfigured: boolean
   private readonly clock: () => number
   private enabled = false
   private client: CharacterRpcClient | undefined
@@ -313,8 +314,10 @@ export class CharacterGuideService implements Service {
     this.env = options.env ?? process.env
     // PENDING: no RPC backend exists. Without options.createClient every rpc() resolves
     // to { data: null }, so registration and character reads never persist. src/index.ts
-    // passes no createClient. Needs an infrastructure decision, and the character-guide
-    // plugin does not load at all today (duplicate `timerp` alias).
+    // passes no createClient. `backendConfigured` is the explicit stub marker: only an
+    // injected client factory counts as a real backend; the plugin refuses commands
+    // instead of letting them surface handlers that can never read or write anything.
+    this.backendConfigured = options.createClient !== undefined
     this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.clock = options.clock ?? (() => Date.now())
   }
@@ -336,6 +339,14 @@ export class CharacterGuideService implements Service {
 
   get isReady(): boolean {
     return this.enabled && this.client !== undefined
+  }
+
+  // Explicit stub detection (no string-matching): true only when a real RPC client
+  // factory was injected at construction. src/index.ts never injects one, so this is
+  // false in production today and the plugin refuses commands instead of letting
+  // them surface handlers that can never read or write anything.
+  get hasBackend(): boolean {
+    return this.backendConfigured
   }
 
   createCardReference(groupJid: string, ownerJid: string, cardCode: string): string {

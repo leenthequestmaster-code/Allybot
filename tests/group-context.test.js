@@ -23,6 +23,8 @@ function createHarness({ mode = 'ic', allowed = false, registered = [] } = {}) {
   const service = {
     name: 'group-context',
     isEnabled: true,
+    // Live backend marker: keeps the IC/OOC gate tests on the real backend path.
+    hasBackend: true,
     async get() {
       contextReads += 1
       return contextRecord

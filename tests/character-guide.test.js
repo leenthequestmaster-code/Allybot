@@ -30,6 +30,8 @@ function createHarness({ existing = false } = {}) {
   const service = {
     name: 'character-guide',
     isEnabled: true,
+    // Live backend marker: keeps these tests on the real backend path.
+    hasBackend: true,
     createCardReference() { return referenceKey },
     async getActive() { return undefined },
     async getActiveForOwner() { return undefined },

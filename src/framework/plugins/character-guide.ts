@@ -3,6 +3,7 @@ import type {
   CommandContext,
   CoreMessage,
   Plugin,
+  PluginContext,
   WhatsAppGroupParticipant,
   WhatsAppPort,
 } from '../contracts.js'
@@ -17,6 +18,41 @@ import {
 } from '../../services/character-guide-service.js'
 import { extractCommandPayload, parseCharacterSheet } from '../../services/character-sheet-parser.js'
 import { GroupContextService } from '../../services/group-context-service.js'
+
+// Backend stub refusal (PENDING: no RPC backend exists). The command names stay
+// reachable so users who already know them get one clear Indonesian refusal
+// instead of silence, but every surface is hidden so no menu advertises the
+// feature as active while the backend is empty. `timerp` keeps only its
+// `rpwaktu` alias here — the previous list duplicated the command name as an
+// alias, which register() rejects, and the resulting rollback killed the whole
+// plugin on every boot.
+const CHARACTER_GUIDE_BACKEND_PENDING_TEXT = 'Fitur Character Guide belum tersedia — backend sedang disiapkan.'
+
+const CHARACTER_GUIDE_COMMAND_NAMES: readonly { readonly name: string; readonly aliases?: readonly string[] }[] = [
+  { name: 'daftar', aliases: ['registercharacter', 'createcharacter'] },
+  { name: 'savecharacter', aliases: ['savechar'] },
+  { name: 'retry', aliases: ['retrycharacter'] },
+  { name: 'cancel', aliases: ['cancelcharacter'] },
+  { name: 'character', aliases: ['char', 'yourcharacter'] },
+  { name: 'deletecharacter', aliases: ['deletechar', 'offcharacter'] },
+  { name: 'timerp', aliases: ['rpwaktu'] },
+  { name: 'guider' },
+]
+
+function registerCharacterGuideRefusalSurface(context: PluginContext): void {
+  for (const { name, aliases } of CHARACTER_GUIDE_COMMAND_NAMES) {
+    context.commands.register({
+      name,
+      ...(aliases ? { aliases } : {}),
+      description: 'Fitur belum tersedia',
+      hidden: true,
+      cooldownMs: 5_000,
+      handler: async (commandContext) => {
+        await commandContext.reply(CHARACTER_GUIDE_BACKEND_PENDING_TEXT)
+      },
+    })
+  }
+}
 
 const DEFAULT_SESSION_TTL_SECONDS = 1_800
 const GUIDE_CONFIRM_TTL_MS = 2 * 60 * 1000
@@ -234,6 +270,18 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
     load(context) {
       const service = context.services.get<CharacterGuideService>('character-guide')
       const groupContext = context.services.get<GroupContextService>('group-context')
+      // Explicit disable ladder:
+      // 1. flag false  → plugin registers nothing at all (no commands, no listeners)
+      // 2. flag true + stub backend → hidden refusal surface; commands always answer
+      //    with CHARACTER_GUIDE_BACKEND_PENDING_TEXT and neither the onboarding
+      //    listeners nor any service method is ever registered/called
+      // 3. flag true + real backend → the full live guide surface
+      if (!service.isEnabled) return
+      if (!service.hasBackend) {
+        registerCharacterGuideRefusalSurface(context)
+        context.logger.info('Character Guide plugin loaded in backend-pending refusal mode')
+        return
+      }
       const onboardingTtlMs = Math.max(60_000, (context.config.characterGuideSessionTtlSeconds ?? DEFAULT_SESSION_TTL_SECONDS) * 1_000)
       const cardLocks = new Map<string, Promise<PendingOnboarding | undefined>>()
       const cardMessageLocks = new Map<string, Promise<void>>()
@@ -568,14 +616,12 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         },
       })
 
-      // PENDING: `timerp` is listed as both name and alias, so register() rejects it and
-      // PluginManager.cleanup() rolls back every command this plugin already registered.
-      // Dropping the duplicate alias is trivial; it is left in place because this plugin
-      // has no RPC backend either (see CharacterGuideService), so reviving its commands
-      // would only surface handlers that cannot read or write anything.
+      // The former duplicate `timerp` alias (name listed again as an alias) made
+      // register() throw and PluginManager.cleanup() roll back every command this
+      // plugin had registered; fixed by keeping only `rpwaktu` as the alias.
       context.commands.register({
         name: 'timerp',
-        aliases: ['timerp', 'rpwaktu'],
+        aliases: ['rpwaktu'],
         description: 'Lihat waktu RP Allyssea saat ini',
         category: 'your-character',
         menuOrder: 8,

@@ -121,6 +121,7 @@ export class GroupContextService implements Service {
 
   private readonly env: NodeJS.ProcessEnv
   private readonly createClient: (config: any) => GroupContextRpcClient
+  private readonly backendConfigured: boolean
   private readonly clock: () => number
   private enabled = false
   private client: GroupContextRpcClient | undefined
@@ -133,7 +134,9 @@ export class GroupContextService implements Service {
     // PENDING: no RPC backend exists. Without options.createClient, get() always returns
     // DEFAULT_CONTEXT (mode 'normal'), set() throws, and isOocAllowed() is always false.
     // src/index.ts passes no createClient, so the IC/OOC message gate never activates
-    // because it only runs when mode === 'ic'. Needs an infrastructure decision.
+    // because it only runs when mode === 'ic'. `backendConfigured` is the explicit
+    // stub marker: only an injected client factory counts as a real backend.
+    this.backendConfigured = options.createClient !== undefined
     this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.clock = options.clock ?? (() => Date.now())
   }
@@ -155,6 +158,14 @@ export class GroupContextService implements Service {
 
   get isReady(): boolean {
     return this.enabled && this.client !== undefined
+  }
+
+  // Explicit stub detection (no string-matching): true only when a real RPC client
+  // factory was injected at construction. src/index.ts never injects one, so this is
+  // false in production today and the plugin refuses mode changes instead of letting
+  // them appear to succeed against an always-'normal' stub.
+  get hasBackend(): boolean {
+    return this.backendConfigured
   }
 
   async get(groupJid: string): Promise<GroupContextRecord> {

@@ -133,6 +133,7 @@ export class EconomyService implements Service {
   private readonly env: NodeJS.ProcessEnv
   private readonly cacheTtlSeconds: number
   private readonly createClient: (config: any) => EconomyRpcClient
+  private readonly backendConfigured: boolean
   private readonly injectedRedis?: EconomyRedisCache
   private readonly clock: () => number
   private enabled = false
@@ -151,7 +152,10 @@ export class EconomyService implements Service {
     // PENDING: no RPC backend exists. Without options.createClient every rpc() resolves
     // to { data: null }, so getAccountSnapshot() throws EconomyUnavailableError and every
     // mutation fails. src/index.ts passes no createClient, so ECONOMY_ENABLED=true only
-    // registers the command surface. Wiring a real client is an infrastructure decision.
+    // registers a refusal surface (see economyPlugin) until a real client is wired.
+    // `backendConfigured` is the explicit stub marker: only an injected client factory
+    // counts as a real backend; the default { data: null } factory never does.
+    this.backendConfigured = options.createClient !== undefined
     this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.injectedRedis = options.redis
     this.clock = options.clock ?? (() => Date.now())
@@ -175,6 +179,14 @@ export class EconomyService implements Service {
 
   get isReady(): boolean {
     return this.enabled && this.client !== undefined
+  }
+
+  // Explicit stub detection (no string-matching): true only when a real RPC client
+  // factory was injected at construction. src/index.ts never injects one, so this is
+  // false in production today and economyPlugin refuses commands instead of letting
+  // them surface handlers that can never read or write anything.
+  get hasBackend(): boolean {
+    return this.backendConfigured
   }
 
   async getAccountSnapshot(groupJid: string, subjectJid: string): Promise<EconomySnapshotResult> {

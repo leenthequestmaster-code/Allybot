@@ -1,4 +1,4 @@
-import type { CommandContext, Plugin } from '../contracts.js'
+import type { CommandContext, Plugin, PluginContext } from '../contracts.js'
 import { permissionNames } from '../../permissions.js'
 import { isGroupJid, isJid } from '../validation.js'
 import {
@@ -12,6 +12,37 @@ import {
   type TaxStatus,
   type TaxFrozenScope,
 } from '../../services/economy-service.js'
+
+// Backend stub refusal (PENDING: no RPC backend exists). The command names stay
+// reachable so users who already know them get one clear Indonesian refusal
+// instead of silence, but every surface is hidden so no menu advertises the
+// feature as active while the backend is empty. No service method is ever called.
+const ECONOMY_BACKEND_PENDING_TEXT = 'Fitur ekonomi belum tersedia — backend sedang disiapkan.'
+
+const ECONOMY_COMMAND_NAMES: readonly { readonly name: string; readonly aliases?: readonly string[] }[] = [
+  { name: 'vela', aliases: ['wallet'] },
+  { name: 'bank' },
+  { name: 'bankpolicy', aliases: ['economypolicy'] },
+  { name: 'bankreward' },
+  { name: 'banksweep' },
+  { name: 'tax' },
+  { name: 'taxbayar', aliases: ['bayarpajak'] },
+]
+
+function registerEconomyRefusalSurface(context: PluginContext): void {
+  for (const { name, aliases } of ECONOMY_COMMAND_NAMES) {
+    context.commands.register({
+      name,
+      ...(aliases ? { aliases } : {}),
+      description: 'Fitur belum tersedia',
+      hidden: true,
+      cooldownMs: 5_000,
+      handler: async (commandContext) => {
+        await commandContext.reply(ECONOMY_BACKEND_PENDING_TEXT)
+      },
+    })
+  }
+}
 
 function economyService(context: CommandContext): EconomyService {
   return context.services.get<EconomyService>('economy')
@@ -326,7 +357,17 @@ export const economyPlugin: Plugin = {
   version: '0.2.0',
   load(context) {
     const service = context.services.get<EconomyService>('economy')
+    // Explicit disable ladder:
+    // 1. flag false  → plugin registers nothing at all (no commands, no reaction)
+    // 2. flag true + stub backend → hidden refusal surface; commands always answer
+    //    with ECONOMY_BACKEND_PENDING_TEXT and never call the service
+    // 3. flag true + real backend → the full live command surface
     if (!service.isEnabled) return
+    if (!service.hasBackend) {
+      registerEconomyRefusalSurface(context)
+      context.logger.info('Economy plugin loaded in backend-pending refusal mode')
+      return
+    }
 
     context.commands.register({
       name: 'vela',

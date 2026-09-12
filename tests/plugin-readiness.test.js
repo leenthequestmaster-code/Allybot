@@ -69,15 +69,16 @@ function stubService(name) {
   return proxy
 }
 
-// PENDING: three plugins collide on command names and die on every production boot.
+// PENDING: two plugins collide on command names and die on every production boot.
 // Resolving them needs product decisions on who owns `groupmode` and `ooc`, so they are
 // pinned here instead of silently tolerated. Delete an entry once its collision is fixed.
+// (character-guide's former `timerp` duplicate alias was resolved in the backend-stub
+// disable work — the plugin now reaches ready.)
 const PENDING_PLUGIN_FAILURES = [
-  'character-guide: Duplicate command alias: timerp',
   'group-moderation: Command name already registered: groupmode',
   'scene: Command name already registered: ooc',
 ]
-const PENDING_PLUGINS = ['character-guide', 'group-moderation', 'scene']
+const PENDING_PLUGINS = ['group-moderation', 'scene']
 
 function fakeWhatsapp() {
   const noop = () => () => undefined

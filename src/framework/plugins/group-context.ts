@@ -1,4 +1,4 @@
-import type { CommandContext, CoreMessage, Plugin, WhatsAppPort } from '../contracts.js'
+import type { CommandContext, CoreMessage, Plugin, PluginContext, WhatsAppPort } from '../contracts.js'
 import type { RedisService } from '../../redis.js'
 import { permissionNames } from '../../permissions.js'
 import { isGroupJid } from '../validation.js'
@@ -11,6 +11,34 @@ import {
   type IcSubtype,
 } from '../../services/group-context-service.js'
 import { isCanonicalNarrativeText } from '../../services/character-sheet-parser.js'
+
+// Backend stub refusal (PENDING: no RPC backend exists). The command names stay
+// reachable so users who already know them get one clear Indonesian refusal
+// instead of silence, but every surface is hidden so no menu advertises the
+// feature as active while the backend is empty. No service method is ever called
+// and the IC/OOC message gate is not registered in this mode.
+const GROUP_CONTEXT_BACKEND_PENDING_TEXT = 'Fitur konteks grup belum tersedia — backend sedang disiapkan.'
+
+const GROUP_CONTEXT_COMMAND_NAMES: readonly { readonly name: string; readonly aliases?: readonly string[] }[] = [
+  { name: 'setgroup', aliases: ['groupmode'] },
+  { name: 'ooc' },
+  { name: 'whitelistooc', aliases: ['oocwhitelist'] },
+]
+
+function registerGroupContextRefusalSurface(context: PluginContext): void {
+  for (const { name, aliases } of GROUP_CONTEXT_COMMAND_NAMES) {
+    context.commands.register({
+      name,
+      ...(aliases ? { aliases } : {}),
+      description: 'Fitur belum tersedia',
+      hidden: true,
+      cooldownMs: 5_000,
+      handler: async (commandContext) => {
+        await commandContext.reply(GROUP_CONTEXT_BACKEND_PENDING_TEXT)
+      },
+    })
+  }
+}
 
 const GUIDE_CONFIRM_TTL_MS = 2 * 60 * 1000
 const DEFAULT_OOC_COOLDOWN_MS = 30_000
@@ -111,6 +139,18 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
     dependencies: ['group-foundation'],
     load(context) {
       const service = context.services.get<GroupContextService>('group-context')
+      // Explicit disable ladder:
+      // 1. flag false  → plugin registers nothing at all (no commands, no gate)
+      // 2. flag true + stub backend → hidden refusal surface; commands always answer
+      //    with GROUP_CONTEXT_BACKEND_PENDING_TEXT, the IC/OOC gate is not registered
+      //    (the stub can only ever report mode 'normal'), and no service method is called
+      // 3. flag true + real backend → full live surface including the IC/OOC gate
+      if (!service.isEnabled) return
+      if (!service.hasBackend) {
+        registerGroupContextRefusalSurface(context)
+        context.logger.info('Group Context plugin loaded in backend-pending refusal mode')
+        return
+      }
       const oocCooldownMs = context.config.groupContextOocCooldownMs ?? DEFAULT_OOC_COOLDOWN_MS
       const oocWindowMs = context.config.groupContextOocWindowMs ?? DEFAULT_OOC_WINDOW_MS
       const oocMaxPerWindow = context.config.groupContextOocMaxPerWindow ?? DEFAULT_OOC_MAX_PER_WINDOW
