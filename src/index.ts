@@ -40,7 +40,6 @@ import { GroupGovernanceService } from './services/group-governance-service.js'
 import { SuggestionRelayService, type SuggestionProviderInput } from './services/suggestion-relay-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 import { RedisService } from './redis.js'
-import { MongoService } from './mongodb.js'
 import { EconomyService } from './services/economy-service.js'
 import { CharacterGuideService } from './services/character-guide-service.js'
 import { GroupContextService } from './services/group-context-service.js'
@@ -83,7 +82,6 @@ async function main(): Promise<void> {
   }
 
   const redis = new RedisService({ env: process.env })
-  const mongodb = new MongoService({ env: process.env })
   const whatsapp = new WhatsAppConnection(config, storage, logger, redis)
   const framework = new ApplicationFramework(
     {
@@ -125,7 +123,6 @@ async function main(): Promise<void> {
   framework.registerService(new SuggestionRelayService(config.DATABASE_PATH, logger, {
     provider: createSuggestionProvider(config, logger),
   }))
-  framework.registerService(mongodb)
   framework.registerService(redis)
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(createSentryPlugin(sentry))

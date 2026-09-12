@@ -17,7 +17,6 @@ const allowedPath = (path) => path === 'package.json'
   || path === 'scripts/generate-codebase-export.mjs'
   || path === 'Codebase/allybot-codebase-latest.zip'
   || path.startsWith('dist/')
-  || path.startsWith('node_modules/mongodb/')
   || path.startsWith('node_modules/ioredis/')
   || path.startsWith('node_modules/dotenv/')
   || path.startsWith('node_modules/@upstash/')

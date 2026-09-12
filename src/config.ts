@@ -48,10 +48,6 @@ const envSchema = z.object({
   GROUP_CONTEXT_OOC_COOLDOWN_MS: boundedInt(1_000, 3_600_000).default(30_000),
   GROUP_CONTEXT_OOC_WINDOW_MS: boundedInt(60_000, 3_600_000).default(600_000),
   GROUP_CONTEXT_OOC_MAX_PER_WINDOW: boundedInt(1, 20).default(3),
-  MONGODB_ENABLED: booleanFromEnv.default(false),
-  MONGODB_URI: z.string().min(1).optional(),
-  MONGODB_DB_NAME: z.string().min(1).default('allybot'),
-  MONGODB_TIMEOUT_MS: boundedInt(1_000, 30_000).default(5_000),
   REDIS_ENABLED: booleanFromEnv.default(false),
   REDIS_URL: z.string().min(1).optional(),
   REDIS_TIMEOUT_MS: boundedInt(1_000, 10_000).default(5_000),
@@ -82,15 +78,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   if (parsed.data.PAIRING_ENABLED && !parsed.data.PAIRING_PHONE_NUMBER) {
     throw new Error('PAIRING_PHONE_NUMBER is required when PAIRING_ENABLED=true')
-  }
-  if (parsed.data.CHARACTER_GUIDE_ENABLED && !parsed.data.MONGODB_URI) {
-    throw new Error('MONGODB_URI is required when CHARACTER_GUIDE_ENABLED=true')
-  }
-  if (parsed.data.GROUP_CONTEXT_ENABLED && !parsed.data.MONGODB_URI) {
-    throw new Error('MONGODB_URI is required when GROUP_CONTEXT_ENABLED=true')
-  }
-  if (parsed.data.MONGODB_ENABLED && !parsed.data.MONGODB_URI) {
-    throw new Error('MONGODB_URI is required when MONGODB_ENABLED=true')
   }
   if (parsed.data.REDIS_ENABLED && !parsed.data.REDIS_URL) {
     throw new Error('REDIS_URL is required when REDIS_ENABLED=true')
@@ -129,7 +116,6 @@ export function publicConfig(config: AppConfig) {
     xkiroAiFallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED,
     characterGuideEnabled: config.CHARACTER_GUIDE_ENABLED,
     groupContextEnabled: config.GROUP_CONTEXT_ENABLED,
-    mongoEnabled: config.MONGODB_ENABLED,
     redisEnabled: config.REDIS_ENABLED,
     codebaseExportEnabled: config.CODEBASE_EXPORT_ENABLED,
     codebaseExportMaxBytes: config.CODEBASE_EXPORT_MAX_BYTES,

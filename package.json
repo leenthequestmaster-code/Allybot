@@ -24,7 +24,6 @@
     "better-sqlite3": "12.4.1",
     "dotenv": "17.2.1",
     "ioredis": "^6.0.0",
-    "mongodb": "^7.6.0",
     "openai": "7.5.0",
     "pino": "9.9.0",
     "qrcode-terminal": "0.12.0",

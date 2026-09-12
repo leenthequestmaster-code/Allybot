@@ -46,7 +46,6 @@ const SERVICE_NAMES = [
   'scene',
   'group-governance',
   'suggestion-relay',
-  'mongodb',
   'redis',
   'group-safety',
 ]
