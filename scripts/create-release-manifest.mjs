@@ -12,19 +12,13 @@ if (!outputPath.startsWith(`${root}${sep}`)) throw new Error('Manifest output mu
 const forbiddenPath = /(^|\/)(?:\.env|.*\.(?:sqlite|db|pem|key)|creds\.json|credentials\.json)(?:\/|$)/i
 const allowedPath = (path) => path === 'package.json'
   || path === 'package-lock.json'
-  || path === 'bash-exec-list.txt'
   || path === 'scripts/verify-platform.mjs'
-  || path === 'scripts/generate-codebase-export.mjs'
   || path === 'Codebase/allybot-codebase-latest.zip'
   || path.startsWith('dist/')
-  || path.startsWith('node_modules/ioredis/')
   || path.startsWith('node_modules/dotenv/')
-  || path.startsWith('node_modules/@upstash/')
   || path.startsWith('node_modules/buffer/')
   || path.startsWith('node_modules/ws/')
-  || path.startsWith('node_modules/iceberg-js/')
   || path.startsWith('node_modules/tslib/')
-  || path.startsWith('node_modules/uncrypto/')
   || path.startsWith('node_modules/@sentry/')
   || path.startsWith('node_modules/@opentelemetry/')
   || path.startsWith('node_modules/@apm-js-collab/')
@@ -78,7 +72,7 @@ const manifest = {
   nodeVersion: process.version,
   packageVersion: typeof packageJson.version === 'string' ? packageJson.version : 'unknown',
   packageLockSha256: sha256(packageLockPath),
-  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'bash-exec-list.txt', 'scripts/verify-postgres.mjs', 'scripts/verify-supabase-access.mjs', 'scripts/verify-neon.mjs', 'scripts/monitor-postgres.mjs', 'scripts/verify-neon-chat-log-migration.mjs', 'scripts/verify-upstash-redis.mjs', 'scripts/verify-supabase-economy-migration.mjs', 'scripts/verify-supabase-character-migration.mjs', 'migrations/neon/**', 'migrations/supabase/**', 'node_modules/postgres/**', 'node_modules/dotenv/**', 'node_modules/@supabase/**', 'node_modules/@upstash/**', 'node_modules/buffer/**', 'node_modules/ws/**', 'node_modules/iceberg-js/**', 'node_modules/tslib/**', 'node_modules/uncrypto/**', 'node_modules/@sentry/**', 'node_modules/@opentelemetry/**', 'node_modules/@apm-js-collab/**', 'node_modules/@jridgewell/**', 'node_modules/@types/estree/**', 'node_modules/astring/**', 'node_modules/cjs-module-lexer/**', 'node_modules/debug/**', 'node_modules/es-module-lexer/**', 'node_modules/esquery/**', 'node_modules/estraverse/**', 'node_modules/import-in-the-middle/**', 'node_modules/magic-string/**', 'node_modules/meriyah/**', 'node_modules/module-details-from-path/**', 'node_modules/ms/**', 'node_modules/require-in-the-middle/**', 'node_modules/semifies/**', 'node_modules/source-map/**', 'Codebase/allybot-codebase-latest.zip'],
+  allowlist: ['dist/**', 'package.json', 'package-lock.json', 'scripts/verify-platform.mjs', 'node_modules/dotenv/**', 'node_modules/buffer/**', 'node_modules/ws/**', 'node_modules/tslib/**', 'node_modules/@sentry/**', 'node_modules/@opentelemetry/**', 'node_modules/@apm-js-collab/**', 'node_modules/@jridgewell/**', 'node_modules/@types/estree/**', 'node_modules/astring/**', 'node_modules/cjs-module-lexer/**', 'node_modules/debug/**', 'node_modules/es-module-lexer/**', 'node_modules/esquery/**', 'node_modules/estraverse/**', 'node_modules/import-in-the-middle/**', 'node_modules/magic-string/**', 'node_modules/meriyah/**', 'node_modules/module-details-from-path/**', 'node_modules/ms/**', 'node_modules/require-in-the-middle/**', 'node_modules/semifies/**', 'node_modules/source-map/**', 'Codebase/allybot-codebase-latest.zip'],
   files: entries,
 }
 
