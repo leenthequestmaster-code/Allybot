@@ -101,7 +101,7 @@ jobs:
           if (manifest.files.some(({ path }) => typeof path !== 'string' || path.startsWith('Codebase/') || /(^|\/)(?:\.env(?!\.example$)|.*\.(?:sqlite|db|pem|key)|creds\.json|credentials\.json)(?:\/|$)/i.test(path))) throw new Error('Forbidden path found in Codebase manifest')
           NODE
           (cd Codebase && sha256sum -c SHA256SUMS.txt)
-          if grep -R -El '[0-9]{7,}@(s\.whatsapp\.net|g\.us)' Codebase/snapshot >/dev/null; then
+          if grep -R -El '[0-9]{7,}@(s\.whatsapp\.net|g\.us|lid|newsletter|broadcast)' Codebase/snapshot >/dev/null; then
             echo 'Numeric WhatsApp JID found in Codebase snapshot' >&2
             exit 1
           fi

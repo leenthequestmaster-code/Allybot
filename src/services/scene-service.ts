@@ -490,7 +490,12 @@ export class SceneService implements Service {
   }
 
   private audit(eventType: string, actorJid: string | undefined, resourceJid: string | undefined, outcome: 'allowed' | 'denied' | 'changed' | 'failed' | 'limited' | 'opened' | 'closed', metadata: Record<string, unknown>): void {
-    this.guardrailService().recordAudit({ eventType, namespace: 'allybot', occurredAt: this.clock(), ...(actorJid ? { actorJid } : {}), ...(resourceJid ? { resourceJid } : {}), outcome, metadata })
+    // Best-effort: an audit failure must never throw after a committed write.
+    try {
+      this.guardrailService().recordAudit({ eventType, namespace: 'allybot', occurredAt: this.clock(), ...(actorJid ? { actorJid } : {}), ...(resourceJid ? { resourceJid } : {}), outcome, metadata })
+    } catch (error) {
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', eventType }, 'scene audit unavailable')
+    }
   }
 
   private database(): Database.Database {

@@ -106,7 +106,7 @@ function readText(record) {
 
 function redactSensitiveIdentifiers(content) {
   return content
-    .replace(/\b\d{7,}@(s\.whatsapp\.net|g\.us)\b/gi, '<jid-redacted@$1>')
+    .replace(/\b\d{7,}@(s\.whatsapp\.net|g\.us|lid|newsletter|broadcast)\b/gi, '<jid-redacted@$1>')
     .replace(/(?<![A-Za-z0-9])\+?(?:62|0)8[0-9 .-]{8,13}[0-9](?![A-Za-z0-9])/g, '<phone-redacted>')
 }
 

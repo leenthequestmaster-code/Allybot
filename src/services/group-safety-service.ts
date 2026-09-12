@@ -432,7 +432,12 @@ export class GroupSafetyService implements Service {
   }
 
   private audit(eventType: string, actorJid: string, resourceJid: string, outcome: 'changed' | 'failed' | 'allowed' | 'denied', metadata: Record<string, unknown>): void {
-    this.guardrailService().recordAudit({ eventType, namespace: 'allybot', occurredAt: this.clock(), actorJid, resourceJid, outcome, metadata })
+    // Best-effort: an audit failure must never throw after a committed write.
+    try {
+      this.guardrailService().recordAudit({ eventType, namespace: 'allybot', occurredAt: this.clock(), actorJid, resourceJid, outcome, metadata })
+    } catch (error) {
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', eventType }, 'group safety audit unavailable')
+    }
   }
 
   private auditBestEffort(eventType: string, actorJid: string, resourceJid: string, outcome: 'changed' | 'failed', metadata: Record<string, unknown>): void {
