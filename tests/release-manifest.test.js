@@ -12,7 +12,19 @@ function runGenerator(directory) {
   const output = execFileSync(
     process.execPath,
     ['scripts/create-release-manifest.mjs', directory, 'release-manifest.json'],
-    { cwd: root, encoding: 'utf8' },
+    {
+      cwd: root,
+      encoding: 'utf8',
+      // Hermetic: CI runners export GITHUB_SHA, which would change the
+      // manifest's commitSha/artifactId. Strip those vars so assertions
+      // are deterministic in every environment.
+      env: (() => {
+        const hermetic = { ...process.env }
+        delete hermetic.GITHUB_SHA
+        delete hermetic.RELEASE_COMMIT_SHA
+        return hermetic
+      })(),
+    },
   )
   assert.equal(output, '', 'generator must stay silent on stdout')
   return JSON.parse(readFileSync(join(directory, 'release-manifest.json'), 'utf8'))
