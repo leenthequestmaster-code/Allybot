@@ -85,6 +85,13 @@ redis.call('EXPIRE', KEYS[1], ARGV[3])
 return length
 `
 
+// Observability for fail-soft catches: log only the error class name and the
+// failing operation. Redis/ioredis error messages can embed the connection
+// URL (which may carry credentials), so the raw message must never be logged.
+function safeErrorName(error: unknown): string {
+  return error instanceof Error && error.name ? error.name : 'UnknownError'
+}
+
 export function readRedisConfig(env: NodeJS.ProcessEnv = process.env): RedisConfig | undefined {
   const enabled = env.REDIS_ENABLED === 'true'
   const url = env.REDIS_URL?.trim()
@@ -150,7 +157,9 @@ export class RedisService implements Service {
   async shutdown(): Promise<void> {
     if (this.client) {
       if (typeof this.client.quit === 'function') {
-        await this.client.quit().catch(() => {})
+        await this.client.quit().catch((error: unknown) => {
+          this.logger?.warn({ errorName: safeErrorName(error), operation: 'quit' }, 'Redis quit failed during shutdown')
+        })
       } else if (typeof this.client.disconnect === 'function') {
         this.client.disconnect()
       }
@@ -199,7 +208,8 @@ export class RedisService implements Service {
           error: 'unexpected-response',
         }
       }
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'ping' }, 'Redis health check failed')
       this.lastHealth = {
         status: 'unhealthy',
         checkedAt: new Date(this.clock()).toISOString(),
@@ -216,7 +226,8 @@ export class RedisService implements Service {
       const val = await this.client.get(this.prefixedKey(key))
       if (val === null) return null
       return JSON.parse(val) as T
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'get', key }, 'Redis get failed')
       return null
     }
   }
@@ -231,7 +242,8 @@ export class RedisService implements Service {
         await this.client.set(this.prefixedKey(key), payload)
       }
       return true
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'set', key }, 'Redis set failed')
       return false
     }
   }
@@ -241,7 +253,8 @@ export class RedisService implements Service {
     try {
       const count = await this.client.del(this.prefixedKey(key))
       return count > 0
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'del', key }, 'Redis del failed')
       return false
     }
   }
@@ -267,7 +280,8 @@ export class RedisService implements Service {
         limit,
         resetAt: this.clock() + Math.max(0, pttl),
       }
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'consumeFixedWindow', namespace, key }, 'Redis rate window failed; caller must fall back to local guard')
       return undefined
     }
   }
@@ -276,13 +290,16 @@ export class RedisService implements Service {
     if (!this.client) return { available: false, acquired: false }
     const token = randomUUID()
     try {
-      const ok = await this.client.set(this.prefixedKey(key), token, 'EX', ttlSeconds)
+      // NX is what makes this a mutex: without it the SET overwrites any held
+      // lock and every caller "acquires" the same lock simultaneously.
+      const ok = await this.client.set(this.prefixedKey(key), token, 'EX', ttlSeconds, 'NX')
       return {
         available: true,
-        acquired: Boolean(ok),
-        ...(ok ? { token } : {}),
+        acquired: ok === 'OK',
+        ...(ok === 'OK' ? { token } : {}),
       }
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'acquireLock', key }, 'Redis lock acquisition failed')
       return { available: false, acquired: false }
     }
   }
@@ -292,7 +309,8 @@ export class RedisService implements Service {
     try {
       const result = await this.client.eval(RELEASE_LOCK_SCRIPT, 1, this.prefixedKey(key), token)
       return Number(result) === 1
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'releaseLock', key }, 'Redis lock release failed')
       return false
     }
   }
@@ -302,7 +320,8 @@ export class RedisService implements Service {
     try {
       const result = await this.client.eval(COUNTER_SCRIPT, 1, this.prefixedKey(key), ttlSeconds.toString())
       return Number(result) || 0
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'increment', key }, 'Redis increment failed')
       return 0
     }
   }
@@ -324,7 +343,8 @@ export class RedisService implements Service {
         accepted: true,
         droppedOldest: Number(length) > maxItems,
       }
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'enqueueBounded', key }, 'Redis enqueue failed')
       return { available: false, accepted: false, droppedOldest: false }
     }
   }
@@ -335,7 +355,8 @@ export class RedisService implements Service {
       const raw = await this.client.get(this.prefixedKey(`${namespace}:${key}`))
       if (!raw) return undefined
       return JSON.parse(raw) as T
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'cacheGet', namespace, key }, 'Redis cache get failed')
       return undefined
     }
   }
@@ -346,7 +367,8 @@ export class RedisService implements Service {
       const serialized = JSON.stringify(value)
       await this.client.set(this.prefixedKey(`${namespace}:${key}`), serialized, 'EX', ttlSeconds)
       return true
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'cacheSet', namespace, key }, 'Redis cache set failed')
       return false
     }
   }
@@ -356,7 +378,8 @@ export class RedisService implements Service {
     try {
       const count = await this.client.del(this.prefixedKey(`${namespace}:${key}`))
       return count > 0
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'cacheDelete', namespace, key }, 'Redis cache delete failed')
       return false
     }
   }
@@ -366,7 +389,8 @@ export class RedisService implements Service {
     try {
       const res = await this.client.set(this.prefixedKey(`${namespace}:${key}`), '1', 'EX', ttlSeconds, 'NX')
       return res === 'OK'
-    } catch {
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'rememberOnce', namespace, key }, 'Redis remember-once failed')
       return undefined
     }
   }
