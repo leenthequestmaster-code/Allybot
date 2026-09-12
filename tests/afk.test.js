@@ -10,7 +10,6 @@ import { createAfkPlugin } from '../dist/framework/plugins/afk.js'
 import { menuPlugin } from '../dist/framework/plugins/menu.js'
 import {
   AfkService,
-  MAX_AFK_CONTEXT_LENGTH,
   MAX_AFK_REASON_LENGTH,
 } from '../dist/services/afk-service.js'
 import { GroupConfigurationService } from '../dist/services/group-configuration-service.js'
@@ -93,11 +92,14 @@ test('AFK plugin persists state, forwards every mention privately, and auto-unse
   assert.equal(core.sent[2].remoteJid, aliceJid)
   assert.match(core.sent[2].text, /menyebutmu ketika kamu AFK/)
   assert.match(core.sent[2].text, /Grup.*Kansei/)
-  assert.match(core.sent[2].text, /Pesan.*@alice kamu di mana/)
-  assert.match(core.sent[2].text, /Reply.*Kamu ada di mana/)
+  // Privacy: mention content is no longer stored or echoed back.
+  assert.doesNotMatch(core.sent[2].text, /Pesan/)
+  assert.doesNotMatch(core.sent[2].text, /Reply/)
+  assert.doesNotMatch(core.sent[2].text, /@alice kamu di mana/)
+  assert.doesNotMatch(core.sent[2].text, /Kamu ada di mana/)
   assert.equal(afk.getMentions(aliceJid)[0]?.groupName, 'Kansei')
-  assert.equal(afk.getMentions(aliceJid)[0]?.messageText, '@alice kamu di mana?')
-  assert.equal(afk.getMentions(aliceJid)[0]?.quotedText, 'Kamu ada di mana?')
+  assert.equal(afk.getMentions(aliceJid)[0]?.messageText, undefined)
+  assert.equal(afk.getMentions(aliceJid)[0]?.quotedText, undefined)
   assert.equal(afk.getActive(aliceJid)?.searchCount, 1)
 
   await core.emitMessage(message('mention-2', bobJid, groupJid, '@alice tolong jawab', [aliceJid]))
@@ -113,7 +115,7 @@ test('AFK plugin persists state, forwards every mention privately, and auto-unse
   assert.equal(core.sent.length, 7)
   assert.equal(afk.getActive(aliceJid)?.searchCount, 3)
   assert.deepEqual(core.sent.at(-1)?.options?.mentions, [bobJid])
-  assert.match(core.sent.at(-1)?.text ?? '', /Pesan.*aku balas pesanmu/)
+  assert.doesNotMatch(core.sent.at(-1)?.text ?? '', /aku balas pesanmu/)
 
   await core.emitMessage(message('private-status', aliceJid, groupJid, '!afk status'))
   assert.equal(core.sent.at(-1)?.remoteJid, aliceJid)
@@ -155,21 +157,26 @@ test('AFK hardening bounds retention and context and throttles presence writes',
   afk.touchPresence(bobJid, base + 60_000)
   assert.equal(connection.prepare('SELECT last_seen_at FROM afk_presence WHERE user_jid = ?').get(bobJid).last_seen_at, base + 60_000)
 
-  const first = afk.recordMentionWithResult(aliceJid, bobJid, groupJid, base + 1, 'Room', 'first')
-  const second = afk.recordMentionWithResult(aliceJid, bobJid, groupJid, base + 2, 'Room', 'second')
+  const first = afk.recordMentionWithResult(aliceJid, bobJid, groupJid, base + 1, 'Room', 'first secret message content')
+  const second = afk.recordMentionWithResult(aliceJid, bobJid, groupJid, base + 2, 'Room', 'second secret message content')
   const third = afk.recordMentionWithResult(
     aliceJid,
     bobJid,
     groupJid,
     base + 3,
     'R'.repeat(500),
-    'm'.repeat(MAX_AFK_CONTEXT_LENGTH + 100),
   )
-  assert.equal(first?.messageText, 'first')
-  assert.equal(second?.messageText, 'second')
-  assert.equal(third?.messageText?.length, MAX_AFK_CONTEXT_LENGTH)
+  // Privacy regression: message/quoted content must never be persisted.
+  assert.equal(first?.messageText, undefined)
+  assert.equal(first?.quotedText, undefined)
+  assert.equal(second?.messageText, undefined)
+  assert.equal(third?.groupName?.length, 200)
   assert.equal(afk.getMentions(aliceJid).length, 2)
-  assert.equal(afk.getMentions(aliceJid)[0]?.messageText?.length, MAX_AFK_CONTEXT_LENGTH)
+  assert.equal(afk.getMentions(aliceJid).every((mention) => mention.messageText === undefined && mention.quotedText === undefined), true)
+  const connection2 = new Database(join(directory, 'allybot-afk.sqlite'))
+  const stored = connection2.prepare('SELECT message_text, quoted_text FROM afk_mentions').all()
+  assert.equal(stored.every((row) => row.message_text === null && row.quoted_text === null), true)
+  connection2.close()
 
   connection.close()
   afk.shutdown({})
@@ -200,5 +207,45 @@ test('AFK migration converts legacy mention timestamps from seconds to milliseco
   })
   afk.initialize({})
   assert.equal(afk.getMentions('alice@s.whatsapp.net')[0]?.mentionedAt, 1_700_000_000_000)
+  afk.shutdown({})
+})
+
+test('AFK mention storage never leaks legacy plaintext rows through the read path', (context) => {
+  const directory = mkdtempSync(join(tmpdir(), 'allybot-afk-legacy-'))
+  context.after(() => rmSync(directory, { recursive: true, force: true }))
+
+  const databasePath = join(directory, 'allybot-afk.sqlite')
+  const legacy = new Database(databasePath)
+  legacy.exec(`
+    CREATE TABLE afk_mentions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      afk_user_jid TEXT NOT NULL,
+      seeker_jid TEXT NOT NULL,
+      chat_jid TEXT NOT NULL,
+      group_name TEXT NOT NULL DEFAULT '',
+      message_text TEXT,
+      quoted_text TEXT,
+      mentioned_at INTEGER NOT NULL
+    );
+  `)
+  // Simulate a pre-fix production row that still holds plaintext content.
+  legacy.prepare(
+    'INSERT INTO afk_mentions (afk_user_jid, seeker_jid, chat_jid, group_name, message_text, quoted_text, mentioned_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  ).run('alice@s.whatsapp.net', 'bob@s.whatsapp.net', 'roleplay@g.us', 'Kansei', 'legacy plaintext secret', 'legacy quoted secret', Date.now())
+  legacy.close()
+
+  const afk = new AfkService(join(directory, 'core.sqlite'), logger, {
+    mentionRetentionMs: 100 * 365 * 24 * 60 * 60 * 1_000,
+  })
+  afk.initialize({})
+
+  const mentions = afk.getMentions('alice@s.whatsapp.net')
+  assert.equal(mentions.length, 1)
+  const serialized = JSON.stringify(mentions)
+  assert.equal(serialized.includes('legacy plaintext secret'), false)
+  assert.equal(serialized.includes('legacy quoted secret'), false)
+  assert.equal(mentions[0]?.groupName, 'Kansei')
+  assert.equal(mentions[0]?.messageText, undefined)
+  assert.equal(mentions[0]?.quotedText, undefined)
   afk.shutdown({})
 })

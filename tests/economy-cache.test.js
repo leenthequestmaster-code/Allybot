@@ -103,8 +103,9 @@ function createFixture({ redisEnabled = true, rpcData, rpcError = null } = {}) {
   return { service, redis, calls, cache }
 }
 
-const GROUP_JID = 'economy-test-group@g.us'
-const SUBJECT_JID = 'economy-test-user@s.whatsapp.net'
+// Numeric JIDs per the strict WhatsApp JID grammar enforced by validation.ts.
+const GROUP_JID = '120363000000000099@g.us'
+const SUBJECT_JID = '628120000098@s.whatsapp.net'
 
 // The fake Redis stores test values locally; production keys are hashed by UpstashRedisService.
 test('Economy read-through uses Supabase on miss and Redis on subsequent hit', async () => {
@@ -474,7 +475,7 @@ test('Economy bankreward accepts a real mention with pipe-separated display text
       id: 'reward-message',
       remoteJid: GROUP_JID,
       senderJid: SUBJECT_JID,
-      mentionedJids: ['reward-target@s.whatsapp.net'],
+      mentionedJids: ['628120000097@s.whatsapp.net'],
     },
     args: ['@Ran', '|', 'Arthalon', '99999'],
     commandName: 'bankreward',

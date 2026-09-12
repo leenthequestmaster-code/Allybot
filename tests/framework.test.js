@@ -4,6 +4,7 @@ import pino from 'pino'
 import { EventBus } from '../dist/framework/event-bus.js'
 import { ServiceRegistry } from '../dist/framework/service-registry.js'
 import { CommandRegistry } from '../dist/framework/command-registry.js'
+import { isJid, isGroupJid } from '../dist/framework/validation.js'
 import { PluginManager } from '../dist/framework/plugin-manager.js'
 import { createFakeWhatsapp } from './helpers/fake-whatsapp.js'
 import { PlatformGuardrailService } from '../dist/services/platform-guardrail-service.js'
@@ -302,4 +303,59 @@ test('PluginManager cleans registrations when ready hook fails', async () => {
   assert.equal(commands.get('ready-failure-command'), undefined)
   await manager.unload()
   assert.equal(manager.list()[0].state, 'registered')
+})
+
+test('isJid accepts only strict WhatsApp JID formats', () => {
+  const valid = [
+    '6281234567890@s.whatsapp.net',
+    '6281234567890:12@s.whatsapp.net',
+    '120363012345678901@g.us',
+    '120363012345678901-1111111111@g.us',
+    '39847123456789@lid',
+    '123456789012345678@newsletter',
+    '123456789012@broadcast',
+    'status@broadcast',
+  ]
+  for (const jid of valid) {
+    assert.equal(isJid(jid), true, `expected valid: ${jid}`)
+  }
+
+  const invalid = [
+    '',
+    'x@y',
+    'user@server',
+    'owner-lid@lid',
+    'economy-test-user@s.whatsapp.net',
+    'roleplay@g.us',
+    'status@g.us',
+    '6281234567890@s.whatsapp.net.evil.com',
+    '6281234567890@s.whatsapp.net/../secrets',
+    '@s.whatsapp.net',
+    '6281234567890@',
+    '6281234567890@s whatsapp net',
+    '6281234567890@S.WHATSAPP.NET',
+    ' 6281234567890@s.whatsapp.net',
+    '6281234567890@s.whatsapp.net ',
+    '6281234567890:s.whatsapp.net@s.whatsapp.net',
+    '6281234567890::1@s.whatsapp.net',
+    '-120363012345678901@g.us',
+    '120363012345678901--1111111111@g.us',
+    '120363012345678901-@g.us',
+    'status@broadcast@broadcast',
+    'https://example.test/@x',
+    'javascript:alert(1)@s.whatsapp.net',
+    '12345678901234567 8@broadcast',
+  ]
+  for (const jid of invalid) {
+    assert.equal(isJid(jid), false, `expected invalid: ${JSON.stringify(jid)}`)
+  }
+})
+
+test('isGroupJid only accepts numeric WhatsApp group JIDs', () => {
+  assert.equal(isGroupJid('120363012345678901@g.us'), true)
+  assert.equal(isGroupJid('120363012345678901-1111111111@g.us'), true)
+  assert.equal(isGroupJid('6281234567890@s.whatsapp.net'), false)
+  assert.equal(isGroupJid('roleplay@g.us'), false)
+  assert.equal(isGroupJid('120363012345678901@newsletter'), false)
+  assert.equal(isGroupJid(''), false)
 })

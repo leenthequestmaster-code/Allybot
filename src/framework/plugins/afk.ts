@@ -52,18 +52,12 @@ function formatDateTime(timestamp: number): string {
   }).format(new Date(timestamp))
 }
 
-function messageSnippet(value: string): string {
-  const normalized = value.replace(/\s+/g, ' ').trim()
-  return normalized.length > 500 ? `${normalized.slice(0, 497)}...` : normalized
-}
-
 function mentionSourceLines(mention: AfkMentionRecord): string[] {
-  const lines = [
+  // Privacy: message/quoted content is no longer stored with mentions, so only
+  // the group context is rendered.
+  return [
     `↳ *Grup* : ${mention.groupName || (isGroupJid(mention.chatJid) ? mention.chatJid : 'Personal')}`,
   ]
-  if (mention.messageText) lines.push(`↳ *Pesan* : ${messageSnippet(mention.messageText)}`)
-  if (mention.quotedText) lines.push(`↳ *Reply* : ${messageSnippet(mention.quotedText)}`)
-  return lines
 }
 
 function statusBlock(record: AfkRecord): string[] {
@@ -291,8 +285,6 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
             message.remoteJid,
             now,
             message.groupName,
-            message.text,
-            message.quotedText,
           )
           if (!mention) return
           await whatsapp.sendText(
