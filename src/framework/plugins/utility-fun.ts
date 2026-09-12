@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto'
 import { createHash } from 'node:crypto'
-import type { CommandContext, PluginContext, WhatsAppPort } from '../contracts.js'
+import type { CommandContext, PluginContext } from '../contracts.js'
 
 const FUN_COOLDOWN_MS = 1_500
 const MAX_QUERY_LENGTH = 80
@@ -80,7 +80,6 @@ function challengeKey(challengerJid: string, challengedJid: string): string {
 
 export function registerUtilityFunCommands(context: PluginContext): void {
   const rpsChallenges = new Map<string, RpsChallenge>()
-  const whatsapp = (context as { whatsapp?: WhatsAppPort }).whatsapp
 
   const pruneChallenges = (): void => {
     const now = Date.now()
@@ -299,6 +298,7 @@ export function registerUtilityFunCommands(context: PluginContext): void {
         await commandContext.reply(challengeMsg, { mentions: [senderJid, target] })
 
         // Also send PM to both players
+        const whatsapp = commandContext.whatsapp
         if (whatsapp) {
           try {
             await whatsapp.sendText(normalizeJid(senderJid), `✊ Kamu menantang @${normalizeJid(target).split('@')[0]} untuk Suit PvP!\n\nKetik pilihanmu di sini: \`!rps batu\`, \`!rps gunting\`, atau \`!rps kertas\`\n\n⏰ Berlaku ${RPS_CHALLENGE_TTL_MS / 60000} menit.`)
@@ -396,6 +396,7 @@ export function registerUtilityFunCommands(context: PluginContext): void {
       // Check if both have chosen
       const resolved = resolveChallenge(foundChallenge.challengerJid, foundChallenge.challengedJid)
       if (resolved) {
+        const whatsapp = commandContext.whatsapp
         const resultMsg = [
           '✊ *Suit PvP Selesai!*',
           '',

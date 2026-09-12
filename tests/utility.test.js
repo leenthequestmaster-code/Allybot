@@ -143,7 +143,14 @@ test('fun commands stay within bounded ranges and reject malformed dice', async 
     senderJid: challenger,
     mentionedJids: [challenged],
   }))
-  assert.match(whatsapp.sent.at(-1).text, /Tantangan Suit PvP/)
+  // The challenge is announced in the group and relayed to both players in PM.
+  const challengeMessages = whatsapp.sent.slice(-3)
+  assert.equal(challengeMessages.length, 3)
+  assert.match(challengeMessages[0].text, /Tantangan Suit PvP/)
+  assert.deepEqual(
+    challengeMessages.slice(1).map((entry) => entry.remoteJid).sort(),
+    [challenged, challenger].sort(),
+  )
 
   await registry.dispatch(message(16, '!rps accept', {
     remoteJid: challenged,

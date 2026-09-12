@@ -193,7 +193,7 @@ export class PlatformGuardrailService implements Service {
     const decision = circuit.allow(now)
     if (!decision.allowed) {
       try {
-        this.recordAudit({ eventType: 'provider.circuit_denied', namespace: this.namespace, occurredAt: now, outcome: 'denied', metadata: { providerId, reason: decision.reason, state: decision.state } })
+        this.recordAudit({ eventType: 'provider.circuit.denied', namespace: this.namespace, occurredAt: now, outcome: 'denied', metadata: { providerId, reason: decision.reason, state: decision.state } })
       } catch (error) {
         this.logSafeError('provider circuit audit failed', error)
       }
@@ -205,14 +205,14 @@ export class PlatformGuardrailService implements Service {
     const circuit = this.requireCircuit(providerId)
     const previous = circuit.state
     circuit.recordSuccess(now)
-    if (previous !== 'closed') this.recordAudit({ eventType: 'provider.circuit_closed', namespace: this.namespace, occurredAt: now, outcome: 'closed', metadata: { providerId, previousState: previous } })
+    if (previous !== 'closed') this.recordAudit({ eventType: 'provider.circuit.closed', namespace: this.namespace, occurredAt: now, outcome: 'closed', metadata: { providerId, previousState: previous } })
   }
 
   recordProviderFailure(providerId: string, now = this.clock()): void {
     const circuit = this.requireCircuit(providerId)
     const previous = circuit.state
     circuit.recordFailure(now)
-    if (previous !== circuit.state && circuit.state === 'open') this.recordAudit({ eventType: 'provider.circuit_opened', namespace: this.namespace, occurredAt: now, outcome: 'opened', metadata: { providerId, previousState: previous } })
+    if (previous !== circuit.state && circuit.state === 'open') this.recordAudit({ eventType: 'provider.circuit.opened', namespace: this.namespace, occurredAt: now, outcome: 'opened', metadata: { providerId, previousState: previous } })
   }
 
   getFeatureFlag(groupJid: string, featureId: string): FeatureFlagRecord | undefined {
