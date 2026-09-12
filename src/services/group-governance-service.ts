@@ -1,6 +1,4 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
 import type { Logger } from 'pino'
 import type {
@@ -11,7 +9,8 @@ import type {
   WhatsAppPort,
 } from '../framework/contracts.js'
 import { runPlatformOperation, type OperationResult } from '../framework/operations.js'
-import { isJid, isSafeIdentifier } from '../framework/validation.js'
+import { isSafeIdentifier } from '../framework/validation.js'
+import { initSqliteDatabase, validateJid } from '../storage-helpers.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 
 export type GovernanceRetconStatus = 'draft' | 'proposed' | 'approved' | 'rejected'
@@ -247,12 +246,7 @@ export class GroupGovernanceService implements Service {
 
   initialize(context: ServiceContext): void {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
-    if (this.databasePath !== ':memory:') mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.expireStaleState(this.clock())
     this.unregisters = [
@@ -805,10 +799,6 @@ function validateGroupJid(value: string): void {
   if (!value.endsWith('@g.us')) throw new Error('group jid must be a WhatsApp group')
 }
 
-function validateJid(value: string, label: string): void {
-  if (!isJid(value)) throw new Error(`${label} must be a valid JID`)
-}
-
 function validateIdentifier(value: string, label: string): void {
   if (!isSafeIdentifier(value)) throw new Error(`${label} must be a safe identifier`)
 }
@@ -826,6 +816,9 @@ function validateLimit(value: number, max: number): void {
   if (!Number.isInteger(value) || value < 1 || value > max) throw new Error(`limit must be between 1 and ${max}`)
 }
 
+// DATA CONTRACT: 16-hex SHA-256 prefix. Values are persisted in SQLite columns
+// (governance_retcons.created_by_hash, governance_operations.group_hash/actor_hash/correlation_hash, etc.)
+// and joined against freshly hashed values on read — do NOT change the length.
 function hashText(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 16)
 }

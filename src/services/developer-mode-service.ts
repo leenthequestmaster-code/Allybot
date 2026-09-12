@@ -97,6 +97,8 @@ function normalizeReason(value: string): string {
   return normalized
 }
 
+// DATA CONTRACT: 16-hex SHA-256 prefix. Digests are persisted in SQLite
+// (owner_developer_audit.actor_hash/target_hash) — do NOT change the length.
 const hashJid = (jid: string): string => sha256(jid, 16)
 
 function mapActivation(row: ActivationRow): DeveloperModeActivation {

@@ -1,11 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext, WhatsAppGroupMetadata, WhatsAppPort } from '../framework/contracts.js'
 import { runPlatformOperation } from '../framework/operations.js'
 import { isJid, isSafeIdentifier } from '../framework/validation.js'
+import { initSqliteDatabase } from '../storage-helpers.js'
 import type { KnowledgeService } from './knowledge-service.js'
 import type { SceneService } from './scene-service.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
@@ -164,12 +163,7 @@ export class SuggestionRelayService implements Service {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
     this.scenes = context.services.get<SceneService>('scene')
     this.knowledge = context.services.get<KnowledgeService>('knowledge')
-    if (this.databasePath !== ':memory:') mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.expireStaleState(this.clock())
     this.unregisters = [
@@ -453,6 +447,9 @@ function validateIdentifier(value: string, field: string): void {
   if (!isSafeIdentifier(value) || value.length > 128) throw new Error(`${field} must be a safe identifier`)
 }
 
+// DATA CONTRACT: full 64-hex SHA-256. Digests are persisted in SQLite
+// (suggestion_requests.request_hash/output_hash/correlation_hash) and joined
+// against freshly hashed values on read — do NOT change the length.
 function hashText(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }

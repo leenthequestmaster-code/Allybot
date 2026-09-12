@@ -1,10 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
 import Database from 'better-sqlite3'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { isJid, isSafeIdentifier } from '../framework/validation.js'
+import { initSqliteDatabase } from '../storage-helpers.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 
 export const SCENE_FEATURE_ID = 'group.scene.core'
@@ -117,6 +116,9 @@ function validateSceneReference(value: string): string {
   return normalized
 }
 
+// DATA CONTRACT: 16-hex SHA-256 prefix. Hashed scene references are persisted
+// inside guardrail audit records (platform_guardrail_audit_hot) as sceneRefHash
+// — do NOT change the length.
 function hashReference(value: string): string {
   return createHash('sha256').update(value).digest('hex').slice(0, 16)
 }
@@ -203,12 +205,7 @@ export class SceneService implements Service {
 
   initialize(context: ServiceContext): void {
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
-    if (this.databasePath !== ':memory:') mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.logger.info('scene storage initialized')
   }

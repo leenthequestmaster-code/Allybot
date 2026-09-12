@@ -1,6 +1,4 @@
 import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
 import {
   BufferJSON,
   initAuthCreds,
@@ -15,6 +13,7 @@ import {
 import type { AppConfig } from './config.js'
 import { AllybotError } from './errors.js'
 import type { AppLogger } from './logger.js'
+import { initSqliteDatabase } from './storage-helpers.js'
 
 interface SerializedValueRow {
   value: string
@@ -59,17 +58,12 @@ export class SqliteStorage {
   private readonly messagePruneTimer: NodeJS.Timeout
 
   constructor(config: AppConfig, logger: AppLogger) {
-    mkdirSync(dirname(config.DATABASE_PATH), { recursive: true, mode: 0o700 })
-    this.db = new Database(config.DATABASE_PATH)
+    this.db = initSqliteDatabase(config.DATABASE_PATH, { foreignKeys: true })
     this.accountId = config.AUTH_ACCOUNT_ID
     this.logger = logger.child({ component: 'storage' })
     this.messageCacheTtlMs = config.LOCAL_MESSAGE_CACHE_TTL_MS
     this.messageCacheMaxRows = config.LOCAL_MESSAGE_CACHE_MAX_ROWS
     this.messageCacheMaxBytes = config.LOCAL_MESSAGE_CACHE_MAX_BYTES
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
     this.migrate()
     this.pruneMessageCache()
     const pruneIntervalMs = Math.min(Math.max(Math.floor(this.messageCacheTtlMs / 2), 60_000), 60 * 60_000)

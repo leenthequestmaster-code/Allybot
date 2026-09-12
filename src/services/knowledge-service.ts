@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
-import { initSqliteDatabase, sha256, validateJid as validateJidShared, validateGroupJid as validateGroupJidShared, type DatabaseInstance } from '../storage-helpers.js'
+import { auditBestEffort, initSqliteDatabase, sha256, validateJid as validateJidShared, validateGroupJid as validateGroupJidShared, type DatabaseInstance } from '../storage-helpers.js'
 
 export const KNOWLEDGE_FEATURE_ID = 'group.knowledge.core'
 const DEFAULT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
@@ -57,6 +57,9 @@ export interface KnowledgeOptions {
   readonly defaultRetentionMs?: number
 }
 
+// DATA CONTRACT: hashIdentifier = 64-hex, hashReference = 16-hex SHA-256.
+// Both are persisted in SQLite knowledge_sources columns (excerpt_hash,
+// source_message_hash, source_sender_hash) — do NOT change the lengths.
 const hashIdentifier = (value: string): string => sha256(value, 64)
 const hashReference = (value: string): string => sha256(value, 16)
 
@@ -319,7 +322,8 @@ export class KnowledgeService implements Service {
   }
 
   private audit(eventType: string, actorJid: string, groupJid: string, outcomeCode: string, metadata: Record<string, unknown>): void {
-    this.guardrailService().recordAudit({ eventType, namespace: 'allybot', occurredAt: this.clock(), actorJid, resourceJid: groupJid, outcome: outcomeCode as 'allowed' | 'denied' | 'changed' | 'failed' | 'limited' | 'opened' | 'closed', metadata })
+    const outcome = outcomeCode as 'allowed' | 'denied' | 'changed' | 'failed' | 'limited' | 'opened' | 'closed'
+    auditBestEffort(this.guardrailService(), this.logger, eventType, actorJid, groupJid, outcome, metadata, this.clock())
   }
 
   private guardrailService(): PlatformGuardrailService {

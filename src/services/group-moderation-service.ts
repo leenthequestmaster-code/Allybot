@@ -595,6 +595,11 @@ function isOperationStatus(value: string): value is GroupModerationOperationStat
   return ['planned', 'running', 'dry-run', 'succeeded', 'failed', 'expired'].includes(value)
 }
 
+// DATA CONTRACT: 32-hex SHA-256 prefix. Digests are persisted in SQLite
+// (group_moderation_settings.updated_by_hash, group_moderation_operations
+// .group_hash/actor_hash/target_hash/correlation_hash, UNIQUE(group_hash,
+// correlation_hash)) and joined against freshly hashed values on read — do NOT
+// change the length.
 const hashText = (value: string): string => sha256(value, 32)
 
 function isAdmin(metadata: { readonly participants: readonly { readonly jid: string; readonly role: string }[] }, jid: string): boolean {

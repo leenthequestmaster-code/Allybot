@@ -15,8 +15,6 @@ export type AfkMentionRecord = {
   readonly seekerJid: string
   readonly chatJid: string
   readonly groupName?: string
-  readonly messageText?: string
-  readonly quotedText?: string
   readonly mentionedAt: number
 }
 
@@ -34,7 +32,6 @@ export type AfkLeaderboardEntry = {
 }
 
 export const MAX_AFK_REASON_LENGTH = 500
-export const MAX_AFK_CONTEXT_LENGTH = 2_000
 export const MAX_AFK_MENTION_RETENTION = 100
 export const AFK_MENTION_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000
 export const AFK_PRESENCE_WRITE_INTERVAL_MS = 60 * 1_000
@@ -57,8 +54,6 @@ type MentionRow = {
   seeker_jid: string
   chat_jid: string
   group_name: string
-  message_text: string | null
-  quoted_text: string | null
   mentioned_at: number
 }
 
@@ -201,8 +196,6 @@ export class AfkService implements Service {
     chatJid: string,
     mentionedAt: number,
     groupName?: string,
-    messageText?: string,
-    quotedText?: string,
   ): boolean {
     return this.recordMentionWithResult(
       afkUserJid,
@@ -210,44 +203,39 @@ export class AfkService implements Service {
       chatJid,
       mentionedAt,
       groupName,
-      messageText,
-      quotedText,
     ) !== undefined
   }
 
+  // Privacy: mention records store only routing metadata (who, where, when,
+  // group name). Message and quoted content are intentionally NOT persisted —
+  // they are plaintext chat content and were previously retained for 30 days.
+  // The legacy message_text/quoted_text columns remain in existing databases
+  // (CREATE TABLE IF NOT EXISTS keeps them) but are never written or read.
   recordMentionWithResult(
     afkUserJid: string,
     seekerJid: string,
     chatJid: string,
     mentionedAt: number,
     groupName?: string,
-    messageText?: string,
-    quotedText?: string,
   ): AfkMentionRecord | undefined {
     const db = this.database()
     const normalizedGroupName = normalizeBoundedText(groupName, 200)
-    const normalizedMessageText = normalizeBoundedText(messageText, MAX_AFK_CONTEXT_LENGTH)
-    const normalizedQuotedText = normalizeBoundedText(quotedText, MAX_AFK_CONTEXT_LENGTH)
     const mention = {
       seekerJid,
       chatJid,
       ...(normalizedGroupName ? { groupName: normalizedGroupName } : {}),
-      ...(normalizedMessageText ? { messageText: normalizedMessageText } : {}),
-      ...(normalizedQuotedText ? { quotedText: normalizedQuotedText } : {}),
       mentionedAt,
     } satisfies AfkMentionRecord
     const insert = db.transaction(() => {
       const result = db.prepare(
         `INSERT INTO afk_mentions (
-           afk_user_jid, seeker_jid, chat_jid, group_name, message_text, quoted_text, mentioned_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           afk_user_jid, seeker_jid, chat_jid, group_name, mentioned_at
+         ) VALUES (?, ?, ?, ?, ?)`,
       ).run(
         afkUserJid,
         mention.seekerJid,
         mention.chatJid,
         mention.groupName ?? '',
-        mention.messageText ?? null,
-        mention.quotedText ?? null,
         mention.mentionedAt,
       )
       const updated = db.prepare('UPDATE afk_active SET search_count = search_count + 1 WHERE user_jid = ?').run(afkUserJid)
@@ -264,7 +252,7 @@ export class AfkService implements Service {
   getMentions(userJid: string): readonly AfkMentionRecord[] {
     const rows = this.database()
       .prepare(
-        `SELECT seeker_jid, chat_jid, group_name, message_text, quoted_text, mentioned_at
+        `SELECT seeker_jid, chat_jid, group_name, mentioned_at
          FROM afk_mentions
          WHERE afk_user_jid = ?
          ORDER BY mentioned_at DESC
@@ -275,8 +263,6 @@ export class AfkService implements Service {
       seekerJid: row.seeker_jid,
       chatJid: row.chat_jid,
       ...(row.group_name ? { groupName: row.group_name } : {}),
-      ...(row.message_text ? { messageText: row.message_text } : {}),
-      ...(row.quoted_text ? { quotedText: row.quoted_text } : {}),
       mentionedAt: row.mentioned_at,
     }))
   }

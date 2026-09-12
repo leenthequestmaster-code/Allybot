@@ -1,6 +1,4 @@
 import Database from 'better-sqlite3'
-import { mkdirSync } from 'node:fs'
-import { dirname } from 'node:path'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import {
@@ -23,6 +21,7 @@ import {
   type SafeActionDefinition,
 } from '../framework/guardrails.js'
 import { isJid, isSafeIdentifier } from '../framework/validation.js'
+import { initSqliteDatabase } from '../storage-helpers.js'
 
 export interface FeatureFlagRecord {
   readonly groupJid: string
@@ -104,14 +103,7 @@ export class PlatformGuardrailService implements Service {
   }
 
   initialize(_context: ServiceContext): void {
-    if (this.databasePath !== ':memory:') {
-      mkdirSync(dirname(this.databasePath), { recursive: true, mode: 0o700 })
-    }
-    this.db = new Database(this.databasePath)
-    this.db.pragma('journal_mode = WAL')
-    this.db.pragma('synchronous = NORMAL')
-    this.db.pragma('foreign_keys = ON')
-    this.db.pragma('busy_timeout = 5000')
+    this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.logger.info({ namespace: this.namespace }, 'platform guardrails initialized')
   }

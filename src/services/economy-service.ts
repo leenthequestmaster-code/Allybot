@@ -656,6 +656,10 @@ function canonicalJid(value: string): string {
   return `${local}@${value.slice(at + 1)}`
 }
 
+// DATA CONTRACT: full 64-hex SHA-256 over canonicalJid(value). Digests are sent
+// as p_scope_key/p_subject_key to the Supabase Postgres RPC (persisted
+// server-side) and double as Redis cache identities — do NOT change the length
+// or the canonicalization, or existing ledger rows will not match.
 function hashIdentity(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }

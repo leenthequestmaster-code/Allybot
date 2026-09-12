@@ -122,21 +122,23 @@ export function boundedIntegerOption(
 
 /**
  * Safely execute a guardrail audit record, logging warnings on failure.
+ * `occurredAt` may be injected for services with an injectable clock.
  */
 export function auditBestEffort(
-  guardrails: { recordAudit: (input: unknown) => void },
+  guardrails: { recordAudit(input: unknown): unknown },
   logger: Logger,
   eventType: string,
   actorJid: string,
   resourceJid: string,
-  outcome: 'changed' | 'failed' | 'allowed' | 'denied' | 'limited',
+  outcome: 'changed' | 'failed' | 'allowed' | 'denied' | 'limited' | 'opened' | 'closed',
   metadata: Record<string, unknown>,
+  occurredAt: number = Date.now(),
 ): void {
   try {
     guardrails.recordAudit({
       eventType,
       namespace: 'allybot',
-      occurredAt: Date.now(),
+      occurredAt,
       actorJid,
       resourceJid,
       outcome,
