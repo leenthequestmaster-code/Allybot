@@ -258,7 +258,7 @@ jobs:
           )
           sha256sum "allybot-release-${GITHUB_SHA}.zip" > "allybot-release-${GITHUB_SHA}.zip.sha256"
           unzip -t "allybot-release-${GITHUB_SHA}.zip"
-          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -Ev '^(node_modules/?$|node_modules/(dotenv|buffer|ws|tslib|@sentry|@opentelemetry|@apm-js-collab|@jridgewell|@types/estree|astring|cjs-module-lexer|debug|es-module-lexer|esquery|estraverse|import-in-the-middle|magic-string|meriyah|module-details-from-path|ms|require-in-the-middle|semifies|source-map)(/|$))' | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
+          if unzip -Z1 "allybot-release-${GITHUB_SHA}.zip" | grep -v '/$' | grep -Ev '^(node_modules/?$|node_modules/(dotenv|buffer|ws|tslib|@sentry|@opentelemetry|@apm-js-collab|@jridgewell|@types/estree|astring|cjs-module-lexer|debug|es-module-lexer|esquery|estraverse|import-in-the-middle|magic-string|meriyah|module-details-from-path|ms|require-in-the-middle|semifies|source-map)(/|$))' | grep -Eq '(^|/)(\.env|.*\.sqlite|.*\.db|creds\.json|credentials\.json|.*\.pem|.*\.key|node_modules|src|tests)(/|$)'; then
             echo 'Forbidden path found in sanitized archive' >&2
             exit 1
           fi
