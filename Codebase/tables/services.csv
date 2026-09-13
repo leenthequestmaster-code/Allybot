@@ -145,21 +145,21 @@ tests/plugin-readiness.test.js,plugin,codebasePlugin,136,136,codebasePlugin
 tests/afk.test.js,plugin,createAfkPlugin(core),73,73,createAfkPlugin(core)
 src/index.ts,plugin,createAfkPlugin(whatsapp),150,150,createAfkPlugin(whatsapp)
 tests/plugin-readiness.test.js,plugin,createAfkPlugin(whatsapp),154,154,createAfkPlugin(whatsapp)
-tests/xkiro-ai.test.js,plugin,"createAiPlugin({
+tests/ai-handler.test.js,plugin,"createAiPlugin({
     transport: async () => ({ content: 'jawaban prefix titik' }),
-  })",161,163,"createAiPlugin({
+  })",163,165,"createAiPlugin({
     transport: async () => ({ content: 'jawaban prefix titik' }),
   })"
-tests/xkiro-ai.test.js,plugin,"createAiPlugin({
+tests/ai-handler.test.js,plugin,"createAiPlugin({
     transport: async (input) => {
       calls.push(input)
-      return { content: 'jawaban untuk WhatsA",144,149,"createAiPlugin({
+      return { content: 'jawaban untuk WhatsA",146,151,"createAiPlugin({
     transport: async (input) => {
       calls.push(input)
       return { content: 'jawaban untuk WhatsApp' }
     },
   })"
-src/index.ts,plugin,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }),130,130,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED })
+src/index.ts,plugin,createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }),130,130,createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED })
 tests/plugin-readiness.test.js,plugin,createAiPlugin({ fallbackEnabled: false }),134,134,createAiPlugin({ fallbackEnabled: false })
 src/index.ts,plugin,createCharacterGuidePlugin(whatsapp),137,137,createCharacterGuidePlugin(whatsapp)
 tests/plugin-readiness.test.js,plugin,createCharacterGuidePlugin(whatsapp),141,141,createCharacterGuidePlugin(whatsapp)

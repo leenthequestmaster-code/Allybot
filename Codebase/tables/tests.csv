@@ -5,6 +5,15 @@ tests/afk.test.js,AFK hardening bounds retention and context and throttles prese
 tests/afk.test.js,AFK migration converts legacy mention timestamps from seconds to milliseconds,afk,185
 tests/afk.test.js,AFK mention storage never leaks legacy plaintext rows through the read path,afk,213
 tests/afk.test.js,"AFK plugin persists state, forwards every mention privately, and auto-unsets on return",afk,58
+tests/ai-handler.test.js,AI handler fails closed for missing key and invalid input,ai-handler,113
+tests/ai-handler.test.js,AI handler bounds provider output,ai-handler,122
+tests/ai-handler.test.js,AI config is default-off and can be explicitly enabled,ai-handler,129
+tests/ai-handler.test.js,AI system instructions prefer concise answers by default,ai-handler,136
+tests/ai-handler.test.js,AI plugin dispatches !ai and !ally through the ApplicationFramework,ai-handler,142
+tests/ai-handler.test.js,AI handler uses the primary model first and returns bounded content,ai-handler,48
+tests/ai-handler.test.js,AI handler switches to fallback after primary failure,ai-handler,62
+tests/ai-handler.test.js,AI handler keeps fallback disabled by default,ai-handler,80
+tests/ai-handler.test.js,AI handler fails safely after both models fail and redacts raw error,ai-handler,94
 tests/ai-tools.test.js,AI tools translate and summarize use bounded explicit input and Indonesian aliases,ai-tools,30
 tests/ai-tools.test.js,AI translate rejects missing separator without contacting provider,ai-tools,44
 tests/ai-tools.test.js,AI summarize rejects oversized explicit text before provider call,ai-tools,53
@@ -272,12 +281,3 @@ tests/whatsapp-media.test.js,WhatsApp adapter sends validated binary media paylo
 tests/whatsapp-media.test.js,WhatsApp adapter exposes bounded direct and quoted media descriptors,whatsapp-media,9
 tests/whatsapp-native.test.js,native quick replies relay required private-chat metadata nodes,whatsapp-native,26
 tests/whatsapp-native.test.js,native quick replies omit private bot metadata for group relay,whatsapp-native,49
-tests/xkiro-ai.test.js,XKIRO handler fails closed for missing key and invalid input,xkiro-ai,111
-tests/xkiro-ai.test.js,XKIRO handler bounds provider output,xkiro-ai,120
-tests/xkiro-ai.test.js,XKIRO config is default-off and can be explicitly enabled,xkiro-ai,127
-tests/xkiro-ai.test.js,XKIRO system instructions prefer concise answers by default,xkiro-ai,134
-tests/xkiro-ai.test.js,AI plugin dispatches !ai and !ally through the ApplicationFramework,xkiro-ai,140
-tests/xkiro-ai.test.js,XKIRO handler uses the primary model first and returns bounded content,xkiro-ai,48
-tests/xkiro-ai.test.js,XKIRO handler switches to fallback after primary failure,xkiro-ai,62
-tests/xkiro-ai.test.js,XKIRO handler keeps Qwen fallback disabled by default,xkiro-ai,78
-tests/xkiro-ai.test.js,XKIRO handler fails safely after both models fail and redacts raw error,xkiro-ai,92

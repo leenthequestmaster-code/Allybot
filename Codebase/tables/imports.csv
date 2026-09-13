@@ -331,6 +331,13 @@ tests/afk.test.js,unresolved:../dist/framework/plugins/afk.js,createAfkPlugin,9,
 tests/afk.test.js,unresolved:../dist/framework/plugins/menu.js,menuPlugin,10,10
 tests/afk.test.js,unresolved:../dist/services/afk-service.js,AfkService|MAX_AFK_REASON_LENGTH,11,14
 tests/afk.test.js,unresolved:../dist/services/group-configuration-service.js,GroupConfigurationService,15,15
+tests/ai-handler.test.js,external:node:assert/strict,default:assert,1,1
+tests/ai-handler.test.js,external:node:test,test,3,3
+tests/ai-handler.test.js,external:pino,default:pino,2,2
+tests/ai-handler.test.js,unresolved:../dist/ai-handler.js,AiHandlerError|AI_SYSTEM_PROMPT|FALLBACK_MODEL|MAX_AI_INPUT_LENGTH|MAX_AI_OUTPUT_LENGTH|PRIMARY_MODEL|createAiHandler,6,14
+tests/ai-handler.test.js,unresolved:../dist/config.js,loadConfig,15,15
+tests/ai-handler.test.js,unresolved:../dist/framework/application.js,ApplicationFramework,4,4
+tests/ai-handler.test.js,unresolved:../dist/framework/plugins/ai.js,createAiPlugin,5,5
 tests/ai-tools.test.js,external:node:assert/strict,default:assert,1,1
 tests/ai-tools.test.js,external:node:test,test,2,2
 tests/ai-tools.test.js,external:pino,default:pino,3,3
@@ -695,10 +702,3 @@ tests/whatsapp-native.test.js,external:node:assert/strict,default:assert,1,1
 tests/whatsapp-native.test.js,external:node:test,test,2,2
 tests/whatsapp-native.test.js,external:pino,default:pino,3,3
 tests/whatsapp-native.test.js,unresolved:../dist/whatsapp.js,WhatsAppConnection,4,4
-tests/xkiro-ai.test.js,external:node:assert/strict,default:assert,1,1
-tests/xkiro-ai.test.js,external:node:test,test,3,3
-tests/xkiro-ai.test.js,external:pino,default:pino,2,2
-tests/xkiro-ai.test.js,unresolved:../dist/ai-handler.js,AiHandlerError|AI_SYSTEM_PROMPT|FALLBACK_MODEL|MAX_AI_INPUT_LENGTH|MAX_AI_OUTPUT_LENGTH|PRIMARY_MODEL|createAiHandler,6,14
-tests/xkiro-ai.test.js,unresolved:../dist/config.js,loadConfig,15,15
-tests/xkiro-ai.test.js,unresolved:../dist/framework/application.js,ApplicationFramework,4,4
-tests/xkiro-ai.test.js,unresolved:../dist/framework/plugins/ai.js,createAiPlugin,5,5

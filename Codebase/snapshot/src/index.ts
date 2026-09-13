@@ -49,8 +49,8 @@ import { createScenePlugin } from './framework/plugins/scene.js'
 import { createKnowledgePlugin } from './framework/plugins/knowledge.js'
 
 function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input: SuggestionProviderInput) => Promise<string>) | undefined {
-  if (!config.XKIRO_AI_ENABLED) return undefined
-  const handler = createAiHandler({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED, logger })
+  if (!config.AI_ENABLED) return undefined
+  const handler = createAiHandler({ fallbackEnabled: config.AI_FALLBACK_ENABLED, logger })
   return async ({ requestText, context }) => {
     const contextText = context.map((item, index) => `${index + 1}. ${item.title.slice(0, 50)} — ${item.excerpt.slice(0, 150)}`).join('\\n')
     const prompt = [
@@ -127,7 +127,7 @@ async function main(): Promise<void> {
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
-  if (config.XKIRO_AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }))
+  if (config.AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))
   framework.registerPlugin(developerModePlugin)
   if (config.CODEBASE_EXPORT_ENABLED) framework.registerPlugin(codebasePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)

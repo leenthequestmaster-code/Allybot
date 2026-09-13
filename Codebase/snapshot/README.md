@@ -5,7 +5,7 @@ Allybot adalah bot WhatsApp berbasis [Baileys](https://github.com/WhiskeySockets
 - **Runtime**: Node.js 22+, npm
 - **Bahasa**: TypeScript → dikompilasi ke `dist/` (ESM, strict, `noEmitOnError`)
 - **Storage**: SQLite (`better-sqlite3`, WAL) untuk state lokal; Redis opsional untuk cache/rate-limit/lock
-- **AI**: opsional via provider XKiro (default **off**)
+- **AI**: opsional via provider OpenAI-compatible apa pun (default **off**)
 - **Status**: proyek private, versi `0.1.0`, CI penuh di GitHub Actions
 
 > Tiga fitur besar (Ekonomi Vela, Group Context, Character Guide) saat ini **stub backend** — flag-nya ada, tetapi backend RPC eksternalnya belum dipasang di `src/index.ts`. Lihat [Fitur Opsional](#fitur-opsional) sebelum mengaktifkan.
@@ -121,9 +121,12 @@ Nilai diverifikasi dari `src/config.ts` (zod schema). Boolean **harus** string `
 | Variabel | Default | Efek |
 |---|---|---|
 | `DIAGNOSTICS_ENABLED` | `false` | Aktifkan plugin diagnostik (`!health`, `!diag`) |
-| `XKIRO_AI_ENABLED` | `false` | Aktifkan plugin AI (`!ai`, `!translate`, `!summarize`, `!aidetection`) |
-| `XKIRO_API_KEY` | — | API key provider XKiro — dibaca langsung oleh AI handler (di luar zod schema) |
-| `XKIRO_AI_FALLBACK_ENABLED` | `false` | Fallback model qwen bila model utama gagal |
+| `AI_ENABLED` | `false` | Aktifkan plugin AI (`!ai`, `!translate`, `!summarize`, `!aidetection`) |
+| `AI_API_KEY` | — | API key provider — dibaca langsung oleh AI handler (di luar zod schema) |
+| `AI_BASE_URL` | — | Base URL provider OpenAI-compatible (mis. `https://api.example.com/v1`) |
+| `AI_MODEL` | — | ID model utama |
+| `AI_FALLBACK_MODEL` | — | ID model fallback (butuh `AI_FALLBACK_ENABLED=true`) |
+| `AI_FALLBACK_ENABLED` | `false` | Fallback ke `AI_FALLBACK_MODEL` bila model utama gagal |
 | `ECONOMY_ENABLED` | `false` | Fitur ekonomi Vela — **lihat status stub di bawah** |
 | `GROUP_CONTEXT_ENABLED` | `false` | Fitur mode grup IC/OOC — **status stub** |
 | `CHARACTER_GUIDE_ENABLED` | `false` | Fitur Character Guide — **status stub** |
@@ -262,7 +265,7 @@ allybot/
 │   ├── storage.ts                 # SQLite auth creds + cache pesan terbatas
 │   ├── storage-helpers.ts         # Inisialisasi DB (WAL, busy_timeout)
 │   ├── redis.ts                   # Service Redis opsional (fail-soft)
-│   ├── ai-handler.ts              # Handler XKiro (input/output bounded)
+│   ├── ai-handler.ts              # Handler AI generik OpenAI-compatible (input/output bounded)
 │   ├── sentry.ts                  # Reporter telemetry privacy-minimized
 │   ├── lifecycle.ts               # Start/shutdown + process handler
 │   ├── errors.ts / permissions.ts / media.ts / ...
@@ -334,7 +337,7 @@ Event typed di `contracts.ts`: `connection.changed`, `message.received`, `group.
 | **Ekonomi Vela** (`vela`, `bank`, `tax`, …) | `ECONOMY_ENABLED` | ⚠️ **STUB — backend belum terpasang** | Flag `true` + tanpa backend → command menjawab *"Fitur ekonomi belum tersedia — backend sedang disiapkan."* dan **hidden dari menu**. Implementasi lengkap (wallet, safe, transfer, tax mingguan) sudah ada di `EconomyService`, menunggu wiring `options.createClient` (RPC Supabase/Postgres) di `src/index.ts`. |
 | **Group Context** (`setgroup`, `ooc`, `whitelistooc`) | `GROUP_CONTEXT_ENABLED` | ⚠️ **STUB — backend belum terpasang** | Sama: refusal *"Fitur konteks grup belum tersedia…"*, hidden. Mode IC/OOC + gate pesan aktif hanya setelah RPC backend di-inject. |
 | **Character Guide** (`daftar`, `character`, `timerp`, `guider`, …) | `CHARACTER_GUIDE_ENABLED` | ⚠️ **STUB — backend belum terpasang** | Sama: refusal *"Fitur Character Guide belum tersedia…"*, hidden. Parser character sheet (`character-sheet-parser.ts`) sudah ada dan teruji, menunggu wiring backend. |
-| **AI (XKiro)** | `XKIRO_AI_ENABLED` + `XKIRO_API_KEY` | ✅ Siap (default off) | `!ai`/`!ally`/`!tanya`, `!translate`, `!summarize`/`!ringkas`, `!aidetection`. Model utama Gemini, fallback Qwen bila `XKIRO_AI_FALLBACK_ENABLED=true`. Input dibatasi 1.200 karakter, tanpa memori percakapan. Tanpa API key → command menjawab "belum dikonfigurasi". |
+| **AI generik** | `AI_ENABLED` + `AI_API_KEY` (+ `AI_BASE_URL`, `AI_MODEL`) | ✅ Siap (default off) | `!ai`/`!ally`/`!tanya`, `!translate`, `!summarize`/`!ringkas`, `!aidetection`. Provider apa pun yang kompatibel OpenAI Chat Completions; model utama via `AI_MODEL`, fallback via `AI_FALLBACK_MODEL` + `AI_FALLBACK_ENABLED=true`. Input dibatasi 1.200 karakter, tanpa memori percakapan. Tanpa API key → command menjawab "belum dikonfigurasi". |
 | **Redis** | `REDIS_ENABLED` + `REDIS_URL` | ✅ Siap (default off) | Cache snapshot ekonomi (TTL 15s), rate-limit, mutex, queue. **Fail-soft**: Redis mati → `logger.warn` per operasi (bukan silent), bot tetap berfungsi. |
 | **Diagnostics** | `DIAGNOSTICS_ENABLED` | ✅ Siap (default off) | `!health` (hidden) & `!diag`: status framework, service aktif, uptime, RSS — non-sensitif. |
 | **Codebase Export delivery** | `CODEBASE_EXPORT_ENABLED` | ✅ Siap (default off) | `!codebase` (hidden, permission developer) mengirim ZIP export tersanitasi terakhir (maks 3 MiB). Mengandalkan artifact CI terpasang di server. |
@@ -364,7 +367,7 @@ Untuk tiga fitur stub: jalur wiring-nya sudah disiapkan sebagai *disable ladder*
 | **Node versi salah / build aneh** | Bukan Node 22 | `node --version` harus `v22.x`; CI mem-hardcode pengecekan `major === 22`. Pakai nvm/fnm untuk switch. |
 | **Redis aktif tapi bot "lambat"** | Redis unreachable → fail-soft dengan `warn` per operasi | Cek log `Redis health check failed` / `unhealthy`; bot sengaja tetap jalan — perbaiki `REDIS_URL` atau matikan `REDIS_ENABLED`. |
 | **Bot logout sendiri (`needs_auth`)** | Sesi ditandai logged-out (device di-unlink) atau `connectionReplaced` (login di tempat lain) | Hapus sesi lama (data di tabel `auth_creds`) atau pairing ulang via QR. |
-| **Command AI menjawab "belum dikonfigurasi"** | `XKIRO_API_KEY` kosong meski `XKIRO_AI_ENABLED=true` | Isi `XKIRO_API_KEY` di `.env`; tanpa itu transport AI tidak dibuat. |
+| **Command AI menjawab "belum dikonfigurasi"** | `AI_API_KEY` kosong meski `AI_ENABLED=true` | Isi `AI_API_KEY` (dan `AI_BASE_URL`/`AI_MODEL` bila provider bukan default) di `.env`; tanpa itu transport AI tidak dibuat. |
 
 ---
 

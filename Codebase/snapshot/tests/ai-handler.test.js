@@ -45,7 +45,7 @@ function request(model, userMessage) {
   return { model, userMessage }
 }
 
-test('XKIRO handler uses the primary model first and returns bounded content', async () => {
+test('AI handler uses the primary model first and returns bounded content', async () => {
   const calls = []
   const handler = createAiHandler({
     apiKey: 'test-only',
@@ -59,11 +59,13 @@ test('XKIRO handler uses the primary model first and returns bounded content', a
   assert.deepEqual(calls, [request(PRIMARY_MODEL, 'halo Allybot')])
 })
 
-test('XKIRO handler switches to fallback after primary failure', async () => {
+test('AI handler switches to fallback after primary failure', async () => {
   const calls = []
   const handler = createAiHandler({
-    apiKey: 'test-only',
+    apiKey: 'test-key',
     fallbackEnabled: true,
+    primaryModel: PRIMARY_MODEL,
+    fallbackModel: FALLBACK_MODEL,
     transport: async (input) => {
       calls.push(input)
       if (input.model === PRIMARY_MODEL) throw Object.assign(new Error('provider secret must not be logged'), { status: 429 })
@@ -75,7 +77,7 @@ test('XKIRO handler switches to fallback after primary failure', async () => {
   assert.deepEqual(calls, [request(PRIMARY_MODEL, 'coba fallback'), request(FALLBACK_MODEL, 'coba fallback')])
 })
 
-test('XKIRO handler keeps Qwen fallback disabled by default', async () => {
+test('AI handler keeps fallback disabled by default', async () => {
   const calls = []
   const handler = createAiHandler({
     apiKey: 'test-only',
@@ -89,7 +91,7 @@ test('XKIRO handler keeps Qwen fallback disabled by default', async () => {
   assert.deepEqual(calls, [request(PRIMARY_MODEL, 'Gemini only')])
 })
 
-test('XKIRO handler fails safely after both models fail and redacts raw error', async () => {
+test('AI handler fails safely after both models fail and redacts raw error', async () => {
   const logs = []
   const secretError = 'provider-secret-not-for-logs'
   const handler = createAiHandler({
@@ -108,7 +110,7 @@ test('XKIRO handler fails safely after both models fail and redacts raw error', 
   assert.deepEqual(logs.map((entry) => entry.metadata.attempt), ['primary', 'fallback'])
 })
 
-test('XKIRO handler fails closed for missing key and invalid input', async () => {
+test('AI handler fails closed for missing key and invalid input', async () => {
   const missingKeyHandler = createAiHandler({ apiKey: '   ' })
   await assert.rejects(missingKeyHandler('halo'), (error) => error.code === 'missing_api_key')
 
@@ -117,21 +119,21 @@ test('XKIRO handler fails closed for missing key and invalid input', async () =>
   await assert.rejects(handler('x'.repeat(MAX_AI_INPUT_LENGTH + 1)), (error) => error.code === 'invalid_input')
 })
 
-test('XKIRO handler bounds provider output', async () => {
+test('AI handler bounds provider output', async () => {
   const handler = createAiHandler({ transport: async () => ({ content: 'x'.repeat(MAX_AI_OUTPUT_LENGTH + 100) }) })
   const output = await handler('bounded output')
   assert.equal(output.length, MAX_AI_OUTPUT_LENGTH)
   assert.equal(output.endsWith('…'), true)
 })
 
-test('XKIRO config is default-off and can be explicitly enabled', () => {
-  assert.equal(loadConfig({}).XKIRO_AI_ENABLED, false)
-  assert.equal(loadConfig({ XKIRO_AI_ENABLED: 'true' }).XKIRO_AI_ENABLED, true)
-  assert.equal(loadConfig({}).XKIRO_AI_FALLBACK_ENABLED, false)
-  assert.equal(loadConfig({ XKIRO_AI_FALLBACK_ENABLED: 'true' }).XKIRO_AI_FALLBACK_ENABLED, true)
+test('AI config is default-off and can be explicitly enabled', () => {
+  assert.equal(loadConfig({}).AI_ENABLED, false)
+  assert.equal(loadConfig({ AI_ENABLED: 'true' }).AI_ENABLED, true)
+  assert.equal(loadConfig({}).AI_FALLBACK_ENABLED, false)
+  assert.equal(loadConfig({ AI_FALLBACK_ENABLED: 'true' }).AI_FALLBACK_ENABLED, true)
 })
 
-test('XKIRO system instructions prefer concise answers by default', () => {
+test('AI system instructions prefer concise answers by default', () => {
   assert.match(AI_SYSTEM_PROMPT, /jawaban ringkas/i)
   assert.match(AI_SYSTEM_PROMPT, /1-3 paragraf/i)
   assert.match(AI_SYSTEM_PROMPT, /daftar panjang/i)

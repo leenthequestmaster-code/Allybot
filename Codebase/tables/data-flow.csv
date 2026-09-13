@@ -291,14 +291,14 @@ tests/plugin-readiness.test.js,codebasePlugin,registers plugin,static registrati
 tests/afk.test.js,createAfkPlugin(core),registers plugin,static registration call,high
 src/index.ts,createAfkPlugin(whatsapp),registers plugin,static registration call,high
 tests/plugin-readiness.test.js,createAfkPlugin(whatsapp),registers plugin,static registration call,high
-tests/xkiro-ai.test.js,"createAiPlugin({
+tests/ai-handler.test.js,"createAiPlugin({
     transport: async () => ({ content: 'jawaban prefix titik' }),
   })",registers plugin,static registration call,high
-tests/xkiro-ai.test.js,"createAiPlugin({
+tests/ai-handler.test.js,"createAiPlugin({
     transport: async (input) => {
       calls.push(input)
       return { content: 'jawaban untuk WhatsA",registers plugin,static registration call,high
-src/index.ts,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }),registers plugin,static registration call,high
+src/index.ts,createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }),registers plugin,static registration call,high
 tests/plugin-readiness.test.js,createAiPlugin({ fallbackEnabled: false }),registers plugin,static registration call,high
 src/index.ts,createCharacterGuidePlugin(whatsapp),registers plugin,static registration call,high
 tests/plugin-readiness.test.js,createCharacterGuidePlugin(whatsapp),registers plugin,static registration call,high
