@@ -24,6 +24,10 @@ tests/character-sheet-parser.test.js,Character Sheet parser rejects duplicate an
 tests/character-sheet-parser.test.js,Character Sheet parser rejects invalid gameplay values without guessing typos,character-sheet-parser,55
 tests/character-sheet-parser.test.js,IC narrative grammar accepts anchored action/dialog variants,character-sheet-parser,63
 tests/character-sheet-parser.test.js,IC narrative grammar does not treat markup or manual OOC markers as narrative,character-sheet-parser,71
+tests/ci-packaging-drift.test.js,ci.yml packaging list references at least the known runtime sentinels,ci-packaging-drift,30
+tests/ci-packaging-drift.test.js,every package copied by ci.yml packaging exists in package-lock.json,ci-packaging-drift,38
+tests/ci-packaging-drift.test.js,every package copied by ci.yml packaging exists on the local filesystem,ci-packaging-drift,56
+tests/ci-packaging-drift.test.js,manifest allowlist and ci.yml curated zip-check stay aligned,ci-packaging-drift,64
 tests/codebase-config.test.js,Codebase export configuration rejects unsafe paths and oversized limits,codebase-config,16
 tests/codebase-config.test.js,Character Guide and Group Context are default-off with bounded safe defaults,codebase-config,24
 tests/codebase-config.test.js,Character/Group Context flags enable without external credentials and keep valid bounds,codebase-config,38

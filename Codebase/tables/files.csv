@@ -86,6 +86,7 @@ tests/architecture-fitness.test.js,4092,.js,test,snapshot/tests/architecture-fit
 tests/character-guide-service.test.js,4152,.js,test,snapshot/tests/character-guide-service.test.js
 tests/character-guide.test.js,6659,.js,test,snapshot/tests/character-guide.test.js
 tests/character-sheet-parser.test.js,2981,.js,test,snapshot/tests/character-sheet-parser.test.js
+tests/ci-packaging-drift.test.js,4068,.js,test,snapshot/tests/ci-packaging-drift.test.js
 tests/codebase-config.test.js,2452,.js,test,snapshot/tests/codebase-config.test.js
 tests/codebase-export.test.js,5871,.js,test,snapshot/tests/codebase-export.test.js
 tests/codebase-generator.test.js,4384,.js,test,snapshot/tests/codebase-generator.test.js

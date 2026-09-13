@@ -356,6 +356,10 @@ tests/character-guide.test.js,unresolved:../dist/framework/plugins/character-gui
 tests/character-sheet-parser.test.js,external:node:assert/strict,default:assert,1,1
 tests/character-sheet-parser.test.js,external:node:test,default:test,2,2
 tests/character-sheet-parser.test.js,unresolved:../dist/services/character-sheet-parser.js,isCanonicalNarrativeText|parseCharacterSheet,3,6
+tests/ci-packaging-drift.test.js,external:node:assert/strict,default:assert,1,1
+tests/ci-packaging-drift.test.js,external:node:fs,readFileSync|existsSync,2,2
+tests/ci-packaging-drift.test.js,external:node:path,join,3,3
+tests/ci-packaging-drift.test.js,external:node:test,default:test,4,4
 tests/codebase-config.test.js,external:node:assert/strict,default:assert,1,1
 tests/codebase-config.test.js,external:node:test,test,2,2
 tests/codebase-config.test.js,unresolved:../dist/config.js,loadConfig|publicConfig,3,3
