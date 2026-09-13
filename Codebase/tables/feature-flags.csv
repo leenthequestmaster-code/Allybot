@@ -1,0 +1,13 @@
+name,default,schema,requiredness,line
+WHATSAPP_ENABLED,true,"booleanFromEnv.default(true),",required-or-defaulted,32
+QR_ENABLED,,"booleanFromEnv,",required-or-defaulted,33
+PAIRING_ENABLED,,"booleanFromEnv,",required-or-defaulted,34
+DIAGNOSTICS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,41
+XKIRO_AI_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,42
+XKIRO_AI_FALLBACK_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,43
+ECONOMY_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,44
+CHARACTER_GUIDE_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,45
+GROUP_CONTEXT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,46
+REDIS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,51
+CODEBASE_EXPORT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,58
+SENTRY_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,61

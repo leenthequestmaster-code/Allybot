@@ -1,0 +1,272 @@
+file,kind,name,line_start,line_end,expression
+tests/runtime-acceptance.test.js,plugin,"{
+    name: 'acceptance-menu-command',
+    load(context) {
+      context.commands.register({
+        name: 'status',
+   ",192,202,"{
+    name: 'acceptance-menu-command',
+    load(context) {
+      context.commands.register({
+        name: 'status',
+        category: 'general',
+        description: 'Acceptance status command',
+        handler: async (ctx) => ctx.reply('status-ok'),
+      })
+    },
+  }"
+tests/runtime-acceptance.test.js,plugin,"{
+    name: 'acceptance-message-gate',
+    load(context) {
+      context.messageGates.register('deny-acceptance-message'",252,262,"{
+    name: 'acceptance-message-gate',
+    load(context) {
+      context.messageGates.register('deny-acceptance-message', () => ({ allowed: false, reason: 'test-denied' }))
+      context.events.on('message.received', () => { received += 1 })
+      context.commands.register({
+        name: 'gated',
+        handler: async () => { executions += 1 },
+      })
+    },
+  }"
+tests/runtime-acceptance.test.js,plugin,"{
+    name: 'acceptance-permission',
+    load(context) {
+      context.commands.register({
+        name: 'protected',
+  ",167,176,"{
+    name: 'acceptance-permission',
+    load(context) {
+      context.commands.register({
+        name: 'protected',
+        permission: 'bot.owner',
+        handler: async () => { executions += 1 },
+      })
+    },
+  }"
+tests/runtime-acceptance.test.js,plugin,"{
+    name: 'acceptance-rejections',
+    load(context) {
+      context.commands.register({
+        name: 'validated',
+  ",139,148,"{
+    name: 'acceptance-rejections',
+    load(context) {
+      context.commands.register({
+        name: 'validated',
+        validate: () => 'invalid input',
+        handler: async () => { executions += 1 },
+      })
+    },
+  }"
+tests/runtime-acceptance.test.js,plugin,"{
+    name: 'acceptance-runtime',
+    load(context) {
+      context.commands.register({
+        name: 'echo',
+        al",108,121,"{
+    name: 'acceptance-runtime',
+    load(context) {
+      context.commands.register({
+        name: 'echo',
+        aliases: ['e'],
+        category: 'general',
+        handler: async (ctx) => {
+          executions += 1
+          await ctx.reply(`echo:${ctx.args.join('|')}`)
+        },
+      })
+    },
+  }"
+tests/runtime-acceptance.test.js,plugin,"{
+    name: 'acceptance-stop',
+    load(context) {
+      context.commands.register({
+        name: 'stop-check',
+       ",227,235,"{
+    name: 'acceptance-stop',
+    load(context) {
+      context.commands.register({
+        name: 'stop-check',
+        handler: async (ctx) => ctx.reply('should-not-run-after-stop'),
+      })
+    },
+  }"
+tests/integration.test.js,plugin,"{
+    name: 'base-plugin',
+    ready() { readyOrder.push('base') },
+  }",242,245,"{
+    name: 'base-plugin',
+    ready() { readyOrder.push('base') },
+  }"
+tests/integration.test.js,plugin,"{
+    name: 'dependent-plugin',
+    dependencies: ['base-plugin'],
+    ready() { readyOrder.push('dependent') },
+  }",237,241,"{
+    name: 'dependent-plugin',
+    dependencies: ['base-plugin'],
+    ready() { readyOrder.push('dependent') },
+  }"
+tests/integration.test.js,plugin,"{
+    name: 'fault-isolation',
+    load(context) {
+      context.commands.register({ name: 'bad', handler: () => { throw",84,90,"{
+    name: 'fault-isolation',
+    load(context) {
+      context.commands.register({ name: 'bad', handler: () => { throw new Error('expected failure') } })
+      context.commands.register({ name: 'good', handler: async (commandContext) => commandContext.reply('still alive') })
+    },
+  }"
+tests/integration.test.js,plugin,"{
+    name: 'sample-plugin',
+    load(context) {
+      lifecycle.push('plugin:load')
+      context.commands.register({
+ ",55,67,"{
+    name: 'sample-plugin',
+    load(context) {
+      lifecycle.push('plugin:load')
+      context.commands.register({
+        name: 'hello',
+        handler: async (commandContext) => commandContext.reply('hello from framework'),
+      })
+    },
+    initialize() { lifecycle.push('plugin:init') },
+    ready() { lifecycle.push('plugin:ready') },
+    unload() { lifecycle.push('plugin:unload') },
+  }"
+src/index.ts,plugin,codebasePlugin,132,132,codebasePlugin
+tests/codebase-export.test.js,plugin,codebasePlugin,62,62,codebasePlugin
+tests/codebase-export.test.js,plugin,codebasePlugin,86,86,codebasePlugin
+tests/codebase-export.test.js,plugin,codebasePlugin,111,111,codebasePlugin
+tests/codebase-export.test.js,plugin,codebasePlugin,132,132,codebasePlugin
+tests/plugin-readiness.test.js,plugin,codebasePlugin,136,136,codebasePlugin
+tests/afk.test.js,plugin,createAfkPlugin(core),73,73,createAfkPlugin(core)
+src/index.ts,plugin,createAfkPlugin(whatsapp),150,150,createAfkPlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createAfkPlugin(whatsapp),154,154,createAfkPlugin(whatsapp)
+tests/xkiro-ai.test.js,plugin,"createAiPlugin({
+    transport: async () => ({ content: 'jawaban prefix titik' }),
+  })",161,163,"createAiPlugin({
+    transport: async () => ({ content: 'jawaban prefix titik' }),
+  })"
+tests/xkiro-ai.test.js,plugin,"createAiPlugin({
+    transport: async (input) => {
+      calls.push(input)
+      return { content: 'jawaban untuk WhatsA",144,149,"createAiPlugin({
+    transport: async (input) => {
+      calls.push(input)
+      return { content: 'jawaban untuk WhatsApp' }
+    },
+  })"
+src/index.ts,plugin,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED }),130,130,createAiPlugin({ fallbackEnabled: config.XKIRO_AI_FALLBACK_ENABLED })
+tests/plugin-readiness.test.js,plugin,createAiPlugin({ fallbackEnabled: false }),134,134,createAiPlugin({ fallbackEnabled: false })
+src/index.ts,plugin,createCharacterGuidePlugin(whatsapp),137,137,createCharacterGuidePlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createCharacterGuidePlugin(whatsapp),141,141,createCharacterGuidePlugin(whatsapp)
+tests/welcome-leave-context.test.js,plugin,createGroupContextPlugin(core),65,65,createGroupContextPlugin(core)
+src/index.ts,plugin,createGroupContextPlugin(whatsapp),136,136,createGroupContextPlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createGroupContextPlugin(whatsapp),140,140,createGroupContextPlugin(whatsapp)
+tests/r8-group-governance.test.js,plugin,createGroupGovernancePlugin(core),266,266,createGroupGovernancePlugin(core)
+src/index.ts,plugin,createGroupGovernancePlugin(whatsapp),143,143,createGroupGovernancePlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createGroupGovernancePlugin(whatsapp),147,147,createGroupGovernancePlugin(whatsapp)
+src/index.ts,plugin,createGroupModerationPlugin(whatsapp),140,140,createGroupModerationPlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createGroupModerationPlugin(whatsapp),144,144,createGroupModerationPlugin(whatsapp)
+tests/r1-group-safety.test.js,plugin,createGroupSafetyPlugin(core),155,155,createGroupSafetyPlugin(core)
+src/index.ts,plugin,createGroupSafetyPlugin(whatsapp),139,139,createGroupSafetyPlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createGroupSafetyPlugin(whatsapp),143,143,createGroupSafetyPlugin(whatsapp)
+src/index.ts,plugin,createGroupSetupMissionPlugin(whatsapp),141,141,createGroupSetupMissionPlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createGroupSetupMissionPlugin(whatsapp),145,145,createGroupSetupMissionPlugin(whatsapp)
+tests/r4-knowledge.test.js,plugin,createKnowledgePlugin(core),216,216,createKnowledgePlugin(core)
+src/index.ts,plugin,createKnowledgePlugin(whatsapp),145,145,createKnowledgePlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createKnowledgePlugin(whatsapp),149,149,createKnowledgePlugin(whatsapp)
+tests/r6-scene.test.js,plugin,createScenePlugin(core),272,272,createScenePlugin(core)
+src/index.ts,plugin,createScenePlugin(whatsapp),144,144,createScenePlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createScenePlugin(whatsapp),148,148,createScenePlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,"createSentryPlugin({ isEnabled: false, captureError() {}, captureMessage() {}, close: async () => {} })",132,132,"createSentryPlugin({ isEnabled: false, captureError() {}, captureMessage() {}, close: async () => {} })"
+src/index.ts,plugin,createSentryPlugin(sentry),128,128,createSentryPlugin(sentry)
+tests/welcome-leave-context.test.js,plugin,createWelcomeLeavePlugin(core),66,66,createWelcomeLeavePlugin(core)
+src/index.ts,plugin,createWelcomeLeavePlugin(whatsapp),138,138,createWelcomeLeavePlugin(whatsapp)
+tests/plugin-readiness.test.js,plugin,createWelcomeLeavePlugin(whatsapp),142,142,createWelcomeLeavePlugin(whatsapp)
+src/index.ts,plugin,developerModePlugin,131,131,developerModePlugin
+tests/developer-mode.test.js,plugin,developerModePlugin,124,124,developerModePlugin
+tests/plugin-readiness.test.js,plugin,developerModePlugin,135,135,developerModePlugin
+src/index.ts,plugin,diagnosticsPlugin,133,133,diagnosticsPlugin
+tests/integration.test.js,plugin,diagnosticsPlugin,223,223,diagnosticsPlugin
+tests/plugin-readiness.test.js,plugin,diagnosticsPlugin,137,137,diagnosticsPlugin
+src/index.ts,plugin,economyPlugin,142,142,economyPlugin
+tests/plugin-readiness.test.js,plugin,economyPlugin,146,146,economyPlugin
+src/index.ts,plugin,groupPlugin,135,135,groupPlugin
+tests/group-configuration.test.js,plugin,groupPlugin,64,64,groupPlugin
+tests/group.test.js,plugin,groupPlugin,48,48,groupPlugin
+tests/group.test.js,plugin,groupPlugin,142,142,groupPlugin
+tests/group.test.js,plugin,groupPlugin,187,187,groupPlugin
+tests/integration.test.js,plugin,groupPlugin,212,212,groupPlugin
+tests/permissions.test.js,plugin,groupPlugin,56,56,groupPlugin
+tests/permissions.test.js,plugin,groupPlugin,155,155,groupPlugin
+tests/plugin-readiness.test.js,plugin,groupPlugin,139,139,groupPlugin
+tests/welcome-leave-context.test.js,plugin,groupPlugin,64,64,groupPlugin
+src/index.ts,plugin,mediaPlugin,148,148,mediaPlugin
+tests/plugin-readiness.test.js,plugin,mediaPlugin,152,152,mediaPlugin
+src/index.ts,plugin,menuPlugin,134,134,menuPlugin
+tests/afk.test.js,plugin,menuPlugin,72,72,menuPlugin
+tests/plugin-readiness.test.js,plugin,menuPlugin,138,138,menuPlugin
+tests/runtime-acceptance.test.js,plugin,menuPlugin,203,203,menuPlugin
+tests/welcome-leave-context.test.js,plugin,menuPlugin,63,63,menuPlugin
+src/index.ts,plugin,suggestionRelayPlugin,146,146,suggestionRelayPlugin
+tests/plugin-readiness.test.js,plugin,suggestionRelayPlugin,150,150,suggestionRelayPlugin
+src/index.ts,plugin,technicalPlugin,129,129,technicalPlugin
+tests/integration.test.js,plugin,technicalPlugin,115,115,technicalPlugin
+tests/integration.test.js,plugin,technicalPlugin,156,156,technicalPlugin
+tests/integration.test.js,plugin,technicalPlugin,211,211,technicalPlugin
+tests/integration.test.js,plugin,technicalPlugin,259,259,technicalPlugin
+tests/plugin-readiness.test.js,plugin,technicalPlugin,133,133,technicalPlugin
+src/index.ts,plugin,toolsSearchPlugin,149,149,toolsSearchPlugin
+tests/plugin-readiness.test.js,plugin,toolsSearchPlugin,153,153,toolsSearchPlugin
+src/index.ts,plugin,utilityPlugin,147,147,utilityPlugin
+tests/plugin-readiness.test.js,plugin,utilityPlugin,151,151,utilityPlugin
+tests/utility-fun.test.js,plugin,utilityPlugin,55,55,utilityPlugin
+tests/integration.test.js,service,"{
+    name: 'sample-service',
+    initialize() { lifecycle.push('service:init') },
+    shutdown() { lifecycle.push('serv",50,54,"{
+    name: 'sample-service',
+    initialize() { lifecycle.push('service:init') },
+    shutdown() { lifecycle.push('service:shutdown') },
+  }"
+tests/afk.test.js,service,afk,70,70,afk
+src/index.ts,service,AfkService,109,109,"new AfkService(config.DATABASE_PATH, logger)"
+src/index.ts,service,CharacterGuideService,117,117,"new CharacterGuideService(logger, { env: process.env })"
+tests/group.test.js,service,configuration,141,141,configuration
+tests/group.test.js,service,configuration,186,186,configuration
+src/index.ts,service,DeveloperModeService,111,111,"new DeveloperModeService(config.DATABASE_PATH, logger)"
+src/index.ts,service,EconomyService,112,115,"new EconomyService(logger, {
+    env: process.env,
+    cacheTtlSeconds: 15,
+  })"
+tests/r8-group-governance.test.js,service,governance,265,265,governance
+tests/afk.test.js,service,groupConfiguration,71,71,groupConfiguration
+src/index.ts,service,GroupConfigurationService,110,110,"new GroupConfigurationService(config.DATABASE_PATH, logger)"
+tests/group-configuration.test.js,service,GroupConfigurationService,63,63,"new GroupConfigurationService(databasePath, logger)"
+tests/group.test.js,service,GroupConfigurationService,47,47,"new GroupConfigurationService(join(directory, 'core.sqlite'), logger)"
+tests/welcome-leave-context.test.js,service,GroupConfigurationService,61,61,"new GroupConfigurationService(databasePath, logger)"
+tests/welcome-leave-context.test.js,service,groupContext,62,62,groupContext
+src/index.ts,service,GroupContextService,116,116,"new GroupContextService(logger, { env: process.env })"
+src/index.ts,service,GroupGovernanceService,122,122,"new GroupGovernanceService(config.DATABASE_PATH, logger)"
+src/index.ts,service,GroupModerationService,119,119,"new GroupModerationService(config.DATABASE_PATH, logger)"
+src/index.ts,service,GroupSafetyService,127,127,"new GroupSafetyService(config.DATABASE_PATH, logger)"
+tests/r1-group-safety.test.js,service,guardrails,153,153,guardrails
+tests/r4-knowledge.test.js,service,guardrails,214,214,guardrails
+tests/r6-scene.test.js,service,guardrails,270,270,guardrails
+tests/r8-group-governance.test.js,service,guardrails,264,264,guardrails
+tests/r4-knowledge.test.js,service,knowledge,215,215,knowledge
+src/index.ts,service,KnowledgeService,120,120,"new KnowledgeService(config.DATABASE_PATH, logger)"
+src/index.ts,service,PlatformGuardrailService,118,118,"new PlatformGuardrailService(config.DATABASE_PATH, logger)"
+src/index.ts,service,redis,126,126,redis
+tests/r1-group-safety.test.js,service,safety,154,154,safety
+tests/r6-scene.test.js,service,scenes,271,271,scenes
+src/index.ts,service,SceneService,121,121,"new SceneService(config.DATABASE_PATH, logger)"
+tests/developer-mode.test.js,service,service,123,123,service
+tests/plugin-readiness.test.js,service,stubService(name),124,124,stubService(name)
+src/index.ts,service,SuggestionRelayService,123,125,"new SuggestionRelayService(config.DATABASE_PATH, logger, {
+    provider: createSuggestionProvider(config, logger),
+  })"
