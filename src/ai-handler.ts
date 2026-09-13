@@ -1,8 +1,20 @@
 import OpenAI from 'openai'
 
-export const XKIRO_BASE_URL = 'https://api.xkiro.com/v1'
-export const PRIMARY_MODEL = 'google/gemini-3.7-flash'
-export const FALLBACK_MODEL = 'qwen/qwen3.8-max'
+/**
+ * Generic OpenAI-compatible AI provider.
+ *
+ * Everything is env-driven so the bot can talk to any provider that speaks
+ * the Chat Completions API (OpenAI, xAI, Gemini via OpenAI-compat endpoint,
+ * OpenRouter, a self-hosted gateway, ...):
+ *   AI_ENABLED=true
+ *   AI_BASE_URL=https://api.example.com/v1
+ *   AI_API_KEY=sk-...
+ *   AI_MODEL=primary-model-id
+ *   AI_FALLBACK_MODEL=optional-model-id   (needs AI_FALLBACK_ENABLED=true)
+ */
+export const AI_BASE_URL = 'https://api.openai.com/v1'
+export const PRIMARY_MODEL = 'gpt-4o-mini'
+export const FALLBACK_MODEL = 'gpt-4o'
 export const MAX_AI_INPUT_LENGTH = 1_200
 export const MAX_AI_OUTPUT_LENGTH = 2_000
 export const AI_REQUEST_TIMEOUT_MS = 15_000
@@ -37,6 +49,9 @@ export interface AiLogger {
 
 export interface AiHandlerOptions {
   readonly apiKey?: string
+  readonly baseUrl?: string
+  readonly primaryModel?: string
+  readonly fallbackModel?: string
   readonly transport?: AiTransport
   readonly logger?: AiLogger
   readonly fallbackEnabled?: boolean
@@ -71,10 +86,10 @@ function safeErrorStatus(error: unknown): number | undefined {
   return typeof status === 'number' && Number.isInteger(status) ? status : undefined
 }
 
-function createXkiroTransport(apiKey: string): AiTransport {
+export function createOpenAiCompatibleTransport(options: { apiKey: string; baseUrl?: string }): AiTransport {
   const client = new OpenAI({
-    apiKey,
-    baseURL: XKIRO_BASE_URL,
+    apiKey: options.apiKey,
+    baseURL: options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL,
     timeout: AI_REQUEST_TIMEOUT_MS,
     maxRetries: 0,
   })
@@ -93,9 +108,13 @@ function createXkiroTransport(apiKey: string): AiTransport {
 }
 
 export function createAiHandler(options: AiHandlerOptions = {}): (message: string) => Promise<string> {
-  const configuredKey = options.apiKey ?? process.env.XKIRO_API_KEY
+  const configuredKey = options.apiKey ?? process.env.AI_API_KEY
   const apiKey = configuredKey?.trim()
-  const transport = options.transport ?? (apiKey ? createXkiroTransport(apiKey) : undefined)
+  const primaryModel = options.primaryModel ?? process.env.AI_MODEL ?? PRIMARY_MODEL
+  const configuredFallback = options.fallbackModel ?? process.env.AI_FALLBACK_MODEL
+  const fallbackModel = configuredFallback?.trim() || primaryModel
+  const transport = options.transport
+    ?? (apiKey ? createOpenAiCompatibleTransport({ apiKey, baseUrl: options.baseUrl }) : undefined)
   const fallbackEnabled = options.fallbackEnabled ?? false
 
   return async (message: string): Promise<string> => {
@@ -108,7 +127,7 @@ export function createAiHandler(options: AiHandlerOptions = {}): (message: strin
 
     let primaryError: unknown
     try {
-      const primary = boundedOutput((await transport({ model: PRIMARY_MODEL, userMessage: input })).content ?? '')
+      const primary = boundedOutput((await transport({ model: primaryModel, userMessage: input })).content ?? '')
       if (primary) return primary
       primaryError = new Error('EmptyProviderResponse')
     } catch (error) {
@@ -119,7 +138,7 @@ export function createAiHandler(options: AiHandlerOptions = {}): (message: strin
     if (!fallbackEnabled) throw new AiHandlerError('provider_unavailable', 'AI provider tidak tersedia.')
 
     try {
-      const fallback = boundedOutput((await transport({ model: FALLBACK_MODEL, userMessage: input })).content ?? '')
+      const fallback = boundedOutput((await transport({ model: fallbackModel, userMessage: input })).content ?? '')
       if (fallback) return fallback
       throw new Error('EmptyProviderResponse')
     } catch (fallbackError) {
@@ -129,4 +148,5 @@ export function createAiHandler(options: AiHandlerOptions = {}): (message: strin
   }
 }
 
-export const chatXkiro = createAiHandler()
+/** Default handler instance; configured lazily from env (AI_API_KEY, AI_MODEL, ...). */
+export const chatCompletion = createAiHandler()

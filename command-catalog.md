@@ -15,7 +15,7 @@ Aturan baca:
 | Ekonomi Vela | `ECONOMY_ENABLED` | Backend RPC belum dipasang. Flag on tanpa backend → command menjawab "belum tersedia", hidden dari menu. |
 | Group Context IC/OOC | `GROUP_CONTEXT_ENABLED` | Backend RPC belum dipasang. Perilaku sama. Catatan: `!ooc`/`!setgroup` bentrok dengan command scene/moderasi saat mode ini aktif (dipantau `plugin-readiness`). |
 | Character Guide | `CHARACTER_GUIDE_ENABLED` | Backend RPC belum dipasang. Perilaku sama. |
-| AI (XKiro) | `XKIRO_AI_ENABLED` + `XKIRO_API_KEY` | Siap; default off. |
+| AI generik | `AI_ENABLED` + `AI_API_KEY` (+ `AI_BASE_URL`, `AI_MODEL`) | Siap; default off; provider OpenAI-compatible mana pun. |
 | Redis | `REDIS_ENABLED` + `REDIS_URL` | Opsional; fail-soft dengan warning. |
 | Diagnostik | `DIAGNOSTICS_ENABLED` | Opsional, default off. |
 | Export Codebase | `CODEBASE_EXPORT_ENABLED` | Owner-only, default off. |
@@ -118,7 +118,7 @@ Aturan baca:
 ## tools-ai (5)
 | Command | Fungsi |
 |---|---|
-| `!ai` (ally, tanya) | Tanya AI tanpa memori percakapan. Butuh XKIRO aktif. |
+| `!ai` (ally, tanya) | Tanya AI tanpa memori percakapan. Butuh fitur AI aktif. |
 | `!aidetection` (deteksiai, aidetect) | Deteksi teks AI. |
 | `!suggest` (suggestion, usul) | Saran dari konteks approved. |
 | `!summarize` (ringkas) | Ringkas teks. |

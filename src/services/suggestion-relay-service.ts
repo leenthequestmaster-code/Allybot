@@ -10,7 +10,7 @@ import type { SceneService } from './scene-service.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 
 export const SUGGESTION_FEATURE_ID = 'community.suggestion.relay'
-export const SUGGESTION_PROVIDER_ID = 'xkiro-suggestion'
+export const SUGGESTION_PROVIDER_ID = 'ai-suggestion'
 
 export interface SuggestionContextItem {
   readonly sourceRefHash: string
