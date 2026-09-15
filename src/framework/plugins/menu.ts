@@ -3,6 +3,7 @@ import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import type { DeveloperModeService } from '../../services/developer-mode-service.js'
 import { commandDescription } from '../command-copy.js'
 import { MsgBuilder } from '../msg-builder.js'
+import { isGroupJid } from '../validation.js'
 
 type MenuCategory = {
   readonly name: string
@@ -282,7 +283,22 @@ async function sendMenu(
   }
 
   if (options?.category) {
-    // Category Submenu: AIRich message container with structured submessages (tips & suggestions)
+    // In group chats, WhatsApp servers reject botInvokeMessage with 479, so we deliver
+    // interactive messages with action buttons. In private chats, AIRich delivers structured
+    // presentation with chips/tips natively.
+    if (isGroupJid(jid)) {
+      const { icon } = presentationFor(options.category.name)
+      const builder = MsgBuilder.to(jid)
+        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
+        .text(body)
+        .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
+        .button({ type: 'reply', id: `${prefix}menu`, text: '📋 Menu Utama' })
+        .button({ type: 'reply', id: `${prefix}commands`, text: '📚 Semua Command' })
+
+      await builder.send(commandContext.whatsapp as any)
+      return
+    }
+
     const builder = MsgBuilder.to(jid).text(body, { rich: true })
     await builder.send(commandContext.whatsapp as any)
     return
