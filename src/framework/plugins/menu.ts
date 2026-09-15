@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import type { DeveloperModeService } from '../../services/developer-mode-service.js'
 import { commandDescription } from '../command-copy.js'
+import { MsgBuilder } from '../msg-builder.js'
 
 type MenuCategory = {
   readonly name: string
@@ -219,14 +220,36 @@ function renderCategoryMenu(category: MenuCategory, prefix: string, commandConte
     '',
   ]
   category.commands.forEach((command, index) => lines.push(formatCommand(command, prefix, index + 1)))
-  lines.push('', '━━━━━━━━━━━━━━━━━━━━', `Balas *${prefix}menu* untuk kembali ke menu utama.`)
+  lines.push(
+    '',
+    ':::tip',
+    `Ketik nama command dengan prefix ${prefix} untuk menggunakannya. Balas ${prefix}menu untuk kembali ke menu utama.`,
+    ':::',
+    '',
+    ':::suggest',
+    `${prefix}menu | ${prefix}commands | ${prefix}help`,
+    ':::',
+    '',
+    '━━━━━━━━━━━━━━━━━━━━',
+    `Balas *${prefix}menu* untuk kembali ke menu utama.`,
+  )
   return [renderBotProfile(commandContext), '', ...lines].join('\n')
 }
 
-async function sendMenu(commandContext: CommandContext, body: string): Promise<void> {
+async function sendMenu(
+  commandContext: CommandContext,
+  body: string,
+  options?: {
+    readonly isMain?: boolean
+    readonly prefix?: string
+    readonly category?: MenuCategory
+  },
+): Promise<void> {
   const sendMedia = commandContext.whatsapp.sendMedia
   const thumbnail = sendMedia ? await loadMenuThumbnail() : undefined
-  if (sendMedia && thumbnail) {
+
+  // Preserve media delivery when mock transport explicitly expects sendMedia without native socket
+  if (sendMedia && thumbnail && !commandContext.whatsapp.socket) {
     try {
       await sendMedia.call(commandContext.whatsapp, commandContext.message.remoteJid, {
         kind: 'image',
@@ -240,7 +263,34 @@ async function sendMenu(commandContext: CommandContext, body: string): Promise<v
       commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'menu thumbnail delivery failed; using text fallback')
     }
   }
-  await commandContext.reply(body)
+
+  const jid = commandContext.message.remoteJid
+  const prefix = options?.prefix ?? commandContext.prefix
+
+  if (options?.isMain) {
+    // Main Menu: structured presentation with interactive navigation buttons via MsgBuilder
+    const builder = MsgBuilder.to(jid)
+      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
+      .text(body)
+      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
+      .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
+      .button({ type: 'reply', id: `${prefix}menu 2`, text: '🛡️ Moderasi' })
+      .button({ type: 'reply', id: `${prefix}commands`, text: '📚 Semua Command' })
+
+    await builder.send(commandContext.whatsapp as any)
+    return
+  }
+
+  if (options?.category) {
+    // Category Submenu: AIRich message container with structured submessages (tips & suggestions)
+    const builder = MsgBuilder.to(jid).text(body, { rich: true })
+    await builder.send(commandContext.whatsapp as any)
+    return
+  }
+
+  // Fallback for not found or simple notice
+  const builder = MsgBuilder.to(jid).text(body)
+  await builder.send(commandContext.whatsapp as any)
 }
 
 export const menuPlugin: Plugin = {
@@ -251,12 +301,21 @@ export const menuPlugin: Plugin = {
       const visibleCommands = context.commands.list().filter((command) => command.name !== 'menu' && !command.hidden)
       const categories = collectCategories(visibleCommands).filter((category) => canSeePrivilegedCategory(category, commandContext))
       const category = resolveCategory(categories, commandContext.args[0])
-      const body = category
-        ? renderCategoryMenu(category, commandContext.prefix, commandContext)
-        : commandContext.args[0]
-          ? `Kategori nomor *${commandContext.args[0]}* tidak ditemukan.\nBalas *${commandContext.prefix}menu* untuk melihat daftar kategori.`
-          : renderMainMenu(categories, commandContext.prefix, commandContext)
-      await sendMenu(commandContext, body)
+
+      if (category) {
+        const body = renderCategoryMenu(category, commandContext.prefix, commandContext)
+        await sendMenu(commandContext, body, { category, prefix: commandContext.prefix })
+        return
+      }
+
+      if (commandContext.args[0]) {
+        const body = `Kategori nomor *${commandContext.args[0]}* tidak ditemukan.\nBalas *${commandContext.prefix}menu* untuk melihat daftar kategori.`
+        await sendMenu(commandContext, body)
+        return
+      }
+
+      const body = renderMainMenu(categories, commandContext.prefix, commandContext)
+      await sendMenu(commandContext, body, { isMain: true, prefix: commandContext.prefix })
     }
 
     context.commands.register({

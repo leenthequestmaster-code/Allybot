@@ -260,9 +260,6 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
         const now = message.timestamp || Date.now()
         const ownAfk = afk.getActive(senderJid)
 
-        // Ignore if AFK was activated within the last 4 seconds to prevent sync/echo race conditions
-        if (ownAfk && now - ownAfk.startedAt < 4000) return
-
         const prefix = isGroupJid(message.remoteJid)
           ? groupConfiguration.resolvePrefix(message.remoteJid, context.config.commandPrefix)
           : context.config.commandPrefix

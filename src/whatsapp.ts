@@ -225,7 +225,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation:
 }
 
 export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTransport {
-  private socket: WASocket | undefined
+  socket: WASocket | undefined = undefined
   private reconnectTimer: NodeJS.Timeout | undefined
   private starting = false
   private stopping = false

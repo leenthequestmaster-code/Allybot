@@ -146,3 +146,64 @@ test('menu mengikuti effective prefix tanpa mengandalkan nama kategori', async (
   await registry.dispatch(message('custom-submenu', 'group@g.us', '##menu 1'))
   assert.match(whatsapp.sent[1].text, /##ping/)
 })
+
+test('!menu utilizes MsgBuilder interactive buttons when socket is available', async () => {
+  const relayed = []
+  const whatsapp = {
+    isConnected: true,
+    userJid: 'bot@s.whatsapp.net',
+    sent: [],
+    socket: {
+      user: { id: 'bot@s.whatsapp.net' },
+      logger: { warn() {} },
+      async relayMessage(jid, msg, options) {
+        relayed.push({ jid, msg, options })
+      },
+    },
+    onMessage() { return () => {} },
+    onGroupParticipantUpdate() { return () => {} },
+    onConnectionState() { return () => {} },
+    async sendText(remoteJid, text) { this.sent.push({ remoteJid, text }) },
+  }
+  const { registry } = createRegistry(whatsapp)
+  registerCommand(registry, 'ping', 'general', 'Check bot latency')
+  await registry.dispatch(message('interactive-menu', 'group@g.us', '!menu'))
+
+  assert.equal(relayed.length, 1)
+  const im = relayed[0].msg.interactiveMessage
+  assert.ok(im)
+  assert.match(im.header?.title, /ALLYBOT MENU/)
+  assert.match(im.body?.text, /PROFILE BOT/)
+  const buttons = im.nativeFlowMessage?.buttons
+  assert.ok(buttons && buttons.length >= 2)
+  assert.equal(buttons[0]?.name, 'quick_reply')
+})
+
+test('!menu <category> utilizes MsgBuilder with AIRich message when socket is available', async () => {
+  const relayed = []
+  const whatsapp = {
+    isConnected: true,
+    userJid: 'bot@s.whatsapp.net',
+    sent: [],
+    socket: {
+      user: { id: 'bot@s.whatsapp.net' },
+      logger: { warn() {} },
+      async relayMessage(jid, msg, options) {
+        relayed.push({ jid, msg, options })
+      },
+    },
+    onMessage() { return () => {} },
+    onGroupParticipantUpdate() { return () => {} },
+    onConnectionState() { return () => {} },
+    async sendText(remoteJid, text) { this.sent.push({ remoteJid, text }) },
+  }
+  const { registry } = createRegistry(whatsapp)
+  registerCommand(registry, 'ping', 'general', 'Check bot latency')
+  await registry.dispatch(message('airich-menu', 'group@g.us', '!menu 1'))
+
+  assert.equal(relayed.length, 1)
+  const richMsg = relayed[0].msg.botInvokeMessage?.message?.richResponseMessage
+  assert.ok(richMsg)
+  assert.ok(Array.isArray(richMsg.submessages) && richMsg.submessages.length >= 2)
+})
+
