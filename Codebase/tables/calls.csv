@@ -4305,59 +4305,59 @@ src/framework/plugins/menu.ts,loadMenuThumbnail,"unresolved:readFile(new URL('..
     .then((data) => new Uint8Array(data))
     .catch","readFile(new URL('../../assets/allybot-menu-thumbnail.jpg', import.meta.url))
     .then((data) => new Uint8Array(data))
-    .catch",low,66,68,
+    .catch",low,67,69,
 src/framework/plugins/menu.ts,loadMenuThumbnail,"unresolved:readFile(new URL('../../assets/allybot-menu-thumbnail.jpg', import.meta.url))
     .then","readFile(new URL('../../assets/allybot-menu-thumbnail.jpg', import.meta.url))
-    .then",low,66,67,
-src/framework/plugins/menu.ts,loadMenuThumbnail,unresolved:readFile,readFile,low,66,66,
-src/framework/plugins/menu.ts,normalizeCategory,unresolved:command.category?.trim().toLowerCase,command.category?.trim().toLowerCase,low,73,73,
-src/framework/plugins/menu.ts,normalizeCategory,unresolved:command.category?.trim,command.category?.trim,low,73,73,
-src/framework/plugins/menu.ts,normalizeCategory,"unresolved:/^[a-z][a-z0-9_-]{0,31}$/.test","/^[a-z][a-z0-9_-]{0,31}$/.test",low,74,74,
-src/framework/plugins/menu.ts,sortCommands,unresolved:[...commands].sort,[...commands].sort,low,79,82,
-src/framework/plugins/menu.ts,sortCommands,unresolved:left.name.localeCompare,left.name.localeCompare,low,81,81,
-src/framework/plugins/menu.ts,collectCategories,src/framework/plugins/menu.ts,normalizeCategory,medium,88,88,src/framework/plugins/menu.ts:72
-src/framework/plugins/menu.ts,collectCategories,unresolved:grouped.set,grouped.set,low,89,89,
-src/framework/plugins/menu.ts,collectCategories,unresolved:grouped.get,grouped.get,low,89,89,
+    .then",low,67,68,
+src/framework/plugins/menu.ts,loadMenuThumbnail,unresolved:readFile,readFile,low,67,67,
+src/framework/plugins/menu.ts,normalizeCategory,unresolved:command.category?.trim().toLowerCase,command.category?.trim().toLowerCase,low,74,74,
+src/framework/plugins/menu.ts,normalizeCategory,unresolved:command.category?.trim,command.category?.trim,low,74,74,
+src/framework/plugins/menu.ts,normalizeCategory,"unresolved:/^[a-z][a-z0-9_-]{0,31}$/.test","/^[a-z][a-z0-9_-]{0,31}$/.test",low,75,75,
+src/framework/plugins/menu.ts,sortCommands,unresolved:[...commands].sort,[...commands].sort,low,80,83,
+src/framework/plugins/menu.ts,sortCommands,unresolved:left.name.localeCompare,left.name.localeCompare,low,82,82,
+src/framework/plugins/menu.ts,collectCategories,src/framework/plugins/menu.ts,normalizeCategory,medium,89,89,src/framework/plugins/menu.ts:73
+src/framework/plugins/menu.ts,collectCategories,unresolved:grouped.set,grouped.set,low,90,90,
+src/framework/plugins/menu.ts,collectCategories,unresolved:grouped.get,grouped.get,low,90,90,
 src/framework/plugins/menu.ts,collectCategories,"unresolved:[...grouped.entries()]
     .map(([name, categoryCommands]) => ({ name, commands: sortCommands(categoryCommands) }))
     .sort","[...grouped.entries()]
     .map(([name, categoryCommands]) => ({ name, commands: sortCommands(categoryCommands) }))
-    .sort",low,92,99,
+    .sort",low,93,100,
 src/framework/plugins/menu.ts,collectCategories,"unresolved:[...grouped.entries()]
     .map","[...grouped.entries()]
-    .map",low,92,93,
-src/framework/plugins/menu.ts,collectCategories,unresolved:grouped.entries,grouped.entries,low,92,92,
-src/framework/plugins/menu.ts,collectCategories,src/framework/plugins/menu.ts,sortCommands,medium,93,93,src/framework/plugins/menu.ts:78
-src/framework/plugins/menu.ts,collectCategories,unresolved:ROADMAP_CATEGORY_NAMES.indexOf,ROADMAP_CATEGORY_NAMES.indexOf,low,95,95,
+    .map",low,93,94,
+src/framework/plugins/menu.ts,collectCategories,unresolved:grouped.entries,grouped.entries,low,93,93,
+src/framework/plugins/menu.ts,collectCategories,src/framework/plugins/menu.ts,sortCommands,medium,94,94,src/framework/plugins/menu.ts:79
 src/framework/plugins/menu.ts,collectCategories,unresolved:ROADMAP_CATEGORY_NAMES.indexOf,ROADMAP_CATEGORY_NAMES.indexOf,low,96,96,
-src/framework/plugins/menu.ts,collectCategories,unresolved:left.name.localeCompare,left.name.localeCompare,low,98,98,
-src/framework/plugins/menu.ts,presentationFor,unresolved:category.toUpperCase,category.toUpperCase,low,103,103,
-src/framework/plugins/menu.ts,categoryLabel,src/framework/plugins/menu.ts,presentationFor,medium,107,107,src/framework/plugins/menu.ts:102
-src/framework/plugins/menu.ts,formatUptime,src/framework/plugins/utility-fun.ts,max,medium,111,111,src/framework/plugins/utility-fun.ts:154
-src/framework/plugins/menu.ts,formatUptime,unresolved:Math.floor,Math.floor,low,111,111,
+src/framework/plugins/menu.ts,collectCategories,unresolved:ROADMAP_CATEGORY_NAMES.indexOf,ROADMAP_CATEGORY_NAMES.indexOf,low,97,97,
+src/framework/plugins/menu.ts,collectCategories,unresolved:left.name.localeCompare,left.name.localeCompare,low,99,99,
+src/framework/plugins/menu.ts,presentationFor,unresolved:category.toUpperCase,category.toUpperCase,low,104,104,
+src/framework/plugins/menu.ts,categoryLabel,src/framework/plugins/menu.ts,presentationFor,medium,108,108,src/framework/plugins/menu.ts:103
+src/framework/plugins/menu.ts,formatUptime,src/framework/plugins/utility-fun.ts,max,medium,112,112,src/framework/plugins/utility-fun.ts:154
 src/framework/plugins/menu.ts,formatUptime,unresolved:Math.floor,Math.floor,low,112,112,
 src/framework/plugins/menu.ts,formatUptime,unresolved:Math.floor,Math.floor,low,113,113,
 src/framework/plugins/menu.ts,formatUptime,unresolved:Math.floor,Math.floor,low,114,114,
-src/framework/plugins/menu.ts,formatUptime,unresolved:parts.push,parts.push,low,117,117,
+src/framework/plugins/menu.ts,formatUptime,unresolved:Math.floor,Math.floor,low,115,115,
 src/framework/plugins/menu.ts,formatUptime,unresolved:parts.push,parts.push,low,118,118,
 src/framework/plugins/menu.ts,formatUptime,unresolved:parts.push,parts.push,low,119,119,
 src/framework/plugins/menu.ts,formatUptime,unresolved:parts.push,parts.push,low,120,120,
-src/framework/plugins/menu.ts,formatUptime,unresolved:parts.join,parts.join,low,121,121,
-src/framework/plugins/menu.ts,formatOwner,unresolved:ownerJid.split('@')[0]?.replace,ownerJid.split('@')[0]?.replace,low,126,126,
-src/framework/plugins/menu.ts,formatOwner,unresolved:ownerJid.split,ownerJid.split,low,126,126,
-src/framework/plugins/menu.ts,formatOwner,unresolved:phone.slice,phone.slice,low,128,128,
-src/framework/plugins/menu.ts,formatOwner,unresolved:phone.slice,phone.slice,low,128,128,
-src/framework/plugins/menu.ts,isSameJid,unresolved:left.split,left.split,low,133,133,
-src/framework/plugins/menu.ts,isSameJid,unresolved:right.split,right.split,low,133,133,
-src/framework/plugins/menu.ts,isBotOwner,src/framework/plugins/menu.ts,isSameJid,medium,137,137,src/framework/plugins/menu.ts:131
-src/framework/plugins/menu.ts,canSeePrivilegedCategory,src/framework/plugins/menu.ts,isBotOwner,medium,144,144,src/framework/plugins/menu.ts:136
-src/framework/plugins/menu.ts,canSeePrivilegedCategory,src/framework/plugins/menu.ts,isBotOwner,medium,146,146,src/framework/plugins/menu.ts:136
-src/framework/plugins/menu.ts,canSeePrivilegedCategory,unresolved:commandContext.services.has,commandContext.services.has,low,148,148,
-src/framework/plugins/menu.ts,canSeePrivilegedCategory,src/services/developer-mode-service.ts,listVisibleActivations,medium,150,150,src/services/developer-mode-service.ts:288
-src/framework/plugins/menu.ts,canSeePrivilegedCategory,unresolved:commandContext.services.get,commandContext.services.get,low,150,150,
-src/framework/plugins/menu.ts,formatCommand,unresolved:command.aliases.map((alias) => `${prefix}${alias}`).join,command.aliases.map((alias) => `${prefix}${alias}`).join,low,158,158,
-src/framework/plugins/menu.ts,formatCommand,unresolved:command.aliases.map,command.aliases.map,low,158,158,
-src/framework/plugins/menu.ts,formatCommand,src/framework/command-copy.ts,commandDescription,medium,161,161,src/framework/command-copy.ts:106
+src/framework/plugins/menu.ts,formatUptime,unresolved:parts.push,parts.push,low,121,121,
+src/framework/plugins/menu.ts,formatUptime,unresolved:parts.join,parts.join,low,122,122,
+src/framework/plugins/menu.ts,formatOwner,unresolved:ownerJid.split('@')[0]?.replace,ownerJid.split('@')[0]?.replace,low,127,127,
+src/framework/plugins/menu.ts,formatOwner,unresolved:ownerJid.split,ownerJid.split,low,127,127,
+src/framework/plugins/menu.ts,formatOwner,unresolved:phone.slice,phone.slice,low,129,129,
+src/framework/plugins/menu.ts,formatOwner,unresolved:phone.slice,phone.slice,low,129,129,
+src/framework/plugins/menu.ts,isSameJid,unresolved:left.split,left.split,low,134,134,
+src/framework/plugins/menu.ts,isSameJid,unresolved:right.split,right.split,low,134,134,
+src/framework/plugins/menu.ts,isBotOwner,src/framework/plugins/menu.ts,isSameJid,medium,138,138,src/framework/plugins/menu.ts:132
+src/framework/plugins/menu.ts,canSeePrivilegedCategory,src/framework/plugins/menu.ts,isBotOwner,medium,145,145,src/framework/plugins/menu.ts:137
+src/framework/plugins/menu.ts,canSeePrivilegedCategory,src/framework/plugins/menu.ts,isBotOwner,medium,147,147,src/framework/plugins/menu.ts:137
+src/framework/plugins/menu.ts,canSeePrivilegedCategory,unresolved:commandContext.services.has,commandContext.services.has,low,149,149,
+src/framework/plugins/menu.ts,canSeePrivilegedCategory,src/services/developer-mode-service.ts,listVisibleActivations,medium,151,151,src/services/developer-mode-service.ts:288
+src/framework/plugins/menu.ts,canSeePrivilegedCategory,unresolved:commandContext.services.get,commandContext.services.get,low,151,151,
+src/framework/plugins/menu.ts,formatCommand,unresolved:command.aliases.map((alias) => `${prefix}${alias}`).join,command.aliases.map((alias) => `${prefix}${alias}`).join,low,159,159,
+src/framework/plugins/menu.ts,formatCommand,unresolved:command.aliases.map,command.aliases.map,low,159,159,
+src/framework/plugins/menu.ts,formatCommand,src/framework/command-copy.ts,commandDescription,medium,162,162,src/framework/command-copy.ts:106
 src/framework/plugins/menu.ts,renderBotProfile,"unresolved:[
     '╭─〔 *PROFILE BOT* 〕',
     `│ Nama   : *${BOT_NAME}*`,
@@ -4372,31 +4372,31 @@ src/framework/plugins/menu.ts,renderBotProfile,"unresolved:[
     `│ Owner  : *${formatOwner(commandContext.config.botOwnerJid)}*`,
     `│ Versi  : *v${BOT_VERSION}*`,
     '╰────────────────────',
-  ].join",low,165,172,
-src/framework/plugins/menu.ts,renderBotProfile,src/framework/plugins/menu.ts,formatUptime,medium,168,168,src/framework/plugins/menu.ts:110
-src/framework/plugins/menu.ts,renderBotProfile,unresolved:process.uptime,process.uptime,low,168,168,
-src/framework/plugins/menu.ts,renderBotProfile,src/framework/plugins/menu.ts,formatOwner,medium,169,169,src/framework/plugins/menu.ts:124
-src/framework/plugins/menu.ts,renderMainMenu,src/framework/plugins/menu.ts,renderBotProfile,medium,185,185,src/framework/plugins/menu.ts:164
-src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.push,lines.push,low,192,192,
-src/framework/plugins/menu.ts,renderMainMenu,unresolved:categories.forEach,categories.forEach,low,194,197,
-src/framework/plugins/menu.ts,renderMainMenu,src/framework/plugins/menu.ts,presentationFor,medium,195,195,src/framework/plugins/menu.ts:102
-src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.push,lines.push,low,196,196,
-src/framework/plugins/menu.ts,renderMainMenu,src/framework/plugins/menu.ts,categoryLabel,medium,196,196,src/framework/plugins/menu.ts:106
-src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.push,lines.push,low,200,205,
-src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.join,lines.join,low,206,206,
-src/framework/plugins/menu.ts,resolveCategory,unresolved:/^\d+$/.test,/^\d+$/.test,low,210,210,
-src/framework/plugins/menu.ts,resolveCategory,unresolved:Number,Number,low,211,211,
-src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,presentationFor,medium,215,215,src/framework/plugins/menu.ts:102
-src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,categoryLabel,medium,217,217,src/framework/plugins/menu.ts:106
-src/framework/plugins/menu.ts,renderCategoryMenu,unresolved:category.commands.forEach,category.commands.forEach,low,222,222,
-src/framework/plugins/menu.ts,renderCategoryMenu,unresolved:lines.push,lines.push,low,222,222,
-src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,formatCommand,medium,222,222,src/framework/plugins/menu.ts:156
-src/framework/plugins/menu.ts,renderCategoryMenu,unresolved:lines.push,lines.push,low,223,235,
-src/framework/plugins/menu.ts,renderCategoryMenu,"unresolved:[renderBotProfile(commandContext), '', ...lines].join","[renderBotProfile(commandContext), '', ...lines].join",low,236,236,
-src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,renderBotProfile,medium,236,236,src/framework/plugins/menu.ts:164
-src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,loadMenuThumbnail,medium,249,249,src/framework/plugins/menu.ts:65
-src/framework/plugins/menu.ts,sendMenu,unresolved:sendMedia.call,sendMedia.call,low,254,260,
-src/framework/plugins/menu.ts,sendMenu,unresolved:commandContext.logger.warn,commandContext.logger.warn,low,263,263,
+  ].join",low,166,173,
+src/framework/plugins/menu.ts,renderBotProfile,src/framework/plugins/menu.ts,formatUptime,medium,169,169,src/framework/plugins/menu.ts:111
+src/framework/plugins/menu.ts,renderBotProfile,unresolved:process.uptime,process.uptime,low,169,169,
+src/framework/plugins/menu.ts,renderBotProfile,src/framework/plugins/menu.ts,formatOwner,medium,170,170,src/framework/plugins/menu.ts:125
+src/framework/plugins/menu.ts,renderMainMenu,src/framework/plugins/menu.ts,renderBotProfile,medium,186,186,src/framework/plugins/menu.ts:165
+src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.push,lines.push,low,193,193,
+src/framework/plugins/menu.ts,renderMainMenu,unresolved:categories.forEach,categories.forEach,low,195,198,
+src/framework/plugins/menu.ts,renderMainMenu,src/framework/plugins/menu.ts,presentationFor,medium,196,196,src/framework/plugins/menu.ts:103
+src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.push,lines.push,low,197,197,
+src/framework/plugins/menu.ts,renderMainMenu,src/framework/plugins/menu.ts,categoryLabel,medium,197,197,src/framework/plugins/menu.ts:107
+src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.push,lines.push,low,201,206,
+src/framework/plugins/menu.ts,renderMainMenu,unresolved:lines.join,lines.join,low,207,207,
+src/framework/plugins/menu.ts,resolveCategory,unresolved:/^\d+$/.test,/^\d+$/.test,low,211,211,
+src/framework/plugins/menu.ts,resolveCategory,unresolved:Number,Number,low,212,212,
+src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,presentationFor,medium,216,216,src/framework/plugins/menu.ts:103
+src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,categoryLabel,medium,218,218,src/framework/plugins/menu.ts:107
+src/framework/plugins/menu.ts,renderCategoryMenu,unresolved:category.commands.forEach,category.commands.forEach,low,223,223,
+src/framework/plugins/menu.ts,renderCategoryMenu,unresolved:lines.push,lines.push,low,223,223,
+src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,formatCommand,medium,223,223,src/framework/plugins/menu.ts:157
+src/framework/plugins/menu.ts,renderCategoryMenu,unresolved:lines.push,lines.push,low,224,236,
+src/framework/plugins/menu.ts,renderCategoryMenu,"unresolved:[renderBotProfile(commandContext), '', ...lines].join","[renderBotProfile(commandContext), '', ...lines].join",low,237,237,
+src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,renderBotProfile,medium,237,237,src/framework/plugins/menu.ts:165
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,loadMenuThumbnail,medium,250,250,src/framework/plugins/menu.ts:66
+src/framework/plugins/menu.ts,sendMenu,unresolved:sendMedia.call,sendMedia.call,low,255,261,
+src/framework/plugins/menu.ts,sendMenu,unresolved:commandContext.logger.warn,commandContext.logger.warn,low,264,264,
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text(body)
@@ -4409,7 +4409,7 @@ src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
       .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
       .button({ type: 'reply', id: `${prefix}menu 2`, text: '🛡️ Moderasi' })
-      .button",low,272,278,
+      .button",low,273,279,
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text(body)
@@ -4420,7 +4420,7 @@ src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .text(body)
       .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
       .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
-      .button",low,272,277,
+      .button",low,273,278,
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text(body)
@@ -4429,34 +4429,66 @@ src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text(body)
       .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button",low,272,276,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,footer,medium,272,275,src/framework/msg-builder.ts:326
+      .button",low,273,277,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,footer,medium,273,276,src/framework/msg-builder.ts:326
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text","MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text",low,272,274,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,header,medium,272,273,src/framework/msg-builder.ts:320
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,272,272,src/framework/msg-builder.ts:303
-src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,280,280,
-src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,286,286,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,286,286,src/framework/msg-builder.ts:303
-src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,287,287,
-src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,292,292,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,292,292,src/framework/msg-builder.ts:303
-src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,293,293,
-src/framework/plugins/menu.ts,load,unresolved:context.commands.list().filter,context.commands.list().filter,low,301,301,
-src/framework/plugins/menu.ts,load,unresolved:context.commands.list,context.commands.list,low,301,301,
-src/framework/plugins/menu.ts,load,unresolved:collectCategories(visibleCommands).filter,collectCategories(visibleCommands).filter,low,302,302,
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,collectCategories,medium,302,302,src/framework/plugins/menu.ts:85
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,canSeePrivilegedCategory,medium,302,302,src/framework/plugins/menu.ts:140
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,resolveCategory,medium,303,303,src/framework/plugins/menu.ts:209
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderCategoryMenu,medium,306,306,src/framework/plugins/menu.ts:214
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,307,307,src/framework/plugins/menu.ts:239
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,313,313,src/framework/plugins/menu.ts:239
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderMainMenu,medium,317,317,src/framework/plugins/menu.ts:175
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,318,318,src/framework/plugins/menu.ts:239
-src/framework/plugins/menu.ts,load,unresolved:context.commands.register,context.commands.register,low,321,330,
+      .text",low,273,275,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,header,medium,273,274,src/framework/msg-builder.ts:320
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,273,273,src/framework/msg-builder.ts:303
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,281,281,
+src/framework/plugins/menu.ts,sendMenu,src/framework/validation.ts,isGroupJid,medium,289,289,src/framework/validation.ts:20
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,presentationFor,medium,290,290,src/framework/plugins/menu.ts:103
+src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
+        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
+        .text(body)
+        .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
+        .button({ type: 'reply', id: `${prefix}menu`, text: '📋 Menu Utama' })
+        .button","MsgBuilder.to(jid)
+        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
+        .text(body)
+        .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
+        .button({ type: 'reply', id: `${prefix}menu`, text: '📋 Menu Utama' })
+        .button",low,291,296,
+src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
+        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
+        .text(body)
+        .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
+        .button","MsgBuilder.to(jid)
+        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
+        .text(body)
+        .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
+        .button",low,291,295,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,footer,medium,291,294,src/framework/msg-builder.ts:326
+src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
+        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
+        .text","MsgBuilder.to(jid)
+        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
+        .text",low,291,293,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,header,medium,291,292,src/framework/msg-builder.ts:320
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,291,291,src/framework/msg-builder.ts:303
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,categoryLabel,medium,292,292,src/framework/plugins/menu.ts:107
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,298,298,
+src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,302,302,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,302,302,src/framework/msg-builder.ts:303
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,303,303,
+src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,308,308,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,308,308,src/framework/msg-builder.ts:303
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,309,309,
+src/framework/plugins/menu.ts,load,unresolved:context.commands.list().filter,context.commands.list().filter,low,317,317,
+src/framework/plugins/menu.ts,load,unresolved:context.commands.list,context.commands.list,low,317,317,
+src/framework/plugins/menu.ts,load,unresolved:collectCategories(visibleCommands).filter,collectCategories(visibleCommands).filter,low,318,318,
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,collectCategories,medium,318,318,src/framework/plugins/menu.ts:86
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,canSeePrivilegedCategory,medium,318,318,src/framework/plugins/menu.ts:141
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,resolveCategory,medium,319,319,src/framework/plugins/menu.ts:210
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderCategoryMenu,medium,322,322,src/framework/plugins/menu.ts:215
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,323,323,src/framework/plugins/menu.ts:240
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,329,329,src/framework/plugins/menu.ts:240
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderMainMenu,medium,333,333,src/framework/plugins/menu.ts:176
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,334,334,src/framework/plugins/menu.ts:240
+src/framework/plugins/menu.ts,load,unresolved:context.commands.register,context.commands.register,low,337,346,
 src/framework/plugins/scene.ts,groupJid,src/framework/validation.ts,isGroupJid,medium,14,14,src/framework/validation.ts:20
 src/framework/plugins/scene.ts,scene,unresolved:context.services.get,context.services.get,low,22,22,
 src/framework/plugins/scene.ts,requireGroup,src/framework/plugins/scene.ts,groupJid,medium,26,26,src/framework/plugins/scene.ts:13
@@ -12148,6 +12180,18 @@ tests/menu.test.js,<module>,unresolved:assert.equal,assert.equal,low,204,204,
 tests/menu.test.js,<module>,unresolved:assert.ok,assert.ok,low,206,206,
 tests/menu.test.js,<module>,unresolved:assert.ok,assert.ok,low,207,207,
 tests/menu.test.js,<module>,unresolved:Array.isArray,Array.isArray,low,207,207,
+tests/menu.test.js,<module>,unresolved:test,test,low,210,239,
+tests/menu.test.js,relayMessage,unresolved:relayed.push,relayed.push,low,220,220,
+tests/menu.test.js,sendText,unresolved:this.sent.push,this.sent.push,low,226,226,
+tests/menu.test.js,<module>,tests/menu.test.js,createRegistry,medium,228,228,tests/menu.test.js:38
+tests/menu.test.js,<module>,tests/menu.test.js,registerCommand,medium,229,229,tests/menu.test.js:47
+tests/menu.test.js,<module>,unresolved:registry.dispatch,registry.dispatch,low,230,230,
+tests/menu.test.js,<module>,tests/menu.test.js,message,medium,230,230,tests/menu.test.js:34
+tests/menu.test.js,<module>,unresolved:assert.equal,assert.equal,low,232,232,
+tests/menu.test.js,<module>,unresolved:assert.ok,assert.ok,low,234,234,
+tests/menu.test.js,<module>,unresolved:assert.match,assert.match,low,235,235,
+tests/menu.test.js,<module>,unresolved:assert.ok,assert.ok,low,237,237,
+tests/menu.test.js,<module>,unresolved:assert.equal,assert.equal,low,238,238,
 tests/observability-contract.test.js,assertScalarMetadata,unresolved:Object.values,Object.values,low,18,18,
 tests/observability-contract.test.js,assertScalarMetadata,unresolved:assert.ok,assert.ok,low,19,19,
 tests/observability-contract.test.js,assertScalarMetadata,"unresolved:['string', 'number', 'boolean'].includes","['string', 'number', 'boolean'].includes",low,19,19,

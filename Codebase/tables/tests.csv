@@ -131,6 +131,7 @@ tests/menu.test.js,kategori privileged tidak tampil untuk member dan tampil untu
 tests/menu.test.js,menu mengikuti effective prefix tanpa mengandalkan nama kategori,menu,135
 tests/menu.test.js,!menu utilizes MsgBuilder interactive buttons when socket is available,menu,150
 tests/menu.test.js,!menu <category> utilizes MsgBuilder with AIRich message when socket is available,menu,182
+tests/menu.test.js,!menu <category> in group utilizes MsgBuilder interactive buttons,menu,210
 tests/menu.test.js,!menu mengirim satu thumbnail dengan biodata dan deskripsi menu,menu,51
 tests/menu.test.js,!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal,menu,71
 tests/menu.test.js,navigasi kategori hanya menerima angka dan menampilkan submenu yang benar,menu,89

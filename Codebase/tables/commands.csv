@@ -78,7 +78,7 @@ src/framework/plugins/group.ts,link,,Show the group invite link for administrato
 src/framework/plugins/group.ts,membercount,,Show total members and administrators,group,public,,217,228
 src/framework/plugins/group.ts,memberinfo,,Show role information for a mentioned member,group,public,,259,282
 src/framework/plugins/group.ts,members,memberlist,List group members with pagination,group,public,,245,257
-src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,0,321,330
+src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,0,337,346
 src/framework/plugins/group-moderation.ts,modaction,moderate,Run a guarded participant moderation action,moderation,public,,68,118
 src/framework/plugins/group-moderation.ts,modstatus,,Show guarded moderation action status,moderation,public,,169,187
 src/framework/plugins/group-context.ts,ooc,,Kirim pesan di luar karakter pada grup IC,group,public,0,258,317

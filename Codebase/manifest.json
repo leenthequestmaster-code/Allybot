@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "3c8ff1022ebbb4aaf36ad586e8d0c082258e948c",
-  "generatedAt": "2026-09-16T05:35:23+07:00",
+  "commitSha": "a39330b8765a32ae27c51a0a6ebc52a9bf11fcaf",
+  "generatedAt": "2026-09-16T05:44:39+07:00",
   "sourceFileCount": 137,
   "counts": {
     "files": 137,
-    "symbols": 5522,
-    "imports": 704,
-    "calls": 12004,
+    "symbols": 5535,
+    "imports": 705,
+    "calls": 12026,
     "commands": 153,
     "services": 120,
     "config": 45,
     "featureFlags": 12,
     "dependencies": 14,
-    "tests": 284,
-    "dataFlow": 344
+    "tests": 285,
+    "dataFlow": 345
   },
   "excluded": [
     ".env",
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "9f90392dcefe05220b613fc2282b42f686baa4be05a3e81809ed34f7b00cf62e"
+      "sha256": "12f7709c59d8a896e02cf8ce3f40db3a3e258b909a663cb29cf7c0d8db868db1"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "ad4dbfcc6bcfb58ab8949135782f5261889423b001e279d495fe757062b85fab"
+      "sha256": "0f1bac6fe2b5a894557f98fc37c92ef18c885a73927824c9f0e8dc743b6719ee"
     },
     {
       "path": "snapshot/.env.example",
@@ -280,8 +280,8 @@
     },
     {
       "path": "snapshot/src/framework/plugins/menu.ts",
-      "bytes": 12545,
-      "sha256": "ead052446549675c4222c9fd2d7916e6190b9df28b1721547cb0bf717ec549a6"
+      "bytes": 13302,
+      "sha256": "b8d31887441a0fa072c8534e5feba929fcc00524305ddedf73ec490af0af5269"
     },
     {
       "path": "snapshot/src/framework/plugins/scene.ts",
@@ -600,8 +600,8 @@
     },
     {
       "path": "snapshot/tests/menu.test.js",
-      "bytes": 9471,
-      "sha256": "619cded23413239fcbdbb487d916c2261b857880983c28a2011e4886cad9426e"
+      "bytes": 10578,
+      "sha256": "cf57dbccd44adb661b11291fe9fc017b4d8f418cac1c9e0362c52514c099c04f"
     },
     {
       "path": "snapshot/tests/observability-contract.test.js",
@@ -750,13 +750,13 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 1541615,
-      "sha256": "0b328660fc0d9cd23d2c4977ecfb6480eed2b3ed9ead2aa59fc33b73c3265644"
+      "bytes": 1545068,
+      "sha256": "c94f59e40c55c8f3b7d4658f52c9d1f602a0b79e9c5d7f3feb137f4b0529fd09"
     },
     {
       "path": "tables/commands.csv",
       "bytes": 15399,
-      "sha256": "370acb7adac55e539504f6c1154ffa65c84688d3ef3173bb8a09aced118ca075"
+      "sha256": "32130f415f9dc7b0ad35b91bebc6f3aa5783c200d4a8e2d54c2443cbbedd38e6"
     },
     {
       "path": "tables/config-catalog.csv",
@@ -765,8 +765,8 @@
     },
     {
       "path": "tables/data-flow.csv",
-      "bytes": 33987,
-      "sha256": "8632ebc7dec874a2b440d79f968dfdb122b98bf328475aad5ed2179dfd14b4ce"
+      "bytes": 34084,
+      "sha256": "fdba1d2b9ad87c4fad08fdcfe01792b671273d25229bfc5e90cad725ac3fabe6"
     },
     {
       "path": "tables/dependencies.csv",
@@ -780,13 +780,13 @@
     },
     {
       "path": "tables/files.csv",
-      "bytes": 11470,
-      "sha256": "bb43e379e94b69d0d491e98fb4aa84a15f452b48ae362db20f100db48b1e685b"
+      "bytes": 11471,
+      "sha256": "cfbdb6002291db51cb9ae1637109eadb247fe1f42cb42a46786ece5937d71536"
     },
     {
       "path": "tables/imports.csv",
-      "bytes": 61322,
-      "sha256": "b4ef0aa2d4520829d71db6a56cd560808257408f592a7134054fdc7fca440c01"
+      "bytes": 61395,
+      "sha256": "e2fd220adf84cb01e6b8e7862e781041b92be75363e97f58d4ede1506e6a2591"
     },
     {
       "path": "tables/services.csv",
@@ -795,13 +795,13 @@
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 460326,
-      "sha256": "6deb432c07183c25987a1f3f5d14bacab46f39881d90c03811aa2555580a133a"
+      "bytes": 461192,
+      "sha256": "3e1410e04c75c176682014321b006a4d6995c9876e940af1886726aa0d558cb1"
     },
     {
       "path": "tables/tests.csv",
-      "bytes": 33596,
-      "sha256": "300882c2b2e601237610d2e8d33a2352796a8f855e30631be31d8dc9ea1d237a"
+      "bytes": 33690,
+      "sha256": "a282149f6a89cfec32f1d8e24e21e71ff94dca596925e4a2dec475ead9051cd8"
     }
   ]
 }

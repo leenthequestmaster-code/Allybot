@@ -1,5 +1,5 @@
 # Allybot Codebase Intelligence Export
 
-Generated from commit `3c8ff1022ebbb4aaf36ad586e8d0c082258e948c`. This package is an index-first, read-only map for AI Code and human review. Start with `overview/project-summary.md`, then use the CSV tables to locate symbols, imports, calls, commands, services, configuration names, dependencies, tests, and data-flow evidence. Open files under `snapshot/` only after the tables identify the relevant boundary.
+Generated from commit `a39330b8765a32ae27c51a0a6ebc52a9bf11fcaf`. This package is an index-first, read-only map for AI Code and human review. Start with `overview/project-summary.md`, then use the CSV tables to locate symbols, imports, calls, commands, services, configuration names, dependencies, tests, and data-flow evidence. Open files under `snapshot/` only after the tables identify the relevant boundary.
 
 The export intentionally excludes .env values, credentials, authentication/session state, databases, raw logs, raw chat content, node_modules, dist, temporary files, symlinks, and the Codebase output itself.

@@ -90,6 +90,7 @@ src/framework/plugins/media.ts,src/media.ts,module import,static import graph,hi
 src/framework/plugins/menu.ts,src/framework/command-copy.ts,module import,static import graph,high
 src/framework/plugins/menu.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/menu.ts,src/framework/msg-builder.ts,module import,static import graph,high
+src/framework/plugins/menu.ts,src/framework/validation.ts,module import,static import graph,high
 src/framework/plugins/menu.ts,src/services/developer-mode-service.ts,module import,static import graph,high
 src/framework/plugins/scene.ts,src/framework/contracts.ts,module import,static import graph,high
 src/framework/plugins/scene.ts,src/framework/validation.ts,module import,static import graph,high

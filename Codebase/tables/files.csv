@@ -42,7 +42,7 @@ src/framework/plugins/group-setup-mission.ts,6231,.ts,source,snapshot/src/framew
 src/framework/plugins/group.ts,23616,.ts,source,snapshot/src/framework/plugins/group.ts
 src/framework/plugins/knowledge.ts,11747,.ts,source,snapshot/src/framework/plugins/knowledge.ts
 src/framework/plugins/media.ts,11461,.ts,source,snapshot/src/framework/plugins/media.ts
-src/framework/plugins/menu.ts,12545,.ts,source,snapshot/src/framework/plugins/menu.ts
+src/framework/plugins/menu.ts,13302,.ts,source,snapshot/src/framework/plugins/menu.ts
 src/framework/plugins/scene.ts,12300,.ts,source,snapshot/src/framework/plugins/scene.ts
 src/framework/plugins/sentry.ts,751,.ts,source,snapshot/src/framework/plugins/sentry.ts
 src/framework/plugins/suggestion-relay.ts,5363,.ts,source,snapshot/src/framework/plugins/suggestion-relay.ts
@@ -106,7 +106,7 @@ tests/integration.test.js,12269,.js,test,snapshot/tests/integration.test.js
 tests/logger-privacy.test.js,1517,.js,test,snapshot/tests/logger-privacy.test.js
 tests/maintenance.test.js,2445,.js,test,snapshot/tests/maintenance.test.js
 tests/media-plugin.test.js,7690,.js,test,snapshot/tests/media-plugin.test.js
-tests/menu.test.js,9469,.js,test,snapshot/tests/menu.test.js
+tests/menu.test.js,10578,.js,test,snapshot/tests/menu.test.js
 tests/observability-contract.test.js,3364,.js,test,snapshot/tests/observability-contract.test.js
 tests/permissions.test.js,6898,.js,test,snapshot/tests/permissions.test.js
 tests/platform-buttons.test.js,2816,.js,test,snapshot/tests/platform-buttons.test.js
