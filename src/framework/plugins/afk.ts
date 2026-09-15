@@ -174,7 +174,11 @@ function formatPrivateStatus(record: AfkRecord, mentions: readonly AfkMentionRec
 function isAfkCommand(message: CoreMessage, prefix: string, fallbackPrefix: string): boolean {
   const text = message.text?.trim().toLowerCase()
   if (!text) return false
-  return text.startsWith(`${prefix}afk`) || (prefix !== fallbackPrefix && text.startsWith(`${fallbackPrefix}afk`))
+  return (
+    text.startsWith(`${prefix}afk`) ||
+    text.startsWith(`${prefix}away`) ||
+    (prefix !== fallbackPrefix && (text.startsWith(`${fallbackPrefix}afk`) || text.startsWith(`${fallbackPrefix}away`)))
+  )
 }
 
 export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
@@ -242,15 +246,22 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
 
           const reason = args.join(' ').trim() || DEFAULT_REASON
           const record = afk.start(userJid, reason, Date.now())
-          await reply(formatAfkEnabled(record), mentionOptions([record.userJid]))
+          await reply(
+            formatAfkEnabled(record),
+            isGroupJid(message.remoteJid) ? mentionOptions([record.userJid]) : undefined,
+          )
         },
       })
 
       context.events.on('message.received', async (message) => {
         if (message.fromMe || !message.senderJid) return
+        if (!message.text && !message.media) return
         const senderJid = jidNormalizedUser(message.senderJid)
         const now = message.timestamp || Date.now()
         const ownAfk = afk.getActive(senderJid)
+
+        // Ignore if AFK was activated within the last 4 seconds to prevent sync/echo race conditions
+        if (ownAfk && now - ownAfk.startedAt < 4000) return
 
         const prefix = isGroupJid(message.remoteJid)
           ? groupConfiguration.resolvePrefix(message.remoteJid, context.config.commandPrefix)
@@ -262,7 +273,7 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
             await whatsapp.sendText(
               message.remoteJid,
               formatWelcomeBack(summary),
-              mentionOptions([summary.record.userJid]),
+              isGroupJid(message.remoteJid) ? mentionOptions([summary.record.userJid]) : undefined,
             )
           }
         } else {

@@ -259,7 +259,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     return socket
   }
 
-  private resolvePnForLid(lid: string): Promise<string | null> {
+  private resolvePnForLid = (lid: string): Promise<string | null> => {
     return this.socket?.signalRepository.lidMapping.getPNForLID(lid) ?? Promise.resolve(null)
   }
 
