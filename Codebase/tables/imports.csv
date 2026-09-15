@@ -120,6 +120,7 @@ src/framework/plugins/media.ts,src/media.ts,FfmpegMediaTransformer|MEDIA_TRANSFO
 src/framework/plugins/menu.ts,external:node:fs/promises,readFile,1,1
 src/framework/plugins/menu.ts,src/framework/command-copy.ts,commandDescription,4,4
 src/framework/plugins/menu.ts,src/framework/contracts.ts,CommandContext|CommandDefinition|Plugin|type-only,2,2
+src/framework/plugins/menu.ts,src/framework/msg-builder.ts,MsgBuilder,5,5
 src/framework/plugins/menu.ts,src/services/developer-mode-service.ts,DeveloperModeService|type-only,3,3
 src/framework/plugins/scene.ts,src/framework/contracts.ts,CommandContext|CoreMessage|Plugin|ServiceRegistryLike|WhatsAppPort|type-only,1,1
 src/framework/plugins/scene.ts,src/framework/validation.ts,isGroupJid,3,3

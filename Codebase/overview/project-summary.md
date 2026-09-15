@@ -1,6 +1,6 @@
 # Project Summary
 
-The export describes Allybot as observed at commit `6d7eaa92e0ebb1dfa34335155e9dcf9b59ebc6b8`. It contains 137 allowlisted source/document files, 5495 symbol rows, 703 import rows, 11961 call rows, 153 command rows, 120 service/plugin registrations, 282 test rows, and 14 dependency rows.
+The export describes Allybot as observed at commit `3c8ff1022ebbb4aaf36ad586e8d0c082258e948c`. It contains 137 allowlisted source/document files, 5522 symbol rows, 704 import rows, 12004 call rows, 153 command rows, 120 service/plugin registrations, 284 test rows, and 14 dependency rows.
 
 ## Retrieval order
 

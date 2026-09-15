@@ -7,7 +7,7 @@ tests/framework.test.js,admin,,,,admin.use,,258,262
 tests/permissions.test.js,adminprobe,,,,group.admin,,57,61
 tests/permissions.test.js,adminprobe,,,,group.admin,,86,90
 src/framework/plugins/group.ts,admins,adminlist,List group administrators with clickable mentions,group,public,,230,243
-src/framework/plugins/afk.ts,afk,away,Set status AFK or view your private AFK status,group,public,3000,189,247
+src/framework/plugins/afk.ts,afk,away,Set status AFK or view your private AFK status,group,public,3000,193,254
 src/framework/plugins/ai.ts,ai,ally|tanya,Ask Allybot AI without conversation memory,tools-ai,public,,91,117
 src/framework/plugins/ai.ts,aidetection,deteksiai|aidetect,Deteksi teks AI via reply message atau teks input,tools-ai,public,,119,144
 src/framework/plugins/technical.ts,alljid,,List all WhatsApp group JIDs currently participating,developer,public,10000,177,187
@@ -78,7 +78,7 @@ src/framework/plugins/group.ts,link,,Show the group invite link for administrato
 src/framework/plugins/group.ts,membercount,,Show total members and administrators,group,public,,217,228
 src/framework/plugins/group.ts,memberinfo,,Show role information for a mentioned member,group,public,,259,282
 src/framework/plugins/group.ts,members,memberlist,List group members with pagination,group,public,,245,257
-src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,0,262,271
+src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,0,321,330
 src/framework/plugins/group-moderation.ts,modaction,moderate,Run a guarded participant moderation action,moderation,public,,68,118
 src/framework/plugins/group-moderation.ts,modstatus,,Show guarded moderation action status,moderation,public,,169,187
 src/framework/plugins/group-context.ts,ooc,,Kirim pesan di luar karakter pada grup IC,group,public,0,258,317

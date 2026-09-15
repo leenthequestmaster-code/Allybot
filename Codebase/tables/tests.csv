@@ -129,6 +129,8 @@ tests/media-plugin.test.js,togif converts a short video to looping MP4 playback,
 tests/media-plugin.test.js,toaudio converts quoted video to bounded OGG audio,media-plugin,94
 tests/menu.test.js,kategori privileged tidak tampil untuk member dan tampil untuk owner,menu,115
 tests/menu.test.js,menu mengikuti effective prefix tanpa mengandalkan nama kategori,menu,135
+tests/menu.test.js,!menu utilizes MsgBuilder interactive buttons when socket is available,menu,150
+tests/menu.test.js,!menu <category> utilizes MsgBuilder with AIRich message when socket is available,menu,182
 tests/menu.test.js,!menu mengirim satu thumbnail dengan biodata dan deskripsi menu,menu,51
 tests/menu.test.js,!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal,menu,71
 tests/menu.test.js,navigasi kategori hanya menerima angka dan menampilkan submenu yang benar,menu,89

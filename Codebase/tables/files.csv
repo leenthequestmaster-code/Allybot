@@ -13,8 +13,8 @@ src/errors.ts,1076,.ts,source,snapshot/src/errors.ts
 src/framework/application.ts,4816,.ts,source,snapshot/src/framework/application.ts
 src/framework/buttons.ts,3823,.ts,source,snapshot/src/framework/buttons.ts
 src/framework/command-copy.ts,5340,.ts,source,snapshot/src/framework/command-copy.ts
-src/framework/command-registry.ts,4512,.ts,source,snapshot/src/framework/command-registry.ts
-src/framework/contracts.ts,12785,.ts,source,snapshot/src/framework/contracts.ts
+src/framework/command-registry.ts,4534,.ts,source,snapshot/src/framework/command-registry.ts
+src/framework/contracts.ts,12813,.ts,source,snapshot/src/framework/contracts.ts
 src/framework/event-bus.ts,1302,.ts,source,snapshot/src/framework/event-bus.ts
 src/framework/group-setup.ts,5988,.ts,source,snapshot/src/framework/group-setup.ts
 src/framework/guardrails.ts,18695,.ts,source,snapshot/src/framework/guardrails.ts
@@ -27,7 +27,7 @@ src/framework/msg-builder.test.ts,14973,.ts,source,snapshot/src/framework/msg-bu
 src/framework/msg-builder.ts,18938,.ts,source,snapshot/src/framework/msg-builder.ts
 src/framework/operations.ts,4053,.ts,source,snapshot/src/framework/operations.ts
 src/framework/plugin-manager.ts,5165,.ts,source,snapshot/src/framework/plugin-manager.ts
-src/framework/plugins/afk.ts,11458,.ts,source,snapshot/src/framework/plugins/afk.ts
+src/framework/plugins/afk.ts,11735,.ts,source,snapshot/src/framework/plugins/afk.ts
 src/framework/plugins/ai.ts,6369,.ts,source,snapshot/src/framework/plugins/ai.ts
 src/framework/plugins/character-guide.ts,30753,.ts,source,snapshot/src/framework/plugins/character-guide.ts
 src/framework/plugins/codebase.ts,3274,.ts,source,snapshot/src/framework/plugins/codebase.ts
@@ -42,7 +42,7 @@ src/framework/plugins/group-setup-mission.ts,6231,.ts,source,snapshot/src/framew
 src/framework/plugins/group.ts,23616,.ts,source,snapshot/src/framework/plugins/group.ts
 src/framework/plugins/knowledge.ts,11747,.ts,source,snapshot/src/framework/plugins/knowledge.ts
 src/framework/plugins/media.ts,11461,.ts,source,snapshot/src/framework/plugins/media.ts
-src/framework/plugins/menu.ts,10605,.ts,source,snapshot/src/framework/plugins/menu.ts
+src/framework/plugins/menu.ts,12545,.ts,source,snapshot/src/framework/plugins/menu.ts
 src/framework/plugins/scene.ts,12300,.ts,source,snapshot/src/framework/plugins/scene.ts
 src/framework/plugins/sentry.ts,751,.ts,source,snapshot/src/framework/plugins/sentry.ts
 src/framework/plugins/suggestion-relay.ts,5363,.ts,source,snapshot/src/framework/plugins/suggestion-relay.ts
@@ -78,7 +78,7 @@ src/services/suggestion-relay-service.ts,26214,.ts,source,snapshot/src/services/
 src/shims.d.ts,148,.ts,source,snapshot/src/shims.d.ts
 src/storage-helpers.ts,4181,.ts,source,snapshot/src/storage-helpers.ts
 src/storage.ts,12904,.ts,source,snapshot/src/storage.ts
-src/whatsapp.ts,41619,.ts,source,snapshot/src/whatsapp.ts
+src/whatsapp.ts,41629,.ts,source,snapshot/src/whatsapp.ts
 tests/active-command-surface.test.js,1898,.js,test,snapshot/tests/active-command-surface.test.js
 tests/afk.test.js,10756,.js,test,snapshot/tests/afk.test.js
 tests/ai-handler.test.js,6614,.js,test,snapshot/tests/ai-handler.test.js
@@ -106,7 +106,7 @@ tests/integration.test.js,12269,.js,test,snapshot/tests/integration.test.js
 tests/logger-privacy.test.js,1517,.js,test,snapshot/tests/logger-privacy.test.js
 tests/maintenance.test.js,2445,.js,test,snapshot/tests/maintenance.test.js
 tests/media-plugin.test.js,7690,.js,test,snapshot/tests/media-plugin.test.js
-tests/menu.test.js,7287,.js,test,snapshot/tests/menu.test.js
+tests/menu.test.js,9469,.js,test,snapshot/tests/menu.test.js
 tests/observability-contract.test.js,3364,.js,test,snapshot/tests/observability-contract.test.js
 tests/permissions.test.js,6898,.js,test,snapshot/tests/permissions.test.js
 tests/platform-buttons.test.js,2816,.js,test,snapshot/tests/platform-buttons.test.js

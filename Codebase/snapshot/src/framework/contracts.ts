@@ -117,6 +117,7 @@ export interface WhatsAppPort {
   readonly isConnected: boolean
   readonly currentStatus?: CoreConnectionStatus
   readonly userJid?: string
+  readonly socket?: unknown
   onMessage(listener: (message: CoreMessage) => Promise<void> | void): () => void
   onGroupParticipantUpdate(listener: (event: CoreGroupParticipantUpdate) => Promise<void> | void): () => void
   onConnectionState(listener: (event: CoreConnectionState) => Promise<void> | void): () => void
