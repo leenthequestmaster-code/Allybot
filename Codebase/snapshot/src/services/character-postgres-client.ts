@@ -20,7 +20,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
   async function ensureSchema(): Promise<void> {
     if (schemaInitialized) return
     try {
-      await sql`
+      await sql.unsafe(`
         CREATE TABLE IF NOT EXISTS character_registration_sessions (
           session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           guide_key TEXT NOT NULL,
@@ -73,9 +73,9 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           sent_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
-      `
+      `)
       schemaInitialized = true
-    } catch (e) {
+    } catch {
       // Continue anyway if tables already exist or permissions differ
     }
   }

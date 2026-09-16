@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "2bdec6b24700a3b584c73df74822a5fab4d4a3b4",
-  "generatedAt": "2026-09-16T10:07:21+07:00",
+  "commitSha": "7e1c85d843ce5163311707caa8ba2c0d6e284cc3",
+  "generatedAt": "2026-09-16T10:12:43+07:00",
   "sourceFileCount": 142,
   "counts": {
     "files": 142,
-    "symbols": 5728,
+    "symbols": 5727,
     "imports": 734,
-    "calls": 12355,
+    "calls": 12357,
     "commands": 153,
     "services": 120,
     "config": 47,
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "75793537a0aaa61dad5f4d0ffec32161f6008d61937f7b34372fa0d401e085c2"
+      "sha256": "5a2f8c83692cefb4acdc7a4601b22d2e2055fcaed974924dac92d85fc5f92fcf"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "b73250c06f8803e3ab1844ca2150419bf9ddf1fb9ea0fb3b2f1b955ffa7028c7"
+      "sha256": "efda7643a5643d4b40122c0ce49067aba75cb121325353e3981602ec3c11c5fb"
     },
     {
       "path": "snapshot/.env.example",
@@ -385,8 +385,8 @@
     },
     {
       "path": "snapshot/src/services/character-postgres-client.ts",
-      "bytes": 13050,
-      "sha256": "6cfdc3f42c9667759bc746c38ad039e9b450127d760fb047d7ca6aec283750ee"
+      "bytes": 13055,
+      "sha256": "707c17fe18e1a39b4103a6bca545513ae01d680bcf5ab6b8e2c7c980c880042f"
     },
     {
       "path": "snapshot/src/services/character-sheet-parser.ts",
@@ -400,8 +400,8 @@
     },
     {
       "path": "snapshot/src/services/economy-postgres-client.ts",
-      "bytes": 14561,
-      "sha256": "2f1548d0ce25a96fdaf398b813362360729a795f89d81bc5c25d6b5be296b311"
+      "bytes": 14570,
+      "sha256": "6a810333ca771e2235c8c81d0850c2349ff9e29ac46a25ff3717c69aa7340724"
     },
     {
       "path": "snapshot/src/services/economy-service.ts",
@@ -775,8 +775,8 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 1584572,
-      "sha256": "4da6a70f10bc15f0546c9fca8f53ad74221da3afde6db707743acafaf8c63d0b"
+      "bytes": 1584768,
+      "sha256": "3513071805b6c98c95b6a68c52f41492fe90dc61e20645d7c9160eea7050ca63"
     },
     {
       "path": "tables/commands.csv",
@@ -806,7 +806,7 @@
     {
       "path": "tables/files.csv",
       "bytes": 11958,
-      "sha256": "25e98304dbe3592f9586ae9d7a4767b0afe4bb6df32d076d3867ebe9d3785bb5"
+      "sha256": "679b38895e310c6e4dab1d964fa45e2c8a8dd9b95ab3ba715c09b9ce877f360f"
     },
     {
       "path": "tables/imports.csv",
@@ -820,8 +820,8 @@
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 478087,
-      "sha256": "5434e16a0acd8a8685bd1b3805749137a36e0e06df179a22a14bac21718d951c"
+      "bytes": 477998,
+      "sha256": "f55f9f2cc004e7222255941b68bfde128b2374ac20288cfead0c51e640467339"
     },
     {
       "path": "tables/tests.csv",

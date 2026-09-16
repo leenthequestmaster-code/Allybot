@@ -18,7 +18,7 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
   async function ensureSchema(): Promise<void> {
     if (schemaInitialized) return
     try {
-      await sql`
+      await sql.unsafe(`
         CREATE TABLE IF NOT EXISTS economy_accounts (
           scope_key TEXT NOT NULL,
           subject_key TEXT NOT NULL,
@@ -62,7 +62,7 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
           status TEXT NOT NULL DEFAULT 'completed',
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
-      `
+      `)
       schemaInitialized = true
     } catch {
       // Schema may already exist

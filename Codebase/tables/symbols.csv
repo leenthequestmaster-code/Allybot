@@ -2340,7 +2340,6 @@ src/services/character-postgres-client.ts,11,356,FunctionDeclaration,createPostg
 src/services/character-postgres-client.ts,12,16,VariableDeclaration,sql,false,createPostgresCharacterClient
 src/services/character-postgres-client.ts,18,18,VariableDeclaration,schemaInitialized,false,createPostgresCharacterClient
 src/services/character-postgres-client.ts,20,81,FunctionDeclaration,ensureSchema,false,createPostgresCharacterClient
-src/services/character-postgres-client.ts,78,78,VariableDeclaration,e,false,ensureSchema
 src/services/character-postgres-client.ts,87,354,MethodDeclaration,rpc,false,createPostgresCharacterClient
 src/services/character-postgres-client.ts,89,89,VariableDeclaration,redis,false,rpc
 src/services/character-postgres-client.ts,92,92,VariableDeclaration,guideKey,false,rpc

@@ -63,10 +63,10 @@ src/redis.ts,13561,.ts,source,snapshot/src/redis.ts
 src/sentry.ts,4271,.ts,source,snapshot/src/sentry.ts
 src/services/afk-service.ts,12376,.ts,source,snapshot/src/services/afk-service.ts
 src/services/character-guide-service.ts,22232,.ts,source,snapshot/src/services/character-guide-service.ts
-src/services/character-postgres-client.ts,13050,.ts,source,snapshot/src/services/character-postgres-client.ts
+src/services/character-postgres-client.ts,13055,.ts,source,snapshot/src/services/character-postgres-client.ts
 src/services/character-sheet-parser.ts,16358,.ts,source,snapshot/src/services/character-sheet-parser.ts
 src/services/developer-mode-service.ts,16228,.ts,source,snapshot/src/services/developer-mode-service.ts
-src/services/economy-postgres-client.ts,14561,.ts,source,snapshot/src/services/economy-postgres-client.ts
+src/services/economy-postgres-client.ts,14570,.ts,source,snapshot/src/services/economy-postgres-client.ts
 src/services/economy-service.ts,31456,.ts,source,snapshot/src/services/economy-service.ts
 src/services/economy-sqlite-client.ts,13708,.ts,source,snapshot/src/services/economy-sqlite-client.ts
 src/services/group-configuration-service.ts,21246,.ts,source,snapshot/src/services/group-configuration-service.ts

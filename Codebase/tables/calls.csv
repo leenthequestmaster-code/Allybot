@@ -6318,6 +6318,7 @@ src/services/character-guide-service.ts,call,unresolved:this.logger.warn,this.lo
 src/services/character-guide-service.ts,assertGroup,src/framework/validation.ts,isGroupJid,medium,565,565,src/framework/validation.ts:20
 src/services/character-guide-service.ts,assertJid,src/framework/validation.ts,isJid,medium,569,569,src/framework/validation.ts:16
 src/services/character-postgres-client.ts,createPostgresCharacterClient,unresolved:postgres,postgres,low,12,16,
+src/services/character-postgres-client.ts,ensureSchema,unresolved:sql.unsafe,sql.unsafe,low,23,76,
 src/services/character-postgres-client.ts,createPostgresCharacterClient,unresolved:ensureSchema().catch,ensureSchema().catch,low,84,84,
 src/services/character-postgres-client.ts,createPostgresCharacterClient,src/services/character-postgres-client.ts,ensureSchema,medium,84,84,src/services/character-postgres-client.ts:20
 src/services/character-postgres-client.ts,rpc,src/services/character-postgres-client.ts,ensureSchema,medium,88,88,src/services/character-postgres-client.ts:20
@@ -6990,6 +6991,7 @@ src/services/developer-mode-service.ts,migrate,src/services/developer-mode-servi
 src/services/developer-mode-service.ts,migrate,unresolved:db.exec,db.exec,low,359,401,
 src/services/developer-mode-service.ts,migrate,unresolved:this.clock,this.clock,low,400,400,
 src/services/economy-postgres-client.ts,createPostgresEconomyClient,unresolved:postgres,postgres,low,10,14,
+src/services/economy-postgres-client.ts,ensureSchema,unresolved:sql.unsafe,sql.unsafe,low,21,65,
 src/services/economy-postgres-client.ts,createPostgresEconomyClient,unresolved:ensureSchema().catch,ensureSchema().catch,low,72,72,
 src/services/economy-postgres-client.ts,createPostgresEconomyClient,src/services/economy-postgres-client.ts,ensureSchema,medium,72,72,src/services/economy-postgres-client.ts:18
 src/services/economy-postgres-client.ts,isGroupEnabled,unresolved:Boolean,Boolean,low,103,103,
