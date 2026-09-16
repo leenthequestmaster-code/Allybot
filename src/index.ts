@@ -41,6 +41,7 @@ import { SuggestionRelayService, type SuggestionProviderInput } from './services
 import { WhatsAppConnection } from './whatsapp.js'
 import { RedisService } from './redis.js'
 import { EconomyService } from './services/economy-service.js'
+import { createSqliteEconomyClient } from './services/economy-sqlite-client.js'
 import { CharacterGuideService } from './services/character-guide-service.js'
 import { GroupContextService } from './services/group-context-service.js'
 import { createGroupContextPlugin } from './framework/plugins/group-context.js'
@@ -110,8 +111,9 @@ async function main(): Promise<void> {
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
   framework.registerService(new EconomyService(logger, {
-    env: process.env,
+    env: { ...process.env, ECONOMY_ENABLED: 'true' },
     cacheTtlSeconds: 15,
+    createClient: () => createSqliteEconomyClient(config.DATABASE_PATH),
   }))
   framework.registerService(new GroupContextService(logger, { env: process.env }))
   framework.registerService(new CharacterGuideService(logger, { env: process.env }))

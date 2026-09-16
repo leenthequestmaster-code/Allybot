@@ -23,8 +23,8 @@ const MENU_THUMBNAIL_CAPTION = 'Allybot — menu bantuan'
 const ROADMAP_CATEGORY_NAMES = [
   'group',
   'moderation',
+  'roleplay',
   'your-character',
-  'economy',
   'tools-media',
   'tools-search',
   'tools-sticker',
@@ -37,8 +37,8 @@ const ROADMAP_CATEGORY_NAMES = [
 const categoryPresentation: Record<string, CategoryPresentation> = {
   group: { label: 'GROUP', icon: '👥' },
   moderation: { label: 'MODERATION', icon: '🛡️' },
+  roleplay: { label: 'ROLEPLAY', icon: '🎭' },
   'your-character': { label: 'YOUR CHARACTER', icon: '🎭' },
-  economy: { label: 'EKONOMI', icon: '💰' },
   'tools-media': { label: 'TOOLS: MEDIA', icon: '🖼️' },
   'tools-search': { label: 'TOOLS: SEARCH', icon: '🔍' },
   'tools-sticker': { label: 'TOOLS: STICKER', icon: '🎨' },
@@ -50,16 +50,21 @@ const categoryPresentation: Record<string, CategoryPresentation> = {
 
 const CATEGORY_ALIASES: Record<string, string> = {
   ai: 'tools-ai',
+  bank: 'your-character',
   creativity: 'fun',
   download: 'tools-media',
+  economy: 'your-character',
   general: 'your-character',
   governance: 'moderation',
   media: 'tools-media',
   personalization: 'your-character',
-  roleplay: 'your-character',
-  yourcharacter: 'your-character',
+  roleplay: 'roleplay',
+  rpg: 'roleplay',
+  scene: 'roleplay',
   search: 'tools-search',
   sticker: 'tools-sticker',
+  vela: 'your-character',
+  yourcharacter: 'your-character',
 }
 
 let menuThumbnailPromise: Promise<Uint8Array | undefined> | undefined

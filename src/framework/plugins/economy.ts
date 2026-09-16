@@ -373,7 +373,7 @@ export const economyPlugin: Plugin = {
       name: 'vela',
       aliases: ['wallet'],
       description: 'Lihat saldo Wallet dan Safe Vela',
-      category: 'economy',
+      category: 'your-character',
       menuOrder: 35,
       cooldownMs: 3_000,
       handler: async (commandContext) => {
@@ -391,7 +391,7 @@ export const economyPlugin: Plugin = {
     context.commands.register({
       name: 'bank',
       description: 'Kelola rekening Wallet dan Safe Vela',
-      category: 'economy',
+      category: 'your-character',
       menuOrder: 36,
       cooldownMs: 3_000,
       handler: handleBank,
@@ -469,7 +469,7 @@ export const economyPlugin: Plugin = {
     context.commands.register({
       name: 'tax',
       description: 'Lihat status pajak Vela',
-      category: 'economy',
+      category: 'your-character',
       menuOrder: 40,
       cooldownMs: 3_000,
       handler: async (commandContext) => {
@@ -505,7 +505,7 @@ export const economyPlugin: Plugin = {
       name: 'taxbayar',
       aliases: ['bayarpajak'],
       description: 'Bayar pajak Vela yang tertunggak',
-      category: 'economy',
+      category: 'your-character',
       menuOrder: 41,
       cooldownMs: 5_000,
       handler: async (commandContext) => {

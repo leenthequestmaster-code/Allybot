@@ -100,7 +100,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'scene',
         description: 'Manage bounded roleplay scenes',
-        category: 'your-character',
+        category: 'roleplay',
         menuOrder: 1,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
@@ -151,7 +151,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'setscene',
         aliases: ['adegan'],
         description: 'Enable or disable Scene per group',
-        category: 'your-character',
+        category: 'roleplay',
         menuOrder: 2,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -177,7 +177,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
         context.commands.register({
           name: mode,
           description: `Set current scene mode to ${mode.toUpperCase()}`,
-          category: 'your-character',
+          category: 'roleplay',
           menuOrder: mode === 'ic' ? 3 : 4,
           handler: async (commandContext) => {
             await updateMode(commandContext, whatsapp, mode)
@@ -188,7 +188,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'pause',
         description: 'Pause a scene owned by the actor',
-        category: 'your-character',
+        category: 'roleplay',
         menuOrder: 5,
         handler: async (commandContext) => {
           await transitionShortcut(commandContext, whatsapp, 'pause')
@@ -198,7 +198,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'consent',
         description: 'Grant or withdraw scoped scene consent',
-        category: 'your-character',
+        category: 'roleplay',
         menuOrder: 6,
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
