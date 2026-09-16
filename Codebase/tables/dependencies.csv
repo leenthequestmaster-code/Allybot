@@ -9,6 +9,7 @@ dotenv,17.2.1,production
 ioredis,^6.0.0,production
 openai,7.5.0,production
 pino,9.9.0,production
+postgres,^3.4.9,production
 qrcode-terminal,0.12.0,production
 sharp,0.35.4,production
 typescript,5.9.2,development

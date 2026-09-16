@@ -28,6 +28,7 @@ tests/character-guide.test.js,Character Guide handles experience selection witho
 tests/character-guide.test.js,Character Guide refuses to silently map a new card to a different existing session,character-guide,121
 tests/character-guide.test.js,Character Guide save path validates reply/card and calls service only after parser succeeds,character-guide,132
 tests/character-guide.test.js,Guide participant add creates onboarding prompt but does not create durable session before card issuance,character-guide,149
+tests/character-postgres.test.js,createPostgresCharacterClient initializes and exports expected factory function,character-postgres,9
 tests/character-sheet-parser.test.js,Character Sheet parser normalizes WhatsApp formatting and ignores server-owned fields,character-sheet-parser,26
 tests/character-sheet-parser.test.js,Character Sheet parser rejects duplicate and unknown labeled fields,character-sheet-parser,47
 tests/character-sheet-parser.test.js,Character Sheet parser rejects invalid gameplay values without guessing typos,character-sheet-parser,55

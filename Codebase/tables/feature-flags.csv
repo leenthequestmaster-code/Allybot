@@ -8,6 +8,7 @@ AI_FALLBACK_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted
 ECONOMY_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,47
 CHARACTER_GUIDE_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,48
 GROUP_CONTEXT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,49
-REDIS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,54
-CODEBASE_EXPORT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,61
-SENTRY_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,64
+POSTGRES_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,54
+REDIS_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,56
+CODEBASE_EXPORT_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,63
+SENTRY_ENABLED,false,"booleanFromEnv.default(false),",required-or-defaulted,66

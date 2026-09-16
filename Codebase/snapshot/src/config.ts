@@ -51,6 +51,8 @@ const envSchema = z.object({
   GROUP_CONTEXT_OOC_COOLDOWN_MS: boundedInt(1_000, 3_600_000).default(30_000),
   GROUP_CONTEXT_OOC_WINDOW_MS: boundedInt(60_000, 3_600_000).default(600_000),
   GROUP_CONTEXT_OOC_MAX_PER_WINDOW: boundedInt(1, 20).default(3),
+  POSTGRES_ENABLED: booleanFromEnv.default(false),
+  POSTGRES_URL: z.string().min(1).optional(),
   REDIS_ENABLED: booleanFromEnv.default(false),
   REDIS_URL: z.string().min(1).optional(),
   REDIS_TIMEOUT_MS: boundedInt(1_000, 10_000).default(5_000),
@@ -81,6 +83,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
 
   if (parsed.data.PAIRING_ENABLED && !parsed.data.PAIRING_PHONE_NUMBER) {
     throw new Error('PAIRING_PHONE_NUMBER is required when PAIRING_ENABLED=true')
+  }
+  if (parsed.data.POSTGRES_ENABLED && !parsed.data.POSTGRES_URL) {
+    throw new Error('POSTGRES_URL is required when POSTGRES_ENABLED=true')
   }
   if (parsed.data.REDIS_ENABLED && !parsed.data.REDIS_URL) {
     throw new Error('REDIS_URL is required when REDIS_ENABLED=true')

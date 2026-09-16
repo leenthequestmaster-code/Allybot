@@ -149,7 +149,9 @@ src/index.ts,src/redis.ts,module import,static import graph,high
 src/index.ts,src/sentry.ts,module import,static import graph,high
 src/index.ts,src/services/afk-service.ts,module import,static import graph,high
 src/index.ts,src/services/character-guide-service.ts,module import,static import graph,high
+src/index.ts,src/services/character-postgres-client.ts,module import,static import graph,high
 src/index.ts,src/services/developer-mode-service.ts,module import,static import graph,high
+src/index.ts,src/services/economy-postgres-client.ts,module import,static import graph,high
 src/index.ts,src/services/economy-service.ts,module import,static import graph,high
 src/index.ts,src/services/economy-sqlite-client.ts,module import,static import graph,high
 src/index.ts,src/services/group-configuration-service.ts,module import,static import graph,high
@@ -182,8 +184,11 @@ src/services/afk-service.ts,src/storage-helpers.ts,module import,static import g
 src/services/character-guide-service.ts,src/framework/contracts.ts,module import,static import graph,high
 src/services/character-guide-service.ts,src/framework/validation.ts,module import,static import graph,high
 src/services/character-guide-service.ts,src/services/character-sheet-parser.ts,module import,static import graph,high
+src/services/character-postgres-client.ts,src/redis.ts,module import,static import graph,high
+src/services/character-postgres-client.ts,src/services/character-guide-service.ts,module import,static import graph,high
 src/services/developer-mode-service.ts,src/framework/contracts.ts,module import,static import graph,high
 src/services/developer-mode-service.ts,src/storage-helpers.ts,module import,static import graph,high
+src/services/economy-postgres-client.ts,src/services/economy-service.ts,module import,static import graph,high
 src/services/economy-service.ts,src/framework/contracts.ts,module import,static import graph,high
 src/services/economy-service.ts,src/framework/validation.ts,module import,static import graph,high
 src/services/economy-service.ts,src/redis.ts,module import,static import graph,high
