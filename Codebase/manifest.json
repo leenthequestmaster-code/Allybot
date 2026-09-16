@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "17d7f7fdf44c2f28dba38cecb3c559ba3a8fcf6f",
-  "generatedAt": "2026-09-16T09:09:21+07:00",
-  "sourceFileCount": 137,
+  "commitSha": "73d9781d50606c7749bd73842da89ff57763a107",
+  "generatedAt": "2026-09-16T09:42:37+07:00",
+  "sourceFileCount": 139,
   "counts": {
-    "files": 137,
-    "symbols": 5549,
-    "imports": 706,
-    "calls": 12038,
+    "files": 139,
+    "symbols": 5614,
+    "imports": 720,
+    "calls": 12182,
     "commands": 153,
     "services": 120,
     "config": 45,
     "featureFlags": 12,
     "dependencies": 14,
-    "tests": 285,
-    "dataFlow": 345
+    "tests": 286,
+    "dataFlow": 348
   },
   "excluded": [
     ".env",
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "d1298b58a4c8892aef0fc5d91b88e9560b9d1c114254c99d2831a25b7455b76a"
+      "sha256": "9a3de03e457aa9f02219a3ce9446c3144d6f241e0a6e4b1d2cf0c964557c35a4"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "80b43e3751722d5bf3d16a34ea5f331e60f312eb03699a111f1df78a5785c96e"
+      "sha256": "7185887e2c2d5e7ecc7f5dcb67bccfd2955aa2b20b57509ab719e70d9c8f29ee"
     },
     {
       "path": "snapshot/.env.example",
@@ -235,8 +235,8 @@
     },
     {
       "path": "snapshot/src/framework/plugins/economy.ts",
-      "bytes": 22568,
-      "sha256": "9a88ad8e505a931b9c847a902ece6ac2aa53f28c2abb142bb5f5b96544f96214"
+      "bytes": 22596,
+      "sha256": "7439d283a640fbf04fc29e14d630c72786c5ad86ce04401642c804509fd12d00"
     },
     {
       "path": "snapshot/src/framework/plugins/group-context.ts",
@@ -280,13 +280,13 @@
     },
     {
       "path": "snapshot/src/framework/plugins/menu.ts",
-      "bytes": 14391,
-      "sha256": "e7d662587a7307a6b818c625a82835ae73a00ca0160fcfd95faffd25b05d701a"
+      "bytes": 14509,
+      "sha256": "4d54e152e44ba2573e6783f9b758d06fa3bce31b0e00e94f51bc835b03f8ce32"
     },
     {
       "path": "snapshot/src/framework/plugins/scene.ts",
-      "bytes": 12300,
-      "sha256": "0c9c09ef612fc14090ed6d8512b6f285794f8002a4676c0f732587c8c9e44e8b"
+      "bytes": 12270,
+      "sha256": "9817c88fbbc12ad75140f305538c8778eb33fa58d7aa6de9563006468034d192"
     },
     {
       "path": "snapshot/src/framework/plugins/sentry.ts",
@@ -340,8 +340,8 @@
     },
     {
       "path": "snapshot/src/index.ts",
-      "bytes": 8974,
-      "sha256": "aae9792d7ca11e63478837ebab95866d0f6bbcc892521c431acfa605ee1d673a"
+      "bytes": 9159,
+      "sha256": "f4d6351871c0dc875a18cb78d60adf8b523c109ff746001c85c8d168a0f26283"
     },
     {
       "path": "snapshot/src/lifecycle.ts",
@@ -397,6 +397,11 @@
       "path": "snapshot/src/services/economy-service.ts",
       "bytes": 31456,
       "sha256": "5aa5e56bc362aa7e447e63ee96fb9c61a007665d1fa6acd14fb77d5101cfaeeb"
+    },
+    {
+      "path": "snapshot/src/services/economy-sqlite-client.ts",
+      "bytes": 13708,
+      "sha256": "66efc3ae1e537f9ac4d2b4ab1822d4aaf861b756b5bf7ecb8fea62bcc02b0f4c"
     },
     {
       "path": "snapshot/src/services/group-configuration-service.ts",
@@ -532,6 +537,11 @@
       "path": "snapshot/tests/economy-cache.test.js",
       "bytes": 16745,
       "sha256": "e06e3b2aae13b1be11be3d34fad56b1ec6a4865d223342c836005c10528f935c"
+    },
+    {
+      "path": "snapshot/tests/economy-sqlite.test.js",
+      "bytes": 2827,
+      "sha256": "5b6730979922b493fb85b2fe1f6288b7b937b9396a79658c5942b6aadcb022e2"
     },
     {
       "path": "snapshot/tests/errors.test.js",
@@ -750,13 +760,13 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 1545063,
-      "sha256": "8c5a6f131aed9f0c06405b1f00e2b7b0f4eb265c97827bd4211613997c0b95ef"
+      "bytes": 1567805,
+      "sha256": "44502057fb9fc7befc2241bc2c098bda5c423433aafc2095424a7f6d13097bef"
     },
     {
       "path": "tables/commands.csv",
-      "bytes": 15399,
-      "sha256": "18ad2e2c5dd2a7e645cb105c97f1962404a72d9ef533b8ca07e52f1745a6eb7b"
+      "bytes": 15403,
+      "sha256": "d1aac3db5a5406a5d02eb7e764ff1233f2aa538524dbdb12e99488f6ed70936d"
     },
     {
       "path": "tables/config-catalog.csv",
@@ -765,8 +775,8 @@
     },
     {
       "path": "tables/data-flow.csv",
-      "bytes": 34084,
-      "sha256": "fdba1d2b9ad87c4fad08fdcfe01792b671273d25229bfc5e90cad725ac3fabe6"
+      "bytes": 34383,
+      "sha256": "eb4a48ffcb4f27c9c6b1abc401c62f8795f2e32456bc172ec6b6ebaabed95c4b"
     },
     {
       "path": "tables/dependencies.csv",
@@ -780,28 +790,28 @@
     },
     {
       "path": "tables/files.csv",
-      "bytes": 11471,
-      "sha256": "53863041728da496e4dee63e81b476a47c794f21e7a33d9d54ac6e91731f8eed"
+      "bytes": 11654,
+      "sha256": "3c658d1bf5f57dcbecae93256643a31de7f5874b183a992b1e91630a3f45db26"
     },
     {
       "path": "tables/imports.csv",
-      "bytes": 61523,
-      "sha256": "20d034d0f1f712d478d499b82bf6152d204f43befc29cf4647ed810e0efb4137"
+      "bytes": 62650,
+      "sha256": "91a59f4a9da68d8bc045bbc7a770095ff56dfc4e081169594a415eaad23eff14"
     },
     {
       "path": "tables/services.csv",
-      "bytes": 14332,
-      "sha256": "daedd445a5b48a9c5c65775a3ab0b223c3066dc615c50c9be124723c8a2bb086"
+      "bytes": 14437,
+      "sha256": "c2d180c05e12781d7091e3abd15793adb73cd4cf541cdc257b63e59a754862ec"
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 462396,
-      "sha256": "d8da23257e356366111afc8b05606e2f8575b3f04f6e14b1eda95994e1eb58f8"
+      "bytes": 467834,
+      "sha256": "1855e3e7348b5ff1aa8819c1387412b22abde243bee3c7524d62eb5015b2a1f5"
     },
     {
       "path": "tables/tests.csv",
-      "bytes": 33690,
-      "sha256": "a282149f6a89cfec32f1d8e24e21e71ff94dca596925e4a2dec475ead9051cd8"
+      "bytes": 33833,
+      "sha256": "f3f79793aa93176c5015088f81a533fb152750a15420f711be96863b4bab2b1e"
     }
   ]
 }

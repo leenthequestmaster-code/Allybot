@@ -33,7 +33,7 @@ src/framework/plugins/character-guide.ts,30753,.ts,source,snapshot/src/framework
 src/framework/plugins/codebase.ts,3274,.ts,source,snapshot/src/framework/plugins/codebase.ts
 src/framework/plugins/developer-mode.ts,9613,.ts,source,snapshot/src/framework/plugins/developer-mode.ts
 src/framework/plugins/diagnostics.ts,2658,.ts,source,snapshot/src/framework/plugins/diagnostics.ts
-src/framework/plugins/economy.ts,22568,.ts,source,snapshot/src/framework/plugins/economy.ts
+src/framework/plugins/economy.ts,22596,.ts,source,snapshot/src/framework/plugins/economy.ts
 src/framework/plugins/group-context.ts,17731,.ts,source,snapshot/src/framework/plugins/group-context.ts
 src/framework/plugins/group-governance.ts,17991,.ts,source,snapshot/src/framework/plugins/group-governance.ts
 src/framework/plugins/group-moderation.ts,9331,.ts,source,snapshot/src/framework/plugins/group-moderation.ts
@@ -42,8 +42,8 @@ src/framework/plugins/group-setup-mission.ts,6231,.ts,source,snapshot/src/framew
 src/framework/plugins/group.ts,23616,.ts,source,snapshot/src/framework/plugins/group.ts
 src/framework/plugins/knowledge.ts,11747,.ts,source,snapshot/src/framework/plugins/knowledge.ts
 src/framework/plugins/media.ts,11461,.ts,source,snapshot/src/framework/plugins/media.ts
-src/framework/plugins/menu.ts,14391,.ts,source,snapshot/src/framework/plugins/menu.ts
-src/framework/plugins/scene.ts,12300,.ts,source,snapshot/src/framework/plugins/scene.ts
+src/framework/plugins/menu.ts,14509,.ts,source,snapshot/src/framework/plugins/menu.ts
+src/framework/plugins/scene.ts,12270,.ts,source,snapshot/src/framework/plugins/scene.ts
 src/framework/plugins/sentry.ts,751,.ts,source,snapshot/src/framework/plugins/sentry.ts
 src/framework/plugins/suggestion-relay.ts,5363,.ts,source,snapshot/src/framework/plugins/suggestion-relay.ts
 src/framework/plugins/technical.ts,8074,.ts,source,snapshot/src/framework/plugins/technical.ts
@@ -54,7 +54,7 @@ src/framework/plugins/welcome-leave.ts,3383,.ts,source,snapshot/src/framework/pl
 src/framework/service-registry.ts,2804,.ts,source,snapshot/src/framework/service-registry.ts
 src/framework/sessions.ts,11874,.ts,source,snapshot/src/framework/sessions.ts
 src/framework/validation.ts,1140,.ts,source,snapshot/src/framework/validation.ts
-src/index.ts,8974,.ts,source,snapshot/src/index.ts
+src/index.ts,9159,.ts,source,snapshot/src/index.ts
 src/lifecycle.ts,3125,.ts,source,snapshot/src/lifecycle.ts
 src/logger.ts,2389,.ts,source,snapshot/src/logger.ts
 src/media.ts,6206,.ts,source,snapshot/src/media.ts
@@ -66,6 +66,7 @@ src/services/character-guide-service.ts,22232,.ts,source,snapshot/src/services/c
 src/services/character-sheet-parser.ts,16358,.ts,source,snapshot/src/services/character-sheet-parser.ts
 src/services/developer-mode-service.ts,16228,.ts,source,snapshot/src/services/developer-mode-service.ts
 src/services/economy-service.ts,31456,.ts,source,snapshot/src/services/economy-service.ts
+src/services/economy-sqlite-client.ts,13708,.ts,source,snapshot/src/services/economy-sqlite-client.ts
 src/services/group-configuration-service.ts,21246,.ts,source,snapshot/src/services/group-configuration-service.ts
 src/services/group-context-service.ts,12038,.ts,source,snapshot/src/services/group-context-service.ts
 src/services/group-governance-service.ts,49833,.ts,source,snapshot/src/services/group-governance-service.ts
@@ -93,6 +94,7 @@ tests/codebase-export.test.js,5871,.js,test,snapshot/tests/codebase-export.test.
 tests/codebase-generator.test.js,4384,.js,test,snapshot/tests/codebase-generator.test.js
 tests/developer-mode.test.js,7839,.js,test,snapshot/tests/developer-mode.test.js
 tests/economy-cache.test.js,16745,.js,test,snapshot/tests/economy-cache.test.js
+tests/economy-sqlite.test.js,2828,.js,test,snapshot/tests/economy-sqlite.test.js
 tests/errors.test.js,746,.js,test,snapshot/tests/errors.test.js
 tests/framework.test.js,14854,.js,test,snapshot/tests/framework.test.js
 tests/group-configuration.test.js,9476,.js,test,snapshot/tests/group-configuration.test.js

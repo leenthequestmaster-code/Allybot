@@ -14,7 +14,7 @@ src/framework/plugins/technical.ts,alljid,,List all WhatsApp group JIDs currentl
 tests/framework.test.js,alpha,,,,public,,278,278
 src/framework/plugins/group-safety.ts,appeal,,Appeal your own resolved or dismissed case,moderation,public,,296,318
 tests/integration.test.js,bad,,,,public,,87,87
-src/framework/plugins/economy.ts,bank,,Kelola rekening Wallet dan Safe Vela,economy,public,3000,391,398
+src/framework/plugins/economy.ts,bank,,Kelola rekening Wallet dan Safe Vela,your-character,public,3000,391,398
 src/framework/plugins/economy.ts,bankpolicy,economypolicy,Aktifkan atau nonaktifkan Economy untuk grup,owner,public,5000,400,420
 src/framework/plugins/economy.ts,bankreward,,Berikan reward Vela kepada anggota,owner,public,5000,422,446
 src/framework/plugins/economy.ts,banksweep,,Proses overage Wallet yang telah jatuh tempo,owner,public,5000,448,467
@@ -39,7 +39,7 @@ src/framework/plugins/group-safety.ts,clearwarn,,Revoke a warning by id prefix,m
 src/framework/plugins/group.ts,clearwelcome,,Clear the custom welcome message for the current group,group,public,,400,416
 src/framework/plugins/codebase.ts,codebase,,Send the latest sanitized Codebase Intelligence Export,developer,public,30000,61,76
 src/framework/plugins/utility.ts,commands,cmds,Lihat daftar command yang aktif,tools-media,public,,302,317
-src/framework/plugins/scene.ts,consent,,Grant or withdraw scoped scene consent,your-character,public,,198,219
+src/framework/plugins/scene.ts,consent,,Grant or withdraw scoped scene consent,roleplay,public,,198,219
 tests/framework.test.js,consumer,,,,public,,274,274
 src/framework/plugins/group-governance.ts,continuity,cekcatatan,Check bounded governance continuity,governance,public,,180,195
 src/framework/plugins/utility.ts,convert,,Konversi satuan dasar,tools-media,public,,388,404
@@ -78,7 +78,7 @@ src/framework/plugins/group.ts,link,,Show the group invite link for administrato
 src/framework/plugins/group.ts,membercount,,Show total members and administrators,group,public,,217,228
 src/framework/plugins/group.ts,memberinfo,,Show role information for a mentioned member,group,public,,259,282
 src/framework/plugins/group.ts,members,memberlist,List group members with pagination,group,public,,245,257
-src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,0,375,384
+src/framework/plugins/menu.ts,menu,m|help,Show Allybot categories and available commands,system,public,0,380,389
 src/framework/plugins/group-moderation.ts,modaction,moderate,Run a guarded participant moderation action,moderation,public,,68,118
 src/framework/plugins/group-moderation.ts,modstatus,,Show guarded moderation action status,moderation,public,,169,187
 src/framework/plugins/group-context.ts,ooc,,Kirim pesan di luar karakter pada grup IC,group,public,0,258,317
@@ -88,7 +88,7 @@ tests/permissions.test.js,ownerprobe,,,,bot.owner,,106,110
 tests/framework.test.js,partial-boom,,,,public,,108,108
 tests/framework.test.js,partial-command,,,,public,,238,238
 tests/framework.test.js,partial-failure,,,,public,,235,243
-src/framework/plugins/scene.ts,pause,,Pause a scene owned by the actor,your-character,public,,188,196
+src/framework/plugins/scene.ts,pause,,Pause a scene owned by the actor,roleplay,public,,188,196
 src/framework/plugins/group.ts,permissions,,Show the basic permissions associated with your group role,group,public,,551,573
 src/framework/plugins/tools-search.ts,pin,pinterest,Cari gambar di Pinterest,tools-search,public,,19,34
 src/framework/plugins/technical.ts,ping,,Check Allybot response latency and uptime,tools-media,public,3000,110,125
@@ -113,7 +113,7 @@ src/framework/plugins/utility-fun.ts,rps,suit,Main batu gunting kertas PvP (Priv
 src/framework/plugins/group.ts,rules,,Show the current group rules,group,public,,299,319
 src/framework/plugins/group-safety.ts,safety,,Show group safety mode,moderation,public,,67,81
 src/framework/plugins/character-guide.ts,savecharacter,savechar,Simpan Character Sheet dari reply ID Card,your-character,public,5000,479,546
-src/framework/plugins/scene.ts,scene,,Manage bounded roleplay scenes,your-character,public,,100,148
+src/framework/plugins/scene.ts,scene,,Manage bounded roleplay scenes,roleplay,public,,100,148
 src/framework/plugins/utility.ts,searchcmd,,Cari command berdasarkan kata kunci,tools-media,public,,319,333
 tests/framework.test.js,self-test,,,,public,,169,172
 src/framework/plugins/group-context.ts,setgroup,groupmode,Atur mode dan konteks sebuah grup,group,public,,190,256
@@ -122,7 +122,7 @@ src/framework/plugins/group.ts,setleave,,Set a custom leave message for the curr
 src/framework/plugins/group.ts,setprefix,,Set the command prefix for the current group,group,public,,490,527
 src/framework/plugins/group.ts,setrules,,Set the rules for the current group,group,public,,323,351
 src/framework/plugins/group-safety.ts,setsafety,,Enable or disable group safety dry-run,moderation,public,,83,108
-src/framework/plugins/scene.ts,setscene,adegan,Enable or disable Scene per group,your-character,public,,150,169
+src/framework/plugins/scene.ts,setscene,adegan,Enable or disable Scene per group,roleplay,public,,150,169
 src/framework/plugins/group.ts,setwelcome,,Set a custom welcome message for the current group,group,public,,373,398
 src/framework/plugins/media.ts,smeme,,Buat stiker meme dari gambar + teks (dengan filter downscale),tools-sticker,public,,146,197
 src/framework/plugins/knowledge.ts,source,sourceinfo,Read one explicit source by short id,tools-search,public,,189,207
@@ -133,8 +133,8 @@ tests/runtime-acceptance.test.js,stop-check,,,,public,,230,233
 src/framework/plugins/suggestion-relay.ts,suggest,suggestion|usul,Typed suggestion from explicit approved context,tools-ai,public,,66,112
 src/framework/plugins/ai.ts,summarize,ringkas,Ringkas teks yang kamu kirim secara langsung,tools-ai,public,,68,89
 src/framework/plugins/utility.ts,support,,Lihat langkah bantuan saat command bermasalah,tools-media,public,,362,369
-src/framework/plugins/economy.ts,tax,,Lihat status pajak Vela,economy,public,3000,469,502
-src/framework/plugins/economy.ts,taxbayar,bayarpajak,Bayar pajak Vela yang tertunggak,economy,public,5000,504,523
+src/framework/plugins/economy.ts,tax,,Lihat status pajak Vela,your-character,public,3000,469,502
+src/framework/plugins/economy.ts,taxbayar,bayarpajak,Bayar pajak Vela yang tertunggak,your-character,public,5000,504,523
 src/framework/plugins/utility.ts,time,,Lihat waktu pada zona tertentu,tools-media,public,,406,429
 src/framework/plugins/character-guide.ts,timerp,rpwaktu,Lihat waktu RP Allyssea saat ini,your-character,public,,622,632
 src/framework/plugins/media.ts,toaudio,audio,Ambil audio dari video atau audio,tools-media,public,,135,143
@@ -147,7 +147,7 @@ src/framework/plugins/utility.ts,uptime,,Lihat lama Allybot berjalan,tools-media
 tests/framework.test.js,validated,,,,public,,65,69
 tests/runtime-acceptance.test.js,validated,,,,public,,142,146
 tests/framework.test.js,validated-cooldown,,,,public,10000,86,91
-src/framework/plugins/economy.ts,vela,wallet,Lihat saldo Wallet dan Safe Vela,economy,public,3000,372,389
+src/framework/plugins/economy.ts,vela,wallet,Lihat saldo Wallet dan Safe Vela,your-character,public,3000,372,389
 src/framework/plugins/utility.ts,version,,Lihat informasi runtime non-sensitif,tools-media,public,,344,351
 src/framework/plugins/group-safety.ts,warn,,Issue an auditable warning to a group member,moderation,public,,110,132
 src/framework/plugins/group-safety.ts,warnings,warns,List recent group warnings,moderation,public,,134,151
