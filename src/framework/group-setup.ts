@@ -15,6 +15,8 @@ export interface GroupSetupDraft {
   readonly prefix?: string
   readonly language?: 'id' | 'en'
   readonly timezone?: string
+  readonly mode?: 'normal' | 'ooc' | 'guide' | 'ic'
+  readonly icSubtype?: string
 }
 
 export interface GroupSetupGateway {
@@ -74,9 +76,37 @@ export function createGroupSetupMissionDefinition(gateway: GroupSetupGateway): M
       timezone: {
         onInput: (_context, rawInput) => {
           const normalized = rawInput.trim()
-          if (normalized.toLowerCase() === 'skip') return next('review', _context.mission.data, renderReview(_context.mission.data))
+          if (normalized.toLowerCase() === 'skip') return next('mode', _context.mission.data, 'Pilih mode grup: `normal` (umum), `ooc`, `guide` (pendaftaran karakter), atau `ic` (roleplay), atau ketik `skip`.')
           if (!isValidTimezone(normalized)) return stay('Timezone tidak valid. Gunakan nama IANA, misalnya `Asia/Jakarta`.')
-          return next('review', { ..._context.mission.data, timezone: normalized }, renderReview({ ..._context.mission.data, timezone: normalized }))
+          return next('mode', { ..._context.mission.data, timezone: normalized }, 'Pilih mode grup: `normal` (umum), `ooc`, `guide` (pendaftaran karakter), atau `ic` (roleplay), atau ketik `skip`.')
+        },
+      },
+      mode: {
+        onInput: (_context, rawInput) => {
+          const normalized = rawInput.trim().toLowerCase()
+          if (normalized === 'skip') return next('review', _context.mission.data, renderReview(_context.mission.data))
+          if (normalized === 'rp' || normalized === 'roleplay' || normalized === 'ic') {
+            return next('icsubtype', { ..._context.mission.data, mode: 'ic' }, 'Kirim konteks/tempat IC: bank, market, miningplace, fishingplace, divingplace, gatheringplace, dungeon, story_event, other (atau ketik `skip` untuk default other).')
+          }
+          if (normalized === 'normal' || normalized === 'umum' || normalized === 'default') {
+            return next('review', { ..._context.mission.data, mode: 'normal' }, renderReview({ ..._context.mission.data, mode: 'normal' }))
+          }
+          if (normalized === 'ooc') {
+            return next('review', { ..._context.mission.data, mode: 'ooc' }, renderReview({ ..._context.mission.data, mode: 'ooc' }))
+          }
+          if (normalized === 'guide' || normalized === 'panduan') {
+            return next('review', { ..._context.mission.data, mode: 'guide' }, renderReview({ ..._context.mission.data, mode: 'guide' }))
+          }
+          return stay('Mode grup tidak valid. Pilih: `normal`, `ooc`, `guide`, atau `ic` (roleplay), atau ketik `skip`.')
+        },
+      },
+      icsubtype: {
+        onInput: (_context, rawInput) => {
+          const normalized = rawInput.trim().toLowerCase()
+          const subtypes = ['bank', 'market', 'miningplace', 'fishingplace', 'divingplace', 'gatheringplace', 'dungeon', 'story_event', 'other']
+          const chosen = normalized === 'skip' || !subtypes.includes(normalized) ? 'other' : normalized
+          const updated = { ..._context.mission.data, mode: 'ic' as const, icSubtype: chosen }
+          return next('review', updated, renderReview(updated))
         },
       },
       review: {
@@ -121,6 +151,7 @@ function renderReview(draft: GroupSetupDraft): MissionResponse {
     `Prefix: ${draft.prefix ?? '(skip)'}`,
     `Language: ${draft.language ?? '(skip)'}`,
     `Timezone: ${draft.timezone ?? '(skip)'}`,
+    `Mode Grup: ${draft.mode ? (draft.mode === 'ic' ? `ic (${draft.icSubtype ?? 'other'})` : draft.mode) : '(skip)'}`,
     '',
     'Ketik `confirm` untuk menerapkan atau `cancel` untuk membatalkan.',
   ]

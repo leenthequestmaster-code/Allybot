@@ -173,14 +173,15 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
       // cleanup() rolls back `!scene`, `!setscene`, and `!ic` along with it. Both meanings
       // are legitimate — group-context sends an OOC message, scene switches scene mode —
       // so which one keeps the name is a product decision.
-      for (const mode of ['ic', 'ooc'] as const) {
+      for (const mode of ['ic', 'sceneooc'] as const) {
         context.commands.register({
           name: mode,
-          description: `Set current scene mode to ${mode.toUpperCase()}`,
+          aliases: mode === 'sceneooc' ? ['sooc'] : undefined,
+          description: `Set current scene mode to ${mode === 'sceneooc' ? 'OOC' : 'IC'}`,
           category: 'roleplay',
           menuOrder: mode === 'ic' ? 3 : 4,
           handler: async (commandContext) => {
-            await updateMode(commandContext, whatsapp, mode)
+            await updateMode(commandContext, whatsapp, mode === 'sceneooc' ? 'ooc' : 'ic')
           },
         })
       }

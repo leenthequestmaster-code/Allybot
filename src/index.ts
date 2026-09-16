@@ -46,6 +46,7 @@ import { createPostgresEconomyClient } from './services/economy-postgres-client.
 import { CharacterGuideService } from './services/character-guide-service.js'
 import { createPostgresCharacterClient } from './services/character-postgres-client.js'
 import { GroupContextService } from './services/group-context-service.js'
+import { createPostgresGroupContextClient } from './services/group-context-postgres-client.js'
 import { createGroupContextPlugin } from './framework/plugins/group-context.js'
 import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
 import { createScenePlugin } from './framework/plugins/scene.js'
@@ -121,7 +122,14 @@ async function main(): Promise<void> {
     cacheTtlSeconds: 15,
     createClient: economyClient,
   }))
-  framework.registerService(new GroupContextService(logger, { env: process.env }))
+  const groupContextClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
+    ? () => createPostgresGroupContextClient({ postgresUrl: config.POSTGRES_URL! })
+    : undefined
+
+  framework.registerService(new GroupContextService(logger, {
+    env: { ...process.env, GROUP_CONTEXT_ENABLED: 'true' },
+    createClient: groupContextClient,
+  }))
 
   const characterClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
     ? () => createPostgresCharacterClient({ postgresUrl: config.POSTGRES_URL!, redis })

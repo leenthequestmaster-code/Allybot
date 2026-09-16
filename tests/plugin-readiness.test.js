@@ -74,11 +74,8 @@ function stubService(name) {
 // pinned here instead of silently tolerated. Delete an entry once its collision is fixed.
 // (character-guide's former `timerp` duplicate alias was resolved in the backend-stub
 // disable work — the plugin now reaches ready.)
-const PENDING_PLUGIN_FAILURES = [
-  'group-moderation: Command name already registered: groupmode',
-  'scene: Command name already registered: ooc',
-]
-const PENDING_PLUGINS = ['group-moderation', 'scene']
+const PENDING_PLUGIN_FAILURES = []
+const PENDING_PLUGINS = []
 
 function fakeWhatsapp() {
   const noop = () => () => undefined

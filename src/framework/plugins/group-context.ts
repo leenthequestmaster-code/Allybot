@@ -20,7 +20,7 @@ import { isCanonicalNarrativeText } from '../../services/character-sheet-parser.
 const GROUP_CONTEXT_BACKEND_PENDING_TEXT = 'Fitur konteks grup belum tersedia — backend sedang disiapkan.'
 
 const GROUP_CONTEXT_COMMAND_NAMES: readonly { readonly name: string; readonly aliases?: readonly string[] }[] = [
-  { name: 'setgroup', aliases: ['groupmode'] },
+  { name: 'setgroup' },
   { name: 'ooc' },
   { name: 'whitelistooc', aliases: ['oocwhitelist'] },
 ]
@@ -189,7 +189,6 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'setgroup',
-        aliases: ['groupmode'],
         description: 'Atur mode dan konteks sebuah grup',
         category: 'group',
         menuOrder: 50,
