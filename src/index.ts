@@ -42,7 +42,9 @@ import { WhatsAppConnection } from './whatsapp.js'
 import { RedisService } from './redis.js'
 import { EconomyService } from './services/economy-service.js'
 import { createSqliteEconomyClient } from './services/economy-sqlite-client.js'
+import { createPostgresEconomyClient } from './services/economy-postgres-client.js'
 import { CharacterGuideService } from './services/character-guide-service.js'
+import { createPostgresCharacterClient } from './services/character-postgres-client.js'
 import { GroupContextService } from './services/group-context-service.js'
 import { createGroupContextPlugin } from './framework/plugins/group-context.js'
 import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
@@ -110,13 +112,25 @@ async function main(): Promise<void> {
   framework.registerService(new AfkService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
+  const economyClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
+    ? () => createPostgresEconomyClient({ postgresUrl: config.POSTGRES_URL! })
+    : () => createSqliteEconomyClient(config.DATABASE_PATH)
+
   framework.registerService(new EconomyService(logger, {
     env: { ...process.env, ECONOMY_ENABLED: 'true' },
     cacheTtlSeconds: 15,
-    createClient: () => createSqliteEconomyClient(config.DATABASE_PATH),
+    createClient: economyClient,
   }))
   framework.registerService(new GroupContextService(logger, { env: process.env }))
-  framework.registerService(new CharacterGuideService(logger, { env: process.env }))
+
+  const characterClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
+    ? () => createPostgresCharacterClient({ postgresUrl: config.POSTGRES_URL!, redis })
+    : undefined
+
+  framework.registerService(new CharacterGuideService(logger, {
+    env: { ...process.env, CHARACTER_GUIDE_ENABLED: 'true' },
+    createClient: characterClient,
+  }))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(new KnowledgeService(config.DATABASE_PATH, logger))
