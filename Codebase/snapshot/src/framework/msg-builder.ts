@@ -298,6 +298,7 @@ export class MsgBuilder {
   private _carouselCards?: readonly CarouselCardDef[]
   private _mediaData?: Uint8Array
   private _mediaMimeType?: string
+  private _preparedImageMessage?: proto.Message.IImageMessage
 
   constructor(remoteJid: string) {
     this._remoteJid = remoteJid.trim()
@@ -331,9 +332,13 @@ export class MsgBuilder {
     return this
   }
 
-  image(data: Uint8Array, mimeType = 'image/jpeg'): this {
-    this._mediaData = data
-    this._mediaMimeType = mimeType
+  image(data: Uint8Array | proto.Message.IImageMessage, mimeType = 'image/jpeg'): this {
+    if (data instanceof Uint8Array) {
+      this._mediaData = data
+      this._mediaMimeType = mimeType
+    } else {
+      this._preparedImageMessage = data
+    }
     return this
   }
 
@@ -592,7 +597,14 @@ export class MsgBuilder {
     try {
       if (built.kind === 'interactive') {
         const interactive = built.payload.interactiveMessage
-        if (this._mediaData && socket.waUploadToServer) {
+        if (this._preparedImageMessage) {
+          interactive.header = proto.Message.InteractiveMessage.Header.create({
+            ...(this._headerTitle ? { title: this._headerTitle } : {}),
+            ...(this._headerSubtitle ? { subtitle: this._headerSubtitle } : {}),
+            hasMediaAttachment: true,
+            imageMessage: this._preparedImageMessage,
+          })
+        } else if (this._mediaData && socket.waUploadToServer) {
           try {
             const media = await prepareWAMessageMedia(
               { image: Buffer.from(this._mediaData), mimetype: this._mediaMimeType ?? 'image/jpeg' },

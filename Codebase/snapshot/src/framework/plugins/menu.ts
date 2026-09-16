@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { proto, prepareWAMessageMedia, type WASocket } from '@whiskeysockets/baileys'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import type { DeveloperModeService } from '../../services/developer-mode-service.js'
 import { commandDescription } from '../command-copy.js'
@@ -62,12 +63,37 @@ const CATEGORY_ALIASES: Record<string, string> = {
 }
 
 let menuThumbnailPromise: Promise<Uint8Array | undefined> | undefined
+let cachedMenuImageMessage: proto.Message.IImageMessage | undefined
 
 async function loadMenuThumbnail(): Promise<Uint8Array | undefined> {
   menuThumbnailPromise ??= readFile(new URL('../../assets/allybot-menu-thumbnail.jpg', import.meta.url))
     .then((data) => new Uint8Array(data))
     .catch(() => undefined)
   return menuThumbnailPromise
+}
+
+async function getOrPrepareMenuThumbnail(
+  whatsapp: CommandContext['whatsapp'],
+  thumbnail: Uint8Array | undefined,
+): Promise<proto.Message.IImageMessage | Uint8Array | undefined> {
+  if (!thumbnail) return undefined
+  const socket = (whatsapp as { socket?: WASocket }).socket
+  if (!socket?.waUploadToServer) return thumbnail
+  if (cachedMenuImageMessage) return cachedMenuImageMessage
+
+  try {
+    const media = await prepareWAMessageMedia(
+      { image: Buffer.from(thumbnail), mimetype: MENU_THUMBNAIL_MIME_TYPE },
+      { upload: socket.waUploadToServer },
+    )
+    if (media.imageMessage) {
+      cachedMenuImageMessage = media.imageMessage
+      return media.imageMessage
+    }
+  } catch {
+    // fallback to thumbnail buffer directly
+  }
+  return thumbnail
 }
 
 function normalizeCategory(command: CommandDefinition): string {
@@ -248,7 +274,8 @@ async function sendMenu(
     readonly thumbnail?: Uint8Array
   },
 ): Promise<void> {
-  const thumbnail = options?.thumbnail ?? (commandContext.whatsapp.sendMedia ? await loadMenuThumbnail() : undefined)
+  const thumbnailRaw = options?.thumbnail ?? (commandContext.whatsapp.sendMedia ? await loadMenuThumbnail() : undefined)
+  const thumbnail = await getOrPrepareMenuThumbnail(commandContext.whatsapp, thumbnailRaw)
   const jid = commandContext.message.remoteJid
   const prefix = options?.prefix ?? commandContext.prefix
 
