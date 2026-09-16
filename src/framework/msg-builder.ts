@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import {
   proto,
   generateMessageIDV2,
+  prepareWAMessageMedia,
   type BinaryNode,
   type WASocket,
 } from '@whiskeysockets/baileys'
@@ -295,6 +296,8 @@ export class MsgBuilder {
   private _footerText?: string
   private _listOptions?: ListOptions
   private _carouselCards?: readonly CarouselCardDef[]
+  private _mediaData?: Uint8Array
+  private _mediaMimeType?: string
 
   constructor(remoteJid: string) {
     this._remoteJid = remoteJid.trim()
@@ -325,6 +328,12 @@ export class MsgBuilder {
 
   footer(text: string): this {
     this._footerText = text.trim()
+    return this
+  }
+
+  image(data: Uint8Array, mimeType = 'image/jpeg'): this {
+    this._mediaData = data
+    this._mediaMimeType = mimeType
     return this
   }
 
@@ -563,14 +572,46 @@ export class MsgBuilder {
 
     const socket = transport.socket
     if (!socket || !transport.isConnected) {
+      if (this._mediaData && transport.sendMedia) {
+        try {
+          await transport.sendMedia(jid, {
+            kind: 'image',
+            data: this._mediaData,
+            mimeType: this._mediaMimeType ?? 'image/jpeg',
+            caption: built.fallbackText,
+          })
+          return
+        } catch {
+          // fall through to sendText
+        }
+      }
       await transport.sendText(jid, built.fallbackText)
       return
     }
 
     try {
       if (built.kind === 'interactive') {
+        const interactive = built.payload.interactiveMessage
+        if (this._mediaData && socket.waUploadToServer) {
+          try {
+            const media = await prepareWAMessageMedia(
+              { image: Buffer.from(this._mediaData), mimetype: this._mediaMimeType ?? 'image/jpeg' },
+              { upload: socket.waUploadToServer },
+            )
+            if (media.imageMessage) {
+              interactive.header = proto.Message.InteractiveMessage.Header.create({
+                ...(this._headerTitle ? { title: this._headerTitle } : {}),
+                ...(this._headerSubtitle ? { subtitle: this._headerSubtitle } : {}),
+                hasMediaAttachment: true,
+                imageMessage: media.imageMessage,
+              })
+            }
+          } catch (uploadError) {
+            socket.logger?.warn?.({ err: uploadError }, 'interactive image upload failed, sending without media')
+          }
+        }
         const msg = proto.Message.create({
-          interactiveMessage: built.payload.interactiveMessage,
+          interactiveMessage: interactive,
         })
         await socket.relayMessage(jid, msg, {
           messageId: generateMessageIDV2(socket.user?.id),
@@ -586,7 +627,7 @@ export class MsgBuilder {
         })
       }
     } catch (error) {
-      socket.logger?.warn({ err: error, jid, kind: built.kind }, 'native flow relay failed, falling back to plain text')
+      socket.logger?.warn?.({ err: error, jid, kind: built.kind }, 'native flow relay failed, falling back to plain text')
       await transport.sendText(jid, built.fallbackText)
     }
   }

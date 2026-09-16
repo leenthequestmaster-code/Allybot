@@ -244,39 +244,45 @@ async function sendMenu(
     readonly isMain?: boolean
     readonly prefix?: string
     readonly category?: MenuCategory
+    readonly categories?: readonly MenuCategory[]
+    readonly thumbnail?: Uint8Array
   },
 ): Promise<void> {
-  const sendMedia = commandContext.whatsapp.sendMedia
-  const thumbnail = sendMedia ? await loadMenuThumbnail() : undefined
-
-  // Preserve media delivery when mock transport explicitly expects sendMedia without native socket
-  if (sendMedia && thumbnail && !commandContext.whatsapp.socket) {
-    try {
-      await sendMedia.call(commandContext.whatsapp, commandContext.message.remoteJid, {
-        kind: 'image',
-        data: thumbnail,
-        mimeType: MENU_THUMBNAIL_MIME_TYPE,
-        fileName: 'allybot-menu.jpg',
-        caption: `${MENU_THUMBNAIL_CAPTION}\n\n${body}`,
-      })
-      return
-    } catch (error) {
-      commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'menu thumbnail delivery failed; using text fallback')
-    }
-  }
-
+  const thumbnail = options?.thumbnail ?? (commandContext.whatsapp.sendMedia ? await loadMenuThumbnail() : undefined)
   const jid = commandContext.message.remoteJid
   const prefix = options?.prefix ?? commandContext.prefix
 
   if (options?.isMain) {
-    // Main Menu: structured presentation with interactive navigation buttons via MsgBuilder
+    // Main Menu: structured presentation with thumbnail image header and interactive category buttons
     const builder = MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
-      .button({ type: 'reply', id: `${prefix}menu 2`, text: '🛡️ Moderasi' })
-      .button({ type: 'reply', id: `${prefix}commands`, text: '📚 Semua Command' })
+      .footer(`Ketik ${prefix}menu <angka> atau tekan tombol kategori`)
+
+    if (thumbnail) {
+      builder.image(thumbnail, MENU_THUMBNAIL_MIME_TYPE)
+    }
+
+    const availableCategories = options.categories ?? []
+    const buttonLimit = Math.min(availableCategories.length, 9)
+    for (let idx = 0; idx < buttonLimit; idx++) {
+      const cat = availableCategories[idx]
+      const { icon, label } = presentationFor(cat.name)
+      const buttonText = `${icon} ${label}`.slice(0, 20)
+      builder.button({
+        type: 'reply',
+        id: `${prefix}menu ${idx + 1}`,
+        text: buttonText,
+      })
+    }
+
+    if (buttonLimit < 10) {
+      builder.button({
+        type: 'reply',
+        id: `${prefix}commands`,
+        text: '📚 Semua Command',
+      })
+    }
 
     await builder.send(commandContext.whatsapp as any)
     return
@@ -284,8 +290,8 @@ async function sendMenu(
 
   if (options?.category) {
     // In group chats, WhatsApp servers reject botInvokeMessage with 479, so we deliver
-    // interactive messages with action buttons. In private chats, AIRich delivers structured
-    // presentation with chips/tips natively.
+    // interactive messages with action buttons and thumbnail. In private chats, AIRich delivers
+    // structured presentation with chips/tips natively.
     if (isGroupJid(jid)) {
       const { icon } = presentationFor(options.category.name)
       const builder = MsgBuilder.to(jid)
@@ -294,6 +300,10 @@ async function sendMenu(
         .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
         .button({ type: 'reply', id: `${prefix}menu`, text: '📋 Menu Utama' })
         .button({ type: 'reply', id: `${prefix}commands`, text: '📚 Semua Command' })
+
+      if (thumbnail) {
+        builder.image(thumbnail, MENU_THUMBNAIL_MIME_TYPE)
+      }
 
       await builder.send(commandContext.whatsapp as any)
       return
@@ -317,10 +327,11 @@ export const menuPlugin: Plugin = {
       const visibleCommands = context.commands.list().filter((command) => command.name !== 'menu' && !command.hidden)
       const categories = collectCategories(visibleCommands).filter((category) => canSeePrivilegedCategory(category, commandContext))
       const category = resolveCategory(categories, commandContext.args[0])
+      const thumbnail = await loadMenuThumbnail()
 
       if (category) {
         const body = renderCategoryMenu(category, commandContext.prefix, commandContext)
-        await sendMenu(commandContext, body, { category, prefix: commandContext.prefix })
+        await sendMenu(commandContext, body, { category, prefix: commandContext.prefix, thumbnail })
         return
       }
 
@@ -331,7 +342,7 @@ export const menuPlugin: Plugin = {
       }
 
       const body = renderMainMenu(categories, commandContext.prefix, commandContext)
-      await sendMenu(commandContext, body, { isMain: true, prefix: commandContext.prefix })
+      await sendMenu(commandContext, body, { isMain: true, prefix: commandContext.prefix, categories, thumbnail })
     }
 
     context.commands.register({
