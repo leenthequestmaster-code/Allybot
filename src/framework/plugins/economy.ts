@@ -72,47 +72,63 @@ function safeStatus(value: EconomyAccountSnapshot['safeStatus']): string {
 function renderSnapshot(snapshot: EconomyAccountSnapshot): string {
   if (!snapshot.economyEnabled) {
     return [
-      'Vela Status',
-      'Status: Belum diaktifkan di grup ini',
-      'Keterangan: Aktivasi dilakukan oleh pengelola grup melalui policy yang sah.',
+      '🪙 *Status Vela*',
+      'Ekonomi Vela belum diaktifkan di grup ini.',
+      'Admin grup bisa mengaktifkannya dengan `!bankpolicy on`.',
     ].join('\n')
   }
 
   const walletAvailable = snapshot.walletBalance - snapshot.restrictedWalletBalance - snapshot.reservedWalletBalance
-  const safeLimit = snapshot.safeLimit >= 2_000_000_000 ? 'Tidak terbatas' : `${formatVela(snapshot.safeLimit)} Vela`
-  return [
-    'Vela Status',
-    'Wallet:',
-    `Saldo tersedia: ${formatVela(walletAvailable)} Vela`,
-    'Limit: 20.000 Vela',
-    `Tertahan karena limit: ${formatVela(snapshot.restrictedWalletBalance)} Vela`,
-    `Ditahan untuk transfer: ${formatVela(snapshot.reservedWalletBalance)} Vela`,
-    'Safe:',
-    `Status: ${safeStatus(snapshot.safeStatus)}`,
-    `Saldo: ${formatVela(snapshot.safeBalance)} Vela`,
-    `Kapasitas: ${safeLimit}`,
-    `Membership: ${safeTier(snapshot.membershipTier)}`,
-    `Total tercatat: ${formatVela(snapshot.walletBalance + snapshot.safeBalance)} Vela`,
-  ].join('\n')
+  const safeLimit = snapshot.safeLimit >= 2_000_000_000 ? 'Tanpa batas' : `${formatVela(snapshot.safeLimit)} Vela`
+  const total = snapshot.walletBalance + snapshot.safeBalance
+
+  const lines = [
+    '🪙 *Status Akun Vela*',
+    `Wallet: ${formatVela(walletAvailable)} Vela · Safe: ${formatVela(snapshot.safeBalance)} Vela`,
+    '',
+    '💰 *Wallet*',
+    `• Saldo tersedia: ${formatVela(walletAvailable)} Vela`,
+    '• Batas wallet: 20.000 Vela',
+  ]
+
+  if (snapshot.restrictedWalletBalance > 0) {
+    lines.push(`• Tertahan limit: ${formatVela(snapshot.restrictedWalletBalance)} Vela`)
+  }
+  if (snapshot.reservedWalletBalance > 0) {
+    lines.push(`• Dikunci transfer: ${formatVela(snapshot.reservedWalletBalance)} Vela`)
+  }
+
+  lines.push(
+    '',
+    '🏦 *Safe*',
+    `• Status: ${safeStatus(snapshot.safeStatus)}`,
+    `• Saldo safe: ${formatVela(snapshot.safeBalance)} Vela`,
+    `• Kapasitas: ${safeLimit}`,
+    `• Membership: ${safeTier(snapshot.membershipTier)}`,
+    '',
+    `📊 *Total Saldo:* ${formatVela(total)} Vela`,
+  )
+
+  return lines.join('\n')
 }
 
 function bankHelp(prefix: string): string {
   return [
     '🏦 *Bank Vela*',
+    'Kelola saldo Wallet dan Safe Vela kamu.',
     '',
-    `• ${prefix}vela — lihat saldo Wallet dan Safe`,
-    `• ${prefix}bank status — lihat status rekening`,
-    `• ${prefix}bank open — buka rekening Safe`,
-    `• ${prefix}bank setor <jumlah> — pindahkan Wallet ke Safe`,
-    `• ${prefix}bank tarik <jumlah> — pindahkan Safe ke Wallet`,
-    `• ${prefix}bank kirim @orang <jumlah> — buat transfer Vela`,
-    `• ${prefix}bank terima <ID> — terima transfer`,
-    `• ${prefix}bank tolak <ID> — tolak transfer`,
-    `• ${prefix}bank membership <tier> — naikkan membership`,
-    `• ${prefix}bank riwayat [jumlah] — lihat riwayat transaksi`,
+    `• \`${prefix}vela\` — Cek saldo Wallet & Safe`,
+    `• \`${prefix}bank status\` — Status rekening & kapasitas Safe`,
+    `• \`${prefix}bank open\` — Buka rekening Safe`,
+    `• \`${prefix}bank setor <jumlah>\` — Simpan Vela ke Safe`,
+    `• \`${prefix}bank tarik <jumlah>\` — Tarik Vela dari Safe ke Wallet`,
+    `• \`${prefix}bank kirim @orang <jumlah>\` — Kirim Vela ke anggota lain`,
+    `• \`${prefix}bank terima <ID>\` — Terima transfer masuk`,
+    `• \`${prefix}bank tolak <ID>\` — Tolak transfer masuk`,
+    `• \`${prefix}bank membership <tier>\` — Upgrade tier (bronze, silver, gold, star)`,
+    `• \`${prefix}bank riwayat [jumlah]\` — Lihat riwayat transaksi`,
     '',
-    'Tier membership: bronze, silver, gold, atau star.',
-    'Transfer yang belum diterima akan mengunci saldo pengirim sampai diterima, ditolak, atau kedaluwarsa.',
+    '_Catatan: Saldo transfer dikunci sementara sampai penerima menerima atau menolak._',
   ].join('\n')
 }
 
@@ -125,21 +141,21 @@ function bankRewardUsage(prefix: string): string {
 
 function adminHelp(prefix: string): string {
   return [
-    '🛡️ *Pengelolaan Economy Vela*',
+    '🛡️ *Pengelolaan Ekonomi Vela*',
     '',
-    `• ${prefix}bankpolicy on|off — aktifkan/nonaktifkan Economy grup`,
-    `• ${prefix}bankreward @orang <jumlah> — berikan reward`,
+    `• ${prefix}bankpolicy on|off — Aktifkan atau nonaktifkan ekonomi grup`,
+    `• ${prefix}bankreward @orang <jumlah> — Berikan reward Vela`,
     bankRewardUsage(prefix),
-    `• ${prefix}banksweep @orang — proses overage yang sudah jatuh tempo`,
+    `• ${prefix}banksweep @orang — Sita saldo wallet yang melebihi batas (jatuh tempo)`,
   ].join('\n')
 }
 
 function unavailableText(): string {
-  return 'Sistem Vela sedang tidak tersedia. Saldo tidak diubah. Coba lagi nanti.'
+  return 'Sistem Vela sedang mengalami kendala. Saldo kamu tetap aman. Coba lagi nanti ya.'
 }
 
 function groupOnlyText(command: string): string {
-  return `Command ${command} hanya dapat digunakan di dalam grup WhatsApp.`
+  return `Perintah ${command} hanya bisa digunakan di dalam grup WhatsApp.`
 }
 
 function parseAmount(raw: string | undefined): number | undefined {
@@ -175,18 +191,56 @@ async function requireGroup(context: CommandContext, command = 'Bank'): Promise<
 async function requireActor(context: CommandContext): Promise<string | undefined> {
   const actor = actorJid(context)
   if (!actor || !isJid(actor)) {
-    await context.reply('Identitas pengguna tidak tersedia; operasi tidak dapat diproses.')
+    await context.reply('Identitas pengirim tidak terbaca. Perintah tidak bisa diproses.')
     return undefined
   }
   return actor
+}
+
+function formatOperationError(message: string): string {
+  if (message.includes('saldo atau kapasitas tidak mencukupi')) {
+    return '❌ Saldo atau kapasitas Safe tidak mencukupi untuk transaksi ini.'
+  }
+  if (message.includes('status rekening belum memenuhi syarat')) {
+    return '❌ Rekening belum aktif atau sedang dibekukan. Cek status lewat `!bank status`.'
+  }
+  if (message.includes('belum diaktifkan di grup')) {
+    return '❌ Ekonomi Vela belum aktif di grup ini. Hubungi admin grup.'
+  }
+  if (message.includes('Transfer ke diri sendiri')) {
+    return '❌ Tidak bisa mentransfer Vela ke diri sendiri.'
+  }
+  if (message.includes('Transfer tidak ditemukan')) {
+    return '❌ Transfer tidak ditemukan, sudah kedaluwarsa, atau bukan untuk kamu.'
+  }
+  if (message.includes('angka bulat antara')) {
+    return '❌ Jumlah Vela harus berupa angka bulat antara 1 dan 1.000.000.000.'
+  }
+  if (message.includes('Jumlah riwayat')) {
+    return '❌ Jumlah riwayat harus antara 1 sampai 50.'
+  }
+  if (message.includes('Pilihan membership')) {
+    return '❌ Pilihan tier membership tidak valid. Pilih: bronze, silver, gold, atau star.'
+  }
+  if (message.includes('Tidak ada pajak')) {
+    return '✅ Tidak ada tagihan pajak yang perlu dibayar saat ini.'
+  }
+  if (message.includes('Operasi ditolak')) {
+    return '❌ Transaksi tidak dapat diproses. Cek kembali saldo dan status rekening kamu.'
+  }
+  return `❌ ${message}`
 }
 
 async function runEconomyAction(context: CommandContext, action: () => Promise<string>): Promise<void> {
   try {
     await context.reply(await action())
   } catch (error) {
-    if (error instanceof EconomyOperationError || error instanceof EconomyUnavailableError) {
-      await context.reply(error instanceof EconomyOperationError ? error.message : unavailableText())
+    if (error instanceof EconomyOperationError) {
+      await context.reply(formatOperationError(error.message))
+      return
+    }
+    if (error instanceof EconomyUnavailableError) {
+      await context.reply(unavailableText())
       return
     }
     context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'economy command failed')
@@ -209,37 +263,49 @@ function renderMutation(action: string, result: Record<string, unknown>): string
   const amount = resultAmount(result)
   const transferId = typeof result.transfer_id === 'string' ? result.transfer_id : undefined
   const expiresAt = typeof result.expires_at === 'string' ? result.expires_at : undefined
-  const lines = [`✅ ${action}`, `Status: ${mutationStatus(result)}`]
-  if (amount !== undefined) lines.push(`Jumlah: ${formatVela(amount)} Vela`)
-  if (transferId) lines.push(`ID transfer: ${transferId}`)
-  if (expiresAt) lines.push(`Berlaku sampai: ${expiresAt}`)
+  const rawStatus = mutationStatus(result)
+  const statusLabel = rawStatus === 'applied' ? undefined : rawStatus === 'pending' ? 'Menunggu konfirmasi' : rawStatus
+  const lines = [`✅ *${action}*`]
+  if (amount !== undefined) lines.push(`• Jumlah: *${formatVela(amount)} Vela*`)
+  if (statusLabel) lines.push(`• Status: ${statusLabel}`)
+  if (transferId) lines.push(`• ID Transfer: \`${transferId}\``)
+  if (expiresAt) lines.push(`• Berlaku sampai: ${expiresAt}`)
   return lines.join('\n')
 }
 
 function renderHistory(entries: readonly EconomyHistoryEntry[]): string {
   if (entries.length === 0) return '📒 Belum ada riwayat transaksi Vela.'
   const labels: Record<string, string> = {
-    safe_open: 'Buka Safe',
-    reward: 'Reward',
+    safe_open: 'Buka Rekening Safe',
+    reward: 'Hadiah / Reward',
     deposit: 'Setor ke Safe',
     withdraw: 'Tarik dari Safe',
-    membership_purchase: 'Membership',
-    transfer_debit: 'Transfer keluar',
-    transfer_credit: 'Transfer masuk',
-    transfer_reserve: 'Saldo dikunci untuk transfer',
-    transfer_release: 'Kunci transfer dilepas',
-    seizure: 'Penyitaan overage',
-    reversal: 'Pembalikan transaksi',
-    admin_adjustment: 'Penyesuaian admin',
+    membership_purchase: 'Upgrade Membership',
+    transfer_debit: 'Transfer Keluar',
+    transfer_credit: 'Transfer Masuk',
+    transfer_reserve: 'Kunci Saldo Transfer',
+    transfer_release: 'Lepas Kunci Transfer',
+    seizure: 'Penyitaan Batas Saldo',
+    reversal: 'Pembatalan Transaksi',
+    admin_adjustment: 'Penyesuaian Admin',
   }
   return [
-    '📒 *Riwayat Vela*',
+    '📒 *Riwayat Transaksi Vela*',
     '',
     ...entries.map((entry) => {
-      const wallet = entry.walletDelta === 0 ? '' : ` | Wallet ${entry.walletDelta > 0 ? '+' : ''}${formatVela(entry.walletDelta)}`
-      const safe = entry.safeDelta === 0 ? '' : ` | Safe ${entry.safeDelta > 0 ? '+' : ''}${formatVela(entry.safeDelta)}`
-      const reserved = entry.reservedWalletDelta === 0 ? '' : ` | Kunci ${entry.reservedWalletDelta > 0 ? '+' : ''}${formatVela(entry.reservedWalletDelta)}`
-      return `• ${labels[entry.entryType] ?? 'Transaksi'}${wallet}${safe}${reserved}\n  ${entry.reason}`
+      const deltas: string[] = []
+      if (entry.walletDelta !== 0) {
+        deltas.push(`Wallet ${entry.walletDelta > 0 ? '+' : ''}${formatVela(entry.walletDelta)}`)
+      }
+      if (entry.safeDelta !== 0) {
+        deltas.push(`Safe ${entry.safeDelta > 0 ? '+' : ''}${formatVela(entry.safeDelta)}`)
+      }
+      if (entry.reservedWalletDelta !== 0) {
+        deltas.push(`Kunci ${entry.reservedWalletDelta > 0 ? '+' : ''}${formatVela(entry.reservedWalletDelta)}`)
+      }
+      const deltaStr = deltas.length > 0 ? ` (${deltas.join(', ')})` : ''
+      const label = labels[entry.entryType] ?? 'Transaksi'
+      return `• *${label}*${deltaStr}\n  _${entry.reason}_`
     }),
   ].join('\n')
 }
@@ -267,24 +333,25 @@ async function handleBank(context: CommandContext): Promise<void> {
   if (action === 'status') {
     await runEconomyAction(context, async () => {
       const { snapshot } = await service.getAccountSnapshot(groupJid, actor)
-      if (!snapshot.economyEnabled) return '🏦 Economy Vela belum diaktifkan di grup ini.'
+      if (!snapshot.economyEnabled) return '🏦 Ekonomi Vela belum aktif di grup ini.'
+      const limitStr = snapshot.safeLimit >= 2_000_000_000 ? 'Tanpa batas' : `${formatVela(snapshot.safeLimit)} Vela`
       return [
-        '🏦 *Status Rekening Vela*',
+        '🏦 *Status Rekening Safe*',
         '',
-        `Status Safe: ${safeStatus(snapshot.safeStatus)}`,
-        `Membership: ${safeTier(snapshot.membershipTier)}`,
-        `Saldo Safe: ${formatVela(snapshot.safeBalance)} Vela`,
-        `Kapasitas Safe: ${snapshot.safeLimit >= 2_000_000_000 ? 'Tidak terbatas' : `${formatVela(snapshot.safeLimit)} Vela`}`,
+        `• Status: *${safeStatus(snapshot.safeStatus)}*`,
+        `• Membership: *${safeTier(snapshot.membershipTier)}*`,
+        `• Saldo Safe: *${formatVela(snapshot.safeBalance)} Vela*`,
+        `• Kapasitas Safe: *${limitStr}*`,
         '',
         snapshot.safeStatus === 'not_open'
-          ? `Buka rekening melalui ${context.prefix}bank open.`
-          : `Lihat ringkasan saldo melalui ${context.prefix}vela.`,
+          ? `Gunakan \`${context.prefix}bank open\` untuk membuka rekening Safe.`
+          : `Ketik \`${context.prefix}vela\` untuk melihat ringkasan saldo kamu.`,
       ].join('\n')
     })
     return
   }
   if (action === 'open') {
-    await runEconomyAction(context, async () => renderMutation('Rekening Safe berhasil dibuka.', await service.openSafe(groupJid, actor, actor, operationKey(context, 'bank-open'), 'Pembukaan Safe oleh pengguna')))
+    await runEconomyAction(context, async () => renderMutation('Rekening Safe berhasil dibuka.', await service.openSafe(groupJid, actor, actor, operationKey(context, 'bank-open'), 'Pembukaan Safe')))
     return
   }
   if (action === 'setor' || action === 'deposit') {
@@ -313,7 +380,7 @@ async function handleBank(context: CommandContext): Promise<void> {
       return
     }
     const note = context.args.slice(1).filter((arg) => arg !== raw && !arg.startsWith('@')).join(' ').slice(0, 500)
-    await runEconomyAction(context, async () => renderMutation('Transfer dibuat dan saldo dikunci.', await service.createTransfer(groupJid, actor, target, amount, actor, operationKey(context, 'bank-transfer'), note)))
+    await runEconomyAction(context, async () => renderMutation('Transfer berhasil dibuat dan saldo dikunci.', await service.createTransfer(groupJid, actor, target, amount, actor, operationKey(context, 'bank-transfer'), note)))
     return
   }
   if (action === 'terima' || action === 'accept') {
@@ -322,7 +389,7 @@ async function handleBank(context: CommandContext): Promise<void> {
       await context.reply(`Format: ${context.prefix}bank terima <ID-transfer>`)
       return
     }
-    await runEconomyAction(context, async () => renderMutation('Transfer diterima.', await service.acceptTransfer(groupJid, transferId, actor, actor, operationKey(context, 'bank-accept'))))
+    await runEconomyAction(context, async () => renderMutation('Transfer berhasil diterima.', await service.acceptTransfer(groupJid, transferId, actor, actor, operationKey(context, 'bank-accept'))))
     return
   }
   if (action === 'tolak' || action === 'reject') {
@@ -340,7 +407,7 @@ async function handleBank(context: CommandContext): Promise<void> {
       await context.reply(`Format: ${context.prefix}bank membership <bronze|silver|gold|star>`)
       return
     }
-    await runEconomyAction(context, async () => renderMutation(`Membership ${tier} berhasil diproses.`, await service.upgradeMembership(groupJid, actor, tier, actor, operationKey(context, 'bank-membership'))))
+    await runEconomyAction(context, async () => renderMutation(`Membership berhasil ditingkatkan ke ${tier}.`, await service.upgradeMembership(groupJid, actor, tier, actor, operationKey(context, 'bank-membership'))))
     return
   }
   if (action === 'riwayat' || action === 'history') {
@@ -350,6 +417,39 @@ async function handleBank(context: CommandContext): Promise<void> {
     return
   }
   await context.reply(bankHelp(context.prefix))
+}
+
+function formatDueDate(dueAt: string): string {
+  try {
+    const d = new Date(dueAt)
+    if (Number.isNaN(d.getTime())) return dueAt
+    return new Intl.DateTimeFormat('id-ID', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Jakarta',
+    }).format(d) + ' WIB'
+  } catch {
+    return dueAt
+  }
+}
+
+function taxStatusLabel(status: TaxStatus): string {
+  switch (status) {
+    case 'current': return 'Lunas'
+    case 'warning': return 'Peringatan (Minggu 1)'
+    case 'penalty_1': return 'Denda +2% (Minggu 2)'
+    case 'penalty_2': return 'Denda +4% & Safe Dibekukan (Minggu 3)'
+    case 'penalty_3_plus': return 'Denda +6% & Rekening Dibekukan Total (Minggu 4+)'
+    default: return status
+  }
+}
+
+function frozenScopeLabel(scope: TaxFrozenScope): string {
+  switch (scope) {
+    case 'safe': return 'Safe dibekukan'
+    case 'total': return 'Wallet & Safe dibekukan total'
+    default: return 'Tidak ada'
+  }
 }
 
 export const economyPlugin: Plugin = {
@@ -415,7 +515,7 @@ export const economyPlugin: Plugin = {
           await commandContext.reply(`Format: ${commandContext.prefix}bankpolicy on|off\n\n${adminHelp(commandContext.prefix)}`)
           return
         }
-        await runEconomyAction(commandContext, async () => renderMutation(`Economy grup ${enabled === 'on' ? 'diaktifkan' : 'dinonaktifkan'}.`, await service.setGroupPolicy(groupJid, enabled === 'on', actor, operationKey(commandContext, 'bank-policy'), 'Perubahan policy oleh pengelola grup')))
+        await runEconomyAction(commandContext, async () => renderMutation(`Ekonomi grup ${enabled === 'on' ? 'berhasil diaktifkan' : 'dinonaktifkan'}.`, await service.setGroupPolicy(groupJid, enabled === 'on', actor, operationKey(commandContext, 'bank-policy'), 'Perubahan kebijakan oleh admin')))
       },
     })
 
@@ -441,7 +541,7 @@ export const economyPlugin: Plugin = {
           await commandContext.reply(bankRewardUsage(commandContext.prefix))
           return
         }
-        await runEconomyAction(commandContext, async () => renderMutation('Reward berhasil diberikan.', await service.grantReward(groupJid, target, amount, actor, operationKey(commandContext, 'bank-reward'), 'Reward dari pengelola grup')))
+        await runEconomyAction(commandContext, async () => renderMutation('Reward berhasil diberikan.', await service.grantReward(groupJid, target, amount, actor, operationKey(commandContext, 'bank-reward'), 'Reward dari admin')))
       },
     })
 
@@ -483,19 +583,31 @@ export const economyPlugin: Plugin = {
           const lines = [
             '💰 *Pajak Vela Kerajaan Velseus*',
             '',
-            `📊 *Total Harta* : ${formatVela(summary.totalWealth)} Vela`,
-            `📋 *Tarif Dasar* : ${(summary.baseTaxRate * 100).toFixed(0)}%`,
-            `💵 *Pajak Dasar* : ${formatVela(summary.currentTax)} Vela`,
-            `⚠️ *Bunga Denda* : ${(summary.penaltyRate * 100).toFixed(0)}%`,
-            `💰 *Total Kewajiban* : ${formatVela(summary.totalDue)} Vela`,
-            `📌 *Status* : ${summary.status === 'current' ? 'Lunas' : summary.status === 'warning' ? 'Minggu 1 - Surat Peringatan' : summary.status === 'penalty_1' ? 'Minggu 2 - Denda +2%' : summary.status === 'penalty_2' ? 'Minggu 3 - Denda +4% + Safe Dibekukan' : 'Minggu 4+ - Denda +6%+ + Total Dibekukan'}`,
-            `🔒 *Cakupan Pembekuan* : ${summary.frozenScope === 'none' ? 'Tidak ada' : summary.frozenScope === 'safe' ? 'Safe dibekukan' : 'Wallet & Safe dibekukan total'}`,
-            `📅 *Minggu Ke-* : ${summary.weekNumber}`,
-            `⏰ *Jatuh Tempo* : <t:${Math.floor(new Date(summary.dueAt).getTime() / 1000)}:R>`,
-            summary.isOverdue ? '🚨 *TERLAMBAT - Segera bayar untuk menghindari penalti!*' : '',
-            '',
-            'Bayar pajak: `!taxbayar`',
-          ].filter(Boolean)
+            `• Total Kekayaan: *${formatVela(summary.totalWealth)} Vela*`,
+            `• Tarif Pajak Dasar: *${(summary.baseTaxRate * 100).toFixed(0)}%* (${formatVela(summary.currentTax)} Vela)`,
+          ]
+          if (summary.penaltyRate > 0) {
+            lines.push(`• Denda Keterlambatan: *${(summary.penaltyRate * 100).toFixed(0)}%*`)
+          }
+          lines.push(
+            `• Total Tagihan: *${formatVela(summary.totalDue)} Vela*`,
+            `• Status: *${taxStatusLabel(summary.status)}*`,
+          )
+          if (summary.frozenScope !== 'none') {
+            lines.push(`• Pembekuan: *${frozenScopeLabel(summary.frozenScope)}*`)
+          }
+          lines.push(
+            `• Periode: *Minggu ke-${summary.weekNumber}*`,
+            `• Batas Waktu: *${formatDueDate(summary.dueAt)}*`,
+          )
+          if (summary.isOverdue) {
+            lines.push('', '🚨 *TERLAMBAT* — Segera bayar untuk menghindari penalti & pembekuan rekening!')
+          }
+          if (summary.totalDue > 0) {
+            lines.push('', `Ketik \`${commandContext.prefix}taxbayar\` untuk melunasi pajak.`)
+          } else {
+            lines.push('', '✅ Tagihan pajak kamu saat ini sudah lunas.')
+          }
           return lines.join('\n')
         })
       },
@@ -516,8 +628,8 @@ export const economyPlugin: Plugin = {
         await runEconomyAction(commandContext, async () => {
           const summary = await economyService(commandContext).getTaxSummary(groupJid, actor)
           if (!summary) return '🏦 Sistem pajak belum tersedia untuk akun ini.'
-          if (summary.totalDue <= 0) return '✅ Tidak ada pajak yang harus dibayar saat ini.'
-          return renderMutation(`Pajak berhasil dibayar.`, await economyService(commandContext).payTax(groupJid, actor, actor, operationKey(commandContext, 'tax-pay'), `Pembayaran pajak minggu ke-${summary.weekNumber}`))
+          if (summary.totalDue <= 0) return '✅ Tidak ada tagihan pajak yang perlu dibayar saat ini.'
+          return renderMutation('Pajak berhasil dibayar.', await economyService(commandContext).payTax(groupJid, actor, actor, operationKey(commandContext, 'tax-pay'), `Pembayaran pajak minggu ke-${summary.weekNumber}`))
         })
       },
     })

@@ -79,11 +79,11 @@ function renderContextStatus(context: GroupContextRecord): string[] {
       ? context.icSubtype.charAt(0).toUpperCase() + context.icSubtype.slice(1)
       : context.mode === 'guide' ? 'Character Registration' : 'Tidak ada'
   return [
-    `↳ *Mode* : ${context.mode.toUpperCase()}`,
-    `↳ *Konteks* : ${subtype}`,
-    `↳ *Autodetect OOC/IC* : ${context.mode === 'ic' ? (context.oocPolicy === 'permissive' ? 'Permissive' : 'Strict') : 'Tidak digunakan'}`,
-    `↳ *Welcome/Leave* : ${context.mode === 'ooc' ? 'Tersedia' : 'Terkunci'}`,
-    `↳ *Character Guide* : ${context.mode === 'guide' ? 'Aktif' : 'Tidak aktif'}`,
+    `• Mode: ${context.mode.toUpperCase()}`,
+    `• Konteks: ${subtype}`,
+    `• Filter OOC/IC: ${context.mode === 'ic' ? (context.oocPolicy === 'permissive' ? 'Permissive' : 'Strict') : 'Tidak digunakan'}`,
+    `• Welcome & Leave: ${context.mode === 'ooc' ? 'Tersedia' : 'Terkunci'}`,
+    `• Character Guide: ${context.mode === 'guide' ? 'Aktif' : 'Tidak aktif'}`,
   ]
 }
 
@@ -99,18 +99,6 @@ async function requireOocContext(context: CommandContext): Promise<boolean> {
 
 function updateActor(context: CommandContext): string {
   return context.message.senderJid ?? context.whatsapp.userJid ?? 'unknown'
-}
-
-function renderHeader(title: string): string[] {
-  return [
-    '𖥦 ׂׅ─── ꫶֗ ୨ 👥 ୧ ꫶֗ ───ׂׅ',
-    `⿴⃟۪۪⃕᎒⃟ *${title}* ꕤꪆ`,
-    '᠂᠂᠂ ───┈ ⸼ ⚝ ⸼ ┈─── ᠂᠂᠂',
-  ]
-}
-
-function renderFooter(): string[] {
-  return ['━━━━━━━━━━━━━━━━━━━━', '*© Allyssea Roleplay Community*']
 }
 
 function parseHistoryLimit(value: string | undefined): number {
@@ -133,21 +121,27 @@ function formatHistoryTime(timestamp: number, timezone: string, language: 'id' |
 function renderGroupInfo(metadata: WhatsAppGroupMetadata, botJid?: string, contextStatus?: GroupContextRecord, oocWhitelistCount?: number): string {
   const adminCount = metadata.participants.filter((participant) => participant.role === 'admin' || participant.role === 'superadmin').length
   const bot = findParticipant(metadata, botJid)
-  return [
-    ...renderHeader('𝐆𝗿𝗼𝘂𝗽 𝐈𝗻𝗳𝗼'),
+  const lines = [
+    `*Informasi Grup: ${metadata.subject}*`,
     '',
-    `↳ *Nama* : ${metadata.subject}`,
-    `↳ *Group ID* : ${metadata.jid}`,
-    `↳ *Member* : ${metadata.participants.length} orang`,
-    `↳ *Admin* : ${adminCount} orang`,
-    `↳ *Status Bot* : ${bot ? participantRoleLabel(bot.role) : 'Tidak terdeteksi'}`,
-    ...(contextStatus ? renderContextStatus(contextStatus) : []),
-    ...(contextStatus?.mode === 'ic' ? [`↳ *OOC Whitelist* : ${oocWhitelistCount ?? 0} user`] : []),
-    ...(metadata.ownerJid ? [`↳ *Creator* : ${userLabel(metadata.ownerJid)}`] : []),
-    ...(metadata.description ? ['', `↳ *Deskripsi* : ${metadata.description}`] : []),
-    '',
-    ...renderFooter(),
-  ].join('\n')
+    `• ID Grup: ${metadata.jid}`,
+    `• Member: ${metadata.participants.length} orang`,
+    `• Admin: ${adminCount} orang`,
+    `• Status Bot: ${bot ? participantRoleLabel(bot.role) : 'Tidak terdeteksi'}`,
+  ]
+  if (contextStatus) {
+    lines.push(...renderContextStatus(contextStatus))
+  }
+  if (contextStatus?.mode === 'ic') {
+    lines.push(`• OOC Whitelist: ${oocWhitelistCount ?? 0} user`)
+  }
+  if (metadata.ownerJid) {
+    lines.push(`• Creator: ${userLabel(metadata.ownerJid)}`)
+  }
+  if (metadata.description) {
+    lines.push('', `*Deskripsi:*`, metadata.description)
+  }
+  return lines.join('\n')
 }
 
 function renderParticipantList(
@@ -163,10 +157,8 @@ function renderParticipantList(
   const start = (currentPage - 1) * PAGE_SIZE
   const visible = participants.slice(start, start + PAGE_SIZE)
   const lines = [
-    ...renderHeader(title),
-    '',
-    `*Grup* : ${metadata.subject}`,
-    `*Halaman* : ${currentPage}/${totalPages}`,
+    `*${title} — ${metadata.subject}*`,
+    `Halaman ${currentPage}/${totalPages} (Total: ${participants.length})`,
     '',
   ]
   if (visible.length === 0) lines.push('Belum ada data member.')
@@ -176,7 +168,6 @@ function renderParticipantList(
     }
   }
   if (totalPages > 1) lines.push('', `Ketik ${prefix}${nextCommand} ${currentPage < totalPages ? currentPage + 1 : 1} untuk halaman berikutnya.`)
-  lines.push('', ...renderFooter())
   return { text: lines.join('\n'), mentions: visible.map((participant) => participant.jid) }
 }
 
@@ -223,7 +214,7 @@ export const groupPlugin: Plugin = {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
         const adminCount = metadata.participants.filter((participant) => participant.role === 'admin' || participant.role === 'superadmin').length
-        await commandContext.reply(`👥 *${metadata.subject}*\n↳ Member : ${metadata.participants.length}\n↳ Admin : ${adminCount}`)
+        await commandContext.reply(`*${metadata.subject}*\n• Member: ${metadata.participants.length}\n• Admin: ${adminCount}`)
       },
     })
 
@@ -237,7 +228,7 @@ export const groupPlugin: Plugin = {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
         const admins = metadata.participants.filter((participant) => participant.role === 'admin' || participant.role === 'superadmin')
-        const result = renderParticipantList(metadata, admins, '𝐆𝗿𝗼𝘂𝗽 𝐀𝗱𝗺𝗶𝗻', 'admins', parsePage(commandContext.args[0]), commandContext.prefix)
+        const result = renderParticipantList(metadata, admins, 'Daftar Admin', 'admins', parsePage(commandContext.args[0]), commandContext.prefix)
         await commandContext.reply(result.text, mentionOptions(result.mentions))
       },
     })
@@ -251,7 +242,7 @@ export const groupPlugin: Plugin = {
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
-        const result = renderParticipantList(metadata, metadata.participants, '𝐆𝗿𝗼𝘂𝗽 𝐌𝗲𝗺𝗯𝗲𝗿', 'members', parsePage(commandContext.args[0]), commandContext.prefix)
+        const result = renderParticipantList(metadata, metadata.participants, 'Daftar Member', 'members', parsePage(commandContext.args[0]), commandContext.prefix)
         await commandContext.reply(result.text, mentionOptions(result.mentions))
       },
     })
@@ -265,7 +256,7 @@ export const groupPlugin: Plugin = {
         if (!(await requireGroup(commandContext))) return
         const target = memberTargetJid(commandContext)
         if (!target) {
-          await commandContext.reply('Reply atau mention satu member. Contoh: !memberinfo @user')
+          await commandContext.reply(`Reply atau mention satu member. Contoh: ${commandContext.prefix}memberinfo @user`)
           return
         }
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
@@ -275,7 +266,7 @@ export const groupPlugin: Plugin = {
           return
         }
         await commandContext.reply(
-          `👤 *Member Info*\n↳ Pengguna : ${userLabel(participant.jid)}\n↳ Role : ${roleLabel(commandContext, participant)}`,
+          `*Informasi Member*\n• User: ${userLabel(participant.jid)}\n• Role : ${roleLabel(commandContext, participant)}`,
           mentionOptions([participant.jid]),
         )
       },
@@ -306,15 +297,11 @@ export const groupPlugin: Plugin = {
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
         const record = groupConfiguration(commandContext).getRules(commandContext.message.remoteJid)
         await commandContext.reply([
-          '📖 ⑅【 𝐑𝘂𝗹𝗲𝘀 𝐆𝗿𝘂𝗽 】',
-          '⏜ׄ꤮᷼⌒︵',
-          `↳ *Grup* : ${metadata.subject}`,
+          `*Aturan Grup: ${metadata.subject}*`,
           '',
           record?.rules ?? 'Aturan grup belum dikonfigurasi.',
-          ...(record ? [] : [`Gunakan ${commandContext.prefix}setrules <aturan> untuk menambahkannya.`]),
-          '',
-          ...renderFooter(),
-        ].join('\n'))
+          ...(record ? [] : [`\nGunakan ${commandContext.prefix}setrules <aturan> untuk menambahkannya.`]),
+        ].join('\n').trim())
       },
     })
 
@@ -473,16 +460,14 @@ export const groupPlugin: Plugin = {
         const settings = configuration.getSettings(commandContext.message.remoteJid)
         const override = configuration.getPrefix(commandContext.message.remoteJid)
         await commandContext.reply([
-          '⚙️ ⑅【 𝐏𝗿𝗲𝗳𝗶𝘅 𝐆𝗿𝘂𝗽 】',
-          '⏜ׄ꤮᷼⌒︵',
-          `↳ *Prefix aktif* : \`${commandContext.prefix}\``,
-          `↳ *Sumber* : ${override ? 'Override grup' : 'Prefix global'}`,
-          `↳ *Prefix global* : \`${commandContext.config.commandPrefix}\``,
-          `↳ *Language* : ${settings.language?.language ?? 'id'}`,
+          '*Prefix Grup*',
+          `• Prefix aktif: \`${commandContext.prefix}\``,
+          `• Sumber: ${override ? 'Override grup' : 'Prefix global'}`,
+          `• Prefix global: \`${commandContext.config.commandPrefix}\``,
+          `• Bahasa: ${settings.language?.language ?? 'id'}`,
           '',
-          `Gunakan \`${commandContext.prefix}setprefix <simbol>\` untuk mengubahnya.`,
+          `Ubah: \`${commandContext.prefix}setprefix <simbol>\``,
           `Reset ke global: \`${commandContext.prefix}setprefix default\``,
-          ...renderFooter(),
         ].join('\n'), override ? mentionOptions([override.updatedBy]) : undefined)
       },
     })
@@ -544,7 +529,7 @@ export const groupPlugin: Plugin = {
           await commandContext.reply('Role pengguna tidak ditemukan di metadata grup.')
           return
         }
-        await commandContext.reply(`↳ ${userLabel(participant.jid)} memiliki role *${roleLabel(commandContext, participant)}*.`)
+        await commandContext.reply(`• ${userLabel(participant.jid)} memiliki role *${roleLabel(commandContext, participant)}*.`)
       },
     })
 
@@ -562,12 +547,12 @@ export const groupPlugin: Plugin = {
         const permissions = botOwner
           ? ['Melihat metadata grup', 'Melihat daftar member', 'Menggunakan command bot owner']
           : role === 'admin' || role === 'superadmin'
-            ? ['Melihat metadata grup', 'Melihat daftar member', 'Menggunakan command admin setelah policy tersedia']
+            ? ['Melihat metadata grup', 'Melihat daftar member', 'Menggunakan command admin']
             : ['Melihat metadata grup', 'Melihat daftar member']
         await commandContext.reply([
-          '🔐 *Permissions*',
-          `↳ Role : ${botOwner ? 'Bot Owner' : participantRoleLabel(role)}`,
-          ...permissions.map((permission) => `✓ ${permission}`),
+          '*Izin Akses*',
+          `Role : ${botOwner ? 'Bot Owner' : participantRoleLabel(role)}`,
+          ...permissions.map((permission) => `• ${permission}`),
         ].join('\n'))
       },
     })

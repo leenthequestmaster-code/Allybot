@@ -31,11 +31,11 @@ function shorten(value: string): string {
 }
 
 function formatWarning(warning: WarningRecord): string {
-  return `⚠️ ${warning.id.slice(0, 8)} — @${warning.targetJid.split('@')[0]} — ${warning.status} — ${shorten(warning.reason)}`
+  return `• [${warning.id.slice(0, 8)}] @${warning.targetJid.split('@')[0]} (${warning.status}) — ${shorten(warning.reason)}`
 }
 
 function formatCase(record: ModerationCaseRecord): string {
-  return `🛡️ ${record.id.slice(0, 8)} — ${record.status} — rule=${record.ruleId} — target=@${record.targetJid.split('@')[0]} — ${shorten(record.reason)}`
+  return `• [${record.id.slice(0, 8)}] [${record.status.toUpperCase()}] ${record.ruleId} — @${record.targetJid.split('@')[0]} — ${shorten(record.reason)}`
 }
 
 function isAdmin(metadata: WhatsAppGroupMetadata, jid: string | undefined): boolean {
@@ -56,7 +56,7 @@ function findCaseByPrefix(service: GroupSafetyService, group: string, prefix: st
 }
 
 function modeHelp(prefix: string): string {
-  return `Format: ${prefix}setsafety <dry-run|off>\nDry-run hanya mencatat deteksi dan tidak menghapus pesan atau mengubah member.`
+  return `Format: ${prefix}setsafety <dry-run|off>\nDry-run hanya mencatat deteksi tanpa tindakan otomatis.`
 }
 
 export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
@@ -76,7 +76,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
           const settings = safetyService(commandContext).getMode(group)
-          await commandContext.reply(`🛡️ Group Safety: *${settings.mode}*\nAktifkan dengan ${commandContext.prefix}setsafety dry-run (admin).`)
+          await commandContext.reply(`🛡️ Group Safety: *${settings.mode}*\nAktifkan dry-run dengan: ${commandContext.prefix}setsafety dry-run`)
         },
       })
 
@@ -103,7 +103,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
           const record = safetyService(commandContext).setMode(group, mode, actor)
-          await commandContext.reply(`✅ Group Safety untuk grup ini sekarang: *${record.mode}*.\nMode enforcement destructive belum tersedia.`)
+          await commandContext.reply(`🛡️ [SAFETY] Mode Group Safety sekarang: *${record.mode}*.`)
         },
       })
 
@@ -127,7 +127,11 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
           const warning = safetyService(commandContext).issueWarning(group, target, actor, reason)
-          await commandContext.reply(`✅ Warning tercatat. ID: ${warning.id.slice(0, 8)}\nTarget: @${target.split('@')[0]}\nBerlaku sampai: ${new Date(warning.expiresAt).toISOString()}`, { mentions: [target] })
+          const activeCount = safetyService(commandContext).countActiveWarnings(group, target)
+          await commandContext.reply(
+            `[WARN] @${target.split('@')[0]} mendapat peringatan ke-${activeCount}. Alasan: ${reason} (ID: ${warning.id.slice(0, 8)})`,
+            { mentions: [target] },
+          )
         },
       })
 
@@ -146,7 +150,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const target = commandContext.message.mentionedJids?.[0] ?? commandContext.message.quotedSenderJid
           const warnings = safetyService(commandContext).listWarnings(group, target)
-          await commandContext.reply(warnings.length === 0 ? 'Belum ada warning tercatat.' : ['⚠️ *Recent Warnings*', ...warnings.map(formatWarning)].join('\n'))
+          await commandContext.reply(warnings.length === 0 ? 'Belum ada warning tercatat.' : ['📋 *Daftar Peringatan (Warnings)*', ...warnings.map(formatWarning)].join('\n'))
         },
       })
 
@@ -211,7 +215,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
           const cases = safetyService(commandContext).listCases(group, ['open', 'claimed', 'appealed'])
-          await commandContext.reply(cases.length === 0 ? 'Tidak ada case terbuka.' : ['🛡️ *Open Safety Cases*', ...cases.map(formatCase)].join('\n'))
+          await commandContext.reply(cases.length === 0 ? 'Tidak ada case terbuka.' : ['🛡️ *Daftar Kasus Terbuka (Open Cases)*', ...cases.map(formatCase)].join('\n'))
         },
       })
 
@@ -233,7 +237,20 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
           const record = findCaseByPrefix(safetyService(commandContext), group, id)
-          await commandContext.reply(record ? [formatCase(record), `Reporter: @${record.reporterJid.split('@')[0]}`, `Evidence: ${record.evidenceMessageId ? 'message id tersimpan' : 'tidak ada'}`, `Revision: ${record.revision}`].join('\n') : 'Case tidak ditemukan di grup ini.')
+          if (!record) {
+            await commandContext.reply('Case tidak ditemukan di grup ini.')
+            return
+          }
+          await commandContext.reply([
+            `*Detail Kasus #${record.id.slice(0, 8)}*`,
+            `• Status: ${record.status}`,
+            `• Rule: ${record.ruleId}`,
+            `• Target: @${record.targetJid.split('@')[0]}`,
+            `• Pelapor: @${record.reporterJid.split('@')[0]}`,
+            `• Alasan: ${record.reason}`,
+            `• Bukti: ${record.evidenceMessageId ? 'ID pesan tersimpan' : 'Tidak ada'}`,
+            `• Revisi: ${record.revision}`,
+          ].join('\n'))
         },
       })
 
@@ -259,7 +276,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const targetCase = findCaseByPrefix(safetyService(commandContext), group, id)
           const record = targetCase ? safetyService(commandContext).claimCase(group, targetCase.id, actor, expectedRevision) : undefined
-          await commandContext.reply(record ? `✅ Case ${record.id.slice(0, 8)} di-claim. Revision: ${record.revision}` : 'Case tidak ditemukan, bukan status yang dapat di-claim, atau revision sudah berubah.')
+          await commandContext.reply(record ? `✅ Case ${record.id.slice(0, 8)} di-claim (Revisi: ${record.revision}).` : 'Case tidak ditemukan, bukan status yang dapat di-claim, atau revision sudah berubah.')
         },
       })
 

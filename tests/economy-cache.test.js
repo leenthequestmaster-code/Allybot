@@ -207,18 +207,20 @@ test('Economy plugin renders the authoritative snapshot to the user', async () =
 
   assert.equal(replies.length, 1)
   assert.equal(replies[0], [
-    'Vela Status',
-    'Wallet:',
-    'Saldo tersedia: 1.250 Vela',
-    'Limit: 20.000 Vela',
-    'Tertahan karena limit: 0 Vela',
-    'Ditahan untuk transfer: 0 Vela',
-    'Safe:',
-    'Status: Aktif',
-    'Saldo: 4.000 Vela',
-    'Kapasitas: 50.000 Vela',
-    'Membership: Basic',
-    'Total tercatat: 5.250 Vela',
+    '🪙 *Status Akun Vela*',
+    'Wallet: 1.250 Vela · Safe: 4.000 Vela',
+    '',
+    '💰 *Wallet*',
+    '• Saldo tersedia: 1.250 Vela',
+    '• Batas wallet: 20.000 Vela',
+    '',
+    '🏦 *Safe*',
+    '• Status: Aktif',
+    '• Saldo safe: 4.000 Vela',
+    '• Kapasitas: 50.000 Vela',
+    '• Membership: Basic',
+    '',
+    '📊 *Total Saldo:* 5.250 Vela',
   ].join('\n'))
 })
 
@@ -265,9 +267,9 @@ test('Economy renders a plain disabled status with activation guidance', async (
 
   assert.equal(replies.length, 1)
   assert.equal(replies[0], [
-    'Vela Status',
-    'Status: Belum diaktifkan di grup ini',
-    'Keterangan: Aktivasi dilakukan oleh pengelola grup melalui policy yang sah.',
+    '🪙 *Status Vela*',
+    'Ekonomi Vela belum diaktifkan di grup ini.',
+    'Admin grup bisa mengaktifkannya dengan `!bankpolicy on`.',
   ].join('\n'))
 })
 

@@ -78,7 +78,7 @@ function formatAfkEnabled(record: AfkRecord): string {
     '⏜ׄ꤮᷼⌒︵',
     `𖥻ׁׅ 🌙𓏳ᩙ :: ${userLabel(record.userJid)} sekarang AFK.`,
     `↳ *Alasan* : ${record.reason}`,
-    '↳ Kirim pesan apa pun untuk kembali aktif secara otomatis.',
+    '↳ Kirim pesan apa saja kalau sudah kembali aktif ya.',
     '━━━━━━━━━━━━━━━━━━━━',
     '*© Allyssea Roleplay Community*',
   ].join('\n')
@@ -88,9 +88,9 @@ function formatMentionNotice(record: AfkRecord, now: number): string {
   return [
     '😴 ⑅【 𝐔𝘀𝗲𝗿 𝐀𝗙𝗞 】',
     '⏜ׄ꤮᷼⌒︵',
-    `↳ ${userLabel(record.userJid)} sedang AFK ${relativeTime(record.startedAt, now)}.`,
+    `↳ ${userLabel(record.userJid)} sedang AFK (${relativeTime(record.startedAt, now)}).`,
     `↳ *Alasan* : ${record.reason}`,
-    '↳ Mention kamu sudah diteruskan ke PC pengguna tersebut.',
+    '↳ Mention kamu sudah diteruskan ke chat pribadinya.',
     '━━━━━━━━━━━━━━━━━━━━',
     '*© Allyssea Roleplay Community*',
   ].join('\n')
@@ -110,9 +110,14 @@ function formatMentionForward(record: AfkRecord, seekerJid: string, mention: Afk
 }
 
 function formatWelcomeBack(summary: AfkEndSummary): string {
+  const count = summary.mentions.length
+  const mentionText = count === 0
+    ? 'Nggak ada mention yang terlewat selagi kamu istirahat.'
+    : `Ada ${count} mention yang masuk selagi kamu istirahat.`
+
   return [
-    `Selamat datang kembali, ${userLabel(summary.record.userJid)}!`,
-    `Kamu AFK selama ${durationText(summary.durationMs)} dan ada ${summary.mentions.length} mention yang terlewat.`,
+    `Selamat datang kembali, ${userLabel(summary.record.userJid)}! ✨`,
+    `Kamu tadi AFK selama ${durationText(summary.durationMs)}. ${mentionText}`,
   ].join('\n')
 }
 
@@ -160,7 +165,7 @@ function formatPrivateStatus(record: AfkRecord, mentions: readonly AfkMentionRec
   lines.push('', '`𝐑𝗶𝘄𝗮𝘆𝗮𝘁 𝐌𝗲𝗻𝘁𝗶𝗼𝗻 𝐏𝗿𝗶𝗯𝗮𝗱𝗶`')
 
   if (mentions.length === 0) {
-    lines.push('Belum ada yang mencari kamu saat AFK.')
+    lines.push('Belum ada yang mencarimu saat AFK.')
   } else {
     for (const [index, mention] of mentions.slice(0, 10).entries()) {
       lines.push(`${index + 1}. ${userLabel(mention.seekerJid)} — ${relativeTime(mention.mentionedAt, now)}`)
@@ -232,7 +237,7 @@ export function createAfkPlugin(whatsapp: WhatsAppPort): Plugin {
           if (mode === 'status' || mode === 'me') {
             const record = afk.getActive(userJid)
             if (!record) {
-              await whatsapp.sendText(userJid, 'Kamu tidak sedang AFK.')
+              await whatsapp.sendText(userJid, 'Kamu lagi nggak AFK kok.')
               return
             }
             const mentions = afk.getMentions(userJid)

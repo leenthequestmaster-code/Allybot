@@ -24,13 +24,13 @@ function scene(context: { services: ServiceRegistryLike }): SceneService {
 
 function requireGroup(context: CommandContext): string | undefined {
   const group = groupJid(context.message)
-  if (!group) void context.reply('Command Scene hanya dapat digunakan di dalam grup WhatsApp.')
+  if (!group) void context.reply('Command Scene hanya bisa digunakan di dalam grup WhatsApp.')
   return group
 }
 
 function requireEnabled(context: CommandContext, group: string): boolean {
   if (scene(context).isEnabled(group)) return true
-  void context.reply(`Fitur Scene belum aktif untuk grup ini. Admin dapat mengaktifkannya dengan ${context.prefix}setscene on.`)
+  void context.reply(`Fitur Scene belum aktif di grup ini. Admin bisa mengaktifkannya dengan ${context.prefix}setscene on.`)
   return false
 }
 
@@ -41,18 +41,18 @@ function shortId(id: string): string {
 function renderScene(record: SceneRecord, participantCount?: number, participant?: SceneParticipantRecord): string {
   return [
     `🎭 *Scene ${shortId(record.id)}*`,
-    `Judul: ${record.title}`,
-    `Visibility: ${record.visibility}`,
-    `Status: ${record.status}`,
-    `Peserta aktif: ${participantCount ?? '-'}`,
-    participant ? `Mode kamu: ${participant.mode.toUpperCase()}` : undefined,
-    `Berakhir: ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'tidak ditentukan'}`,
+    `• Judul: *${record.title}*`,
+    `• Visibility: ${record.visibility}`,
+    `• Status: ${record.status}`,
+    `• Peserta aktif: ${participantCount ?? '-'}`,
+    participant ? `• Mode kamu: ${participant.mode.toUpperCase()}` : undefined,
+    `• Berakhir: ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'tidak ditentukan'}`,
   ].filter((line): line is string => Boolean(line)).join('\n')
 }
 
 function renderList(views: readonly SceneView[]): string {
-  if (views.length === 0) return 'Belum ada scene aktif yang terlihat pada scope kamu.'
-  return ['🎭 *Scene aktif*', ...views.map((view) => `• ${shortId(view.scene.id)} — ${view.scene.title} [${view.scene.visibility}/${view.scene.status}] · ${view.participantCount} peserta`)].join('\n')
+  if (views.length === 0) return 'Belum ada scene aktif di grup ini.'
+  return ['🎭 *Scene Aktif*', ...views.map((view) => `• ${shortId(view.scene.id)} — *${view.scene.title}* [${view.scene.visibility}/${view.scene.status}] · ${view.participantCount} peserta`)].join('\n')
 }
 
 function parseOpenArgs(args: readonly string[]): { title: string; visibility: 'public' | 'private'; ttlMinutes?: number } {
@@ -80,15 +80,16 @@ function parseConsent(args: readonly string[]): { sceneId: string; action: strin
 
 function sceneHelp(prefix: string): string {
   return [
-    `${prefix}scene`,
-    `${prefix}scene open <judul> [public|private] [ttl=menit]`,
-    `${prefix}scene join <id>`,
-    `${prefix}scene leave <id>`,
-    `${prefix}scene status <id>`,
-    `${prefix}scene pause|resume|close <id>`,
-    `${prefix}ic|ooc <id>`,
-    `${prefix}pause <id>`,
-    `${prefix}consent <id> <participate|share_context|receive_assistance> <on|off> [menit]`,
+    '*PANDUAN SCENE*',
+    `• *${prefix}scene* — lihat daftar scene aktif`,
+    `• *${prefix}scene open <judul> [public|private] [ttl=menit]* — buat scene baru`,
+    `• *${prefix}scene join <id>* — gabung ke scene`,
+    `• *${prefix}scene leave <id>* — keluar dari scene`,
+    `• *${prefix}scene status <id>* — lihat status scene`,
+    `• *${prefix}scene pause|resume|close <id>* — kelola status scene`,
+    `• *${prefix}ic <id>* / *${prefix}sceneooc <id>* — ganti mode bicara`,
+    `• *${prefix}pause <id>* — jeda scene`,
+    `• *${prefix}consent <id> <aksi> <on|off> [menit]* — atur izin scene`,
   ].join('\n')
 }
 
@@ -107,7 +108,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!group || !requireEnabled(commandContext, group)) return
           const actor = actorJid(commandContext.message, whatsapp)
           if (!actor) {
-            await commandContext.reply('Identitas pengguna tidak tersedia; command Scene ditolak.')
+            await commandContext.reply('Identitas pengirim tidak ditemukan.')
             return
           }
           const action = commandContext.args[0]?.toLowerCase()
@@ -120,16 +121,16 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
             if (action === 'open') {
               const parsed = parseOpenArgs(commandContext.args.slice(1))
               const created = service.openScene({ groupJid: group, creatorJid: actor, ...parsed })
-              await commandContext.reply(`✅ Scene dibuat.\n${renderScene(created, 1, { sceneId: created.id, userJid: actor, role: 'owner', status: 'active', mode: 'ooc', joinedAt: created.createdAt, updatedAt: created.updatedAt })}`)
+              await commandContext.reply(`✅ Scene dibuat.\n\n${renderScene(created, 1, { sceneId: created.id, userJid: actor, role: 'owner', status: 'active', mode: 'ooc', joinedAt: created.createdAt, updatedAt: created.updatedAt })}`)
             } else if (action === 'join') {
               const participant = service.joinScene(group, commandContext.args[1] ?? '', actor)
               await commandContext.reply(`✅ Kamu bergabung ke scene ${shortId(participant.sceneId)} sebagai OOC. Consent harus diberikan terpisah melalui ${commandContext.prefix}consent.`)
             } else if (action === 'leave') {
               const left = service.leaveScene(group, commandContext.args[1] ?? '', actor)
-              await commandContext.reply(left ? `✅ Kamu keluar dari scene ${commandContext.args[1]}. Consent aktif ditarik.` : 'Kamu tidak sedang menjadi peserta aktif scene tersebut.')
+              await commandContext.reply(left ? `✅ Kamu keluar dari scene ${commandContext.args[1]}. Consent aktif ditarik.` : 'Kamu bukan peserta aktif di scene ini.')
             } else if (action === 'status') {
               const view = service.getVisibleScene(group, commandContext.args[1] ?? '', actor)
-              await commandContext.reply(view ? renderScene(view.scene, view.participantCount, view.participant) : 'Scene tidak ditemukan atau tidak terlihat pada scope kamu.')
+              await commandContext.reply(view ? renderScene(view.scene, view.participantCount, view.participant) : 'Scene tidak ditemukan atau kamu tidak memiliki akses.')
             } else if (action === 'pause' || action === 'resume' || action === 'close') {
               const reference = commandContext.args[1] ?? ''
               const updated = action === 'pause'
@@ -137,12 +138,12 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
                 : action === 'resume'
                   ? service.resumeScene(group, reference, actor)
                   : service.closeScene(group, reference, actor)
-              await commandContext.reply(`✅ Lifecycle scene diperbarui.\n${renderScene(updated)}`)
+              await commandContext.reply(`✅ Status scene berhasil diperbarui.\n\n${renderScene(updated)}`)
             } else {
               await commandContext.reply(sceneHelp(commandContext.prefix))
             }
           } catch (error) {
-            await commandContext.reply(error instanceof Error ? error.message : 'Operasi Scene ditolak oleh validasi.')
+            await commandContext.reply(error instanceof Error ? error.message : 'Gagal memproses operasi scene.')
           }
         },
       })
@@ -160,11 +161,11 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
           const actor = actorJid(commandContext.message, whatsapp)
           const mode = commandContext.args[0]?.toLowerCase()
           if (!actor || (mode !== 'on' && mode !== 'off')) {
-            await commandContext.reply(`Format: ${commandContext.prefix}setscene <on|off>`)
+            await commandContext.reply(`Format: *${commandContext.prefix}setscene <on|off>*`)
             return
           }
           scene(commandContext).setEnabled(group, mode === 'on', actor)
-          await commandContext.reply(`✅ Scene untuk grup ini: *${mode}*.`)
+          await commandContext.reply(`✅ Fitur Scene untuk grup ini: *${mode}*.`)
         },
       })
 
@@ -206,7 +207,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!group || !requireEnabled(commandContext, group)) return
           const actor = actorJid(commandContext.message, whatsapp)
           if (!actor) {
-            await commandContext.reply('Identitas pengguna tidak tersedia; consent ditolak.')
+            await commandContext.reply('Identitas pengirim tidak ditemukan.')
             return
           }
           try {
@@ -214,7 +215,7 @@ export function createScenePlugin(whatsapp: WhatsAppPort): Plugin {
             const consent = scene(commandContext).setConsent({ groupJid: group, sceneReference: parsed.sceneId, userJid: actor, ...parsed })
             await commandContext.reply(`✅ Consent *${consent.action}* untuk scene ${shortId(consent.sceneId)}: *${consent.enabled ? 'on' : 'off'}*.${consent.expiresAt ? ` Berlaku sampai ${new Date(consent.expiresAt).toISOString()}.` : ''}`)
           } catch (error) {
-            await commandContext.reply(error instanceof Error ? error.message : 'Consent ditolak oleh validasi.')
+            await commandContext.reply(error instanceof Error ? error.message : 'Pengaturan consent gagal.')
           }
         },
       })
@@ -227,14 +228,14 @@ async function updateMode(commandContext: CommandContext, whatsapp: WhatsAppPort
   if (!group || !requireEnabled(commandContext, group)) return
   const actor = actorJid(commandContext.message, whatsapp)
   if (!actor || !commandContext.args[0]) {
-    await commandContext.reply(`Format: ${commandContext.prefix}${mode} <sceneId>`)
+    await commandContext.reply(`Format: *${commandContext.prefix}${mode} <sceneId>*`)
     return
   }
   try {
     const participant = scene(commandContext).setMode(group, commandContext.args[0], actor, mode)
     await commandContext.reply(`✅ Scene ${shortId(participant.sceneId)} sekarang berlabel *${participant.mode.toUpperCase()}*. Label ini hanya metadata presentasi, bukan permission.`)
   } catch (error) {
-    await commandContext.reply(error instanceof Error ? error.message : 'Mode scene ditolak oleh validasi.')
+    await commandContext.reply(error instanceof Error ? error.message : 'Gagal mengubah mode scene.')
   }
 }
 
@@ -243,13 +244,13 @@ async function transitionShortcut(commandContext: CommandContext, whatsapp: What
   if (!group || !requireEnabled(commandContext, group)) return
   const actor = actorJid(commandContext.message, whatsapp)
   if (!actor || !commandContext.args[0]) {
-    await commandContext.reply(`Format: ${commandContext.prefix}${action} <sceneId>`)
+    await commandContext.reply(`Format: *${commandContext.prefix}${action} <sceneId>*`)
     return
   }
   try {
     const updated = scene(commandContext).pauseScene(group, commandContext.args[0], actor)
     await commandContext.reply(`✅ Scene ${shortId(updated.id)} dijeda.`)
   } catch (error) {
-    await commandContext.reply(error instanceof Error ? error.message : 'Lifecycle scene ditolak oleh validasi.')
+    await commandContext.reply(error instanceof Error ? error.message : 'Gagal mengubah status scene.')
   }
 }

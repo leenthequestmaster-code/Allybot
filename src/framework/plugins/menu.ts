@@ -195,12 +195,11 @@ function formatCommand(command: CommandDefinition, prefix: string, position: num
 
 function renderBotProfile(commandContext: Pick<CommandContext, 'config'>): string {
   return [
-    '╭─〔 *PROFILE BOT* 〕',
-    `│ Nama   : *${BOT_NAME}*`,
-    `│ Uptime : *${formatUptime(process.uptime())}*`,
-    `│ Owner  : *${formatOwner(commandContext.config.botOwnerJid)}*`,
-    `│ Versi  : *v${BOT_VERSION}*`,
-    '╰────────────────────',
+    '*PROFILE BOT*',
+    `• Nama   : *${BOT_NAME}*`,
+    `• Uptime : *${formatUptime(process.uptime())}*`,
+    `• Owner  : *${formatOwner(commandContext.config.botOwnerJid)}*`,
+    `• Versi  : *v${BOT_VERSION}*`,
   ].join('\n')
 }
 
@@ -210,13 +209,11 @@ function renderMainMenu(
   commandContext: Pick<CommandContext, 'config'>,
 ): string {
   const lines = [
-    '╭━━━━━━━━━━━━━━━━━━━━╮',
-    '│  *ALLYBOT MENU*  🤖  │',
-    '╰━━━━━━━━━━━━━━━━━━━━╯',
+    '*ALLYBOT MENU* 🤖',
     '',
     renderBotProfile(commandContext),
     '',
-    'Hai! Pilih kategori dengan membalas angka di bawah ini:',
+    'Pilih kategori dengan membalas angka di bawah:',
     '',
   ]
 
@@ -231,8 +228,7 @@ function renderMainMenu(
 
   lines.push(
     '',
-    '━━━━━━━━━━━━━━━━━━━━',
-    `Balas dengan *${prefix}menu 1*, *${prefix}menu 2*, dan seterusnya.`,
+    `Balas dengan *${prefix}menu 1*, *${prefix}menu 2*, dst.`,
     `Ketik *${prefix}menu* kapan saja untuk kembali ke daftar ini.`,
   )
   return lines.join('\n')
@@ -246,9 +242,8 @@ function resolveCategory(categories: readonly MenuCategory[], identifier: string
 function renderCategoryMenu(category: MenuCategory, prefix: string, commandContext: Pick<CommandContext, 'config'>): string {
   const { icon } = presentationFor(category.name)
   const lines = [
-    `╭─〔 ${icon} *${categoryLabel(category)}* 〕`,
-    `│ ${category.commands.length} command tersedia`,
-    '╰────────────────────',
+    `${icon} *${categoryLabel(category)}*`,
+    `_${category.commands.length} command tersedia_`,
     '',
   ]
   category.commands.forEach((command, index) => lines.push(formatCommand(command, prefix, index + 1)))
@@ -262,7 +257,6 @@ function renderCategoryMenu(category: MenuCategory, prefix: string, commandConte
     `${prefix}menu | ${prefix}commands | ${prefix}help`,
     ':::',
     '',
-    '━━━━━━━━━━━━━━━━━━━━',
     `Balas *${prefix}menu* untuk kembali ke menu utama.`,
   )
   return [renderBotProfile(commandContext), '', ...lines].join('\n')

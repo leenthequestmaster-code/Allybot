@@ -124,8 +124,8 @@ function renderIdCard(code: string): string {
 
 function renderGuideInstructions(): string {
   return [
-    'Panduan pengisian Character ID Card',
-    'Isi bagian setelah tanda titik dua.',
+    '*Panduan Pengisian Character ID Card*',
+    'Isi bagian setelah tanda titik dua (:).',
     'Gunakan format sederhana seperti contoh berikut:',
     '',
     'Name: Aruna',
@@ -141,77 +141,76 @@ function renderGuideInstructions(): string {
     'Visual: —',
     'Origin: —',
     '',
-    'Bold, italic, code mark, spasi berlebih, baris kosong, dan urutan field yang berbeda tetap dapat dibaca. Jangan mengisi Money, Membership, Rank, Level, atau Inventory karena nilainya diatur server.',
+    'Format teks bebas (bold, miring, spasi, atau beda urutan tetap terbaca). Jangan isi Money, Membership, Rank, Level, atau Inventory karena diatur otomatis oleh sistem.',
   ].join('\n')
 }
 
 function renderPrivateCharacterGuide(): string {
   return [
-    'Your Character',
+    '*YOUR CHARACTER*',
     'Command yang tersedia:',
-    '!character — melihat Character aktif',
-    '!deletechar — menonaktifkan Character dengan konfirmasi',
-    '!daftar — memulai Character baru setelah tidak ada Character aktif',
-    '!retry — mengulang session yang belum selesai',
-    '!cancel — membatalkan session yang belum selesai',
-    '!guider — melihat kontak guider di grup',
+    '• !character — lihat Character aktif',
+    '• !deletechar — nonaktifkan Character (butuh konfirmasi)',
+    '• !daftar — buat Character baru setelah tidak ada yang aktif',
+    '• !retry — ulang pendaftaran yang belum selesai',
+    '• !cancel — batalkan pendaftaran yang berjalan',
+    '• !guider — lihat kontak guider di grup',
   ].join('\n')
 }
 
 function renderSimpleGuide(): string {
   return [
-    'Cara mudahnya:',
-    'Name adalah nama karakter.',
-    'Gender adalah jenis kelamin karakter.',
-    'Age adalah umur karakter.',
-    'Birthday adalah tanggal lahir dalam kalender KAR.',
-    'Race adalah ras karakter.',
-    'Class adalah kelas atau keahlian utama.',
-    'Element adalah elemen kekuatan.',
-    'Will Of Path adalah Light, Dark, atau Neutral.',
-    'Bagian lain boleh dikosongkan dengan tanda —.',
+    '*Panduan Singkat:*',
+    '• Name: nama karakter',
+    '• Gender: jenis kelamin karakter (Male/Female/Non-Binary)',
+    '• Age: umur karakter (angka)',
+    '• Birthday: tanggal lahir kalender KAR (contoh: 12 Zephyra 776 KAR)',
+    '• Race: ras karakter (Human, Elf, dsb.)',
+    '• Class: kelas atau keahlian utama (Knight, Mage, dsb.)',
+    '• Element: elemen kekuatan (Fire, Water, dsb.)',
+    '• Will Of Path: Light, Dark, atau Neutral',
+    '• Bagian lain boleh dikosongkan dengan tanda —',
   ].join('\n')
 }
 
 function renderSaveUsage(prefix: string): string {
   return [
-    `Format: ${prefix}savecharacter`,
-    'Reply ID Card dengan command tersebut dan isi seluruh field di bawahnya.',
-    `Contoh: ${prefix}savecharacter`,
+    `*Format:* ${prefix}savecharacter`,
+    'Reply ID Card dengan command tersebut, lalu tulis seluruh data di bawahnya.',
   ].join('\n')
 }
 
 function renderParseIssues(issues: readonly { field?: string; message: string }[]): string {
   return [
-    'Character Sheet belum disimpan.',
+    '*Character Sheet belum tersimpan.*',
     'Perbaiki bagian berikut:',
-    ...issues.slice(0, 8).map((item) => `- ${item.field ? `${item.field}: ` : ''}${item.message}`),
+    ...issues.slice(0, 8).map((item) => `• ${item.field ? `${item.field}: ` : ''}${item.message}`),
     '',
-    'Silakan reply ulang ID Card dengan data yang sudah diperbaiki menggunakan !savecharacter.',
+    'Reply ulang ID Card dengan data yang sudah diperbaiki menggunakan *!savecharacter*.',
   ].join('\n')
 }
 
 function renderCharacter(record: Awaited<ReturnType<CharacterGuideService['getActive']>>): string {
   if (!record) return 'Kamu belum memiliki Character aktif. Gunakan !daftar di Grup Guide.'
   return [
-    'Your Character',
-    `Name: ${record.name}`,
-    `Gender: ${record.gender}`,
-    `Age: ${record.age}`,
-    `Birthday: ${record.birthday}`,
-    `Race: ${record.race}`,
-    `Class: ${record.className}`,
-    `Element: ${record.element}`,
-    `Spirit: ${record.spirit ?? '—'}`,
-    `Crew: ${record.crew ?? '—'}`,
-    `Rank: ${record.rank}`,
-    `Level: ${record.level}`,
-    `Will Of Path: ${record.willOfPath}`,
-    `Profession: ${record.profession ?? '—'}`,
-    `Titles: ${record.titles.join(', ') || '—'}`,
-    `Motto: ${record.motto ?? '—'}`,
-    `Visual: ${record.visual ?? '—'}`,
-    `Origin: ${record.origin ?? '—'}`,
+    '*YOUR CHARACTER*',
+    `• Name: ${record.name}`,
+    `• Gender: ${record.gender}`,
+    `• Age: ${record.age}`,
+    `• Birthday: ${record.birthday}`,
+    `• Race: ${record.race}`,
+    `• Class: ${record.className}`,
+    `• Element: ${record.element}`,
+    `• Spirit: ${record.spirit ?? '—'}`,
+    `• Crew: ${record.crew ?? '—'}`,
+    `• Rank: ${record.rank}`,
+    `• Level: ${record.level}`,
+    `• Will Of Path: ${record.willOfPath}`,
+    `• Profession: ${record.profession ?? '—'}`,
+    `• Titles: ${record.titles.join(', ') || '—'}`,
+    `• Motto: ${record.motto ?? '—'}`,
+    `• Visual: ${record.visual ?? '—'}`,
+    `• Origin: ${record.origin ?? '—'}`,
   ].join('\n')
 }
 
@@ -256,7 +255,7 @@ async function sendQuickReplies(
 
 function guideRequirement(context: CommandContext, mode: string): string | undefined {
   if (mode === 'guide') return undefined
-  return `Command ini hanya dapat digunakan di Grup Guide. Mode grup saat ini: ${mode.toUpperCase()}.`
+  return `Command ini hanya bisa digunakan di Grup Guide. Mode grup saat ini: ${mode.toUpperCase()}.`
 }
 
 export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
@@ -331,7 +330,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           } catch {
             context.logger.warn('character guide card issuance failed')
             try {
-              await whatsapp.sendText(pending.groupJid, 'ID Card belum dapat diterbitkan sekarang. Coba lagi nanti atau gunakan !retry jika session lama bermasalah.')
+              await whatsapp.sendText(pending.groupJid, 'ID Card belum bisa diterbitkan sekarang. Coba lagi sebentar lagi atau gunakan !retry jika sesi lama bermasalah.')
             } catch {
               context.logger.warn('character guide recovery notice failed')
             }
@@ -347,12 +346,12 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
               await whatsapp.sendText(ready.groupJid, renderGuideInstructions())
               await whatsapp.sendText(ready.groupJid, renderIdCard(ready.cardCode))
             }
-            await whatsapp.sendText(ready.groupJid, 'Setelah selesai, reply ID Card tersebut dengan !savecharacter. Untuk melihat daftar guider, gunakan !guider.')
+            await whatsapp.sendText(ready.groupJid, 'Setelah selesai, reply ID Card tersebut dengan *!savecharacter*. Untuk melihat daftar guider, gunakan *!guider*.')
           } catch {
             onboarding.delete(key)
             context.logger.warn('character guide card delivery failed')
             try {
-              await whatsapp.sendText(pending.groupJid, 'ID Card belum terkirim lengkap. Gunakan !retry untuk membatalkan session ini lalu mulai ulang.')
+              await whatsapp.sendText(pending.groupJid, 'ID Card belum terkirim lengkap. Gunakan !retry untuk membatalkan sesi ini lalu mulai ulang.')
             } catch {
               context.logger.warn('character guide delivery recovery notice failed')
             }
@@ -442,11 +441,11 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           const group = groupJid(commandContext)
           const actor = actorJid(commandContext)
           if (!group || !actor) {
-            await commandContext.reply('Command ini hanya dapat digunakan di dalam grup Guide.')
+            await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
             return
           }
           if (!service.isEnabled) {
-            await commandContext.reply('Character Guide belum diaktifkan pada server.')
+            await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
             return
           }
           const currentContext = await groupContext.get(group)
@@ -457,17 +456,17 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const active = await service.getActive(group, actor)
           if (active) {
-            await commandContext.reply('Kamu masih memiliki Character aktif. Gunakan !character untuk melihatnya atau !deletecharacter jika ingin memulai ulang.')
+            await commandContext.reply('Kamu masih punya Character aktif. Gunakan !character untuk melihatnya atau !deletecharacter jika ingin mulai ulang.')
             return
           }
           const existing = await service.getRegistration(group, actor)
           if (existing) {
-            await commandContext.reply('Pendaftaranmu masih berjalan. Gunakan !savecharacter dengan reply ke ID Card yang sudah diterbitkan, atau !retry untuk memulai ulang.')
+            await commandContext.reply('Pendaftaranmu masih berjalan. Reply ID Card yang sudah dikirim dengan !savecharacter, atau ketik !retry untuk mulai ulang.')
             return
           }
           const code = cardCode(commandContext.message.id)
           onboarding.set(onboardingKey(group, actor), { cardCode: code, groupJid: group, ownerJid: actor, stage: 'experience', createdAt: Date.now() })
-          await whatsapp.sendText(group, 'Selamat datang di Grup Guide. Sebelum membuat karakter, pilih pengalamanmu bermain Roleplay.')
+          await whatsapp.sendText(group, 'Selamat datang di Grup Guide! Sebelum membuat karakter, pilih pengalamanmu bermain Roleplay:')
           await sendQuickReplies(whatsapp, group, 'Pilih salah satu:', [
             { id: 'guide-experience-veteran', title: 'Pernah' },
             { id: 'guide-experience-other-platform', title: 'Pernah dari platform lain' },
@@ -488,11 +487,11 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           const group = groupJid(commandContext)
           const actor = actorJid(commandContext)
           if (!group || !actor) {
-            await commandContext.reply('Command ini hanya dapat digunakan di dalam grup Guide.')
+            await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
             return
           }
           if (!service.isEnabled) {
-            await commandContext.reply('Character Guide belum diaktifkan pada server.')
+            await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
             return
           }
           const currentContext = await groupContext.get(group)
@@ -502,17 +501,17 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
           if (!commandContext.message.quotedText || !commandContext.message.quotedMessageId || !sameJid(commandContext.message.quotedSenderJid, commandContext.whatsapp.userJid)) {
-            await commandContext.reply('Reply pesan Character ID Card dari Allybot, lalu kirim !savecharacter bersama data lengkapmu.')
+            await commandContext.reply('Reply pesan Character ID Card dari Allybot, lalu kirim !savecharacter bersama data lengkap karaktermu.')
             return
           }
           const code = parseCardCode(commandContext.message.quotedText)
           if (!code) {
-            await commandContext.reply('Reply tersebut bukan Character ID Card yang diterbitkan Allybot.')
+            await commandContext.reply('Pesan yang kamu reply bukan Character ID Card dari Allybot.')
             return
           }
           const registration = await service.getRegistration(group, actor)
           if (!registration || registration.referenceKey !== service.createCardReference(group, actor, code)) {
-            await commandContext.reply('Registration ID tidak cocok atau session pendaftaran sudah tidak aktif. Gunakan !retry di Grup Guide untuk memulai ulang.')
+            await commandContext.reply('Registration ID tidak cocok atau sesi pendaftaran sudah kedaluwarsa. Gunakan !retry di Grup Guide untuk mulai ulang.')
             return
           }
           const rawBody = extractCommandPayload(commandContext.message.text, commandContext.prefix, 'savecharacter')
@@ -531,7 +530,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply(`Character Sheet ${saved.name} berhasil disimpan.`)
             if (saved.deliveryId) {
               try {
-                await whatsapp.sendText(actor, 'Your Character\n\nCharacter Sheet berhasil didaftarkan. Gunakan !character untuk melihat profil dan !deletecharacter jika ingin memulai ulang.')
+                await whatsapp.sendText(actor, '*YOUR CHARACTER*\n\nCharacter Sheet berhasil didaftarkan. Gunakan !character untuk melihat profil dan !deletecharacter jika ingin mulai ulang.')
                 await service.markDelivery(saved.deliveryId, 'sent')
               } catch {
                 await service.markDelivery(saved.deliveryId, 'failed', 'private_delivery_failed')
@@ -540,7 +539,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             }
           } catch (error) {
             if (error instanceof CharacterGuideValidationError) await commandContext.reply(error.message)
-            else await commandContext.reply('Character Sheet belum dapat disimpan. Coba lagi nanti.')
+            else await commandContext.reply('Character Sheet belum bisa disimpan saat ini. Coba lagi nanti.')
           }
         },
       })
@@ -556,8 +555,8 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           pruneTransientState()
           const group = groupJid(commandContext)
           const actor = actorJid(commandContext)
-          if (!group || !actor) return void await commandContext.reply('Command ini hanya dapat digunakan di dalam grup Guide.')
-          if (!service.isEnabled) return void await commandContext.reply('Character Guide belum diaktifkan pada server.')
+          if (!group || !actor) return void await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
           const currentContext = await groupContext.get(group)
           const modeError = guideRequirement(commandContext, currentContext.mode)
           if (modeError) return void await commandContext.reply(modeError)
@@ -579,8 +578,8 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           pruneTransientState()
           const group = groupJid(commandContext)
           const actor = actorJid(commandContext)
-          if (!group || !actor) return void await commandContext.reply('Command ini hanya dapat digunakan di dalam grup Guide.')
-          if (!service.isEnabled) return void await commandContext.reply('Character Guide belum diaktifkan pada server.')
+          if (!group || !actor) return void await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
           const registration = await service.getRegistration(group, actor)
           if (!registration) return void await commandContext.reply('Tidak ada pendaftaran Character yang sedang berjalan.')
           await service.cancelRegistration(group, actor, registration.sessionId)
@@ -600,8 +599,8 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           pruneTransientState()
           const group = groupJid(commandContext)
           const actor = actorJid(commandContext)
-          if (!actor) return void await commandContext.reply('Identitas user tidak tersedia.')
-          if (!service.isEnabled) return void await commandContext.reply('Character Guide belum diaktifkan pada server.')
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
           const record = group ? await service.getActive(group, actor) : await service.getActiveForOwner(actor)
           await commandContext.reply(renderCharacter(record))
           const pendingDelivery = await service.pendingDeliveryForOwner(actor)
@@ -642,15 +641,15 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           pruneTransientState()
           const group = groupJid(commandContext)
           const actor = actorJid(commandContext)
-          if (!group || !actor) return void await commandContext.reply('Command Character hanya dapat digunakan di dalam grup.')
-          if (!service.isEnabled) return void await commandContext.reply('Character Guide belum diaktifkan pada server.')
+          if (!group || !actor) return void await commandContext.reply('Command Character hanya bisa digunakan di dalam grup.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
           const active = await service.getActive(group, actor)
           if (!active) return void await commandContext.reply('Kamu belum memiliki Character aktif.')
           const key = `${group}:${actor}`
           const confirmation = commandContext.args[0]?.toLowerCase() === 'confirm'
           if (!confirmation) {
             deleteConfirmations.set(key, Date.now() + GUIDE_CONFIRM_TTL_MS)
-            await commandContext.reply('Character akan dinonaktifkan dan tidak dapat digunakan sebagai Character aktif. Gunakan !deletecharacter confirm untuk melanjutkan.')
+            await commandContext.reply('Character akan dinonaktifkan permanen. Ketik *!deletecharacter confirm* untuk melanjutkan.')
             return
           }
           const expiresAt = deleteConfirmations.get(key) ?? 0
@@ -668,11 +667,11 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         menuOrder: 7,
         handler: async (commandContext) => {
           const group = groupJid(commandContext)
-          if (!group) return void await commandContext.reply('Command ini hanya dapat digunakan di dalam grup.')
+          if (!group) return void await commandContext.reply('Command ini hanya bisa digunakan di dalam grup.')
           const metadata = await whatsapp.getGroupMetadata(group)
           const guides = metadata.participants.filter((participant: WhatsAppGroupParticipant) => participant.role === 'admin' || participant.role === 'superadmin')
-          if (guides.length === 0) return void await commandContext.reply('Belum ada guider yang dapat ditampilkan.')
-          await commandContext.reply(['Daftar Guider', ...guides.map((guide) => `- @${guide.jid.split('@')[0]?.split(':')[0] ?? guide.jid}`)].join('\n'), {
+          if (guides.length === 0) return void await commandContext.reply('Belum ada guider yang terdaftar di grup ini.')
+          await commandContext.reply(['*Daftar Guider:*', ...guides.map((guide) => `• @${guide.jid.split('@')[0]?.split(':')[0] ?? guide.jid}`)].join('\n'), {
             mentions: guides.map((guide) => guide.jid),
           })
         },

@@ -17,10 +17,10 @@ function sourceFor(context: CommandContext): { descriptor: CoreMediaDescriptor; 
 }
 
 function safeMediaFailure(error: unknown): string {
-  if (error instanceof MediaTransformError && error.code === 'unsupported') return 'Format media itu belum didukung untuk perintah ini.'
+  if (error instanceof MediaTransformError && error.code === 'unsupported') return 'Format media belum didukung untuk perintah ini.'
   if (error instanceof MediaTransformError && error.code === 'output_limit') return 'Hasil media terlalu besar untuk dikirim.'
   if (error instanceof MediaTransformError && error.code === 'timeout') return 'Pengolahan media terlalu lama. Coba file yang lebih kecil.'
-  return 'Media tidak dapat diproses sekarang. Coba lagi dengan file lain.'
+  return 'Media tidak dapat diproses saat ini. Coba lagi dengan file lain.'
 }
 
 async function transformAndSend(
@@ -187,8 +187,6 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               data,
               mimeType: 'image/webp',
             })
-
-            await commandContext.reply(`✅ Stiker meme dibuat!\nAtas: ${topText || '(kosong)'}\nBawah: ${bottomText || '(kosong)'}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'smeme command failed')
             await commandContext.reply(safeMediaFailure(error))
@@ -242,8 +240,6 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               data,
               mimeType: 'image/webp',
             })
-
-            await commandContext.reply(`✅ Stiker brat dibuat!\nTeks: ${text}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
             await commandContext.reply(safeMediaFailure(error))

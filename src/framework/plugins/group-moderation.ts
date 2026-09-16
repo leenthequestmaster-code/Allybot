@@ -36,27 +36,27 @@ function groupOnlyReply(commandContext: { reply(text: string): Promise<void> }):
 
 function renderDenied(code: string): string {
   switch (code) {
-    case 'in_progress': return 'Operasi moderation masih berjalan; jangan ulangi command yang sama.'
-    case 'feature_disabled': return 'Fitur moderation actions belum diaktifkan untuk grup ini.'
-    case 'policy_denied': return 'Aksi moderation ditolak oleh policy grup.'
-    case 'rate_limited': return 'Terlalu banyak aksi moderation. Coba lagi setelah beberapa saat.'
-    case 'actor_not_admin': return 'Hanya admin grup yang dapat menjalankan aksi ini.'
-    case 'bot_not_admin': return 'Bot harus menjadi admin grup sebelum menjalankan aksi ini.'
-    case 'role_check_unavailable': return 'Status admin belum dapat diverifikasi; aksi tidak dijalankan.'
-    case 'capability_unavailable': return 'Capability WhatsApp untuk aksi ini belum tersedia pada adapter saat ini.'
-    case 'transport_timeout': return 'WhatsApp tidak merespons dalam batas waktu; tidak ada retry otomatis.'
-    case 'transport_failed': return 'WhatsApp menolak atau gagal menjalankan aksi moderation.'
-    case 'partial': return 'Sebagian target berhasil diproses; periksa status operasi sebelum mengulang.'
-    case 'recovery_required': return 'Status operasi tidak dapat dipulihkan dengan aman; jangan ulangi otomatis.'
-    default: return 'Aksi moderation tidak dapat dijalankan dengan aman.'
+    case 'in_progress': return 'Operasi moderasi sedang berjalan. Mohon tunggu.'
+    case 'feature_disabled': return 'Fitur aksi moderasi belum diaktifkan untuk grup ini.'
+    case 'policy_denied': return 'Aksi moderasi ditolak oleh kebijakan grup.'
+    case 'rate_limited': return 'Terlalu banyak aksi moderasi. Coba lagi sebentar lagi.'
+    case 'actor_not_admin': return 'Hanya admin grup yang dapat menjalankan perintah ini.'
+    case 'bot_not_admin': return 'Bot harus menjadi admin grup terlebih dahulu.'
+    case 'role_check_unavailable': return 'Status admin belum dapat diverifikasi saat ini.'
+    case 'capability_unavailable': return 'Fitur ini belum didukung oleh koneksi WhatsApp saat ini.'
+    case 'transport_timeout': return 'Koneksi WhatsApp timeout. Operasi tidak diulang otomatis.'
+    case 'transport_failed': return 'WhatsApp menolak atau gagal menjalankan aksi moderasi.'
+    case 'partial': return 'Sebagian target berhasil diproses. Periksa status operasi sebelum mengulang.'
+    case 'recovery_required': return 'Status operasi tidak stabil. Jangan ulangi otomatis.'
+    default: return 'Aksi moderasi tidak dapat dijalankan dengan aman.'
   }
 }
 
 function help(prefix: string): string {
   return [
+    `*Perintah Moderasi Grup*`,
     `Format: ${prefix}modaction <add|remove|promote|demote> @member`,
     `Format: ${prefix}groupmode <announcement|not_announcement|locked|unlocked>`,
-    `Mode dry-run/live diatur oleh service/feature flag dan tidak diaktifkan diam-diam oleh command.`,
   ].join('\n')
 }
 
@@ -103,7 +103,7 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
             return
           }
           if (planned.kind === 'duplicate') {
-            await commandContext.reply(`Operasi ini sudah diproses atau sedang berjalan. ID: ${planned.record.operationId.slice(0, 8)}`)
+            await commandContext.reply(`Operasi ini sudah diproses atau sedang berjalan (ID: ${planned.record.operationId.slice(0, 8)}).`)
             return
           }
           const result = await service.executeAction(planned.record.operationId, commandContext.whatsapp)
@@ -113,7 +113,7 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
           }
           const statuses = result.participantResults ?? []
           const okCount = statuses.filter((item) => item.status === 'ok').length
-          await commandContext.reply(`✅ Aksi *${action}* selesai dalam mode *${result.record.mode}*.\nTarget diproses: ${okCount}/${planned.record.targetCount}\nID: ${result.record.operationId.slice(0, 8)}`)
+          await commandContext.reply(`[MOD] Aksi *${action}* selesai (${result.record.mode}).\nTarget diproses: ${okCount}/${planned.record.targetCount}\nID: ${result.record.operationId.slice(0, 8)}`)
         },
       })
 
@@ -156,13 +156,13 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
             return
           }
           if (planned.kind === 'duplicate') {
-            await commandContext.reply(`Operasi ini sudah diproses atau sedang berjalan. ID: ${planned.record.operationId.slice(0, 8)}`)
+            await commandContext.reply(`Operasi ini sudah diproses atau sedang berjalan (ID: ${planned.record.operationId.slice(0, 8)}).`)
             return
           }
           const result = await service.executeAction(planned.record.operationId, commandContext.whatsapp)
           await commandContext.reply(result.kind === 'denied'
             ? `${renderDenied(result.code)}\nID: ${result.record?.operationId.slice(0, 8) ?? planned.record.operationId.slice(0, 8)}`
-            : `✅ Group mode berubah menjadi *${setting}*.\nID: ${result.record.operationId.slice(0, 8)}`)
+            : `[MOD] Mode grup berhasil diubah menjadi *${setting}*.\nID: ${result.record.operationId.slice(0, 8)}`)
         },
       })
 
@@ -179,9 +179,9 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
           const mode = service.getMode(group).mode
           const recent = service.listOperations(group, undefined, 5)
           await commandContext.reply([
-            `🛡️ Moderation actions: *${mode}*`,
-            `Operasi tercatat: ${recent.length}`,
-            'Perintah live tetap memerlukan actor dan bot admin serta capability adapter.',
+            `*Status Moderasi Grup*`,
+            `• Mode: *${mode}*`,
+            `• Riwayat operasi: ${recent.length}`,
           ].join('\n'))
         },
       })

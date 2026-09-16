@@ -74,27 +74,28 @@ function modeLabel(context: GroupContextRecord): string {
 
 export function renderGroupContextStatus(context: GroupContextRecord): string[] {
   return [
-    `Mode: ${modeLabel(context)}`,
-    `Autodetect OOC/IC: ${context.mode === 'ic' ? (context.oocPolicy === 'permissive' ? 'Permissive' : 'Strict') : 'Tidak digunakan'}`,
-    `Welcome/Leave: ${context.mode === 'ooc' ? 'Tersedia' : 'Terkunci'}`,
-    `Character Guide: ${context.mode === 'guide' ? 'Aktif' : 'Tidak aktif'}`,
+    `*Status Konteks Grup*`,
+    `• Mode: ${modeLabel(context)}`,
+    `• Filter OOC/IC: ${context.mode === 'ic' ? (context.oocPolicy === 'permissive' ? 'Permissive' : 'Strict') : 'Tidak digunakan'}`,
+    `• Welcome/Leave: ${context.mode === 'ooc' ? 'Tersedia' : 'Terkunci (khusus OOC)'}`,
+    `• Character Guide: ${context.mode === 'guide' ? 'Aktif' : 'Tidak aktif'}`,
   ]
 }
 
 function usage(prefix: string): string {
   return [
+    `*Pengaturan Mode Grup*`,
     `Format: ${prefix}setgroup <normal|ooc|guide|ic> [subtype]`,
-    `Contoh: ${prefix}setgroup guide`,
+    `Subtype IC: ${IC_SUBTYPES.join(', ')}`,
     `Contoh: ${prefix}setgroup ic bank`,
-    `Konteks IC: ${IC_SUBTYPES.join(', ')}`,
   ].join('\n')
 }
 
 function whitelistUsage(prefix: string): string {
   return [
+    `*Whitelist OOC Grup IC*`,
     `Format: ${prefix}whitelistooc <add|remove|list|clear>`,
-    `Contoh: ${prefix}whitelistooc add @narator`,
-    `Contoh: ${prefix}whitelistooc list`,
+    `Contoh: ${prefix}whitelistooc add @user`,
   ].join('\n')
 }
 
@@ -231,7 +232,7 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
           if (mode === 'guide' && !isGuideConfirm) {
             pendingGuide.set(confirmationKey, { expiresAt: Date.now() + GUIDE_CONFIRM_TTL_MS })
             await commandContext.reply([
-              'Mode Guide akan mengaktifkan pendaftaran Character Sheet.',
+              '⚠️ Mode Guide akan mengaktifkan pendaftaran Character Sheet.',
               `Konfirmasi dengan: ${commandContext.prefix}setgroup guide confirm`,
             ].join('\n'))
             return
@@ -240,7 +241,7 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
             const pending = pendingGuide.get(confirmationKey)
             pendingGuide.delete(confirmationKey)
             if (!pending || pending.expiresAt <= Date.now()) {
-              await commandContext.reply('Konfirmasi Guide sudah kedaluwarsa. Jalankan !setgroup guide terlebih dahulu.')
+              await commandContext.reply(`Konfirmasi Guide kedaluwarsa. Jalankan ${commandContext.prefix}setgroup guide terlebih dahulu.`)
               return
             }
           }
@@ -270,7 +271,7 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
           const current = await service.get(group)
           const content = commandContext.args.join(' ').trim()
           if (current.mode !== 'ic') {
-            await commandContext.reply('Grup ini tidak sedang berada dalam mode IC. Pesan OOC tidak memerlukan command !ooc.')
+            await commandContext.reply(`Grup ini tidak sedang berada dalam mode IC. Pesan OOC tidak memerlukan command ${commandContext.prefix}ooc.`)
             return
           }
           if (!content || content.length > 500) {
@@ -336,14 +337,14 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
               const metadata = await whatsapp.getGroupMetadata(group)
               const lines = entries.map((entry) => {
                 const participant = metadata.participants.find((candidate) => service.memberKeyForJid(candidate.jid) === entry.memberKey)
-                return `${participant ? userLabel(participant.jid) : '[member tidak ditemukan]'} (${entry.role})`
+                return `• ${participant ? userLabel(participant.jid) : '[member tidak ditemukan]'} (${entry.role})`
               })
-              await commandContext.reply(lines.length ? ['OOC Whitelist', ...lines].join('\n') : 'OOC Whitelist kosong.')
+              await commandContext.reply(lines.length ? ['*Daftar OOC Whitelist*', ...lines].join('\n') : 'OOC Whitelist kosong.')
               return
             }
             if (action === 'clear') {
               await service.clearAllowlist(group, actor)
-              await commandContext.reply('OOC Whitelist sudah dikosongkan.')
+              await commandContext.reply('✅ OOC Whitelist berhasil dikosongkan.')
               return
             }
             const target = targetFromMessage(commandContext)
@@ -362,12 +363,12 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
             }
             if (action === 'add') {
               await service.addAllowlist(group, target, actor, 'narrator')
-              await commandContext.reply(`OOC Whitelist diperbarui untuk ${userLabel(target)}.`)
+              await commandContext.reply(`✅ OOC Whitelist ditambahkan untuk ${userLabel(target)}.`)
               return
             }
             if (action === 'remove') {
               await service.removeAllowlist(group, target, actor)
-              await commandContext.reply(`OOC Whitelist dihapus untuk ${userLabel(target)}.`)
+              await commandContext.reply(`✅ OOC Whitelist dihapus untuk ${userLabel(target)}.`)
               return
             }
             await commandContext.reply(whitelistUsage(commandContext.prefix))
