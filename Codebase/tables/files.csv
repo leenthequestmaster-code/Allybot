@@ -24,7 +24,7 @@ src/framework/message-gate.ts,1041,.ts,source,snapshot/src/framework/message-gat
 src/framework/middleware.ts,3516,.ts,source,snapshot/src/framework/middleware.ts
 src/framework/mission.ts,17181,.ts,source,snapshot/src/framework/mission.ts
 src/framework/msg-builder.test.ts,14973,.ts,source,snapshot/src/framework/msg-builder.test.ts
-src/framework/msg-builder.ts,18938,.ts,source,snapshot/src/framework/msg-builder.ts
+src/framework/msg-builder.ts,20462,.ts,source,snapshot/src/framework/msg-builder.ts
 src/framework/operations.ts,4053,.ts,source,snapshot/src/framework/operations.ts
 src/framework/plugin-manager.ts,5165,.ts,source,snapshot/src/framework/plugin-manager.ts
 src/framework/plugins/afk.ts,11735,.ts,source,snapshot/src/framework/plugins/afk.ts
@@ -42,7 +42,7 @@ src/framework/plugins/group-setup-mission.ts,6231,.ts,source,snapshot/src/framew
 src/framework/plugins/group.ts,23616,.ts,source,snapshot/src/framework/plugins/group.ts
 src/framework/plugins/knowledge.ts,11747,.ts,source,snapshot/src/framework/plugins/knowledge.ts
 src/framework/plugins/media.ts,11461,.ts,source,snapshot/src/framework/plugins/media.ts
-src/framework/plugins/menu.ts,13302,.ts,source,snapshot/src/framework/plugins/menu.ts
+src/framework/plugins/menu.ts,13369,.ts,source,snapshot/src/framework/plugins/menu.ts
 src/framework/plugins/scene.ts,12300,.ts,source,snapshot/src/framework/plugins/scene.ts
 src/framework/plugins/sentry.ts,751,.ts,source,snapshot/src/framework/plugins/sentry.ts
 src/framework/plugins/suggestion-relay.ts,5363,.ts,source,snapshot/src/framework/plugins/suggestion-relay.ts

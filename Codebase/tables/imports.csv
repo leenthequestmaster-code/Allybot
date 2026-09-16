@@ -44,10 +44,10 @@ src/framework/mission.ts,src/framework/contracts.ts,PlatformClock|type-only,2,2
 src/framework/msg-builder.test.ts,external:node:assert/strict,default:assert,2,2
 src/framework/msg-builder.test.ts,external:node:test,describe|it,1,1
 src/framework/msg-builder.test.ts,src/framework/msg-builder.ts,MsgBuilder|parseRichMarkdown|nativeFlowAdditionalNodes,3,7
-src/framework/msg-builder.ts,external:@whiskeysockets/baileys,proto|generateMessageIDV2|BinaryNode|WASocket,2,7
+src/framework/msg-builder.ts,external:@whiskeysockets/baileys,proto|generateMessageIDV2|prepareWAMessageMedia|BinaryNode|WASocket,2,8
 src/framework/msg-builder.ts,external:node:crypto,randomUUID,1,1
-src/framework/msg-builder.ts,src/framework/contracts.ts,WhatsAppPort|type-only,9,9
-src/framework/msg-builder.ts,src/framework/validation.ts,isGroupJid,8,8
+src/framework/msg-builder.ts,src/framework/contracts.ts,WhatsAppPort|type-only,10,10
+src/framework/msg-builder.ts,src/framework/validation.ts,isGroupJid,9,9
 src/framework/operations.ts,src/framework/contracts.ts,PermissionPort|PermissionRequest|PlatformClock|PlatformEventSink|type-only,1,6
 src/framework/plugin-manager.ts,external:pino,Logger|type-only,10,10
 src/framework/plugin-manager.ts,src/framework/contracts.ts,EventBusLike|FrameworkConfig|Plugin|PluginContext|CommandRegistryLike|MessageGateRegistryLike|ServiceRegistryLike|type-only,1,9

@@ -1134,7 +1134,7 @@ src/framework/mission.ts,serializedSize,unresolved:JSON.stringify,JSON.stringify
 src/framework/mission.ts,serializedSize,unresolved:Buffer.byteLength,Buffer.byteLength,low,393,393,
 src/framework/msg-builder.test.ts,<module>,unresolved:describe,describe,low,9,273,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,10,51,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,parseRichMarkdown,medium,32,32,src/framework/msg-builder.ts:189
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,parseRichMarkdown,medium,32,32,src/framework/msg-builder.ts:190
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,33,33,
 src/framework/msg-builder.test.ts,<module>,unresolved:parts.find,parts.find,low,35,35,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,36,36,
@@ -1151,20 +1151,20 @@ src/framework/msg-builder.test.ts,<module>,unresolved:parts.find,parts.find,low,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,49,49,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,50,50,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,53,63,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,54,56,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,54,56,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text",low,54,55,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,54,54,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,54,54,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,58,58,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,60,60,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,61,61,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,65,85,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,72,74,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,72,74,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text",low,72,73,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,72,72,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,72,72,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,76,76,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,79,79,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,81,81,
@@ -1173,7 +1173,7 @@ src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,82
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,83,83,
 src/framework/msg-builder.test.ts,<module>,unresolved:built.fallbackText.includes,built.fallbackText.includes,low,83,83,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,87,120,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,88,95,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,88,95,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .header('Header Judul', 'Subjudul')
       .text('Pilih aksi berikut:')
@@ -1207,14 +1207,14 @@ src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redac
       .text('Pilih aksi berikut:')
       .footer('Footer info')
       .button",low,88,92,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,footer,medium,88,91,src/framework/msg-builder.ts:326
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,footer,medium,88,91,src/framework/msg-builder.ts:329
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .header('Header Judul', 'Subjudul')
       .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .header('Header Judul', 'Subjudul')
       .text",low,88,90,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,header,medium,88,89,src/framework/msg-builder.ts:320
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,88,88,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,header,medium,88,89,src/framework/msg-builder.ts:323
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,88,88,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,97,97,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,100,100,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,101,101,
@@ -1238,7 +1238,7 @@ src/framework/msg-builder.test.ts,<module>,unresolved:fallback.includes,fallback
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,118,118,
 src/framework/msg-builder.test.ts,<module>,unresolved:fallback.includes,fallback.includes,low,118,118,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,122,155,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,123,137,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,123,137,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text('Silakan pilih salah satu opsi dari menu:')
       .list","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
@@ -1247,7 +1247,7 @@ src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redac
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text",low,123,124,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,123,123,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,123,123,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,139,139,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,142,142,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,143,143,
@@ -1263,12 +1263,12 @@ src/framework/msg-builder.test.ts,<module>,unresolved:fallback.includes,fallback
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,153,153,
 src/framework/msg-builder.test.ts,<module>,unresolved:fallback.includes,fallback.includes,low,153,153,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,157,183,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,158,172,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,158,172,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.test.ts,carousel,medium,158,171,src/framework/msg-builder.test.ts:176
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text",low,158,159,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,158,158,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,158,158,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,174,174,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,177,177,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,178,178,
@@ -1299,13 +1299,13 @@ src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,208,208,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,211,234,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.throws,assert.throws,low,212,217,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,213,213,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,213,213,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:mb.button,mb.button,low,215,215,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.throws,assert.throws,low,219,233,
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('jid')
         .list","MsgBuilder.to('jid')
         .list",low,220,232,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,220,220,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,220,220,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,236,272,
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('target@s.whatsapp.net')
       .header('Notifikasi')
@@ -1328,8 +1328,8 @@ src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('target@s.w
       .text","MsgBuilder.to('target@s.whatsapp.net')
       .header('Notifikasi')
       .text",low,262,264,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,header,medium,262,263,src/framework/msg-builder.ts:320
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,262,262,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,header,medium,262,263,src/framework/msg-builder.ts:323
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,262,262,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,268,268,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,269,269,
 src/framework/msg-builder.test.ts,<module>,unresolved:sentText.includes,sentText.includes,low,269,269,
@@ -1346,8 +1346,8 @@ src/framework/msg-builder.test.ts,sendText,unresolved:sentTexts.push,sentTexts.p
 src/framework/msg-builder.test.ts,<module>,unresolved:describe,describe,low,320,425,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,321,339,
 src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.test.ts,carousel,medium,322,330,src/framework/msg-builder.test.ts:176
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,322,322,src/framework/msg-builder.ts:303
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,buildFallbackText,medium,332,332,src/framework/msg-builder.ts:371
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,322,322,src/framework/msg-builder.ts:306
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,buildFallbackText,medium,332,332,src/framework/msg-builder.ts:380
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.notEqual,assert.notEqual,low,333,333,
 src/framework/msg-builder.test.ts,<module>,unresolved:fallback.trim,fallback.trim,low,333,333,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,334,334,
@@ -1362,7 +1362,7 @@ src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,33
 src/framework/msg-builder.test.ts,<module>,unresolved:fallback.includes,fallback.includes,low,338,338,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,341,350,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.throws,assert.throws,low,342,349,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,344,347,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,344,347,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
           .text('Laporan siap.', { rich: true })
           .button","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
@@ -1371,14 +1371,14 @@ src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redac
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
           .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
           .text",low,344,345,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,344,344,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,344,344,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,352,376,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,353,366,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,353,366,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.test.ts,carousel,medium,353,365,src/framework/msg-builder.test.ts:176
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text",low,353,354,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,353,353,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,353,353,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,368,368,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,371,371,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.deepEqual,assert.deepEqual,low,372,372,
@@ -1393,14 +1393,14 @@ src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,378,388,
 src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.test.ts,stubTransport,medium,379,379,src/framework/msg-builder.test.ts:283
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@g.us>').text('Isi laporan', { rich: true }).send","MsgBuilder.to('<jid-redacted@g.us>').text('Isi laporan', { rich: true }).send",low,380,380,
 src/framework/msg-builder.test.ts,<module>,unresolved:MsgBuilder.to('<jid-redacted@g.us>').text,MsgBuilder.to('<jid-redacted@g.us>').text,low,380,380,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,380,380,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,380,380,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,381,381,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.deepEqual,assert.deepEqual,low,382,382,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.deepEqual,assert.deepEqual,low,383,383,
 src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.test.ts,stubTransport,medium,385,385,src/framework/msg-builder.test.ts:283
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text('Isi laporan', { rich: true }).send","MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text('Isi laporan', { rich: true }).send",low,386,386,
 src/framework/msg-builder.test.ts,<module>,unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text,MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text,low,386,386,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,386,386,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,386,386,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.deepEqual,assert.deepEqual,low,387,387,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,390,401,
 src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.test.ts,stubTransport,medium,391,391,src/framework/msg-builder.test.ts:283
@@ -1419,7 +1419,7 @@ src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redac
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
       .text",low,392,393,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,392,392,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,392,392,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,397,397,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.match,assert.match,low,398,398,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,399,399,
@@ -1427,12 +1427,12 @@ src/framework/msg-builder.test.ts,<module>,unresolved:assert.ok,assert.ok,low,40
 src/framework/msg-builder.test.ts,<module>,unresolved:failing.sentTexts[0]?.includes,failing.sentTexts[0]?.includes,low,400,400,
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,403,405,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.throws,assert.throws,low,404,404,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,404,404,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,404,404,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text,MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text,low,404,404,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,404,404,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,404,404,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,407,417,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.throws,assert.throws,low,408,416,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,410,414,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,410,414,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
           .text('Pilih')
           .button({ type: 'reply', id: 'same', text: 'A' })
@@ -1448,191 +1448,196 @@ src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redac
 src/framework/msg-builder.test.ts,<module>,"unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
           .text","MsgBuilder.to('<jid-redacted@s.whatsapp.net>')
           .text",low,410,411,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,410,410,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,410,410,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:it,it,low,419,424,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,420,420,src/framework/msg-builder.ts:406
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,build,medium,420,420,src/framework/msg-builder.ts:415
 src/framework/msg-builder.test.ts,<module>,unresolved:MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text,MsgBuilder.to('<jid-redacted@s.whatsapp.net>').text,low,420,420,
-src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,420,420,src/framework/msg-builder.ts:303
+src/framework/msg-builder.test.ts,<module>,src/framework/msg-builder.ts,to,medium,420,420,src/framework/msg-builder.ts:306
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,421,421,
 src/framework/msg-builder.test.ts,<module>,unresolved:assert.equal,assert.equal,low,423,423,
-src/framework/msg-builder.ts,nativeFlowAdditionalNodes,src/framework/validation.ts,isGroupJid,medium,131,131,src/framework/validation.ts:20
-src/framework/msg-builder.ts,nativeFlowAdditionalNodes,unresolved:nodes.push,nodes.push,low,132,132,
-src/framework/msg-builder.ts,unsupportedButton,unresolved:JSON.stringify,JSON.stringify,low,141,141,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,148,148,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,150,150,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,152,152,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,154,154,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,156,156,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,158,158,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,160,160,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,162,162,
-src/framework/msg-builder.ts,toNativeFlowButton,unresolved:randomUUID,randomUUID,low,162,162,
-src/framework/msg-builder.ts,toNativeFlowButton,src/framework/msg-builder.ts,unsupportedButton,medium,164,164,src/framework/msg-builder.ts:140
-src/framework/msg-builder.ts,renderFallbackButton,src/framework/msg-builder.ts,unsupportedButton,medium,185,185,src/framework/msg-builder.ts:140
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:input.trim,input.trim,low,190,190,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:trimmed.split,trimmed.split,low,193,193,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:currentTextLines.join('\n').trim,currentTextLines.join('\n').trim,low,199,199,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:currentTextLines.join,currentTextLines.join,low,199,199,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,200,200,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:rawLine.trim,rawLine.trim,low,208,208,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.startsWith,line.startsWith,low,210,210,
-src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,211,211,src/framework/msg-builder.ts:197
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice(3).trim,line.slice(3).trim,low,212,212,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice,line.slice,low,212,212,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().startsWith,lines[i]?.trim().startsWith,low,215,215,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,215,215,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:codeLines.push,codeLines.push,low,216,216,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,219,223,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:codeLines.join,codeLines.join,low,221,221,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.startsWith,line.startsWith,low,228,228,
-src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,229,229,src/framework/msg-builder.ts:197
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice(3).trim().toLowerCase,line.slice(3).trim().toLowerCase,low,230,230,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice(3).trim,line.slice(3).trim,low,230,230,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice,line.slice,low,230,230,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().startsWith,lines[i]?.trim().startsWith,low,233,233,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,233,233,
+src/framework/msg-builder.ts,nativeFlowAdditionalNodes,src/framework/validation.ts,isGroupJid,medium,132,132,src/framework/validation.ts:20
+src/framework/msg-builder.ts,nativeFlowAdditionalNodes,unresolved:nodes.push,nodes.push,low,133,133,
+src/framework/msg-builder.ts,unsupportedButton,unresolved:JSON.stringify,JSON.stringify,low,142,142,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,149,149,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,151,151,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,153,153,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,155,155,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,157,157,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,159,159,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,161,161,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:JSON.stringify,JSON.stringify,low,163,163,
+src/framework/msg-builder.ts,toNativeFlowButton,unresolved:randomUUID,randomUUID,low,163,163,
+src/framework/msg-builder.ts,toNativeFlowButton,src/framework/msg-builder.ts,unsupportedButton,medium,165,165,src/framework/msg-builder.ts:141
+src/framework/msg-builder.ts,renderFallbackButton,src/framework/msg-builder.ts,unsupportedButton,medium,186,186,src/framework/msg-builder.ts:141
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:input.trim,input.trim,low,191,191,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:trimmed.split,trimmed.split,low,194,194,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:currentTextLines.join('\n').trim,currentTextLines.join('\n').trim,low,200,200,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:currentTextLines.join,currentTextLines.join,low,200,200,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,201,201,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:rawLine.trim,rawLine.trim,low,209,209,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.startsWith,line.startsWith,low,211,211,
+src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,212,212,src/framework/msg-builder.ts:198
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice(3).trim,line.slice(3).trim,low,213,213,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice,line.slice,low,213,213,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().startsWith,lines[i]?.trim().startsWith,low,216,216,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,216,216,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:codeLines.push,codeLines.push,low,217,217,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,220,224,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:codeLines.join,codeLines.join,low,222,222,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.startsWith,line.startsWith,low,229,229,
+src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,230,230,src/framework/msg-builder.ts:198
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice(3).trim().toLowerCase,line.slice(3).trim().toLowerCase,low,231,231,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice(3).trim,line.slice(3).trim,low,231,231,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.slice,line.slice,low,231,231,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().startsWith,lines[i]?.trim().startsWith,low,234,234,
 src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,234,234,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:directiveLines.push,directiveLines.push,low,235,235,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,235,235,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:directiveLines.push,directiveLines.push,low,236,236,
 src/framework/msg-builder.ts,parseRichMarkdown,"unresolved:directiveLines
           .flatMap((dl) => dl.split('|'))
           .map((s) => s.trim().replace(/^[-*]\s*/, ''))
           .filter","directiveLines
           .flatMap((dl) => dl.split('|'))
           .map((s) => s.trim().replace(/^[-*]\s*/, ''))
-          .filter",low,239,242,
+          .filter",low,240,243,
 src/framework/msg-builder.ts,parseRichMarkdown,"unresolved:directiveLines
           .flatMap((dl) => dl.split('|'))
           .map","directiveLines
           .flatMap((dl) => dl.split('|'))
-          .map",low,239,241,
+          .map",low,240,242,
 src/framework/msg-builder.ts,parseRichMarkdown,"unresolved:directiveLines
           .flatMap","directiveLines
-          .flatMap",low,239,240,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:dl.split,dl.split,low,240,240,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:s.trim().replace,s.trim().replace,low,241,241,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:s.trim,s.trim,low,241,241,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,244,244,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:suggestions.join,suggestions.join,low,244,244,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:directiveLines.join('\n').trim,directiveLines.join('\n').trim,low,247,247,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:directiveLines.join,directiveLines.join,low,247,247,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,248,248,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.startsWith,line.startsWith,low,254,254,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.endsWith,line.endsWith,low,254,254,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i + 1]?.trim,lines[i + 1]?.trim,low,255,255,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:nextLine.startsWith,nextLine.startsWith,low,256,256,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:/^[|\s:-]+$/.test,/^[|\s:-]+$/.test,low,256,256,
-src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,257,257,src/framework/msg-builder.ts:197
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().startsWith,lines[i]?.trim().startsWith,low,260,260,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,260,260,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().endsWith,lines[i]?.trim().endsWith,low,260,260,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,260,260,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:tableLines.push,tableLines.push,low,261,261,
+          .flatMap",low,240,241,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:dl.split,dl.split,low,241,241,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:s.trim().replace,s.trim().replace,low,242,242,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:s.trim,s.trim,low,242,242,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,245,245,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:suggestions.join,suggestions.join,low,245,245,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:directiveLines.join('\n').trim,directiveLines.join('\n').trim,low,248,248,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:directiveLines.join,directiveLines.join,low,248,248,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,249,249,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.startsWith,line.startsWith,low,255,255,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:line.endsWith,line.endsWith,low,255,255,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i + 1]?.trim,lines[i + 1]?.trim,low,256,256,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:nextLine.startsWith,nextLine.startsWith,low,257,257,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:/^[|\s:-]+$/.test,/^[|\s:-]+$/.test,low,257,257,
+src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,258,258,src/framework/msg-builder.ts:198
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().startsWith,lines[i]?.trim().startsWith,low,261,261,
 src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,261,261,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:tableLines.map,tableLines.map,low,264,269,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim().endsWith,lines[i]?.trim().endsWith,low,261,261,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,261,261,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:tableLines.push,tableLines.push,low,262,262,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:lines[i]?.trim,lines[i]?.trim,low,262,262,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:tableLines.map,tableLines.map,low,265,270,
 src/framework/msg-builder.ts,parseRichMarkdown,"unresolved:tl
             .split('|')
             .slice(1, -1)
             .map","tl
             .split('|')
             .slice(1, -1)
-            .map",low,265,268,
+            .map",low,266,269,
 src/framework/msg-builder.ts,parseRichMarkdown,"unresolved:tl
             .split('|')
             .slice","tl
             .split('|')
-            .slice",low,265,267,
+            .slice",low,266,268,
 src/framework/msg-builder.ts,parseRichMarkdown,"unresolved:tl
             .split","tl
-            .split",low,265,266,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:c.trim,c.trim,low,268,268,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,270,274,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:tableLines.join,tableLines.join,low,272,272,
-src/framework/msg-builder.ts,parseRichMarkdown,unresolved:currentTextLines.push,currentTextLines.push,low,279,279,
-src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,283,283,src/framework/msg-builder.ts:197
-src/framework/msg-builder.ts,<module>,unresolved:remoteJid.trim,remoteJid.trim,low,300,300,
-src/framework/msg-builder.ts,header,unresolved:title.trim,title.trim,low,321,321,
-src/framework/msg-builder.ts,header,unresolved:subtitle.trim,subtitle.trim,low,322,322,
-src/framework/msg-builder.ts,footer,unresolved:text.trim,text.trim,low,327,327,
-src/framework/msg-builder.ts,button,unresolved:this._buttons.push,this._buttons.push,low,333,333,
-src/framework/msg-builder.ts,list,unresolved:options.buttonText.trim,options.buttonText.trim,low,346,346,
-src/framework/msg-builder.ts,list,unresolved:options.sections.reduce,options.sections.reduce,low,348,348,
-src/framework/msg-builder.ts,list,unresolved:row.id.trim,row.id.trim,low,353,353,
-src/framework/msg-builder.ts,list,unresolved:row.title.trim,row.title.trim,low,354,354,
-src/framework/msg-builder.ts,list,unresolved:ids.has,ids.has,low,355,355,
-src/framework/msg-builder.ts,list,scripts/generate-codebase-export.mjs,add,medium,356,356,scripts/generate-codebase-export.mjs:484
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,373,373,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,374,374,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:this._text.trim,this._text.trim,low,375,375,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,375,375,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:this._text.trim,this._text.trim,low,375,375,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,378,378,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,380,380,
+            .split",low,266,267,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:c.trim,c.trim,low,269,269,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:parts.push,parts.push,low,271,275,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:tableLines.join,tableLines.join,low,273,273,
+src/framework/msg-builder.ts,parseRichMarkdown,unresolved:currentTextLines.push,currentTextLines.push,low,280,280,
+src/framework/msg-builder.ts,parseRichMarkdown,src/framework/msg-builder.ts,flushText,medium,284,284,src/framework/msg-builder.ts:198
+src/framework/msg-builder.ts,<module>,unresolved:remoteJid.trim,remoteJid.trim,low,303,303,
+src/framework/msg-builder.ts,header,unresolved:title.trim,title.trim,low,324,324,
+src/framework/msg-builder.ts,header,unresolved:subtitle.trim,subtitle.trim,low,325,325,
+src/framework/msg-builder.ts,footer,unresolved:text.trim,text.trim,low,330,330,
+src/framework/msg-builder.ts,button,unresolved:this._buttons.push,this._buttons.push,low,342,342,
+src/framework/msg-builder.ts,list,unresolved:options.buttonText.trim,options.buttonText.trim,low,355,355,
+src/framework/msg-builder.ts,list,unresolved:options.sections.reduce,options.sections.reduce,low,357,357,
+src/framework/msg-builder.ts,list,unresolved:row.id.trim,row.id.trim,low,362,362,
+src/framework/msg-builder.ts,list,unresolved:row.title.trim,row.title.trim,low,363,363,
+src/framework/msg-builder.ts,list,unresolved:ids.has,ids.has,low,364,364,
+src/framework/msg-builder.ts,list,scripts/generate-codebase-export.mjs,add,medium,365,365,scripts/generate-codebase-export.mjs:484
 src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,382,382,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:this._carouselCards.entries,this._carouselCards.entries,low,388,388,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,390,390,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,391,391,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,392,392,
-src/framework/msg-builder.ts,buildFallbackText,src/framework/msg-builder.ts,renderFallbackButton,medium,392,392,src/framework/msg-builder.ts:168
-src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,393,393,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,394,394,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.join,cardLines.join,low,394,394,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,399,399,
-src/framework/msg-builder.ts,buildFallbackText,"unresolved:this._buttons.map((b, idx) => renderFallbackButton(b, idx + 1)).join","this._buttons.map((b, idx) => renderFallbackButton(b, idx + 1)).join",low,399,399,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:this._buttons.map,this._buttons.map,low,399,399,
-src/framework/msg-builder.ts,buildFallbackText,src/framework/msg-builder.ts,renderFallbackButton,medium,399,399,src/framework/msg-builder.ts:168
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,402,402,
-src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.join,parts.join,low,403,403,
-src/framework/msg-builder.ts,build,unresolved:Boolean,Boolean,low,408,408,
-src/framework/msg-builder.ts,build,unresolved:Boolean,Boolean,low,409,409,
-src/framework/msg-builder.ts,build,src/framework/msg-builder.ts,parseRichMarkdown,medium,415,415,src/framework/msg-builder.ts:189
-src/framework/msg-builder.ts,build,unresolved:parts.map,parts.map,low,420,452,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseSubMessage.create,proto.AIRichResponseSubMessage.create,low,422,433,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseCodeMetadata.create,proto.AIRichResponseCodeMetadata.create,low,424,432,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseCodeMetadata.AIRichResponseCodeBlock.create,proto.AIRichResponseCodeMetadata.AIRichResponseCodeBlock.create,low,427,430,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseSubMessage.create,proto.AIRichResponseSubMessage.create,low,436,446,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseTableMetadata.create,proto.AIRichResponseTableMetadata.create,low,438,445,
-src/framework/msg-builder.ts,build,unresolved:(part.rows ?? []).map,(part.rows ?? []).map,low,440,444,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseTableMetadata.AIRichResponseTableRow.create,proto.AIRichResponseTableMetadata.AIRichResponseTableRow.create,low,441,443,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseSubMessage.create,proto.AIRichResponseSubMessage.create,low,448,451,
-src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseMessage.create,proto.AIRichResponseMessage.create,low,454,457,
-src/framework/msg-builder.ts,build,unresolved:this._text.trim,this._text.trim,low,459,459,
-src/framework/msg-builder.ts,build,unresolved:replyIds.has,replyIds.has,low,479,479,
-src/framework/msg-builder.ts,build,scripts/generate-codebase-export.mjs,add,medium,480,480,scripts/generate-codebase-export.mjs:484
-src/framework/msg-builder.ts,build,unresolved:nativeButtons.push,nativeButtons.push,low,482,482,
-src/framework/msg-builder.ts,build,src/framework/msg-builder.ts,toNativeFlowButton,medium,482,482,src/framework/msg-builder.ts:144
-src/framework/msg-builder.ts,build,unresolved:nativeButtons.push,nativeButtons.push,low,486,499,
-src/framework/msg-builder.ts,build,unresolved:JSON.stringify,JSON.stringify,low,488,498,
-src/framework/msg-builder.ts,build,unresolved:this._listOptions.sections.map,this._listOptions.sections.map,low,490,497,
-src/framework/msg-builder.ts,build,unresolved:s.rows.map,s.rows.map,low,492,496,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.create,proto.Message.InteractiveMessage.create,low,502,516,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Body.create,proto.Message.InteractiveMessage.Body.create,low,503,503,
-src/framework/msg-builder.ts,build,unresolved:this._text.trim,this._text.trim,low,503,503,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Footer.create,proto.Message.InteractiveMessage.Footer.create,low,504,504,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Header.create,proto.Message.InteractiveMessage.Header.create,low,506,510,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.NativeFlowMessage.create,proto.Message.InteractiveMessage.NativeFlowMessage.create,low,512,515,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.CarouselMessage.create,proto.Message.InteractiveMessage.CarouselMessage.create,low,519,536,
-src/framework/msg-builder.ts,build,unresolved:this._carouselCards.map,this._carouselCards.map,low,520,535,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.create,proto.Message.InteractiveMessage.create,low,521,534,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Body.create,proto.Message.InteractiveMessage.Body.create,low,522,522,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Footer.create,proto.Message.InteractiveMessage.Footer.create,low,523,523,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Header.create,proto.Message.InteractiveMessage.Header.create,low,525,529,
-src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.NativeFlowMessage.create,proto.Message.InteractiveMessage.NativeFlowMessage.create,low,531,533,
-src/framework/msg-builder.ts,build,unresolved:(card.buttons ?? []).map,(card.buttons ?? []).map,low,532,532,
-src/framework/msg-builder.ts,build,src/framework/msg-builder.ts,buildFallbackText,medium,542,542,src/framework/msg-builder.ts:371
-src/framework/msg-builder.ts,build,unresolved:this._text.trim,this._text.trim,low,546,546,
-src/framework/msg-builder.ts,send,src/framework/msg-builder.ts,build,medium,556,556,src/framework/msg-builder.ts:406
-src/framework/msg-builder.ts,send,unresolved:transport.sendText,transport.sendText,low,560,560,
-src/framework/msg-builder.ts,send,unresolved:transport.sendText,transport.sendText,low,566,566,
-src/framework/msg-builder.ts,send,unresolved:proto.Message.create,proto.Message.create,low,572,574,
-src/framework/msg-builder.ts,send,unresolved:socket.relayMessage,socket.relayMessage,low,575,578,
-src/framework/msg-builder.ts,send,unresolved:generateMessageIDV2,generateMessageIDV2,low,576,576,
-src/framework/msg-builder.ts,send,src/framework/msg-builder.ts,nativeFlowAdditionalNodes,medium,577,577,src/framework/msg-builder.ts:116
-src/framework/msg-builder.ts,send,unresolved:proto.Message.create,proto.Message.create,low,580,582,
-src/framework/msg-builder.ts,send,unresolved:socket.relayMessage,socket.relayMessage,low,583,586,
-src/framework/msg-builder.ts,send,unresolved:generateMessageIDV2,generateMessageIDV2,low,584,584,
-src/framework/msg-builder.ts,send,src/framework/msg-builder.ts,nativeFlowAdditionalNodes,medium,585,585,src/framework/msg-builder.ts:116
-src/framework/msg-builder.ts,send,unresolved:socket.logger?.warn,socket.logger?.warn,low,589,589,
-src/framework/msg-builder.ts,send,unresolved:transport.sendText,transport.sendText,low,590,590,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,383,383,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:this._text.trim,this._text.trim,low,384,384,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,384,384,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:this._text.trim,this._text.trim,low,384,384,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,387,387,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,389,389,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,391,391,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:this._carouselCards.entries,this._carouselCards.entries,low,397,397,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,399,399,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,400,400,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,401,401,
+src/framework/msg-builder.ts,buildFallbackText,src/framework/msg-builder.ts,renderFallbackButton,medium,401,401,src/framework/msg-builder.ts:169
+src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.push,cardLines.push,low,402,402,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,403,403,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:cardLines.join,cardLines.join,low,403,403,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,408,408,
+src/framework/msg-builder.ts,buildFallbackText,"unresolved:this._buttons.map((b, idx) => renderFallbackButton(b, idx + 1)).join","this._buttons.map((b, idx) => renderFallbackButton(b, idx + 1)).join",low,408,408,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:this._buttons.map,this._buttons.map,low,408,408,
+src/framework/msg-builder.ts,buildFallbackText,src/framework/msg-builder.ts,renderFallbackButton,medium,408,408,src/framework/msg-builder.ts:169
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.push,parts.push,low,411,411,
+src/framework/msg-builder.ts,buildFallbackText,unresolved:parts.join,parts.join,low,412,412,
+src/framework/msg-builder.ts,build,unresolved:Boolean,Boolean,low,417,417,
+src/framework/msg-builder.ts,build,unresolved:Boolean,Boolean,low,418,418,
+src/framework/msg-builder.ts,build,src/framework/msg-builder.ts,parseRichMarkdown,medium,424,424,src/framework/msg-builder.ts:190
+src/framework/msg-builder.ts,build,unresolved:parts.map,parts.map,low,429,461,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseSubMessage.create,proto.AIRichResponseSubMessage.create,low,431,442,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseCodeMetadata.create,proto.AIRichResponseCodeMetadata.create,low,433,441,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseCodeMetadata.AIRichResponseCodeBlock.create,proto.AIRichResponseCodeMetadata.AIRichResponseCodeBlock.create,low,436,439,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseSubMessage.create,proto.AIRichResponseSubMessage.create,low,445,455,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseTableMetadata.create,proto.AIRichResponseTableMetadata.create,low,447,454,
+src/framework/msg-builder.ts,build,unresolved:(part.rows ?? []).map,(part.rows ?? []).map,low,449,453,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseTableMetadata.AIRichResponseTableRow.create,proto.AIRichResponseTableMetadata.AIRichResponseTableRow.create,low,450,452,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseSubMessage.create,proto.AIRichResponseSubMessage.create,low,457,460,
+src/framework/msg-builder.ts,build,unresolved:proto.AIRichResponseMessage.create,proto.AIRichResponseMessage.create,low,463,466,
+src/framework/msg-builder.ts,build,unresolved:this._text.trim,this._text.trim,low,468,468,
+src/framework/msg-builder.ts,build,unresolved:replyIds.has,replyIds.has,low,488,488,
+src/framework/msg-builder.ts,build,scripts/generate-codebase-export.mjs,add,medium,489,489,scripts/generate-codebase-export.mjs:484
+src/framework/msg-builder.ts,build,unresolved:nativeButtons.push,nativeButtons.push,low,491,491,
+src/framework/msg-builder.ts,build,src/framework/msg-builder.ts,toNativeFlowButton,medium,491,491,src/framework/msg-builder.ts:145
+src/framework/msg-builder.ts,build,unresolved:nativeButtons.push,nativeButtons.push,low,495,508,
+src/framework/msg-builder.ts,build,unresolved:JSON.stringify,JSON.stringify,low,497,507,
+src/framework/msg-builder.ts,build,unresolved:this._listOptions.sections.map,this._listOptions.sections.map,low,499,506,
+src/framework/msg-builder.ts,build,unresolved:s.rows.map,s.rows.map,low,501,505,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.create,proto.Message.InteractiveMessage.create,low,511,525,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Body.create,proto.Message.InteractiveMessage.Body.create,low,512,512,
+src/framework/msg-builder.ts,build,unresolved:this._text.trim,this._text.trim,low,512,512,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Footer.create,proto.Message.InteractiveMessage.Footer.create,low,513,513,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Header.create,proto.Message.InteractiveMessage.Header.create,low,515,519,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.NativeFlowMessage.create,proto.Message.InteractiveMessage.NativeFlowMessage.create,low,521,524,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.CarouselMessage.create,proto.Message.InteractiveMessage.CarouselMessage.create,low,528,545,
+src/framework/msg-builder.ts,build,unresolved:this._carouselCards.map,this._carouselCards.map,low,529,544,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.create,proto.Message.InteractiveMessage.create,low,530,543,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Body.create,proto.Message.InteractiveMessage.Body.create,low,531,531,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Footer.create,proto.Message.InteractiveMessage.Footer.create,low,532,532,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.Header.create,proto.Message.InteractiveMessage.Header.create,low,534,538,
+src/framework/msg-builder.ts,build,unresolved:proto.Message.InteractiveMessage.NativeFlowMessage.create,proto.Message.InteractiveMessage.NativeFlowMessage.create,low,540,542,
+src/framework/msg-builder.ts,build,unresolved:(card.buttons ?? []).map,(card.buttons ?? []).map,low,541,541,
+src/framework/msg-builder.ts,build,src/framework/msg-builder.ts,buildFallbackText,medium,551,551,src/framework/msg-builder.ts:380
+src/framework/msg-builder.ts,build,unresolved:this._text.trim,this._text.trim,low,555,555,
+src/framework/msg-builder.ts,send,src/framework/msg-builder.ts,build,medium,565,565,src/framework/msg-builder.ts:415
+src/framework/msg-builder.ts,send,unresolved:transport.sendText,transport.sendText,low,569,569,
+src/framework/msg-builder.ts,send,unresolved:transport.sendMedia,transport.sendMedia,low,577,582,
+src/framework/msg-builder.ts,send,unresolved:transport.sendText,transport.sendText,low,588,588,
+src/framework/msg-builder.ts,send,unresolved:prepareWAMessageMedia,prepareWAMessageMedia,low,597,600,
+src/framework/msg-builder.ts,send,unresolved:Buffer.from,Buffer.from,low,598,598,
+src/framework/msg-builder.ts,send,unresolved:proto.Message.InteractiveMessage.Header.create,proto.Message.InteractiveMessage.Header.create,low,602,607,
+src/framework/msg-builder.ts,send,unresolved:socket.logger?.warn,socket.logger?.warn,low,610,610,
+src/framework/msg-builder.ts,send,unresolved:proto.Message.create,proto.Message.create,low,613,615,
+src/framework/msg-builder.ts,send,unresolved:socket.relayMessage,socket.relayMessage,low,616,619,
+src/framework/msg-builder.ts,send,unresolved:generateMessageIDV2,generateMessageIDV2,low,617,617,
+src/framework/msg-builder.ts,send,src/framework/msg-builder.ts,nativeFlowAdditionalNodes,medium,618,618,src/framework/msg-builder.ts:117
+src/framework/msg-builder.ts,send,unresolved:proto.Message.create,proto.Message.create,low,621,623,
+src/framework/msg-builder.ts,send,unresolved:socket.relayMessage,socket.relayMessage,low,624,627,
+src/framework/msg-builder.ts,send,unresolved:generateMessageIDV2,generateMessageIDV2,low,625,625,
+src/framework/msg-builder.ts,send,src/framework/msg-builder.ts,nativeFlowAdditionalNodes,medium,626,626,src/framework/msg-builder.ts:117
+src/framework/msg-builder.ts,send,unresolved:socket.logger?.warn,socket.logger?.warn,low,630,630,
+src/framework/msg-builder.ts,send,unresolved:transport.sendText,transport.sendText,low,631,631,
 src/framework/operations.ts,runPlatformOperation,unresolved:Date.now,Date.now,low,31,31,
 src/framework/operations.ts,runPlatformOperation,src/framework/plugins/utility-fun.ts,max,medium,32,32,src/framework/plugins/utility-fun.ts:154
 src/framework/operations.ts,runPlatformOperation,src/framework/plugins/utility-fun.ts,max,medium,33,33,src/framework/plugins/utility-fun.ts:154
@@ -4394,53 +4399,24 @@ src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,f
 src/framework/plugins/menu.ts,renderCategoryMenu,unresolved:lines.push,lines.push,low,224,236,
 src/framework/plugins/menu.ts,renderCategoryMenu,"unresolved:[renderBotProfile(commandContext), '', ...lines].join","[renderBotProfile(commandContext), '', ...lines].join",low,237,237,
 src/framework/plugins/menu.ts,renderCategoryMenu,src/framework/plugins/menu.ts,renderBotProfile,medium,237,237,src/framework/plugins/menu.ts:165
-src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,loadMenuThumbnail,medium,250,250,src/framework/plugins/menu.ts:66
-src/framework/plugins/menu.ts,sendMenu,unresolved:sendMedia.call,sendMedia.call,low,255,261,
-src/framework/plugins/menu.ts,sendMenu,unresolved:commandContext.logger.warn,commandContext.logger.warn,low,264,264,
-src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
-      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
-      .button({ type: 'reply', id: `${prefix}menu 2`, text: '🛡️ Moderasi' })
-      .button","MsgBuilder.to(jid)
-      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
-      .button({ type: 'reply', id: `${prefix}menu 2`, text: '🛡️ Moderasi' })
-      .button",low,273,279,
-src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
-      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
-      .button","MsgBuilder.to(jid)
-      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button({ type: 'reply', id: `${prefix}menu 1`, text: '👥 Group' })
-      .button",low,273,278,
-src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
-      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button","MsgBuilder.to(jid)
-      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau gunakan tombol navigasi`)
-      .button",low,273,277,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,footer,medium,273,276,src/framework/msg-builder.ts:326
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,loadMenuThumbnail,medium,251,251,src/framework/plugins/menu.ts:66
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,footer,medium,257,260,src/framework/msg-builder.ts:329
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text","MsgBuilder.to(jid)
       .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
-      .text",low,273,275,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,header,medium,273,274,src/framework/msg-builder.ts:320
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,273,273,src/framework/msg-builder.ts:303
-src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,281,281,
-src/framework/plugins/menu.ts,sendMenu,src/framework/validation.ts,isGroupJid,medium,289,289,src/framework/validation.ts:20
-src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,presentationFor,medium,290,290,src/framework/plugins/menu.ts:103
+      .text",low,257,259,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,header,medium,257,258,src/framework/msg-builder.ts:323
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,257,257,src/framework/msg-builder.ts:306
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,image,medium,263,263,src/framework/msg-builder.ts:334
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/utility-fun.ts,min,medium,267,267,src/framework/plugins/utility-fun.ts:153
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,presentationFor,medium,270,270,src/framework/plugins/menu.ts:103
+src/framework/plugins/menu.ts,sendMenu,unresolved:`${icon} ${label}`.slice,`${icon} ${label}`.slice,low,271,271,
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.button,builder.button,low,272,276,
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.button,builder.button,low,280,284,
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,287,287,
+src/framework/plugins/menu.ts,sendMenu,src/framework/validation.ts,isGroupJid,medium,295,295,src/framework/validation.ts:20
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,presentationFor,medium,296,296,src/framework/plugins/menu.ts:103
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
         .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
         .text(body)
@@ -4451,7 +4427,7 @@ src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
         .text(body)
         .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
         .button({ type: 'reply', id: `${prefix}menu`, text: '📋 Menu Utama' })
-        .button",low,291,296,
+        .button",low,297,302,
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
         .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
         .text(body)
@@ -4460,35 +4436,37 @@ src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
         .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
         .text(body)
         .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
-        .button",low,291,295,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,footer,medium,291,294,src/framework/msg-builder.ts:326
+        .button",low,297,301,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,footer,medium,297,300,src/framework/msg-builder.ts:329
 src/framework/plugins/menu.ts,sendMenu,"unresolved:MsgBuilder.to(jid)
         .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
         .text","MsgBuilder.to(jid)
         .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
-        .text",low,291,293,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,header,medium,291,292,src/framework/msg-builder.ts:320
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,291,291,src/framework/msg-builder.ts:303
-src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,categoryLabel,medium,292,292,src/framework/plugins/menu.ts:107
-src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,298,298,
-src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,302,302,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,302,302,src/framework/msg-builder.ts:303
-src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,303,303,
-src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,308,308,
-src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,308,308,src/framework/msg-builder.ts:303
-src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,309,309,
-src/framework/plugins/menu.ts,load,unresolved:context.commands.list().filter,context.commands.list().filter,low,317,317,
-src/framework/plugins/menu.ts,load,unresolved:context.commands.list,context.commands.list,low,317,317,
-src/framework/plugins/menu.ts,load,unresolved:collectCategories(visibleCommands).filter,collectCategories(visibleCommands).filter,low,318,318,
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,collectCategories,medium,318,318,src/framework/plugins/menu.ts:86
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,canSeePrivilegedCategory,medium,318,318,src/framework/plugins/menu.ts:141
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,resolveCategory,medium,319,319,src/framework/plugins/menu.ts:210
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderCategoryMenu,medium,322,322,src/framework/plugins/menu.ts:215
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,323,323,src/framework/plugins/menu.ts:240
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,329,329,src/framework/plugins/menu.ts:240
-src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderMainMenu,medium,333,333,src/framework/plugins/menu.ts:176
+        .text",low,297,299,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,header,medium,297,298,src/framework/msg-builder.ts:323
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,297,297,src/framework/msg-builder.ts:306
+src/framework/plugins/menu.ts,sendMenu,src/framework/plugins/menu.ts,categoryLabel,medium,298,298,src/framework/plugins/menu.ts:107
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,image,medium,305,305,src/framework/msg-builder.ts:334
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,308,308,
+src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,312,312,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,312,312,src/framework/msg-builder.ts:306
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,313,313,
+src/framework/plugins/menu.ts,sendMenu,unresolved:MsgBuilder.to(jid).text,MsgBuilder.to(jid).text,low,318,318,
+src/framework/plugins/menu.ts,sendMenu,src/framework/msg-builder.ts,to,medium,318,318,src/framework/msg-builder.ts:306
+src/framework/plugins/menu.ts,sendMenu,unresolved:builder.send,builder.send,low,319,319,
+src/framework/plugins/menu.ts,load,unresolved:context.commands.list().filter,context.commands.list().filter,low,327,327,
+src/framework/plugins/menu.ts,load,unresolved:context.commands.list,context.commands.list,low,327,327,
+src/framework/plugins/menu.ts,load,unresolved:collectCategories(visibleCommands).filter,collectCategories(visibleCommands).filter,low,328,328,
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,collectCategories,medium,328,328,src/framework/plugins/menu.ts:86
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,canSeePrivilegedCategory,medium,328,328,src/framework/plugins/menu.ts:141
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,resolveCategory,medium,329,329,src/framework/plugins/menu.ts:210
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,loadMenuThumbnail,medium,330,330,src/framework/plugins/menu.ts:66
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderCategoryMenu,medium,333,333,src/framework/plugins/menu.ts:215
 src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,334,334,src/framework/plugins/menu.ts:240
-src/framework/plugins/menu.ts,load,unresolved:context.commands.register,context.commands.register,low,337,346,
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,340,340,src/framework/plugins/menu.ts:240
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,renderMainMenu,medium,344,344,src/framework/plugins/menu.ts:176
+src/framework/plugins/menu.ts,load,src/framework/plugins/menu.ts,sendMenu,medium,345,345,src/framework/plugins/menu.ts:240
+src/framework/plugins/menu.ts,load,unresolved:context.commands.register,context.commands.register,low,348,357,
 src/framework/plugins/scene.ts,groupJid,src/framework/validation.ts,isGroupJid,medium,14,14,src/framework/validation.ts:20
 src/framework/plugins/scene.ts,scene,unresolved:context.services.get,context.services.get,low,22,22,
 src/framework/plugins/scene.ts,requireGroup,src/framework/plugins/scene.ts,groupJid,medium,26,26,src/framework/plugins/scene.ts:13

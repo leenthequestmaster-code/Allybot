@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "format": "allybot-codebase-intelligence-export",
-  "commitSha": "a39330b8765a32ae27c51a0a6ebc52a9bf11fcaf",
-  "generatedAt": "2026-09-16T05:44:39+07:00",
+  "commitSha": "a51fcd9dd13d917d403c4eb1516bff077e03b6f0",
+  "generatedAt": "2026-09-16T08:54:10+07:00",
   "sourceFileCount": 137,
   "counts": {
     "files": 137,
-    "symbols": 5535,
+    "symbols": 5544,
     "imports": 705,
-    "calls": 12026,
+    "calls": 12034,
     "commands": 153,
     "services": 120,
     "config": 45,
@@ -56,12 +56,12 @@
     {
       "path": "overview/project-summary.md",
       "bytes": 856,
-      "sha256": "12f7709c59d8a896e02cf8ce3f40db3a3e258b909a663cb29cf7c0d8db868db1"
+      "sha256": "34b3631cebb78bab591b4820a8b581628963a351296ccf9b8c7ad974caeb3aac"
     },
     {
       "path": "README.md",
       "bytes": 661,
-      "sha256": "0f1bac6fe2b5a894557f98fc37c92ef18c885a73927824c9f0e8dc743b6719ee"
+      "sha256": "48e3d9292f40b49959b19ab78994cad1146e7e24e5d3540e7b88378efb5bc072"
     },
     {
       "path": "snapshot/.env.example",
@@ -190,8 +190,8 @@
     },
     {
       "path": "snapshot/src/framework/msg-builder.ts",
-      "bytes": 18938,
-      "sha256": "56d8438465e24ee1d551d482311648502998d29a58a2b5e38b82f94688ffbadc"
+      "bytes": 20462,
+      "sha256": "829611ebef3412d18b07dc21558e3f340cfbc36c3cbbdea68e152a32cf34628d"
     },
     {
       "path": "snapshot/src/framework/operations.ts",
@@ -280,8 +280,8 @@
     },
     {
       "path": "snapshot/src/framework/plugins/menu.ts",
-      "bytes": 13302,
-      "sha256": "b8d31887441a0fa072c8534e5feba929fcc00524305ddedf73ec490af0af5269"
+      "bytes": 13369,
+      "sha256": "ce7800a0d6937c83dbfde556ea0c95fbcd82d82e46e3a826cbe5be52a9218e9d"
     },
     {
       "path": "snapshot/src/framework/plugins/scene.ts",
@@ -750,13 +750,13 @@
     },
     {
       "path": "tables/calls.csv",
-      "bytes": 1545068,
-      "sha256": "c94f59e40c55c8f3b7d4658f52c9d1f602a0b79e9c5d7f3feb137f4b0529fd09"
+      "bytes": 1544513,
+      "sha256": "3aa955774520e100f5d446d492b38136133597cbddd7f89bcbc36e73f5868611"
     },
     {
       "path": "tables/commands.csv",
       "bytes": 15399,
-      "sha256": "32130f415f9dc7b0ad35b91bebc6f3aa5783c200d4a8e2d54c2443cbbedd38e6"
+      "sha256": "c51b010d3480f8567ce875a517f46889ffda3ea937c66b8c91e9b9604b2cbe3c"
     },
     {
       "path": "tables/config-catalog.csv",
@@ -781,12 +781,12 @@
     {
       "path": "tables/files.csv",
       "bytes": 11471,
-      "sha256": "cfbdb6002291db51cb9ae1637109eadb247fe1f42cb42a46786ece5937d71536"
+      "sha256": "ebb84dac1d7ecf57ee1a9539fcc8da7fb72c49bfee6df33d8d3c17f3bc4fba41"
     },
     {
       "path": "tables/imports.csv",
-      "bytes": 61395,
-      "sha256": "e2fd220adf84cb01e6b8e7862e781041b92be75363e97f58d4ede1506e6a2591"
+      "bytes": 61419,
+      "sha256": "2ad2651ef99b35b4a57c938337f04775cdb2a99a410a6a5ab14f8182b2264d50"
     },
     {
       "path": "tables/services.csv",
@@ -795,8 +795,8 @@
     },
     {
       "path": "tables/symbols.csv",
-      "bytes": 461192,
-      "sha256": "3e1410e04c75c176682014321b006a4d6995c9876e940af1886726aa0d558cb1"
+      "bytes": 461928,
+      "sha256": "581e1188867ccc77df8e32a420606523dc2c76deb65614a4634b38d598be07d2"
     },
     {
       "path": "tables/tests.csv",
