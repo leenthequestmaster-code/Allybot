@@ -25,14 +25,29 @@ const DARE_PROMPTS = [
 const RPS_CHOICES = ['batu', 'gunting', 'kertas'] as const
 
 const EIGHT_BALL_ANSWERS = [
-  'Bisa jadi.',
-  'Kemungkinannya cukup besar.',
-  'Belum tentu; coba lihat lagi situasinya.',
-  'Untuk sekarang, jawabannya belum jelas.',
+  // Positif
+  'Sudah pasti.',
+  'Tanpa ragu, iya.',
+  'Ya, tentu saja.',
+  'Kemungkinannya sangat besar.',
   'Tanda-tandanya mengarah ke iya.',
-  'Sepertinya belum.',
-  'Coba tanyakan lagi nanti.',
   'Jawabannya: iya.',
+  'Bisa dipastikan.',
+  'Outlook-nya bagus.',
+  // Netral
+  'Belum pasti, coba tanya lagi.',
+  'Tanya lagi nanti.',
+  'Lebih baik nggak dijawab sekarang.',
+  'Belum bisa ditebak.',
+  'Pikir dulu yang matang.',
+  // Negatif
+  'Jangan terlalu berharap.',
+  'Jawabannya: nggak.',
+  'Sumber-sumber berkata tidak.',
+  'Outlook-nya kurang bagus.',
+  'Sangat meragukan.',
+  'Kayaknya nggak deh.',
+  'Hmm, kali ini nggak.',
 ] as const
 
 interface RpsChallenge {

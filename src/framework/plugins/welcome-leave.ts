@@ -67,7 +67,10 @@ export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
       const groupContext = context.services.get<GroupContextService>('group-context')
       context.events.on('group.participants.changed', async (event) => {
         if (event.action !== 'add' && event.action !== 'remove') return
-        if (groupContext.isEnabled && (await groupContext.get(event.groupJid)).mode !== 'ooc') return
+        if (groupContext.isEnabled) {
+          const ctxMode = (await groupContext.get(event.groupJid)).mode
+          if (ctxMode === 'ic' || ctxMode === 'guide') return
+        }
         const custom = event.action === 'add'
           ? configuration.getWelcome(event.groupJid)
           : configuration.getLeave(event.groupJid)

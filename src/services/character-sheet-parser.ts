@@ -79,9 +79,10 @@ const FIELD_ALIASES: ReadonlyMap<string, string> = new Map([
   ['items materials', 'inventory'], ['items', 'inventory'], ['materials', 'inventory'], ['inventory', 'inventory'],
   ['motto', 'motto'], ['slogan', 'motto'],
   ['visual', 'visual'], ['origin', 'origin'],
+  ['registration id', 'registration_id'], ['character id', 'character_id'],
 ])
 
-const CONTROLLED_FIELDS = new Set(['rank', 'level', 'titles', 'money', 'membership', 'inventory'])
+const CONTROLLED_FIELDS = new Set(['rank', 'level', 'titles', 'money', 'membership', 'inventory', 'registration_id', 'character_id'])
 const REQUIRED_FIELDS = ['name', 'gender', 'age', 'birthday', 'race', 'class', 'element', 'will'] as const
 const KNOWN_FIELDS = new Set([...FIELD_ALIASES.values()])
 const LABEL_TYPO_ALIASES: ReadonlyMap<string, string> = new Map([
@@ -342,7 +343,14 @@ function isNarrativeLine(line: string): boolean {
   if (!trimmed) return false
   if (/^>\s*/u.test(trimmed)) return hasNarrativeContent(trimmed.replace(/^>\s*/u, ''))
   if (/^(?:["“「『]).+(?:["”」』])$/u.test(trimmed)) return hasNarrativeContent(trimmed.slice(1, -1))
-  if (/^『[^』]{1,60}』\s*[:：-]\s*\S/u.test(trimmed)) return hasNarrativeContent(trimmed.replace(/^『[^』]{1,60}』\s*[:：-]\s*/u, ''))
+  // Match nametags with various bracket/symbol styles
+  if (/^(?:[『「【〖〔\[(<{⟨꧁]|[^\p{L}\p{N}\s]{1,3}).{1,60}?(?:[』」】〗〕\])>}⟩꧂]|[^\p{L}\p{N}\s]{1,3})\s*[:：\-]\s*\S/u.test(trimmed)) {
+    return hasNarrativeContent(trimmed.replace(/^.+?[:：\-]\s*/u, ''))
+  }
+  // Match italic/bold RP actions: *walks in*, _looks around_
+  if (/^[*_].+[*_]$/u.test(trimmed)) return hasNarrativeContent(trimmed.slice(1, -1))
+  // Match plain nametag: SomeName: *action text*
+  if (/^[\p{L}\p{N}][\p{L}\p{N}\s.]{0,40}\s*[:：]\s*[*_"'].+/u.test(trimmed)) return hasNarrativeContent(trimmed.replace(/^.+?[:：]\s*/u, ''))
   return false
 }
 

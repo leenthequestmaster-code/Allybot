@@ -158,7 +158,7 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.messageGates.register('group-context-ic-ooc', async (message: CoreMessage) => {
         if (!service.isEnabled || message.fromMe || !isGroupJid(message.remoteJid)) return { allowed: true }
-        const commandName = commandNameFromMessage(message.text, context.config.commandPrefix)
+        const commandName = commandNameFromMessage(message.text ?? message.buttonId, context.config.commandPrefix)
         if (commandName && context.commands.get(commandName)) return { allowed: true }
 
         const groupContext = await service.get(message.remoteJid)

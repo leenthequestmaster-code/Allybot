@@ -96,8 +96,9 @@ function sameJid(left: string | undefined, right: string | undefined): boolean {
   return canonicalJid(left) === canonicalJid(right)
 }
 
-function cardCode(messageId: string): string {
-  return createHash('sha256').update(messageId).digest('hex').slice(0, 12).toUpperCase()
+function cardCode(ownerJid: string): string {
+  const phone = ownerJid.split('@')[0]?.split(':')[0]?.replace(/\D/g, '') ?? ''
+  return phone.slice(-4).padStart(4, '0')
 }
 
 function renderIdCard(code: string): string {
@@ -412,9 +413,8 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         for (const participant of participants) {
           const key = onboardingKey(event.groupJid, participant)
           if (onboarding.has(key)) continue
-          const codeSeed = `${event.groupJid}:${canonicalJid(participant)}:${event.at}`
           onboarding.set(key, {
-            cardCode: cardCode(codeSeed),
+            cardCode: cardCode(participant),
             groupJid: event.groupJid,
             ownerJid: participant,
             stage: 'experience',
@@ -464,7 +464,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply('Pendaftaranmu masih berjalan. Reply ID Card yang sudah dikirim dengan !savecharacter, atau ketik !retry untuk mulai ulang.')
             return
           }
-          const code = cardCode(commandContext.message.id)
+          const code = cardCode(actor)
           onboarding.set(onboardingKey(group, actor), { cardCode: code, groupJid: group, ownerJid: actor, stage: 'experience', createdAt: Date.now() })
           await whatsapp.sendText(group, 'Selamat datang di Grup Guide! Sebelum membuat karakter, pilih pengalamanmu bermain Roleplay:')
           await sendQuickReplies(whatsapp, group, 'Pilih salah satu:', [

@@ -566,6 +566,48 @@ export class MsgBuilder {
     }
   }
 
+
+  /** Relay an interactive/airich message with async 479-error fallback.
+   *  Does not block on ack — fires fallback if server rejects within a window. */
+  private async _relayWithAckGuard(
+    socket: WASocket,
+    transport: WhatsAppPort,
+    jid: string,
+    msg: proto.IMessage,
+    messageId: string,
+    additionalNodes: BinaryNode[],
+    fallbackText: string,
+  ): Promise<boolean> {
+    const ACK_WINDOW_MS = 12_000
+    let fallbackSent = false
+
+    const onUpdate = (updates: { key: proto.IMessageKey; update: Partial<proto.IWebMessageInfo> }[]) => {
+      for (const { key, update } of updates) {
+        if (key.id === messageId && (update as any).status === 5 /* WAMessageStatus.ERROR */) {
+          if (!fallbackSent) {
+            fallbackSent = true
+            socket.logger?.warn?.({ jid, messageId }, 'interactive relay rejected by server (479), sending fallback text')
+            transport.sendText(jid, fallbackText).catch(() => {})
+          }
+        }
+      }
+    }
+
+    socket.ev.on('messages.update', onUpdate as any)
+    // Auto-cleanup listener after window
+    setTimeout(() => { socket.ev.off('messages.update', onUpdate as any) }, ACK_WINDOW_MS)
+
+    try {
+      await socket.relayMessage(jid, msg, { messageId, additionalNodes })
+      return true
+    } catch (relayError) {
+      socket.ev.off('messages.update', onUpdate as any)
+      socket.logger?.warn?.({ err: relayError, jid }, 'interactive relay threw, sending fallback text')
+      await transport.sendText(jid, fallbackText)
+      return true
+    }
+  }
+
   async send(transport: WhatsAppPort & { socket?: WASocket }): Promise<void> {
     const built = this.build()
     const jid = this._remoteJid
@@ -622,21 +664,19 @@ export class MsgBuilder {
             socket.logger?.warn?.({ err: uploadError }, 'interactive image upload failed, sending without media')
           }
         }
+        const msgIdInteractive = generateMessageIDV2(socket.user?.id)
         const msg = proto.Message.create({
           interactiveMessage: interactive,
         })
-        await socket.relayMessage(jid, msg, {
-          messageId: generateMessageIDV2(socket.user?.id),
-          additionalNodes: nativeFlowAdditionalNodes(jid),
-        })
+        await this._relayWithAckGuard(socket, transport, jid, msg, msgIdInteractive, nativeFlowAdditionalNodes(jid), built.fallbackText)
+        return
       } else if (built.kind === 'airich') {
+        const msgIdRich = generateMessageIDV2(socket.user?.id)
         const msg = proto.Message.create({
           botInvokeMessage: built.payload.botInvokeMessage,
         })
-        await socket.relayMessage(jid, msg, {
-          messageId: generateMessageIDV2(socket.user?.id),
-          additionalNodes: nativeFlowAdditionalNodes(jid, false),
-        })
+        await this._relayWithAckGuard(socket, transport, jid, msg, msgIdRich, nativeFlowAdditionalNodes(jid, false), built.fallbackText)
+        return
       }
     } catch (error) {
       socket.logger?.warn?.({ err: error, jid, kind: built.kind }, 'native flow relay failed, falling back to plain text')
