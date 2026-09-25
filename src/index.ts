@@ -151,7 +151,7 @@ async function main(): Promise<void> {
   }))
   framework.registerService(redis)
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
-  framework.registerService(new WebCompanionService(logger))
+  framework.registerService(new WebCompanionService(logger, { whatsapp }))
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
   if (config.AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))

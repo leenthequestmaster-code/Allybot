@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Benua Allyssea — Registri Karakter</title>
+  <title>Registri Sipil Benua Allyssea</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +20,8 @@
           colors: {
             abyss: '#08090b',
             slateCard: '#0f1115',
-            wellBg: '#0a0b0e',
+            wellBg: '#090a0d',
+            fieldBg: '#13161c',
             gold: {
               400: '#dfc17b',
               500: '#c5a059',
@@ -31,7 +32,7 @@
             ash: '#8a8d98',
             darkAsh: '#4e515d',
             line: '#1c1f26',
-            lineGold: 'rgba(197, 160, 89, 0.22)',
+            lineGold: 'rgba(197, 160, 89, 0.25)',
           }
         }
       }
@@ -85,37 +86,46 @@
       border-bottom: 1px solid #c5a059;
       border-right: 1px solid #c5a059;
     }
+    input, select, textarea {
+      background-color: #13161c !important;
+      border: 1px solid #232733 !important;
+      color: #eae8e3 !important;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #c5a059 !important;
+      outline: none !important;
+      box-shadow: 0 0 0 1px rgba(197, 160, 89, 0.25) !important;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start p-3 sm:p-6 selection:bg-gold-500/20 selection:text-gold-400">
 
-  <!-- Main Container: Centered Passport Sheet -->
+  <!-- Main Container -->
   <div class="w-full max-w-xl mx-auto space-y-4">
 
-    <!-- Top Identity Band -->
+    <!-- Top Identity Header -->
     <header class="parchment-border rounded-lg bg-slateCard p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <!-- Official Seal Emblem -->
         <div class="w-10 h-10 rounded border border-gold-500/40 bg-wellBg flex items-center justify-center p-1.5 flex-shrink-0">
           <svg viewBox="0 0 24 24" class="w-full h-full text-gold-500 fill-none stroke-current stroke-[1.25]">
             <circle cx="12" cy="12" r="9.5" />
-            <circle cx="12" cy="12" r="7" stroke-dasharray="1.5 2" />
+            <circle cx="12" cy="12" stroke-dasharray="1.5 2" r="7" />
             <polygon points="12,3 14,10 21,12 14,14 12,21 10,14 3,12 10,10" />
             <circle cx="12" cy="12" r="1.5" class="fill-current" />
           </svg>
         </div>
         <div>
           <div class="text-[10px] font-mono tracking-widest text-gold-500 uppercase">ALLYSSEA ROLEPLAY COMMUNITY</div>
-          <h1 class="text-xs font-serif font-bold tracking-wider text-parchment uppercase">Lembar Identitas Warga</h1>
+          <h1 class="text-xs font-serif font-bold tracking-wider text-parchment uppercase">Registri Sipil Karakter</h1>
         </div>
       </div>
 
       <div class="text-right">
         <div id="statusBadge" class="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-wide px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-700/40 text-emerald-400">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>TERVERIFIKASI</span>
+          <span>SESI AKTIF</span>
         </div>
-        <div id="dossierSerial" class="text-[10px] font-mono text-darkAsh mt-0.5 tracking-tight">REG-ALLYSSEA</div>
+        <div id="userPhone" class="text-[10px] font-mono text-darkAsh mt-0.5">Memuat...</div>
       </div>
     </header>
 
@@ -135,12 +145,274 @@
         <p id="errorMessage" class="text-xs text-ash mt-1 leading-relaxed max-w-sm mx-auto"></p>
       </div>
       <div class="pt-2">
-        <span class="text-[11px] font-mono text-darkAsh">Ketik <code class="text-gold-400">!web</code> di WhatsApp untuk menerbitkan tautan baru.</span>
+        <span class="text-[11px] font-mono text-darkAsh">Ketik <code class="text-gold-400">!daftar</code> di WhatsApp untuk menerbitkan tautan baru.</span>
       </div>
     </div>
 
-    <!-- Active Character Dossier -->
-    <main id="charView" class="hidden space-y-4">
+    <!-- ========================================== -->
+    <!-- VIEW A: FORM PENDAFTARAN KARAKTER (CREATOR) -->
+    <!-- ========================================== -->
+    <main id="creatorView" class="hidden space-y-4">
+      <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-4">
+
+        <!-- Form Intro Card -->
+        <div class="parchment-border corner-bracket rounded-lg bg-slateCard p-5 space-y-1.5">
+          <div class="text-[10px] font-mono text-gold-500 uppercase tracking-widest">FORMULIR PENETAPAN WARGA</div>
+          <h2 class="text-xl font-serif font-bold text-parchment text-gold-gradient">Lembar Pendaftaran Jiwa</h2>
+          <p class="text-xs text-ash leading-relaxed">
+            Lengkapi data karakter di bawah ini. Begitu disimpan, identitasmu akan langsung tercatat secara permanen di basis data Allyssea dan bisa langsung diperiksa via WhatsApp.
+          </p>
+        </div>
+
+        <!-- Alert Error Banner in Form -->
+        <div id="formAlert" class="hidden p-3 rounded bg-rose-950/40 border border-rose-800/50 text-xs text-rose-300 font-mono space-y-1">
+        </div>
+
+        <!-- Section 1: Identitas Dasar -->
+        <div class="parchment-border rounded-lg bg-slateCard p-5 space-y-4">
+          <div class="border-b border-line pb-2 flex justify-between items-center">
+            <h3 class="font-serif font-bold text-xs uppercase tracking-wider text-gold-400">I. Identitas Karakter</h3>
+            <span class="text-[9px] font-mono text-darkAsh">WAJIB DIISI</span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <!-- Nama Karakter -->
+            <div class="space-y-1">
+              <label class="block font-mono text-[11px] text-ash">NAMA LENGKAP KARAKTER</label>
+              <input type="text" id="inputName" required maxlength="60" placeholder="misal: Aruna Vane, Cheryl, Kaelen" class="w-full px-3 py-2 rounded text-xs">
+            </div>
+
+            <!-- Gender & Umur Grid -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="block font-mono text-[11px] text-ash">JENIS KELAMIN</label>
+                <select id="inputGender" required class="w-full px-3 py-2 rounded text-xs cursor-pointer">
+                  <option value="Male">Male (Laki-laki)</option>
+                  <option value="Female">Female (Perempuan)</option>
+                  <option value="Non-Binary">Non-Binary</option>
+                </select>
+              </div>
+
+              <div class="space-y-1">
+                <label class="block font-mono text-[11px] text-ash">UMUR (5 - 500 TAHUN)</label>
+                <input type="number" id="inputAge" required min="5" max="500" value="20" oninput="updateBirthYear()" class="w-full px-3 py-2 rounded text-xs font-mono">
+              </div>
+            </div>
+
+            <!-- Tanggal Lahir (Kalender KAR) -->
+            <div class="space-y-1">
+              <label class="block font-mono text-[11px] text-ash">TANGGAL LAHIR (SISTEM PENANGGALAN KAR)</label>
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <input type="number" id="inputBirthDay" min="1" max="30" value="12" placeholder="Hari (1-30)" required class="w-full px-2.5 py-2 rounded text-xs font-mono text-center">
+                </div>
+                <div>
+                  <select id="inputBirthMonth" required class="w-full px-2 py-2 rounded text-xs cursor-pointer">
+                    <option value="Aurion">Aurion (1)</option>
+                    <option value="Florentis">Florentis (2)</option>
+                    <option value="Zephyra" selected>Zephyra (3)</option>
+                    <option value="Emberfall">Emberfall (4)</option>
+                    <option value="Luminara">Luminara (5)</option>
+                    <option value="Verdantia">Verdantia (6)</option>
+                    <option value="Solmora">Solmora (7)</option>
+                    <option value="Astravia">Astravia (8)</option>
+                    <option value="Umbralis">Umbralis (9)</option>
+                    <option value="Crystelle">Crystelle (10)</option>
+                    <option value="Nocturne">Nocturne (11)</option>
+                    <option value="Everglen">Everglen (12)</option>
+                  </select>
+                </div>
+                <div class="relative">
+                  <input type="text" id="inputBirthYear" readonly class="w-full px-2.5 py-2 rounded text-xs font-mono text-center text-gold-400 bg-wellBg cursor-not-allowed">
+                  <span class="absolute right-2 top-2 text-[10px] font-mono text-darkAsh">KAR</span>
+                </div>
+              </div>
+              <p class="text-[10px] font-mono text-darkAsh mt-1">Tahun lahir dihitung otomatis oleh hukum benua: 800 dikurangi Umur.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Jati Diri & Takdir Magis -->
+        <div class="parchment-border rounded-lg bg-slateCard p-5 space-y-4">
+          <div class="border-b border-line pb-2 flex justify-between items-center">
+            <h3 class="font-serif font-bold text-xs uppercase tracking-wider text-gold-400">II. Jati Diri & Afinitas Magis</h3>
+            <span class="text-[9px] font-mono text-darkAsh">HUKUM DUNIA</span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <!-- Ras -->
+            <div class="space-y-1">
+              <label class="block font-mono text-[11px] text-ash">RAS KARAKTER (17 RAS RESMI)</label>
+              <select id="inputRace" required onchange="handleRaceChange()" class="w-full px-3 py-2 rounded text-xs cursor-pointer">
+                <option value="Human">Human (Manusia Biasa)</option>
+                <option value="Elf">Elf (Peri Hutan & Cahaya)</option>
+                <option value="Dark Elf">Dark Elf (Peri Kegelapan)</option>
+                <option value="Dwarf">Dwarf (Kerdil Tangguh & Pandai Besi)</option>
+                <option value="Giant">Giant (Raksasa Berdaya Fisik Tinggi)</option>
+                <option value="Orc">Orc (Prajurit Buas)</option>
+                <option value="Fairy">Fairy (Peri Sayap Kecil)</option>
+                <option value="Vampire">Vampire (Penghisap Darah)</option>
+                <option value="Pisces">Pisces (Ras Manusia Ikan / Laut)</option>
+                <option value="Harpy">Harpy (Manusia Bersayap Burung)</option>
+                <option value="Slime">Slime (Makhluk Gelatinous)</option>
+                <option value="Dragonborn">Dragonborn (Keturunan Naga)</option>
+                <option value="Beastfolk">Beastfolk (Manusia Hewan)</option>
+                <option value="Kitsune">Kitsune (Rubah Berekor)</option>
+                <option value="Dryad">Dryad (Roh Tumbuhan Hutan)</option>
+                <option value="Demon">Demon (Iblis Dunia Bawah)</option>
+                <option value="Angel">Angel (Malaikat Suci)</option>
+              </select>
+            </div>
+
+            <!-- Kelas -->
+            <div class="space-y-1">
+              <label class="block font-mono text-[11px] text-ash">KELAS UTAMA (27 KELAS ALYSSEA)</label>
+              <select id="inputClass" required class="w-full px-3 py-2 rounded text-xs cursor-pointer">
+                <optgroup label="Martial Prowess">
+                  <option value="Knight" selected>Knight (Ksatria Berpelindung)</option>
+                  <option value="Samurai">Samurai (Pendekar Pedang Akurat)</option>
+                  <option value="Berserker">Berserker (Petarung Amarah Fisik)</option>
+                </optgroup>
+                <optgroup label="Phantom Stalker">
+                  <option value="Ninja">Ninja (Pembunuh Senyap & Cepat)</option>
+                  <option value="Assassin">Assassin (Penyergap Mematikan)</option>
+                  <option value="Thief">Thief (Pencuri Gesit & Lincah)</option>
+                </optgroup>
+                <optgroup label="Ballistic Oracle">
+                  <option value="Archer">Archer (Pemanah Jarak Jauh)</option>
+                  <option value="Sniper">Sniper (Penembak Jitu Akurasi Tinggi)</option>
+                  <option value="Gunslinger">Gunslinger (Ahli Senjata Api)</option>
+                </optgroup>
+                <optgroup label="Aether Weaver">
+                  <option value="Sorcerer">Sorcerer (Penyihir Elemen Luas)</option>
+                  <option value="Necromancer">Necromancer (Pengendali Arwah)</option>
+                  <option value="Illusionist">Illusionist (Manipulator Ilusi)</option>
+                </optgroup>
+                <optgroup label="Divine Apostle">
+                  <option value="Paladin">Paladin (Ksatria Suci Bertahan)</option>
+                  <option value="Bard">Bard (Penyair Magis Pendukung)</option>
+                  <option value="Cleric">Cleric (Penyembuh Berkah Ilahi)</option>
+                </optgroup>
+                <optgroup label="Technomaster">
+                  <option value="Trapper">Trapper (Pemasang Perangkap Taktis)</option>
+                  <option value="Mechanist">Mechanist (Insinyur Mesin Tempur)</option>
+                  <option value="Saboteur">Saboteur (Penyabotase Garis Belakang)</option>
+                </optgroup>
+                <optgroup label="Eldritch Master">
+                  <option value="Puppeteer">Puppeteer (Pengendali Boneka)</option>
+                  <option value="Jester">Jester (Badut Misterius Bertrik)</option>
+                  <option value="Sigil Scribe">Sigil Scribe (Pemahat Pola Kuno)</option>
+                </optgroup>
+                <optgroup label="Aegis Vanguard">
+                  <option value="Guardian">Guardian (Benteng Pelindung Rekan)</option>
+                  <option value="Sentinel">Sentinel (Pengawal Wilayah)</option>
+                  <option value="Bulwark">Bulwark (Dinding Pertahanan Murni)</option>
+                </optgroup>
+                <optgroup label="Nature's Envoy">
+                  <option value="Beastmaster">Beastmaster (Pawang Hewan Buas)</option>
+                  <option value="Shapeshifter">Shapeshifter (Pengubah Bentuk Tubuh)</option>
+                  <option value="Summoner">Summoner (Pemanggil Makhluk Astral)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Elemen Afinitas -->
+            <div class="space-y-1">
+              <label class="block font-mono text-[11px] text-ash">ELEMEN AFINITAS</label>
+              <select id="inputElement" required class="w-full px-3 py-2 rounded text-xs cursor-pointer">
+                <option value="Fire" selected>Fire (Api / Membakar)</option>
+                <option value="Water">Water (Air / Mengalir)</option>
+                <option value="Wind">Wind (Angin / Kelincahan)</option>
+                <option value="Earth">Earth (Tanah / Kokoh)</option>
+                <option value="Lightning">Lightning (Petir / Cepat)</option>
+                <option value="Ice">Ice (Es / Membekukan)</option>
+                <option value="Light">Light (Cahaya / Murni)</option>
+                <option value="Dark">Dark (Kegelapan / Mengikis)</option>
+                <option value="Nature" id="optNature">Nature (Khusus Dryad & Elf)</option>
+                <option value="Blood" id="optBlood">Blood (Khusus Vampire)</option>
+                <option value="Gel" id="optGel">Gel (Khusus Slime)</option>
+                <option value="Sound">Sound (Suara / Gelombang)</option>
+                <option value="Sand">Sand (Pasir)</option>
+                <option value="Mist">Mist (Kabut)</option>
+                <option value="Fruits">Fruits (Buah / Organik)</option>
+                <option value="Paper">Paper (Kertas Sihir)</option>
+                <option value="Magma">Magma (Lahar Panas)</option>
+                <option value="Bone">Bone (Tulang Keras)</option>
+              </select>
+              <p id="elementNotice" class="text-[10px] font-mono text-gold-400 mt-1"></p>
+            </div>
+
+            <!-- Will of Path -->
+            <div class="space-y-1">
+              <label class="block font-mono text-[11px] text-ash">WILL OF PATH (JALUR KEHENDAK)</label>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="cursor-pointer border border-line p-2 rounded text-center bg-wellBg hover:border-gold-500/50 flex flex-col items-center">
+                  <input type="radio" name="willOfPath" value="Light" class="hidden">
+                  <span class="text-[11px] font-serif font-bold text-sky-300">Light</span>
+                  <span class="text-[9px] font-mono text-darkAsh mt-0.5">Kebajikan</span>
+                </label>
+                <label class="cursor-pointer border border-gold-500/60 p-2 rounded text-center bg-wellBg flex flex-col items-center ring-1 ring-gold-500/30">
+                  <input type="radio" name="willOfPath" value="Neutral" checked class="hidden">
+                  <span class="text-[11px] font-serif font-bold text-amber-300">Neutral</span>
+                  <span class="text-[9px] font-mono text-darkAsh mt-0.5">Bebas</span>
+                </label>
+                <label class="cursor-pointer border border-line p-2 rounded text-center bg-wellBg hover:border-gold-500/50 flex flex-col items-center">
+                  <input type="radio" name="willOfPath" value="Dark" class="hidden">
+                  <span class="text-[11px] font-serif font-bold text-rose-300">Dark</span>
+                  <span class="text-[9px] font-mono text-darkAsh mt-0.5">Ambisi</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Riwayat Tambahan (Opsional) -->
+        <div class="parchment-border rounded-lg bg-slateCard p-5 space-y-4">
+          <div class="border-b border-line pb-2 flex justify-between items-center">
+            <h3 class="font-serif font-bold text-xs uppercase tracking-wider text-gold-400">III. Riwayat Warga (Opsional)</h3>
+            <span class="text-[9px] font-mono text-darkAsh">BOLEH KOSONG</span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="block font-mono text-[11px] text-ash">PROFESI SIPIL</label>
+                <input type="text" id="inputProfession" maxlength="120" placeholder="misal: Pustakawan, Tabib" class="w-full px-3 py-2 rounded text-xs">
+              </div>
+              <div class="space-y-1">
+                <label class="block font-mono text-[11px] text-ash">ASAL WILAYAH</label>
+                <input type="text" id="inputOrigin" maxlength="160" placeholder="misal: Old York, Great Jura" class="w-full px-3 py-2 rounded text-xs">
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <label class="block font-mono text-[11px] text-ash">MOTTO / KUTIPAN JIWA</label>
+              <textarea id="inputMotto" rows="2" maxlength="500" placeholder="Kutipan atau prinsip hidup karakter..." class="w-full px-3 py-2 rounded text-xs resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-2">
+          <button type="submit" id="submitBtn" class="w-full parchment-border corner-bracket py-3.5 px-4 bg-gradient-to-r from-gold-900/60 to-gold-600/40 hover:from-gold-600/40 hover:to-gold-500/50 rounded font-serif font-bold text-parchment tracking-widest text-xs uppercase transition-all duration-200">
+            Daftarkan Karakter ke Registri Sipil
+          </button>
+        </div>
+
+      </form>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- VIEW B: CITIZEN DOSSIER (ACTIVE CHARACTER) -->
+    <!-- ========================================== -->
+    <main id="dossierView" class="hidden space-y-4">
+
+      <!-- Registration Success Banner (shown only on new submit) -->
+      <div id="successNotice" class="hidden parchment-border rounded-lg bg-emerald-950/30 border border-emerald-700/50 p-4 text-center space-y-1">
+        <div class="text-[10px] font-mono text-emerald-400 uppercase tracking-widest">PENDAFTARAN SELESAI</div>
+        <h3 class="font-serif font-bold text-parchment text-sm">Karakter Resmi Terdaftar di Benua Allyssea!</h3>
+        <p class="text-xs text-ash mt-0.5">Silakan kembali ke WhatsApp dan gunakan perintah <code class="text-gold-400 font-mono">!character</code>.</p>
+      </div>
 
       <!-- Hero Dossier Card -->
       <section class="parchment-border corner-bracket rounded-lg bg-slateCard p-5 sm:p-6 space-y-5">
@@ -162,7 +434,6 @@
             </p>
           </div>
 
-          <!-- Rank & Level Display -->
           <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start border-t sm:border-t-0 border-line pt-3 sm:pt-0">
             <div class="text-[9px] font-mono tracking-widest text-darkAsh uppercase">Klasifikasi Rank</div>
             <div id="charRank" class="text-3xl font-serif font-bold text-gold-400 tracking-wider">
@@ -174,32 +445,30 @@
           </div>
         </div>
 
-        <!-- Vital Gauges (HP & Star Energy) -->
+        <!-- Vital Gauges -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <!-- HP Gauge -->
           <div class="bg-wellBg border border-line rounded p-3 space-y-1.5">
             <div class="flex justify-between items-baseline text-[10px] font-mono">
               <span class="text-rose-400 font-semibold tracking-wider">HEALTH POINT</span>
               <span id="hpNumbers" class="text-parchment">800 / 800</span>
             </div>
             <div class="w-full h-1.5 bg-black rounded-full overflow-hidden border border-rose-950">
-              <div id="hpFill" class="h-full bg-rose-600 rounded-full transition-all duration-500" style="width: 100%"></div>
+              <div id="hpFill" class="h-full bg-rose-600 rounded-full" style="width: 100%"></div>
             </div>
           </div>
 
-          <!-- SE Gauge -->
           <div class="bg-wellBg border border-line rounded p-3 space-y-1.5">
             <div class="flex justify-between items-baseline text-[10px] font-mono">
               <span class="text-sky-400 font-semibold tracking-wider">STAR ENERGY</span>
               <span id="seNumbers" class="text-parchment">200 / 200</span>
             </div>
             <div class="w-full h-1.5 bg-black rounded-full overflow-hidden border border-sky-950">
-              <div id="seFill" class="h-full bg-sky-600 rounded-full transition-all duration-500" style="width: 100%"></div>
+              <div id="seFill" class="h-full bg-sky-600 rounded-full" style="width: 100%"></div>
             </div>
           </div>
         </div>
 
-        <!-- Ledger Table: Core Identity Matrix -->
+        <!-- Ledger Table -->
         <div class="border border-line rounded overflow-hidden divide-y divide-line text-xs">
           <div class="grid grid-cols-2 divide-x divide-line bg-wellBg/50">
             <div class="p-2.5 sm:p-3">
@@ -242,9 +511,9 @@
           </div>
         </div>
 
-        <!-- Narrative Section: Motto & Visual -->
+        <!-- Motto / Notes -->
         <div class="space-y-2 pt-1">
-          <div class="text-[10px] font-mono text-darkAsh uppercase tracking-widest">Catatan Jiwa & Motto</div>
+          <div class="text-[10px] font-mono text-darkAsh uppercase tracking-widest">Motto Karakter</div>
           <div class="bg-wellBg border border-line rounded p-3">
             <blockquote id="charMotto" class="font-serif italic text-xs text-ash leading-relaxed">
               "—"
@@ -253,7 +522,7 @@
         </div>
       </section>
 
-      <!-- Section: Kas & Perbendaharaan Karakter -->
+      <!-- Section: Kas & Perbendaharaan -->
       <section class="parchment-border rounded-lg bg-slateCard p-4 sm:p-5">
         <div class="flex items-center justify-between border-b border-line pb-3 mb-3">
           <div class="text-[10px] font-mono tracking-widest text-gold-500 uppercase">PERBENDAHARAAN & KEUANGAN</div>
@@ -272,7 +541,7 @@
         </div>
       </section>
 
-      <!-- Section: Detak Waktu Benua Allyssea (Official Time RP Engine) -->
+      <!-- Section: Detak Waktu Benua -->
       <section class="parchment-border rounded-lg bg-slateCard p-4 sm:p-5 space-y-3">
         <div class="flex items-center justify-between border-b border-line pb-3">
           <div>
@@ -303,44 +572,11 @@
             <div id="rpSeason" class="font-serif font-semibold text-parchment mt-0.5">—</div>
           </div>
         </div>
-
-        <div class="text-[10px] font-mono text-darkAsh text-center pt-1 border-t border-line">
-          Hari Benua berganti dua kali sehari pada pukul <span class="text-ash font-semibold">06.00 WIB</span> dan <span class="text-ash font-semibold">18.00 WIB</span>.
-        </div>
       </section>
 
     </main>
 
-    <!-- Empty State: Unregistered User -->
-    <section id="charEmptyView" class="hidden parchment-border rounded-lg bg-slateCard p-8 text-center space-y-4">
-      <div class="w-12 h-12 mx-auto rounded border border-line bg-wellBg flex items-center justify-center p-2 text-gold-500">
-        <svg viewBox="0 0 24 24" class="w-full h-full fill-none stroke-current stroke-[1.25]">
-          <rect x="4" y="3" width="16" height="18" rx="2" />
-          <line x1="8" y1="7" x2="16" y2="7" />
-          <line x1="8" y1="11" x2="16" y2="11" />
-          <line x1="8" y1="15" x2="12" y2="15" />
-        </svg>
-      </div>
-
-      <div class="space-y-1">
-        <h3 class="font-serif font-bold text-parchment text-base tracking-wide">Belum Memiliki Karakter Terdaftar</h3>
-        <p class="text-xs text-ash leading-relaxed max-w-sm mx-auto">
-          Nomor WhatsApp Anda belum memiliki lembar karakter aktif yang tersimpan di sistem Registri Benua Allyssea.
-        </p>
-      </div>
-
-      <div class="border border-line rounded bg-wellBg p-4 text-left text-xs space-y-2 max-w-sm mx-auto">
-        <div class="font-mono font-semibold text-gold-400 text-[11px] uppercase tracking-wider">Prosedur Registrasi:</div>
-        <ol class="list-decimal list-inside space-y-1 text-ash font-mono text-[11px]">
-          <li>Masuk ke <strong class="text-parchment">Grup Guide Allyssea</strong> di WhatsApp.</li>
-          <li>Kirim perintah <code class="text-gold-400">!daftar</code> untuk membuka sesi.</li>
-          <li>Pilih tingkat pengalaman (1, 2, atau 3).</li>
-          <li>Reply pesan ID Card yang dikirim bot dengan <code class="text-gold-400">!savecharacter</code> beserta data sheet.</li>
-        </ol>
-      </div>
-    </section>
-
-    <!-- Document Colophon & Verification Footer -->
+    <!-- Footer -->
     <footer class="text-center space-y-1 py-4 text-[10px] font-mono text-darkAsh">
       <div>DOKUMEN RESMI REGISTRI SIPIL ALLYSSEA · ALLYBOT SYSTEM FOUNDATION</div>
       <div>TERENKRIPSI DAN TERVERIFIKASI MELALUI POSTGRESQL & REDIS</div>
@@ -349,29 +585,78 @@
   </div>
 
   <script>
+    let activeToken = '';
+
     function getToken() {
-      const match = window.location.pathname.match(/\/c\/([a-f0-9]{32})/i);
+      const match = window.location.pathname.match(/\/(?:c|daftar)\/([a-f0-9]{32})/i);
       if (match) return match[1];
       const params = new URLSearchParams(window.location.search);
       return params.get('token') || '';
     }
 
-    async function loadCompanion() {
-      const token = getToken();
-      if (!token) {
-        showError('Tautan tidak menyertakan token otentikasi yang sah. Silakan panggil !web di WhatsApp.');
+    function updateBirthYear() {
+      const ageVal = parseInt(document.getElementById('inputAge').value, 10);
+      const year = Number.isFinite(ageVal) ? 800 - ageVal : 780;
+      document.getElementById('inputBirthYear').value = year;
+    }
+
+    function handleRaceChange() {
+      const race = document.getElementById('inputRace').value;
+      const elementSelect = document.getElementById('inputElement');
+      const notice = document.getElementById('elementNotice');
+
+      if (race === 'Dryad' || race === 'Elf') {
+        notice.innerText = 'Tip: Ras ' + race + ' memiliki afinitas alami terhadap elemen Nature.';
+      } else if (race === 'Vampire') {
+        notice.innerText = 'Tip: Ras Vampire memenuhi syarat untuk memilih elemen Blood.';
+      } else if (race === 'Slime') {
+        notice.innerText = 'Tip: Ras Slime memenuhi syarat untuk memilih elemen Gel.';
+      } else {
+        notice.innerText = '';
+        if (elementSelect.value === 'Nature' || elementSelect.value === 'Blood' || elementSelect.value === 'Gel') {
+          elementSelect.value = 'Fire';
+        }
+      }
+    }
+
+    // Radio style toggle
+    document.querySelectorAll('input[name="willOfPath"]').forEach(radio => {
+      radio.closest('label').addEventListener('click', () => {
+        document.querySelectorAll('input[name="willOfPath"]').forEach(r => {
+          r.closest('label').classList.remove('border-gold-500/60', 'ring-1', 'ring-gold-500/30');
+          r.closest('label').classList.add('border-line');
+        });
+        radio.checked = true;
+        radio.closest('label').classList.remove('border-line');
+        radio.closest('label').classList.add('border-gold-500/60', 'ring-1', 'ring-gold-500/30');
+      });
+    });
+
+    async function loadSession() {
+      activeToken = getToken();
+      if (!activeToken) {
+        showError('Tautan tidak menyertakan token otentikasi yang sah. Silakan ketik !daftar di WhatsApp.');
         return;
       }
 
+      updateBirthYear();
+
       try {
-        const res = await fetch(`/api/session/${token}`);
+        const res = await fetch(`/api/session/${activeToken}`);
         const data = await res.json();
         if (!data.ok) {
           showError(data.error || 'Sesi otentikasi kedaluwarsa atau tidak terdaftar.');
           return;
         }
 
-        renderDossier(data);
+        document.getElementById('loadingView').classList.add('hidden');
+        document.getElementById('userPhone').innerText = `+${data.user.phone}`;
+
+        if (data.character) {
+          renderDossier(data);
+        } else {
+          document.getElementById('creatorView').classList.remove('hidden');
+        }
       } catch (err) {
         showError('Gagal berkomunikasi dengan server registri Allybot.');
       }
@@ -384,46 +669,34 @@
     }
 
     function renderDossier(data) {
-      document.getElementById('loadingView').classList.add('hidden');
-      
+      document.getElementById('creatorView').classList.add('hidden');
+      document.getElementById('dossierView').classList.remove('hidden');
+
       const char = data.character;
-      if (char) {
-        document.getElementById('charView').classList.remove('hidden');
-        document.getElementById('dossierSerial').innerText = `ID: REG-${char.characterId.slice(0, 8).toUpperCase()}`;
+      document.getElementById('charName').innerText = char.name;
+      document.getElementById('charClassRace').innerText = `${char.race.toUpperCase()} · ${char.className.toUpperCase()}`;
+      document.getElementById('charPathBadge').innerText = `${char.willOfPath.toUpperCase()} PATH`;
+      
+      const title = char.titles && char.titles.length > 0 ? char.titles[0] : 'Allyssea Citizen';
+      document.getElementById('charTitleBadge').innerText = title;
 
-        // Hero Profile
-        document.getElementById('charName').innerText = char.name;
-        document.getElementById('charClassRace').innerText = `${char.race.toUpperCase()} · ${char.className.toUpperCase()}`;
-        document.getElementById('charPathBadge').innerText = `${char.willOfPath.toUpperCase()} PATH`;
-        
-        const title = char.titles && char.titles.length > 0 ? char.titles[0] : 'Allyssea Citizen';
-        document.getElementById('charTitleBadge').innerText = title;
+      document.getElementById('charRank').innerText = char.rank;
+      document.getElementById('charLevel').innerText = `Level ${char.level}`;
 
-        document.getElementById('charRank').innerText = char.rank;
-        document.getElementById('charLevel').innerText = `Level ${char.level}`;
+      document.getElementById('charElement').innerText = char.element;
+      document.getElementById('charAge').innerText = `${char.age} Tahun`;
+      document.getElementById('charBirthday').innerText = char.birthday || '—';
+      document.getElementById('charOrigin').innerText = char.origin || '—';
+      document.getElementById('charSpirit').innerText = char.spirit || '—';
+      document.getElementById('charCrew').innerText = char.crew || '—';
+      document.getElementById('charProfession').innerText = char.profession || '—';
+      document.getElementById('charMotto').innerText = char.motto ? `"${char.motto}"` : '—';
 
-        // Matrix Fields
-        document.getElementById('charElement').innerText = char.element;
-        document.getElementById('charAge').innerText = `${char.age} Tahun`;
-        document.getElementById('charBirthday').innerText = char.birthday || '—';
-        document.getElementById('charOrigin').innerText = char.origin || '—';
-        document.getElementById('charSpirit').innerText = char.spirit || '—';
-        document.getElementById('charCrew').innerText = char.crew || '—';
-        document.getElementById('charProfession').innerText = char.profession || '—';
-        document.getElementById('charMotto').innerText = char.motto ? `"${char.motto}"` : '—';
-      } else {
-        document.getElementById('charEmptyView').classList.remove('hidden');
-        document.getElementById('statusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>BELUM TERDAFTAR</span>';
-        document.getElementById('statusBadge').className = 'inline-flex items-center gap-1.5 text-[10px] font-mono tracking-wide px-2 py-0.5 rounded bg-amber-950/40 border border-amber-700/40 text-amber-400';
-      }
-
-      // Economy
       if (data.economy) {
         document.getElementById('walletValue').innerText = `${data.economy.wallet.toLocaleString('id-ID')} VELA`;
         document.getElementById('safeValue').innerText = `${data.economy.safe.toLocaleString('id-ID')} VELA`;
       }
 
-      // Time RP
       if (data.timeRp) {
         const t = data.timeRp;
         document.getElementById('rpDay').innerText = t.rpDay;
@@ -434,7 +707,104 @@
       }
     }
 
-    window.addEventListener('DOMContentLoaded', loadCompanion);
+    async function handleRegister(e) {
+      e.preventDefault();
+      const alertBox = document.getElementById('formAlert');
+      const submitBtn = document.getElementById('submitBtn');
+      alertBox.classList.add('hidden');
+      alertBox.innerHTML = '';
+
+      const name = document.getElementById('inputName').value.trim();
+      const gender = document.getElementById('inputGender').value;
+      const age = parseInt(document.getElementById('inputAge').value, 10);
+      const birthdayDay = parseInt(document.getElementById('inputBirthDay').value, 10);
+      const birthdayMonth = document.getElementById('inputBirthMonth').value;
+      const race = document.getElementById('inputRace').value;
+      const className = document.getElementById('inputClass').value;
+      const element = document.getElementById('inputElement').value;
+      const willOfPath = document.querySelector('input[name="willOfPath"]:checked').value;
+      const profession = document.getElementById('inputProfession').value.trim();
+      const origin = document.getElementById('inputOrigin').value.trim();
+      const motto = document.getElementById('inputMotto').value.trim();
+
+      // Client validation
+      if (!name) {
+        alertBox.innerText = 'Nama karakter wajib diisi.';
+        alertBox.classList.remove('hidden');
+        return;
+      }
+      if (element === 'Nature' && race !== 'Dryad' && race !== 'Elf') {
+        alertBox.innerText = 'Elemen Nature hanya dapat dipilih oleh ras Dryad atau Elf.';
+        alertBox.classList.remove('hidden');
+        return;
+      }
+      if (element === 'Blood' && race !== 'Vampire') {
+        alertBox.innerText = 'Elemen Blood hanya dapat dipilih oleh ras Vampire.';
+        alertBox.classList.remove('hidden');
+        return;
+      }
+      if (element === 'Gel' && race !== 'Slime') {
+        alertBox.innerText = 'Elemen Gel hanya dapat dipilih oleh ras Slime.';
+        alertBox.classList.remove('hidden');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'MENDAFTARKAN KE ARSIP KERAJAAN...';
+
+      try {
+        const payload = {
+          name, gender, age, birthdayDay, birthdayMonth,
+          race, className, element, willOfPath,
+          profession, origin, motto
+        };
+
+        const res = await fetch(`/api/register/${activeToken}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!data.ok) {
+          alertBox.innerText = data.error || 'Pendaftaran gagal diverifikasi server.';
+          alertBox.classList.remove('hidden');
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'DAFTARKAN KARAKTER KE REGISTRI SIPIL';
+          return;
+        }
+
+        // Success: reload fresh session data to display dossier
+        document.getElementById('successNotice').classList.remove('hidden');
+        const sessRes = await fetch(`/api/session/${activeToken}`);
+        const sessData = await sessRes.json();
+        if (sessData.ok && sessData.character) {
+          renderDossier(sessData);
+        } else {
+          // If session token was consumed, construct mock view with payload
+          renderDossier({
+            character: {
+              ...payload,
+              rank: 'F-',
+              level: 1,
+              birthday: `${birthdayDay} ${birthdayMonth} ${800 - age} KAR`,
+              titles: ['Allyssea Citizen'],
+            },
+            timeRp: {
+              rpDay: 'Astryx', rpMonth: 'Solmora', rpYear: 6, rpSeasonLabel: 'Musim Gugur',
+              rpHour: 10, rpMinute: 30
+            }
+          });
+        }
+      } catch (err) {
+        alertBox.innerText = 'Terjadi gangguan jaringan saat menghubungi server.';
+        alertBox.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'DAFTARKAN KARAKTER KE REGISTRI SIPIL';
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', loadSession);
   </script>
 </body>
 </html>

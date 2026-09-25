@@ -465,6 +465,32 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const code = cardCode(`${group}:${actor}:${Date.now()}`)
           onboarding.set(onboardingKey(group, actor), { cardCode: code, groupJid: group, ownerJid: actor, stage: 'experience', createdAt: Date.now() })
+
+          let webUrl: string | undefined
+          if (commandContext.services.has('web-companion')) {
+            try {
+              const web = commandContext.services.get<any>('web-companion')
+              const sess = await web.createSession(actor, group)
+              webUrl = sess.url
+            } catch {
+              // fallback to text flow
+            }
+          }
+
+          if (webUrl) {
+            const welcomeText = [
+              '*REGISTRI KARAKTER BENUA ALLYSSEA* 📜',
+              '',
+              'Selamat datang di Allyssea Roleplay Community!',
+              'Untuk mempermudah pembuatan karakter tanpa perlu mengisi template manual di WhatsApp, silakan isi formulir registri resmi melalui tautan ini:',
+              `🔗 ${webUrl}`,
+              '',
+              '_Tautan privat ini aktif selama 30 menit. Setelah disimpan di web, karaktermu otomatis aktif dan langsung bisa dicek dengan *!character* di sini._',
+            ].join('\n')
+            await whatsapp.sendText(group, welcomeText)
+            return
+          }
+
           await whatsapp.sendText(group, 'Selamat datang di Grup Guide! Sebelum membuat karakter, pilih pengalamanmu bermain Roleplay:')
           await sendQuickReplies(whatsapp, group, 'Pilih salah satu:', [
             { id: 'guide-experience-veteran', title: 'Pernah' },
