@@ -4,7 +4,6 @@ import type { WebCompanionService } from '../../services/web-companion-service.j
 export const webCompanionPlugin: Plugin = {
   name: 'web-companion',
   version: '0.1.0',
-  dependencies: ['web-companion'],
   load(context) {
     context.commands.register({
       name: 'web',
