@@ -381,6 +381,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
       context.events.on('message.received', async (message) => {
         pruneTransientState()
         if (!service.isEnabled || !isGroupJid(message.remoteJid) || !message.senderJid) return
+        if (context.services.has('web-companion')) return
         const selection = choiceFromMessage(message)
         if (!selection || isCommand(message.text, context.config.commandPrefix)) return
         const key = onboardingKey(message.remoteJid, message.senderJid)
@@ -422,6 +423,21 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         const participants = event.participantJids
           .filter((participant) => isJid(participant) && !sameJid(participant, botJid))
           .slice(0, 10)
+
+        if (context.services.has('web-companion')) {
+          for (const participant of participants) {
+            const active = await service.getActive(event.groupJid, participant)
+            if (active) continue
+            const phone = canonicalJid(participant).split('@')[0] ?? 'member'
+            await whatsapp.sendText(
+              event.groupJid,
+              `Selamat datang di Benua Allyssea, @${phone}!\nUntuk mulai membuat karakter, silakan ketik *!daftar* di grup ini.`,
+              { mentions: [participant] },
+            )
+          }
+          return
+        }
+
         for (const participant of participants) {
           const key = onboardingKey(event.groupJid, participant)
           if (onboarding.has(key)) continue
@@ -471,6 +487,30 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply('Kamu masih punya Character aktif. Gunakan !character untuk melihatnya atau !deletecharacter jika ingin mulai ulang.')
             return
           }
+
+          if (commandContext.services.has('web-companion')) {
+            try {
+              const web = commandContext.services.get<any>('web-companion')
+              const sess = await web.createSession(actor, group)
+              if (sess?.url) {
+                const phone = canonicalJid(actor).split('@')[0] ?? 'member'
+                const welcomeText = [
+                  '*REGISTRI KARAKTER BENUA ALLYSSEA*',
+                  '',
+                  `Selamat datang, @${phone}!`,
+                  'Pendaftaran karakter resmi dilakukan melalui formulir web di tautan berikut:',
+                  `🔗 ${sess.url}`,
+                  '',
+                  '_Tautan ini privat dan aktif selama 30 menit. Setelah disimpan di web, karaktermu langsung aktif dan bisa dicek dengan *!character*._',
+                ].join('\n')
+                await whatsapp.sendText(group, welcomeText, { mentions: [actor] })
+                return
+              }
+            } catch (err) {
+              context.logger.warn({ err }, 'failed to create web companion session in !daftar')
+            }
+          }
+
           const existing = await service.getRegistration(group, actor)
           if (existing) {
             await commandContext.reply('Pendaftaranmu masih berjalan. Reply ID Card yang sudah dikirim dengan !savecharacter, atau ketik !retry untuk mulai ulang.')
@@ -478,31 +518,6 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const code = cardCode(`${group}:${actor}:${Date.now()}`)
           onboarding.set(onboardingKey(group, actor), { cardCode: code, groupJid: group, ownerJid: actor, stage: 'experience', createdAt: Date.now() })
-
-          let webUrl: string | undefined
-          if (commandContext.services.has('web-companion')) {
-            try {
-              const web = commandContext.services.get<any>('web-companion')
-              const sess = await web.createSession(actor, group)
-              webUrl = sess.url
-            } catch {
-              // fallback to text flow
-            }
-          }
-
-          if (webUrl) {
-            const welcomeText = [
-              '*REGISTRI KARAKTER BENUA ALLYSSEA* 📜',
-              '',
-              'Selamat datang di Allyssea Roleplay Community!',
-              'Untuk mempermudah pembuatan karakter tanpa perlu mengisi template manual di WhatsApp, silakan isi formulir registri resmi melalui tautan ini:',
-              `🔗 ${webUrl}`,
-              '',
-              '_Tautan privat ini aktif selama 30 menit. Setelah disimpan di web, karaktermu otomatis aktif dan langsung bisa dicek dengan *!character* di sini._',
-            ].join('\n')
-            await whatsapp.sendText(group, welcomeText)
-            return
-          }
 
           await whatsapp.sendText(group, 'Selamat datang di Grup Guide! Sebelum membuat karakter, pilih pengalamanmu bermain Roleplay:')
           await sendQuickReplies(whatsapp, group, 'Pilih salah satu:', [
@@ -539,6 +554,10 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
           if (!commandContext.message.quotedText || !commandContext.message.quotedMessageId || !sameJid(commandContext.message.quotedSenderJid, commandContext.whatsapp.userJid)) {
+            if (commandContext.services.has('web-companion')) {
+              await commandContext.reply('Pendaftaran karakter kini menggunakan formulir web resmi. Ketik *!daftar* untuk mendapatkan tautan pendaftaran.')
+              return
+            }
             await commandContext.reply('Reply pesan Character ID Card dari Allybot, lalu kirim !savecharacter bersama data lengkap karaktermu.')
             return
           }
