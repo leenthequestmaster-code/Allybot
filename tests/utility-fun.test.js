@@ -220,27 +220,15 @@ test('truth and dare always answer from the curated prompt pools, including alia
 test('8ball echoes the question and answers from the curated pool; empty input shows usage', async () => {
   const harness = await createHarness()
   try {
-    const answers = [
-      'Sudah pasti.',
-      'Tanpa ragu, iya.',
-      'Ya, tentu saja.',
-      'Kemungkinannya sangat besar.',
+        const answers = [
+      'Bisa jadi.',
+      'Kemungkinannya cukup besar.',
+      'Belum tentu; coba lihat lagi situasinya.',
+      'Untuk sekarang, jawabannya belum jelas.',
       'Tanda-tandanya mengarah ke iya.',
+      'Sepertinya belum.',
+      'Coba tanyakan lagi nanti.',
       'Jawabannya: iya.',
-      'Bisa dipastikan.',
-      'Outlook-nya bagus.',
-      'Belum pasti, coba tanya lagi.',
-      'Tanya lagi nanti.',
-      'Lebih baik nggak dijawab sekarang.',
-      'Belum bisa ditebak.',
-      'Pikir dulu yang matang.',
-      'Jangan terlalu berharap.',
-      'Jawabannya: nggak.',
-      'Sumber-sumber berkata tidak.',
-      'Outlook-nya kurang bagus.',
-      'Sangat meragukan.',
-      'Kayaknya nggak deh.',
-      'Hmm, kali ini nggak.',
     ]
     const seen = new Set()
     for (let index = 0; index < 40; index += 1) {
