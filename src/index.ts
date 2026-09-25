@@ -52,7 +52,6 @@ import { createCharacterGuidePlugin } from './framework/plugins/character-guide.
 import { createScenePlugin } from './framework/plugins/scene.js'
 import { createKnowledgePlugin } from './framework/plugins/knowledge.js'
 import { WebCompanionService } from './services/web-companion-service.js'
-import { webCompanionPlugin } from './framework/plugins/web-companion.js'
 
 function createSuggestionProvider(config: AppConfig, logger: AppLogger): ((input: SuggestionProviderInput) => Promise<string>) | undefined {
   if (!config.AI_ENABLED) return undefined
@@ -175,7 +174,6 @@ async function main(): Promise<void> {
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(toolsSearchPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
-  framework.registerPlugin(webCompanionPlugin)
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework, sentry)
   try {
     await lifecycle.start()
