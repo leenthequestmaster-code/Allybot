@@ -411,20 +411,20 @@
             <div class="bg-inputBg border border-white/[0.06] rounded p-3 space-y-1">
               <div class="flex justify-between items-baseline text-[9px] font-mono text-muted">
                 <span>HEALTH POINT</span>
-                <span class="text-white font-semibold">800 / 800</span>
+                <span id="prevHpNumbers" class="text-white font-semibold">800 / 800</span>
               </div>
               <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div class="h-full bg-rose-500 rounded-full" style="width: 100%"></div>
+                <div id="prevHpFill" class="h-full bg-rose-500 rounded-full" style="width: 100%"></div>
               </div>
             </div>
 
             <div class="bg-inputBg border border-white/[0.06] rounded p-3 space-y-1">
               <div class="flex justify-between items-baseline text-[9px] font-mono text-muted">
                 <span>STAR ENERGY</span>
-                <span class="text-white font-semibold">200 / 200</span>
+                <span id="prevSeNumbers" class="text-white font-semibold">200 / 200</span>
               </div>
               <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div class="h-full bg-sky-500 rounded-full" style="width: 100%"></div>
+                <div id="prevSeFill" class="h-full bg-sky-500 rounded-full" style="width: 100%"></div>
               </div>
             </div>
           </div>
@@ -437,25 +437,36 @@
                 <div id="prevElement" class="text-white font-medium mt-0.5">Fire</div>
               </div>
               <div class="p-2.5">
-                <div class="text-[9px] text-subtle uppercase">Usia</div>
-                <div id="prevAge" class="text-white font-medium mt-0.5">21 Tahun</div>
+                <div class="text-[9px] text-subtle uppercase">Karakteristik Ras</div>
+                <div id="prevTrait" class="text-white font-medium mt-0.5">Versatility</div>
               </div>
             </div>
 
             <div class="grid grid-cols-2 divide-x divide-white/[0.07]">
               <div class="p-2.5">
-                <div class="text-[9px] text-subtle uppercase">Kelahiran Astral</div>
-                <div id="prevBirthday" class="text-white font-medium mt-0.5">15 Zephyra 779 KAR</div>
+                <div class="text-[9px] text-subtle uppercase">Usia</div>
+                <div id="prevAge" class="text-white font-medium mt-0.5">21 Tahun</div>
               </div>
               <div class="p-2.5">
-                <div class="text-[9px] text-subtle uppercase">Asal Wilayah</div>
-                <div id="prevOrigin" class="text-muted mt-0.5 truncate">—</div>
+                <div class="text-[9px] text-subtle uppercase">Kelahiran Astral</div>
+                <div id="prevBirthday" class="text-white font-medium mt-0.5">15 Zephyra 779 KAR</div>
               </div>
             </div>
 
             <div class="p-2.5">
-              <div class="text-[9px] text-subtle uppercase">Profesi Pekerjaan</div>
-              <div id="prevProfession" class="text-muted mt-0.5 truncate">—</div>
+              <div class="text-[9px] text-subtle uppercase">Asal Wilayah</div>
+              <div id="prevOrigin" class="text-muted mt-0.5 truncate">—</div>
+            </div>
+          </div>
+
+          <!-- Live Base Attribute Bento -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-baseline text-[9px] font-mono">
+              <span class="text-subtle uppercase tracking-widest">POTENSI STAT DASAR</span>
+              <span class="text-muted font-mono">+5 TOKEN LEVEL 1</span>
+            </div>
+            <div id="prevStatsRow" class="grid grid-cols-7 border border-white/[0.07] rounded divide-x divide-white/[0.07] bg-inputBg text-xs font-mono">
+              <!-- Rendered via JS -->
             </div>
           </div>
 
@@ -499,6 +510,29 @@
         </div>
       </div>
 
+      <!-- Vital Gauges -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-inputBg border border-white/[0.06] rounded p-3 space-y-1">
+          <div class="flex justify-between items-baseline text-[9px] font-mono text-muted">
+            <span>HEALTH POINT</span>
+            <span id="dossierHp" class="text-white font-semibold">800 / 800</span>
+          </div>
+          <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+            <div id="dossierHpFill" class="h-full bg-rose-500 rounded-full" style="width: 100%"></div>
+          </div>
+        </div>
+
+        <div class="bg-inputBg border border-white/[0.06] rounded p-3 space-y-1">
+          <div class="flex justify-between items-baseline text-[9px] font-mono text-muted">
+            <span>STAR ENERGY</span>
+            <span id="dossierSe" class="text-white font-semibold">200 / 200</span>
+          </div>
+          <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+            <div id="dossierSeFill" class="h-full bg-sky-500 rounded-full" style="width: 100%"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Attributes Table -->
       <div class="border border-white/[0.07] rounded divide-y divide-white/[0.07] text-xs font-mono">
         <div class="grid grid-cols-2 divide-x divide-white/[0.07]">
@@ -507,23 +541,39 @@
             <div id="dossierElement" class="text-white font-medium mt-0.5">—</div>
           </div>
           <div class="p-3">
-            <div class="text-[9px] text-subtle uppercase">USIA</div>
-            <div id="dossierAge" class="text-white font-medium mt-0.5">—</div>
+            <div class="text-[9px] text-subtle uppercase">KARAKTERISTIK RAS</div>
+            <div id="dossierTrait" class="text-white font-medium mt-0.5">—</div>
           </div>
         </div>
         <div class="grid grid-cols-2 divide-x divide-white/[0.07]">
           <div class="p-3">
+            <div class="text-[9px] text-subtle uppercase">USIA</div>
+            <div id="dossierAge" class="text-white font-medium mt-0.5">—</div>
+          </div>
+          <div class="p-3">
             <div class="text-[9px] text-subtle uppercase">KELAHIRAN</div>
             <div id="dossierBirthday" class="text-white font-medium mt-0.5">—</div>
           </div>
+        </div>
+        <div class="grid grid-cols-2 divide-x divide-white/[0.07]">
           <div class="p-3">
             <div class="text-[9px] text-subtle uppercase">ASAL WILAYAH</div>
             <div id="dossierOrigin" class="text-muted mt-0.5">—</div>
           </div>
+          <div class="p-3">
+            <div class="text-[9px] text-subtle uppercase">PROFESI</div>
+            <div id="dossierProfession" class="text-muted mt-0.5">—</div>
+          </div>
         </div>
-        <div class="p-3">
-          <div class="text-[9px] text-subtle uppercase">PROFESI</div>
-          <div id="dossierProfession" class="text-muted mt-0.5">—</div>
+      </div>
+
+      <!-- Stats Grid Display -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-baseline text-[9px] font-mono">
+          <span class="text-subtle uppercase tracking-widest">MATRIKS STATUS RESMI</span>
+          <span id="dossierTokens" class="text-muted font-mono">0 TOKEN TERSEDIA</span>
+        </div>
+        <div id="dossierStatsRow" class="grid grid-cols-7 border border-white/[0.07] rounded divide-x divide-white/[0.07] bg-inputBg text-xs font-mono">
         </div>
       </div>
 
@@ -731,6 +781,26 @@
       syncLivePreview();
     }
 
+    const RACE_BONUSES = {
+      Human: { int: 10, lck: 10, trait: 'Versatility' },
+      Elf: { mp: 15, spd: 5, trait: 'Nature Attunement' },
+      'Dark Elf': { mp: 15, str: 5, trait: 'Night Vision' },
+      Dwarf: { str: 10, def: 10, trait: 'Iron Constitution' },
+      Giant: { str: 15, hp: 150, trait: 'Colossal Might' },
+      Orc: { str: 20, hp: 100, trait: 'Battle Fervor' },
+      Fairy: { spd: 20, se: 50, trait: 'Flight' },
+      Vampire: { mp: 10, spd: 10, trait: 'Life Steal' },
+      Pisces: { spd: 10, res: 10, trait: 'Aquatic Life' },
+      Harpy: { spd: 15, int: 5, trait: 'Aerial View' },
+      Slime: { def: 20, se: 50, trait: 'Elastic Body' },
+      Dragonborn: { str: 10, mp: 10, trait: 'Dragon Scale' },
+      Beastfolk: { spd: 10, str: 10, trait: 'Primal Instinct' },
+      Kitsune: { mp: 15, lck: 5, trait: 'Illusionist' },
+      Dryad: { res: 15, se: 100, trait: 'Root Connection' },
+      Demon: { mp: 15, str: 10, trait: 'Demonic Aura' },
+      Angel: { res: 15, mp: 10, trait: 'Holy Light' },
+    };
+
     function syncLivePreview() {
       const nameVal = document.getElementById('inputName').value.trim() || 'Nama Karakter';
       const ageVal = parseInt(document.getElementById('inputAge').value, 10) || 20;
@@ -753,6 +823,30 @@
       document.getElementById('prevProfession').innerText = professionVal || '—';
       document.getElementById('prevOrigin').innerText = originVal || '—';
       document.getElementById('prevMotto').innerText = mottoVal ? `"${mottoVal}"` : '—';
+
+      const bonus = RACE_BONUSES[state.race] || { trait: 'Adaptability' };
+      const hp = 800 + (bonus.hp || 0);
+      const se = 200 + (bonus.se || 0);
+      const str = 10 + (bonus.str || 0);
+      const def = 10 + (bonus.def || 0);
+      const mp = 10 + (bonus.mp || 0);
+      const res = 10 + (bonus.res || 0);
+      const spd = 10 + (bonus.spd || 0);
+      const intVal = 10 + (bonus.int || 0);
+      const lck = 10 + (bonus.lck || 0);
+
+      document.getElementById('prevHpNumbers').innerText = `${hp} / ${hp}`;
+      document.getElementById('prevSeNumbers').innerText = `${se} / ${se}`;
+      document.getElementById('prevTrait').innerText = bonus.trait;
+      document.getElementById('prevStatsRow').innerHTML = `
+        <div class="p-2 text-center"><div class="text-[9px] text-subtle">STR</div><div class="text-white font-bold">${str}</div></div>
+        <div class="p-2 text-center"><div class="text-[9px] text-subtle">DEF</div><div class="text-white font-bold">${def}</div></div>
+        <div class="p-2 text-center"><div class="text-[9px] text-subtle">MP</div><div class="text-white font-bold">${mp}</div></div>
+        <div class="p-2 text-center"><div class="text-[9px] text-subtle">RES</div><div class="text-white font-bold">${res}</div></div>
+        <div class="p-2 text-center"><div class="text-[9px] text-subtle">SPD</div><div class="text-white font-bold">${spd}</div></div>
+        <div class="p-2 text-center"><div class="text-[9px] text-subtle">INT</div><div class="text-white font-bold">${intVal}</div></div>
+        <div class="p-2 text-center"><div class="text-[9px] text-subtle">LCK</div><div class="text-white font-bold">${lck}</div></div>
+      `;
     }
 
     async function loadSession() {
@@ -798,6 +892,8 @@
       document.getElementById('registeredDossierView').classList.remove('hidden');
 
       const char = data.character;
+      const stats = data.stats;
+
       document.getElementById('dossierName').innerText = char.name;
       document.getElementById('dossierSub').innerText = `${char.race.toUpperCase()} · ${char.className.toUpperCase()} (${char.willOfPath.toUpperCase()})`;
       document.getElementById('dossierRank').innerText = char.rank || 'F-';
@@ -807,6 +903,22 @@
       document.getElementById('dossierBirthday').innerText = char.birthday || '—';
       document.getElementById('dossierOrigin').innerText = char.origin || '—';
       document.getElementById('dossierProfession').innerText = char.profession || '—';
+
+      if (stats) {
+        document.getElementById('dossierTrait').innerText = stats.trait;
+        document.getElementById('dossierHp').innerText = `${stats.hp} / ${stats.maxHp}`;
+        document.getElementById('dossierSe').innerText = `${stats.se} / ${stats.maxSe}`;
+        document.getElementById('dossierTokens').innerText = `${stats.statTokens} TOKEN TERSEDIA`;
+        document.getElementById('dossierStatsRow').innerHTML = `
+          <div class="p-2 text-center"><div class="text-[9px] text-subtle">STR</div><div class="text-white font-bold">${stats.str}</div></div>
+          <div class="p-2 text-center"><div class="text-[9px] text-subtle">DEF</div><div class="text-white font-bold">${stats.def}</div></div>
+          <div class="p-2 text-center"><div class="text-[9px] text-subtle">MP</div><div class="text-white font-bold">${stats.mp}</div></div>
+          <div class="p-2 text-center"><div class="text-[9px] text-subtle">RES</div><div class="text-white font-bold">${stats.res}</div></div>
+          <div class="p-2 text-center"><div class="text-[9px] text-subtle">SPD</div><div class="text-white font-bold">${stats.spd}</div></div>
+          <div class="p-2 text-center"><div class="text-[9px] text-subtle">INT</div><div class="text-white font-bold">${stats.int}</div></div>
+          <div class="p-2 text-center"><div class="text-[9px] text-subtle">LCK</div><div class="text-white font-bold">${stats.lck}</div></div>
+        `;
+      }
 
       if (data.economy) {
         document.getElementById('dossierWallet').innerText = `${data.economy.wallet.toLocaleString('id-ID')} VELA`;
