@@ -668,7 +668,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'stats',
-        aliases: ['status', 'mystats'],
+        aliases: ['mystats', 'characterstats'],
         description: 'Lihat status atribut & alokasi token karakter',
         category: 'your-character',
         menuOrder: 6,
