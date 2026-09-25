@@ -528,78 +528,77 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         },
       })
 
-      context.commands.register({
-        name: 'savecharacter',
-        aliases: ['savechar'],
-        description: 'Simpan Character Sheet dari reply ID Card',
-        category: 'your-character',
-        menuOrder: 2,
-        cooldownMs: 5_000,
-        handler: async (commandContext) => {
-          pruneTransientState()
-          const group = groupJid(commandContext)
-          const actor = actorJid(commandContext)
-          if (!group || !actor) {
-            await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
-            return
-          }
-          if (!service.isEnabled) {
-            await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
-            return
-          }
-          const currentContext = await groupContext.get(group)
-          const modeError = guideRequirement(commandContext, currentContext.mode)
-          if (modeError) {
-            await commandContext.reply(modeError)
-            return
-          }
-          if (!commandContext.message.quotedText || !commandContext.message.quotedMessageId || !sameJid(commandContext.message.quotedSenderJid, commandContext.whatsapp.userJid)) {
-            if (commandContext.services.has('web-companion')) {
-              await commandContext.reply('Pendaftaran karakter kini menggunakan formulir web resmi. Ketik *!daftar* untuk mendapatkan tautan pendaftaran.')
+      // Only register legacy manual !savecharacter command in environments without web-companion
+      if (!context.services.has('web-companion')) {
+        context.commands.register({
+          name: 'savecharacter',
+          aliases: ['savechar'],
+          description: 'Simpan Character Sheet dari reply ID Card',
+          category: 'your-character',
+          menuOrder: 2,
+          cooldownMs: 5_000,
+          handler: async (commandContext) => {
+            pruneTransientState()
+            const group = groupJid(commandContext)
+            const actor = actorJid(commandContext)
+            if (!group || !actor) {
+              await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
               return
             }
-            await commandContext.reply('Reply pesan Character ID Card dari Allybot, lalu kirim !savecharacter bersama data lengkap karaktermu.')
-            return
-          }
-          const code = parseCardCode(commandContext.message.quotedText)
-          if (!code) {
-            await commandContext.reply('Pesan yang kamu reply bukan Character ID Card dari Allybot.')
-            return
-          }
-          const registration = await service.getRegistration(group, actor)
-          if (!registration || registration.referenceKey !== service.createCardReference(group, actor, code)) {
-            await commandContext.reply('Registration ID tidak cocok atau sesi pendaftaran sudah kedaluwarsa. Gunakan !retry di Grup Guide untuk mulai ulang.')
-            return
-          }
-          const rawBody = extractCommandPayload(commandContext.message.text, commandContext.prefix, 'savecharacter')
-          if (!rawBody) {
-            await commandContext.reply(renderSaveUsage(commandContext.prefix))
-            return
-          }
-          const parsed = parseCharacterSheet(rawBody)
-          if (!parsed.ok) {
-            await commandContext.reply(renderParseIssues(parsed.issues))
-            return
-          }
-          try {
-            const saved = await service.save(group, actor, registration.sessionId, registration.referenceKey, parsed.payload, commandContext.message.id)
-            onboarding.delete(onboardingKey(group, actor))
-            await commandContext.reply(`Character Sheet ${saved.name} berhasil disimpan.`)
-            if (saved.deliveryId) {
-              try {
-                await whatsapp.sendText(actor, '*YOUR CHARACTER*\n\nCharacter Sheet berhasil didaftarkan. Gunakan !character untuk melihat profil dan !deletecharacter jika ingin mulai ulang.')
-                await service.markDelivery(saved.deliveryId, 'sent')
-              } catch {
-                await service.markDelivery(saved.deliveryId, 'failed', 'private_delivery_failed')
-                context.logger.warn({ groupJid: group }, 'character guide private delivery failed')
-              }
+            if (!service.isEnabled) {
+              await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+              return
             }
-          } catch (error) {
-            if (error instanceof CharacterGuideValidationError) await commandContext.reply(error.message)
-            else await commandContext.reply('Character Sheet belum bisa disimpan saat ini. Coba lagi nanti.')
-          }
-        },
-      })
+            const currentContext = await groupContext.get(group)
+            const modeError = guideRequirement(commandContext, currentContext.mode)
+            if (modeError) {
+              await commandContext.reply(modeError)
+              return
+            }
+            if (!commandContext.message.quotedText || !commandContext.message.quotedMessageId || !sameJid(commandContext.message.quotedSenderJid, commandContext.whatsapp.userJid)) {
+              await commandContext.reply('Reply pesan Character ID Card dari Allybot, lalu kirim !savecharacter bersama data lengkap karaktermu.')
+              return
+            }
+            const code = parseCardCode(commandContext.message.quotedText)
+            if (!code) {
+              await commandContext.reply('Pesan yang kamu reply bukan Character ID Card dari Allybot.')
+              return
+            }
+            const registration = await service.getRegistration(group, actor)
+            if (!registration || registration.referenceKey !== service.createCardReference(group, actor, code)) {
+              await commandContext.reply('Registration ID tidak cocok atau sesi pendaftaran sudah kedaluwarsa. Gunakan !retry di Grup Guide untuk mulai ulang.')
+              return
+            }
+            const rawBody = extractCommandPayload(commandContext.message.text, commandContext.prefix, 'savecharacter')
+            if (!rawBody) {
+              await commandContext.reply(renderSaveUsage(commandContext.prefix))
+              return
+            }
+            const parsed = parseCharacterSheet(rawBody)
+            if (!parsed.ok) {
+              await commandContext.reply(renderParseIssues(parsed.issues))
+              return
+            }
+            try {
+              const saved = await service.save(group, actor, registration.sessionId, registration.referenceKey, parsed.payload, commandContext.message.id)
+              onboarding.delete(onboardingKey(group, actor))
+              await commandContext.reply(`Character Sheet ${saved.name} berhasil disimpan.`)
+              if (saved.deliveryId) {
+                try {
+                  await whatsapp.sendText(actor, '*YOUR CHARACTER*\n\nCharacter Sheet berhasil didaftarkan. Gunakan !character untuk melihat profil dan !deletecharacter jika ingin mulai ulang.')
+                  await service.markDelivery(saved.deliveryId, 'sent')
+                } catch {
+                  await service.markDelivery(saved.deliveryId, 'failed', 'private_delivery_failed')
+                  context.logger.warn({ groupJid: group }, 'character guide private delivery failed')
+                }
+              }
+            } catch (error) {
+              if (error instanceof CharacterGuideValidationError) await commandContext.reply(error.message)
+              else await commandContext.reply('Character Sheet belum bisa disimpan saat ini. Coba lagi nanti.')
+            }
+          },
+        })
+      }
 
       context.commands.register({
         name: 'retry',
