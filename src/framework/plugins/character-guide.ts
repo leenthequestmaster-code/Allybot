@@ -96,9 +96,8 @@ function sameJid(left: string | undefined, right: string | undefined): boolean {
   return canonicalJid(left) === canonicalJid(right)
 }
 
-function cardCode(ownerJid: string): string {
-  const phone = ownerJid.split('@')[0]?.split(':')[0]?.replace(/\D/g, '') ?? ''
-  return phone.slice(-4).padStart(4, '0')
+function cardCode(seed: string): string {
+  return createHash('sha256').update(seed).digest('hex').slice(0, 12).toUpperCase()
 }
 
 function renderIdCard(code: string): string {
@@ -247,7 +246,7 @@ async function sendQuickReplies(
     try {
       await whatsapp.sendNativeQuickReplies(remoteJid, { type: 'native_quick_reply', body, buttons })
       return
-    } catch {
+    } catch (err) {
       // Fall back to text when the native transport is unavailable or rejected.
     }
   }
@@ -328,7 +327,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           let ready: PendingOnboarding | undefined
           try {
             ready = await issueCard(pending)
-          } catch {
+          } catch (err) {
             context.logger.warn('character guide card issuance failed')
             try {
               await whatsapp.sendText(pending.groupJid, 'ID Card belum bisa diterbitkan sekarang. Coba lagi sebentar lagi atau gunakan !retry jika sesi lama bermasalah.')
@@ -464,7 +463,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply('Pendaftaranmu masih berjalan. Reply ID Card yang sudah dikirim dengan !savecharacter, atau ketik !retry untuk mulai ulang.')
             return
           }
-          const code = cardCode(actor)
+          const code = cardCode(`${group}:${actor}:${Date.now()}`)
           onboarding.set(onboardingKey(group, actor), { cardCode: code, groupJid: group, ownerJid: actor, stage: 'experience', createdAt: Date.now() })
           await whatsapp.sendText(group, 'Selamat datang di Grup Guide! Sebelum membuat karakter, pilih pengalamanmu bermain Roleplay:')
           await sendQuickReplies(whatsapp, group, 'Pilih salah satu:', [

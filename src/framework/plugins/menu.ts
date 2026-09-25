@@ -206,12 +206,32 @@ function renderBotProfile(commandContext: Pick<CommandContext, 'config'>): strin
 function renderMainMenu(
   categories: readonly MenuCategory[],
   prefix: string,
-  _commandContext: Pick<CommandContext, 'config'>,
+  commandContext: Pick<CommandContext, 'config'>,
 ): string {
+  const lines = [
+    '*ALLYBOT MENU* 🤖',
+    '',
+    renderBotProfile(commandContext),
+    '',
+    'Pilih kategori dengan membalas angka di bawah:',
+    '',
+  ]
+
   if (categories.length === 0) {
-    return 'Belum ada command yang tersedia.'
+    lines.push('_Belum ada command yang tersedia._')
+  } else {
+    categories.forEach((category, index) => {
+      const { icon } = presentationFor(category.name)
+      lines.push(`*${index + 1}.* ${icon} *${categoryLabel(category)}* — ${category.commands.length} command`)
+    })
   }
-  return `Pilih kategori melalui tombol di bawah, atau ketik ${prefix}menu <angka>.`
+
+  lines.push(
+    '',
+    `Balas dengan *${prefix}menu 1*, *${prefix}menu 2*, dst.`,
+    `Ketik *${prefix}menu* kapan saja untuk kembali ke daftar ini.`,
+  )
+  return lines.join('\n')
 }
 
 function resolveCategory(categories: readonly MenuCategory[], identifier: string | undefined): MenuCategory | undefined {

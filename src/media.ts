@@ -97,6 +97,7 @@ function imageToStickerArgs(): readonly string[] {
 
 function stickerToImageArgs(): readonly string[] {
   return [
+    '-f', 'webp',
     '-i', 'pipe:0',
     '-frames:v', '1',
     '-f', 'image2',

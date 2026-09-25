@@ -593,15 +593,15 @@ export class MsgBuilder {
       }
     }
 
-    socket.ev.on('messages.update', onUpdate as any)
+    if (socket.ev?.on) socket.ev.on('messages.update', onUpdate as any)
     // Auto-cleanup listener after window
-    setTimeout(() => { socket.ev.off('messages.update', onUpdate as any) }, ACK_WINDOW_MS)
+    setTimeout(() => { socket.ev?.off?.('messages.update', onUpdate as any) }, ACK_WINDOW_MS)
 
     try {
       await socket.relayMessage(jid, msg, { messageId, additionalNodes })
       return true
     } catch (relayError) {
-      socket.ev.off('messages.update', onUpdate as any)
+      socket.ev?.off?.('messages.update', onUpdate as any)
       socket.logger?.warn?.({ err: relayError, jid }, 'interactive relay threw, sending fallback text')
       await transport.sendText(jid, fallbackText)
       return true

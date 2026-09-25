@@ -29,10 +29,11 @@ test('Group Setup Mission validates each stage, reviews draft, and applies atomi
   assert.equal((await input(engine, 'group-setup-1', actorJid, '6', '!')).record.state, 'language')
   assert.match((await input(engine, 'group-setup-1', actorJid, '7', 'jp')).response.text, /id.*en/)
   assert.equal((await input(engine, 'group-setup-1', actorJid, '8', 'id')).record.state, 'timezone')
-  assert.equal((await input(engine, 'group-setup-1', actorJid, '9', 'Asia/Jakarta')).record.state, 'review')
-  assert.match((await input(engine, 'group-setup-1', actorJid, '10', 'confirm')).response.text, /selesai/)
+  assert.equal((await input(engine, 'group-setup-1', actorJid, '9', 'Asia/Jakarta')).record.state, 'mode')
+  assert.equal((await input(engine, 'group-setup-1', actorJid, '10', 'normal')).record.state, 'review')
+  assert.match((await input(engine, 'group-setup-1', actorJid, '11', 'confirm')).response.text, /selesai/)
   assert.equal(engine.get('group-setup-1')?.status, 'completed')
-  assert.deepEqual(applied, [{ groupJid: '123@g.us', updatedBy: actorJid, rules: 'Rules grup', welcome: 'Halo member', leave: 'Selamat tinggal', prefix: '!', language: 'id', timezone: 'Asia/Jakarta' }])
+  assert.deepEqual(applied, [{ groupJid: '123@g.us', updatedBy: actorJid, rules: 'Rules grup', welcome: 'Halo member', leave: 'Selamat tinggal', prefix: '!', language: 'id', timezone: 'Asia/Jakarta', mode: 'normal' }])
 })
 
 test('Group Setup Mission supports skip and cancel without applying changes', async () => {
@@ -41,7 +42,7 @@ test('Group Setup Mission supports skip and cancel without applying changes', as
   engine.register(createGroupSetupMissionDefinition({ apply: () => { applyCount += 1 } }))
   const actorJid = 'admin@s.whatsapp.net'
   engine.start(GROUP_SETUP_MISSION_ID, { id: 'group-setup-2', remoteJid: '123@g.us', actorJid, createdAt: 1_000, data: { groupJid: '123@g.us', updatedBy: actorJid } })
-  for (const [index, value] of ['skip', 'skip', 'skip', 'skip', 'skip', 'skip'].entries()) {
+  for (const [index, value] of ['skip', 'skip', 'skip', 'skip', 'skip', 'skip', 'skip'].entries()) {
     await input(engine, 'group-setup-2', actorJid, `skip-${index}`, value)
   }
   assert.equal((await input(engine, 'group-setup-2', actorJid, 'cancel', 'cancel')).record.status, 'cancelled')
@@ -53,7 +54,7 @@ test('Group Setup Mission contains gateway failure and marks mission failed', as
   engine.register(createGroupSetupMissionDefinition({ apply: () => { throw new Error('storage failure') } }))
   const actorJid = 'admin@s.whatsapp.net'
   engine.start(GROUP_SETUP_MISSION_ID, { id: 'group-setup-3', remoteJid: '123@g.us', actorJid, createdAt: 1_000, data: { groupJid: '123@g.us', updatedBy: actorJid } })
-  for (const [index, value] of ['skip', 'skip', 'skip', 'skip', 'skip', 'skip', 'Asia/Jakarta'].entries()) {
+  for (const [index, value] of ['skip', 'skip', 'skip', 'skip', 'skip', 'Asia/Jakarta', 'normal'].entries()) {
     await input(engine, 'group-setup-3', actorJid, `value-${index}`, value)
   }
   const result = await input(engine, 'group-setup-3', actorJid, 'confirm', 'confirm')

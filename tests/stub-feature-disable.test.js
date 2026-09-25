@@ -174,7 +174,7 @@ test('group context commands refuse with one clear Indonesian message while the 
     { 'group-context': stubGroupContextService() },
     whatsappStub(),
   )
-  for (const name of ['setgroup', 'groupmode', 'ooc', 'whitelistooc', 'oocwhitelist']) {
+  for (const name of ['setgroup', 'ooc', 'whitelistooc', 'oocwhitelist']) {
     assert.ok(commands.get(name), `missing refusal surface for ${name}`)
   }
   assertAllHidden(commands)
@@ -183,7 +183,7 @@ test('group context commands refuse with one clear Indonesian message while the 
   // report mode 'normal' — it would be dead weight on every message.
   assert.deepEqual(messageGates.list(), [])
 
-  for (const name of ['setgroup', 'groupmode', 'ooc', 'whitelistooc', 'oocwhitelist']) {
+  for (const name of ['setgroup', 'ooc', 'whitelistooc', 'oocwhitelist']) {
     const replies = await runCommand(commands.get(name), ['guide'])
     assert.deepEqual(replies, [REFUSAL.groupContext], `${name} must refuse exactly once with the pending text`)
   }

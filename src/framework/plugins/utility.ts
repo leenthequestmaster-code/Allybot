@@ -375,7 +375,7 @@ export const utilityPlugin: Plugin = {
       menuOrder: 20,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
-        const input = commandContext.args.join('').replace(/,/g, '.').trim()
+        const input = commandContext.args.join('').trim()
         const result = parseExpression(input)
         if (result === undefined) {
           await commandContext.reply(usage(commandContext, 'calc', '<angka dan operator>') + '\nContoh: `!calc (12 + 8) / 2`')

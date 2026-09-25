@@ -65,7 +65,7 @@ async function transformAndSend(
     const allowed = target === 'sticker'
       ? downloaded.kind === 'image' && downloaded.mimeType.startsWith('image/')
       : target === 'image'
-        ? downloaded.kind === 'sticker'
+        ? downloaded.kind === 'sticker' && downloaded.mimeType === 'image/webp'
         : target === 'gif'
           ? downloaded.kind === 'video' && downloaded.mimeType.startsWith('video/')
           : (downloaded.kind === 'video' || downloaded.kind === 'audio') && (downloaded.mimeType.startsWith('video/') || downloaded.mimeType.startsWith('audio/'))
@@ -175,28 +175,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
             })
 
-            const escapeText = (t: string) => t.replace(/'/g, "\\'").replace(/:/g, '\\:').replace(/%/g, '%%')
-            const filters: string[] = [
-              'scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba',
-            ]
-            const fontFile = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-            if (topText) {
-              filters.push(`drawtext=text='${escapeText(topText)}':fontsize=36:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=20:fontfile=${fontFile}`)
-            }
-            if (bottomText) {
-              filters.push(`drawtext=text='${escapeText(bottomText)}':fontsize=36:fontcolor=white:borderw=3:bordercolor=black:x=(w-text_w)/2:y=h-text_h-20:fontfile=${fontFile}`)
-            }
-
-            const { runFfmpeg } = await import('../../media.js')
-            const smemeArgs = [
-              '-i', 'pipe:0',
-              '-frames:v', '1',
-              '-vf', filters.join(','),
-              '-c:v', 'libwebp',
-              '-f', 'webp',
-              'pipe:1',
-            ]
-            const data = await runFfmpeg(smemeArgs, downloaded.data, MEDIA_TRANSFORM_MAX_OUTPUT_BYTES, MEDIA_DOWNLOAD_TIMEOUT_MS)
+            const data = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, 'sticker')
             const outputLimit = MEDIA_TRANSFORM_MAX_OUTPUT_BYTES
             if (data.byteLength === 0 || data.byteLength > outputLimit) {
               await commandContext.reply('Hasil media terlalu besar atau kosong.')
@@ -238,34 +217,11 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
 
           try {
-                        // Generate brat-style image using FFmpeg with multiline word wrap
-            const maxCharsPerLine = 15
-            const words = text.split(/\s+/)
-            const bratLines: string[] = []
-            let currentLine = ''
-            for (const word of words) {
-              if (currentLine && (currentLine + ' ' + word).length > maxCharsPerLine) {
-                bratLines.push(currentLine)
-                currentLine = word
-              } else {
-                currentLine = currentLine ? currentLine + ' ' + word : word
-              }
-            }
-            if (currentLine) bratLines.push(currentLine)
-
-            const escBrat = (t: string) => t.replace(/'/g, "\\'").replace(/:/g, '\\:').replace(/%/g, '%%')
-            const lineHeight = 58
-            const totalHeight = bratLines.length * lineHeight
-            const startY = Math.max(10, Math.floor((512 - totalHeight) / 2))
-            const fontFile = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
-            const drawFilters = bratLines.map((line, i) =>
-              `drawtext=text='${escBrat(line)}':fontsize=48:fontcolor=black:x=(w-text_w)/2:y=${startY + i * lineHeight}:fontfile=${fontFile}`
-            ).join(',')
-
+            // Generate brat-style image using FFmpeg
             const bratArgs = [
               '-f', 'lavfi',
-              '-i', 'color=c=#8FCE00:s=512x512:d=1',
-              '-vf', drawFilters,
+              '-i', `color=c=#8FCE00:s=512x512:d=1`,
+              '-vf', `drawtext=text='${text.replace(/'/g, "\\'")}':fontsize=48:fontcolor=black:x=(w-text_w)/2:y=(h-text_h)/2:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf`,
               '-frames:v', '1',
               '-f', 'webp',
               'pipe:1',

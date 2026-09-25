@@ -156,7 +156,7 @@ test('group role and permissions identify the configured bot owner', async () =>
   await app.start()
 
   await core.emitMessage(message('owner-role', core.metadata.jid, ownerJid, '!role'))
-  assert.equal(core.sent[0].text, '↳ @628120000009 memiliki role *Bot Owner*.')
+  assert.equal(core.sent[0].text, '• @628120000009 memiliki role *Bot Owner*.')
 
   await core.emitMessage(message('owner-permissions', core.metadata.jid, ownerJid, '!permissions'))
   assert.match(core.sent[1].text, /Role : Bot Owner/)

@@ -347,8 +347,6 @@ function isNarrativeLine(line: string): boolean {
   if (/^(?:[『「【〖〔\[(<{⟨꧁]|[^\p{L}\p{N}\s]{1,3}).{1,60}?(?:[』」】〗〕\])>}⟩꧂]|[^\p{L}\p{N}\s]{1,3})\s*[:：\-]\s*\S/u.test(trimmed)) {
     return hasNarrativeContent(trimmed.replace(/^.+?[:：\-]\s*/u, ''))
   }
-  // Match italic/bold RP actions: *walks in*, _looks around_
-  if (/^[*_].+[*_]$/u.test(trimmed)) return hasNarrativeContent(trimmed.slice(1, -1))
   // Match plain nametag: SomeName: *action text*
   if (/^[\p{L}\p{N}][\p{L}\p{N}\s.]{0,40}\s*[:：]\s*[*_"'].+/u.test(trimmed)) return hasNarrativeContent(trimmed.replace(/^.+?[:：]\s*/u, ''))
   return false

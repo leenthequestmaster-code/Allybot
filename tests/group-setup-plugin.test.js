@@ -24,7 +24,7 @@ function createHarness(databasePath) {
     config: { commandPrefix: '!', defaultCooldownMs: 0, databasePath },
     events: { on(_name, listener) { listeners.push(listener); return () => {} } },
     commands: { register(command) { commands.push(command); return () => {} } },
-    services: { get() { return configuration } },
+    services: { get() { return configuration }, has(name) { return name === 'group-configuration' } },
   }
   return { plugin, context, sent, listeners, commands, whatsapp, configuration }
 }
