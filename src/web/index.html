@@ -1,26 +1,37 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Allyssea Companion</title>
+  <title>Benua Allyssea — Registri Karakter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            serif: ['Cinzel', 'Georgia', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
           colors: {
-            brand: {
-              50: '#fbf8ea',
-              100: '#f5efc8',
-              500: '#d4af37',
-              600: '#b89628',
-              900: '#1a1810',
+            abyss: '#08090b',
+            slateCard: '#0f1115',
+            wellBg: '#0a0b0e',
+            gold: {
+              400: '#dfc17b',
+              500: '#c5a059',
+              600: '#9d7c36',
+              900: '#2b2311',
             },
-            darkBg: '#0b0f19',
-            cardBg: '#131b2e',
-            accent: '#3b82f6',
+            parchment: '#eae8e3',
+            ash: '#8a8d98',
+            darkAsh: '#4e515d',
+            line: '#1c1f26',
+            lineGold: 'rgba(197, 160, 89, 0.22)',
           }
         }
       }
@@ -28,243 +39,341 @@
   </script>
   <style>
     body {
-      background-color: #0b0f19;
-      color: #e2e8f0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background-color: #08090b;
+      color: #eae8e3;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
-    .gold-gradient {
-      background: linear-gradient(135deg, #fce07c 0%, #d4af37 50%, #997514 100%);
+    .text-gold-gradient {
+      background: linear-gradient(135deg, #f7e6b5 0%, #c5a059 60%, #8c6e2d 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    .border-gold {
-      border-color: rgba(212, 175, 55, 0.3);
+    .parchment-border {
+      border: 1px solid #1c1f26;
+      position: relative;
     }
-    .glow-gold {
-      box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+    .parchment-border::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(197, 160, 89, 0.35), transparent);
+    }
+    .corner-bracket {
+      position: relative;
+    }
+    .corner-bracket::before {
+      content: '';
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 6px;
+      height: 6px;
+      border-top: 1px solid #c5a059;
+      border-left: 1px solid #c5a059;
+    }
+    .corner-bracket::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 6px;
+      height: 6px;
+      border-bottom: 1px solid #c5a059;
+      border-right: 1px solid #c5a059;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between">
+<body class="min-h-screen flex flex-col items-center justify-start p-3 sm:p-6 selection:bg-gold-500/20 selection:text-gold-400">
 
-  <!-- Header -->
-  <header class="sticky top-0 z-50 bg-[#0d1424]/90 backdrop-blur border-b border-gray-800 px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center space-x-2">
-      <div class="w-8 h-8 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center font-bold text-brand-500 text-sm">
-        ⚔️
-      </div>
-      <div>
-        <h1 class="text-sm font-bold tracking-wider uppercase text-gray-200">Allyssea <span class="text-brand-500">Companion</span></h1>
-        <p id="userPhone" class="text-[10px] text-gray-400">Memuat sesi...</p>
-      </div>
-    </div>
-    <div id="sessionBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Sesi Aktif
-    </div>
-  </header>
+  <!-- Main Container: Centered Passport Sheet -->
+  <div class="w-full max-w-xl mx-auto space-y-4">
 
-  <!-- Main Container -->
-  <main class="flex-1 max-w-md w-full mx-auto p-4 space-y-4 pb-20">
+    <!-- Top Identity Band -->
+    <header class="parchment-border rounded-lg bg-slateCard p-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <!-- Official Seal Emblem -->
+        <div class="w-10 h-10 rounded border border-gold-500/40 bg-wellBg flex items-center justify-center p-1.5 flex-shrink-0">
+          <svg viewBox="0 0 24 24" class="w-full h-full text-gold-500 fill-none stroke-current stroke-[1.25]">
+            <circle cx="12" cy="12" r="9.5" />
+            <circle cx="12" cy="12" r="7" stroke-dasharray="1.5 2" />
+            <polygon points="12,3 14,10 21,12 14,14 12,21 10,14 3,12 10,10" />
+            <circle cx="12" cy="12" r="1.5" class="fill-current" />
+          </svg>
+        </div>
+        <div>
+          <div class="text-[10px] font-mono tracking-widest text-gold-500 uppercase">ALLYSSEA ROLEPLAY COMMUNITY</div>
+          <h1 class="text-xs font-serif font-bold tracking-wider text-parchment uppercase">Lembar Identitas Warga</h1>
+        </div>
+      </div>
+
+      <div class="text-right">
+        <div id="statusBadge" class="inline-flex items-center gap-1.5 text-[10px] font-mono tracking-wide px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-700/40 text-emerald-400">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>TERVERIFIKASI</span>
+        </div>
+        <div id="dossierSerial" class="text-[10px] font-mono text-darkAsh mt-0.5 tracking-tight">REG-ALLYSSEA</div>
+      </div>
+    </header>
 
     <!-- Loading State -->
-    <div id="loadingView" class="py-20 text-center space-y-3">
-      <div class="inline-block w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-xs text-gray-400">Sinkronisasi data Allyssea...</p>
+    <div id="loadingView" class="parchment-border rounded-lg bg-slateCard p-12 text-center space-y-3">
+      <div class="inline-block w-6 h-6 border-2 border-gold-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="text-xs font-mono text-ash tracking-wide uppercase">Sinkronisasi Basis Data Benua...</p>
     </div>
 
     <!-- Error State -->
-    <div id="errorView" class="hidden p-4 rounded-xl bg-red-950/40 border border-red-800/50 text-center space-y-2">
-      <span class="text-2xl">⚠️</span>
-      <h3 class="font-semibold text-red-400 text-sm">Sesi Tidak Valid / Berakhir</h3>
-      <p id="errorMessage" class="text-xs text-gray-400 leading-relaxed"></p>
+    <div id="errorView" class="hidden parchment-border rounded-lg bg-slateCard p-8 text-center space-y-3">
+      <div class="w-10 h-10 mx-auto rounded border border-rose-800/50 bg-rose-950/20 flex items-center justify-center text-rose-400 font-mono text-base">
+        !
+      </div>
+      <div>
+        <h3 class="font-serif font-bold text-parchment text-sm tracking-wide">Sesi Tidak Ditemukan</h3>
+        <p id="errorMessage" class="text-xs text-ash mt-1 leading-relaxed max-w-sm mx-auto"></p>
+      </div>
       <div class="pt-2">
-        <a href="https://wa.me" class="inline-block px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs rounded-lg border border-gray-700 text-gray-200">Ketik !web di WhatsApp</a>
+        <span class="text-[11px] font-mono text-darkAsh">Ketik <code class="text-gold-400">!web</code> di WhatsApp untuk menerbitkan tautan baru.</span>
       </div>
     </div>
 
-    <!-- Tab 1: Character Sheet -->
-    <section id="tabCharacter" class="hidden space-y-4">
-      <!-- Active Character Card -->
-      <div id="charExistsView" class="hidden space-y-4">
-        <!-- Hero Profile Card -->
-        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#16213b] to-[#0f172a] border border-gold glow-gold p-5">
-          <div class="absolute -right-6 -bottom-6 text-7xl opacity-5 select-none pointer-events-none">✨</div>
-          <div class="flex justify-between items-start">
-            <div>
-              <span id="charPath" class="text-[10px] font-semibold tracking-wider px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 uppercase">Neutral</span>
-              <h2 id="charName" class="text-2xl font-black text-white mt-1">Nama Karakter</h2>
-              <p id="charClassRace" class="text-xs text-brand-500 font-medium">Knight · Human</p>
+    <!-- Active Character Dossier -->
+    <main id="charView" class="hidden space-y-4">
+
+      <!-- Hero Dossier Card -->
+      <section class="parchment-border corner-bracket rounded-lg bg-slateCard p-5 sm:p-6 space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-line pb-5">
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span id="charPathBadge" class="text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 rounded border border-line bg-wellBg text-ash">
+                Neutral
+              </span>
+              <span id="charTitleBadge" class="text-[10px] font-serif tracking-wider uppercase px-2 py-0.5 rounded border border-gold-500/30 bg-gold-900/30 text-gold-400">
+                Allyssea Citizen
+              </span>
             </div>
-            <div class="text-right">
-              <div class="text-[10px] text-gray-400 uppercase">Rank</div>
-              <div id="charRank" class="text-xl font-black text-amber-400">F-</div>
-              <div id="charLevel" class="text-[11px] text-gray-400">Lv. 1</div>
-            </div>
+            <h2 id="charName" class="text-2xl sm:text-3xl font-serif font-bold tracking-wide text-parchment text-gold-gradient">
+              —
+            </h2>
+            <p id="charClassRace" class="text-xs font-mono text-ash tracking-wide">
+              — · —
+            </p>
           </div>
 
-          <!-- Vitals Bar -->
-          <div class="mt-5 space-y-2">
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-red-400 font-bold">HP</span>
-                <span id="hpValue" class="text-gray-300 font-mono">800 / 800</span>
-              </div>
-              <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-red-950">
-                <div id="hpBar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 rounded-full" style="width: 100%"></div>
-              </div>
+          <!-- Rank & Level Display -->
+          <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start border-t sm:border-t-0 border-line pt-3 sm:pt-0">
+            <div class="text-[9px] font-mono tracking-widest text-darkAsh uppercase">Klasifikasi Rank</div>
+            <div id="charRank" class="text-3xl font-serif font-bold text-gold-400 tracking-wider">
+              F-
             </div>
-
-            <div>
-              <div class="flex justify-between text-[11px] mb-1">
-                <span class="text-cyan-400 font-bold">SE (Star Energy)</span>
-                <span id="seValue" class="text-gray-300 font-mono">200 / 200</span>
-              </div>
-              <div class="w-full h-2 bg-gray-900 rounded-full overflow-hidden border border-cyan-950">
-                <div id="seBar" class="h-full bg-gradient-to-r from-cyan-600 to-sky-400 rounded-full" style="width: 100%"></div>
-              </div>
+            <div id="charLevel" class="text-[11px] font-mono text-ash">
+              Level 1
             </div>
-          </div>
-
-          <!-- Attributes Grid -->
-          <div class="grid grid-cols-4 gap-2 mt-4 pt-4 border-t border-gray-800 text-center">
-            <div class="bg-black/30 p-2 rounded-lg border border-gray-800/60">
-              <div class="text-[9px] text-gray-400">ELEMEN</div>
-              <div id="charElement" class="text-xs font-bold text-orange-400 mt-0.5">Fire</div>
-            </div>
-            <div class="bg-black/30 p-2 rounded-lg border border-gray-800/60">
-              <div class="text-[9px] text-gray-400">UMUR</div>
-              <div id="charAge" class="text-xs font-bold text-gray-200 mt-0.5">24 thn</div>
-            </div>
-            <div class="bg-black/30 p-2 rounded-lg border border-gray-800/60">
-              <div class="text-[9px] text-gray-400">CREW</div>
-              <div id="charCrew" class="text-xs font-bold text-gray-400 mt-0.5">—</div>
-            </div>
-            <div class="bg-black/30 p-2 rounded-lg border border-gray-800/60">
-              <div class="text-[9px] text-gray-400">PROFESI</div>
-              <div id="charProfession" class="text-xs font-bold text-gray-300 mt-0.5">—</div>
-            </div>
-          </div>
-
-          <!-- Motto / Lore -->
-          <div class="mt-3 pt-2 text-center">
-            <p id="charMotto" class="text-[11px] italic text-gray-400">"..."</p>
           </div>
         </div>
 
-        <!-- Economy Mini Card -->
-        <div class="rounded-xl bg-[#111827] border border-gray-800 p-4 flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="text-2xl">🪙</div>
-            <div>
-              <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Dompet Vela</div>
-              <div id="walletAmount" class="text-base font-bold text-amber-400">0 Vela</div>
+        <!-- Vital Gauges (HP & Star Energy) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <!-- HP Gauge -->
+          <div class="bg-wellBg border border-line rounded p-3 space-y-1.5">
+            <div class="flex justify-between items-baseline text-[10px] font-mono">
+              <span class="text-rose-400 font-semibold tracking-wider">HEALTH POINT</span>
+              <span id="hpNumbers" class="text-parchment">800 / 800</span>
+            </div>
+            <div class="w-full h-1.5 bg-black rounded-full overflow-hidden border border-rose-950">
+              <div id="hpFill" class="h-full bg-rose-600 rounded-full transition-all duration-500" style="width: 100%"></div>
             </div>
           </div>
-          <div class="text-right">
-            <div class="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Brankas Bank</div>
-            <div id="safeAmount" class="text-sm font-semibold text-gray-300">0 Vela</div>
+
+          <!-- SE Gauge -->
+          <div class="bg-wellBg border border-line rounded p-3 space-y-1.5">
+            <div class="flex justify-between items-baseline text-[10px] font-mono">
+              <span class="text-sky-400 font-semibold tracking-wider">STAR ENERGY</span>
+              <span id="seNumbers" class="text-parchment">200 / 200</span>
+            </div>
+            <div class="w-full h-1.5 bg-black rounded-full overflow-hidden border border-sky-950">
+              <div id="seFill" class="h-full bg-sky-600 rounded-full transition-all duration-500" style="width: 100%"></div>
+            </div>
           </div>
         </div>
+
+        <!-- Ledger Table: Core Identity Matrix -->
+        <div class="border border-line rounded overflow-hidden divide-y divide-line text-xs">
+          <div class="grid grid-cols-2 divide-x divide-line bg-wellBg/50">
+            <div class="p-2.5 sm:p-3">
+              <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Elemen Afinitas</div>
+              <div id="charElement" class="font-serif font-semibold text-parchment mt-0.5 text-sm">—</div>
+            </div>
+            <div class="p-2.5 sm:p-3">
+              <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Umur Karakter</div>
+              <div id="charAge" class="font-mono text-parchment mt-0.5 text-sm">—</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 divide-x divide-line">
+            <div class="p-2.5 sm:p-3">
+              <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Tanggal Lahir (KAR)</div>
+              <div id="charBirthday" class="font-mono text-parchment mt-0.5 text-xs">—</div>
+            </div>
+            <div class="p-2.5 sm:p-3">
+              <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Asal Wilayah</div>
+              <div id="charOrigin" class="font-serif text-ash mt-0.5 text-xs">—</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 divide-x divide-line bg-wellBg/50">
+            <div class="p-2.5 sm:p-3">
+              <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Roh Penjaga (Spirit)</div>
+              <div id="charSpirit" class="font-serif text-ash mt-0.5 text-xs">—</div>
+            </div>
+            <div class="p-2.5 sm:p-3">
+              <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Afiliasi Kru</div>
+              <div id="charCrew" class="font-serif text-ash mt-0.5 text-xs">—</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 divide-line">
+            <div class="p-2.5 sm:p-3">
+              <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Profesi Sipil</div>
+              <div id="charProfession" class="font-serif text-ash mt-0.5 text-xs">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Narrative Section: Motto & Visual -->
+        <div class="space-y-2 pt-1">
+          <div class="text-[10px] font-mono text-darkAsh uppercase tracking-widest">Catatan Jiwa & Motto</div>
+          <div class="bg-wellBg border border-line rounded p-3">
+            <blockquote id="charMotto" class="font-serif italic text-xs text-ash leading-relaxed">
+              "—"
+            </blockquote>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Kas & Perbendaharaan Karakter -->
+      <section class="parchment-border rounded-lg bg-slateCard p-4 sm:p-5">
+        <div class="flex items-center justify-between border-b border-line pb-3 mb-3">
+          <div class="text-[10px] font-mono tracking-widest text-gold-500 uppercase">PERBENDAHARAAN & KEUANGAN</div>
+          <div class="text-[10px] font-mono text-darkAsh">MATA UANG RESMI: VELA</div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-wellBg border border-line rounded p-3">
+            <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Dompet Pribadi</div>
+            <div id="walletValue" class="text-base sm:text-lg font-mono font-bold text-gold-400 mt-1">0 VELA</div>
+          </div>
+          <div class="bg-wellBg border border-line rounded p-3">
+            <div class="text-[10px] font-mono text-darkAsh uppercase tracking-wider">Brankas Bank</div>
+            <div id="safeValue" class="text-base sm:text-lg font-mono font-semibold text-ash mt-1">0 VELA</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Detak Waktu Benua Allyssea (Official Time RP Engine) -->
+      <section class="parchment-border rounded-lg bg-slateCard p-4 sm:p-5 space-y-3">
+        <div class="flex items-center justify-between border-b border-line pb-3">
+          <div>
+            <div class="text-[10px] font-mono tracking-widest text-gold-500 uppercase">DETAK WAKTU BENUA ALLYSSEA</div>
+            <div class="text-xs font-serif font-bold text-parchment mt-0.5">Sistem Waktu Rasi Bintang</div>
+          </div>
+          <div class="text-right font-mono">
+            <div id="rpHourDisplay" class="text-lg font-bold text-parchment text-gold-gradient tracking-tight">00:00 RP</div>
+            <div class="text-[9px] text-darkAsh">1 JAM RL = 2 JAM RP</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+          <div class="bg-wellBg border border-line rounded p-2">
+            <div class="text-[9px] font-mono text-darkAsh uppercase">Hari</div>
+            <div id="rpDay" class="font-serif font-semibold text-parchment mt-0.5">—</div>
+          </div>
+          <div class="bg-wellBg border border-line rounded p-2">
+            <div class="text-[9px] font-mono text-darkAsh uppercase">Bulan</div>
+            <div id="rpMonth" class="font-serif font-semibold text-parchment mt-0.5">—</div>
+          </div>
+          <div class="bg-wellBg border border-line rounded p-2">
+            <div class="text-[9px] font-mono text-darkAsh uppercase">Tahun</div>
+            <div id="rpYear" class="font-mono font-semibold text-gold-400 mt-0.5">— KAR</div>
+          </div>
+          <div class="bg-wellBg border border-line rounded p-2">
+            <div class="text-[9px] font-mono text-darkAsh uppercase">Musim</div>
+            <div id="rpSeason" class="font-serif font-semibold text-parchment mt-0.5">—</div>
+          </div>
+        </div>
+
+        <div class="text-[10px] font-mono text-darkAsh text-center pt-1 border-t border-line">
+          Hari Benua berganti dua kali sehari pada pukul <span class="text-ash font-semibold">06.00 WIB</span> dan <span class="text-ash font-semibold">18.00 WIB</span>.
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Empty State: Unregistered User -->
+    <section id="charEmptyView" class="hidden parchment-border rounded-lg bg-slateCard p-8 text-center space-y-4">
+      <div class="w-12 h-12 mx-auto rounded border border-line bg-wellBg flex items-center justify-center p-2 text-gold-500">
+        <svg viewBox="0 0 24 24" class="w-full h-full fill-none stroke-current stroke-[1.25]">
+          <rect x="4" y="3" width="16" height="18" rx="2" />
+          <line x1="8" y1="7" x2="16" y2="7" />
+          <line x1="8" y1="11" x2="16" y2="11" />
+          <line x1="8" y1="15" x2="12" y2="15" />
+        </svg>
       </div>
 
-      <!-- No Active Character View -->
-      <div id="charEmptyView" class="hidden rounded-2xl bg-[#111827] border border-gray-800 p-6 text-center space-y-4">
-        <div class="w-12 h-12 mx-auto rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-xl">
-          📜
-        </div>
-        <div>
-          <h3 class="text-base font-bold text-white">Belum Ada Karakter Aktif</h3>
-          <p class="text-xs text-gray-400 mt-1 leading-relaxed">
-            Akun ini belum memiliki Character Sheet terdaftar di Benua Allyssea.
-          </p>
-        </div>
-        <div class="bg-black/40 rounded-xl p-3 border border-gray-800 text-left text-xs space-y-1.5 text-gray-300">
-          <p class="font-semibold text-brand-500">Cara Mendaftar Cepat:</p>
-          <p>1. Buka Grup Guide Allyssea di WhatsApp.</p>
-          <p>2. Ketik <code class="text-amber-300 font-mono">!daftar</code> lalu pilih opsi pengalaman.</p>
-          <p>3. Reply Character ID Card dengan template sheet.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tab 2: World Atlas -->
-    <section id="tabAtlas" class="hidden space-y-3">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-sm font-bold uppercase tracking-wider text-gray-200">Atlas & Karakteristik Medan</h2>
-          <p class="text-[10px] text-gray-400">Objek sah resmi untuk pertempuran naratif (Anti-Godmoding)</p>
-        </div>
-      </div>
-
-      <div id="atlasList" class="space-y-3">
-        <!-- Rendered by JS -->
-      </div>
-    </section>
-
-    <!-- Tab 3: Rules & Reference -->
-    <section id="tabRules" class="hidden space-y-3">
-      <div class="rounded-xl bg-[#111827] border border-gray-800 p-4 space-y-3">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-brand-500">Aturan Medan Tertutup (Anti-Godmoding)</h3>
-        <p class="text-xs text-gray-300 leading-relaxed">
-          Dalam pertempuran Allyssea, pemain hanya boleh memanfaatkan objek yang tertera resmi di kartu medan atau item yang tercatat di sheet.
+      <div class="space-y-1">
+        <h3 class="font-serif font-bold text-parchment text-base tracking-wide">Belum Memiliki Karakter Terdaftar</h3>
+        <p class="text-xs text-ash leading-relaxed max-w-sm mx-auto">
+          Nomor WhatsApp Anda belum memiliki lembar karakter aktif yang tersimpan di sistem Registri Benua Allyssea.
         </p>
-        <div class="border-t border-gray-800 pt-3 space-y-2 text-xs text-gray-400">
-          <p><strong class="text-gray-200">Cover:</strong> Berlindung di balik pohon raksasa atau pilar menyerap fixed damage sesuai kartu medan.</p>
-          <p><strong class="text-gray-200">Perpindahan Zona:</strong> Mundur atau maju membutuhkan SPD yang mencukupi jika medan berlumpur atau bersalju.</p>
-          <p><strong class="text-gray-200">Reaksi:</strong> Guard menyerap <code class="text-amber-300 font-mono">DEF × 2.0</code> damage dengan mengonsumsi 15 SE.</p>
-        </div>
+      </div>
+
+      <div class="border border-line rounded bg-wellBg p-4 text-left text-xs space-y-2 max-w-sm mx-auto">
+        <div class="font-mono font-semibold text-gold-400 text-[11px] uppercase tracking-wider">Prosedur Registrasi:</div>
+        <ol class="list-decimal list-inside space-y-1 text-ash font-mono text-[11px]">
+          <li>Masuk ke <strong class="text-parchment">Grup Guide Allyssea</strong> di WhatsApp.</li>
+          <li>Kirim perintah <code class="text-gold-400">!daftar</code> untuk membuka sesi.</li>
+          <li>Pilih tingkat pengalaman (1, 2, atau 3).</li>
+          <li>Reply pesan ID Card yang dikirim bot dengan <code class="text-gold-400">!savecharacter</code> beserta data sheet.</li>
+        </ol>
       </div>
     </section>
 
-  </main>
+    <!-- Document Colophon & Verification Footer -->
+    <footer class="text-center space-y-1 py-4 text-[10px] font-mono text-darkAsh">
+      <div>DOKUMEN RESMI REGISTRI SIPIL ALLYSSEA · ALLYBOT SYSTEM FOUNDATION</div>
+      <div>TERENKRIPSI DAN TERVERIFIKASI MELALUI POSTGRESQL & REDIS</div>
+    </footer>
 
-  <!-- Mobile Bottom Navigation -->
-  <nav class="fixed bottom-0 left-0 right-0 z-50 bg-[#0d1424]/95 backdrop-blur border-t border-gray-800 max-w-md mx-auto flex justify-around py-2">
-    <button onclick="switchTab('character')" id="navChar" class="flex flex-col items-center gap-0.5 text-brand-500 font-semibold text-[10px]">
-      <span class="text-base">👤</span>
-      <span>Karakter</span>
-    </button>
-    <button onclick="switchTab('atlas')" id="navAtlas" class="flex flex-col items-center gap-0.5 text-gray-400 hover:text-gray-200 text-[10px]">
-      <span class="text-base">🗺️</span>
-      <span>Atlas Medan</span>
-    </button>
-    <button onclick="switchTab('rules')" id="navRules" class="flex flex-col items-center gap-0.5 text-gray-400 hover:text-gray-200 text-[10px]">
-      <span class="text-base">📖</span>
-      <span>Panduan RP</span>
-    </button>
-  </nav>
+  </div>
 
   <script>
-    let activeToken = '';
-
-    function getTokenFromUrl() {
+    function getToken() {
       const match = window.location.pathname.match(/\/c\/([a-f0-9]{32})/i);
       if (match) return match[1];
       const params = new URLSearchParams(window.location.search);
       return params.get('token') || '';
     }
 
-    async function init() {
-      activeToken = getTokenFromUrl();
-      if (!activeToken) {
-        showError('Tautan tidak memiliki token akses valid. Silakan ketik !web di WhatsApp.');
+    async function loadCompanion() {
+      const token = getToken();
+      if (!token) {
+        showError('Tautan tidak menyertakan token otentikasi yang sah. Silakan panggil !web di WhatsApp.');
         return;
       }
 
       try {
-        const res = await fetch(`/api/session/${activeToken}`);
+        const res = await fetch(`/api/session/${token}`);
         const data = await res.json();
         if (!data.ok) {
-          showError(data.error || 'Sesi tidak dapat dimuat.');
+          showError(data.error || 'Sesi otentikasi kedaluwarsa atau tidak terdaftar.');
           return;
         }
 
-        renderSession(data);
-        await loadAtlas();
-        switchTab('character');
+        renderDossier(data);
       } catch (err) {
-        showError('Gagal terhubung ke server Allybot.');
+        showError('Gagal berkomunikasi dengan server registri Allybot.');
       }
     }
 
@@ -274,101 +383,58 @@
       document.getElementById('errorView').classList.remove('hidden');
     }
 
-    function renderSession(data) {
+    function renderDossier(data) {
       document.getElementById('loadingView').classList.add('hidden');
-      document.getElementById('userPhone').innerText = `Nomor: +${data.user.phone}`;
-
+      
       const char = data.character;
       if (char) {
-        document.getElementById('charExistsView').classList.remove('hidden');
+        document.getElementById('charView').classList.remove('hidden');
+        document.getElementById('dossierSerial').innerText = `ID: REG-${char.characterId.slice(0, 8).toUpperCase()}`;
+
+        // Hero Profile
         document.getElementById('charName').innerText = char.name;
-        document.getElementById('charClassRace').innerText = `${char.className} · ${char.race}`;
+        document.getElementById('charClassRace').innerText = `${char.race.toUpperCase()} · ${char.className.toUpperCase()}`;
+        document.getElementById('charPathBadge').innerText = `${char.willOfPath.toUpperCase()} PATH`;
+        
+        const title = char.titles && char.titles.length > 0 ? char.titles[0] : 'Allyssea Citizen';
+        document.getElementById('charTitleBadge').innerText = title;
+
         document.getElementById('charRank').innerText = char.rank;
-        document.getElementById('charLevel').innerText = `Lv. ${char.level}`;
-        document.getElementById('charPath').innerText = char.willOfPath;
+        document.getElementById('charLevel').innerText = `Level ${char.level}`;
+
+        // Matrix Fields
         document.getElementById('charElement').innerText = char.element;
-        document.getElementById('charAge').innerText = `${char.age} thn`;
+        document.getElementById('charAge').innerText = `${char.age} Tahun`;
+        document.getElementById('charBirthday').innerText = char.birthday || '—';
+        document.getElementById('charOrigin').innerText = char.origin || '—';
+        document.getElementById('charSpirit').innerText = char.spirit || '—';
         document.getElementById('charCrew').innerText = char.crew || '—';
         document.getElementById('charProfession').innerText = char.profession || '—';
         document.getElementById('charMotto').innerText = char.motto ? `"${char.motto}"` : '—';
       } else {
         document.getElementById('charEmptyView').classList.remove('hidden');
+        document.getElementById('statusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>BELUM TERDAFTAR</span>';
+        document.getElementById('statusBadge').className = 'inline-flex items-center gap-1.5 text-[10px] font-mono tracking-wide px-2 py-0.5 rounded bg-amber-950/40 border border-amber-700/40 text-amber-400';
       }
 
+      // Economy
       if (data.economy) {
-        document.getElementById('walletAmount').innerText = `${data.economy.wallet.toLocaleString('id-ID')} Vela`;
-        document.getElementById('safeAmount').innerText = `${data.economy.safe.toLocaleString('id-ID')} Vela`;
+        document.getElementById('walletValue').innerText = `${data.economy.wallet.toLocaleString('id-ID')} VELA`;
+        document.getElementById('safeValue').innerText = `${data.economy.safe.toLocaleString('id-ID')} VELA`;
+      }
+
+      // Time RP
+      if (data.timeRp) {
+        const t = data.timeRp;
+        document.getElementById('rpDay').innerText = t.rpDay;
+        document.getElementById('rpMonth').innerText = t.rpMonth;
+        document.getElementById('rpYear').innerText = `${t.rpYear} KAR`;
+        document.getElementById('rpSeason').innerText = `${t.rpSeasonLabel}`;
+        document.getElementById('rpHourDisplay').innerText = `${String(t.rpHour).padStart(2, '0')}:${String(t.rpMinute).padStart(2, '0')} RP`;
       }
     }
 
-    async function loadAtlas() {
-      try {
-        const res = await fetch('/api/atlas');
-        const data = await res.json();
-        if (!data.ok) return;
-
-        const container = document.getElementById('atlasList');
-        container.innerHTML = '';
-
-        data.regions.forEach(r => {
-          const card = document.createElement('div');
-          card.className = 'rounded-xl bg-[#111827] border border-gray-800 p-4 space-y-3';
-          
-          let traitsHtml = r.traits.map(t => `
-            <div class="text-xs bg-black/40 p-2 rounded-lg border border-gray-800">
-              <span class="font-bold text-amber-400">• ${t.name}:</span>
-              <span class="text-gray-300 ml-1">${t.desc}</span>
-            </div>
-          `).join('');
-
-          let placesHtml = r.places.map(p => `
-            <span class="inline-block text-[10px] bg-blue-950/40 text-blue-300 px-2 py-0.5 rounded border border-blue-800/40">${p}</span>
-          `).join(' ');
-
-          card.innerHTML = `
-            <div class="flex justify-between items-start">
-              <div>
-                <h3 class="text-sm font-bold text-white">${r.name}</h3>
-                <p class="text-[11px] text-gray-400 mt-0.5 leading-relaxed">${r.description}</p>
-              </div>
-            </div>
-            <div class="space-y-1.5 pt-1">
-              <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Karakteristik & Cover:</div>
-              ${traitsHtml}
-            </div>
-            <div class="pt-2 border-t border-gray-800/60">
-              <div class="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1.5">Place Markers:</div>
-              <div class="flex flex-wrap gap-1">${placesHtml}</div>
-            </div>
-          `;
-          container.appendChild(card);
-        });
-      } catch (e) {
-        console.error('Atlas load failed', e);
-      }
-    }
-
-    function switchTab(tab) {
-      ['character', 'atlas', 'rules'].forEach(t => {
-        const el = document.getElementById(`tab${capitalize(t)}`);
-        const btn = document.getElementById(`nav${capitalize(t)}`);
-        if (t === tab) {
-          el?.classList.remove('hidden');
-          btn?.classList.add('text-brand-500', 'font-semibold');
-          btn?.classList.remove('text-gray-400');
-        } else {
-          el?.classList.add('hidden');
-          btn?.classList.remove('text-brand-500', 'font-semibold');
-          btn?.classList.add('text-gray-400');
-        }
-      });
-    }
-
-    function capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    window.addEventListener('DOMContentLoaded', init);
+    window.addEventListener('DOMContentLoaded', loadCompanion);
   </script>
 </body>
 </html>

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import type { RedisService } from '../redis.js'
-import type { CharacterGuideService } from './character-guide-service.js'
+import { CharacterGuideService, calculateTimeRp } from './character-guide-service.js'
 import type { EconomyService } from './economy-service.js'
 
 export interface WebCompanionOptions {
@@ -209,6 +209,8 @@ export class WebCompanionService implements Service {
       const phone = session.ownerJid.split('@')[0]?.replace(/\D/g, '') ?? ''
       const phoneDisplay = phone.length > 6 ? `${phone.slice(0, 4)}••••${phone.slice(-4)}` : phone
 
+      const timeRp = calculateTimeRp(Date.now())
+
       res.writeHead(200)
       res.end(JSON.stringify({
         ok: true,
@@ -219,69 +221,8 @@ export class WebCompanionService implements Service {
         },
         character,
         economy,
+        timeRp,
         serverTime: Date.now(),
-      }))
-      return
-    }
-
-    if (pathname === '/api/atlas' && req.method === 'GET') {
-      res.writeHead(200)
-      res.end(JSON.stringify({
-        ok: true,
-        regions: [
-          {
-            id: 'great-jura-forest',
-            name: 'Great Jura Forest',
-            description: 'Hamparan hijau terluas di Benua Allyssea. Ekosistem purba penuh kabut zamrud, dihuni berbagai monster dan flora magis.',
-            traits: [
-              { name: 'Rintangan Alami', desc: 'Pohon raksasa & akar gantung menyerap 30 Physical Damage saat digunakan sebagai Cover.' },
-              { name: 'Resonansi Elemen', desc: 'Nature & Mist mendapat bonus buff 10%. Elemen Fire membakar lumut memicu kabut asap (menurunkan akurasi).' },
-              { name: 'Bahaya Tersembunyi', desc: 'Rawa & lumpur hisap: perpindahan zona butuh SPD ≥ 35.' }
-            ],
-            places: [
-              'Lembah Pohon Raksasa',
-              'Danau Cermin Keheningan',
-              'Rawa Penjerat Sukma',
-              'Kuil Kuno Yang Terlupakan',
-              'Pemukiman Tersembunyi Suku Hutan',
-              'Sarang Ratu Arachne',
-              'Goa Kristal Hijau',
-              'Air Terjun Zamrud',
-              'Jalur Setapak Berdarah'
-            ]
-          },
-          {
-            id: 'old-york',
-            name: 'Old York',
-            description: 'Kota pelabuhan tua berbatu kelabu dengan lorong-lorong sempit dan gudang berlumut. Pusat perdagangan bebas dan operasi bayangan.',
-            traits: [
-              { name: 'Medan Perkotaan', desc: 'Lorong sempit & atap rendah. Serangan area (AoE) berisiko memantul atau merusak properti sipil.' },
-              { name: 'Akses Flank Cepat', desc: 'Jalan tikus & tali jemuran memungkinkan perpindahan ke Flank dengan biaya 0 SE bagi kelas Thief/Ninja.' }
-            ],
-            places: [
-              'Distrik Pasar Rakyat',
-              'Gudang Anggur Tua',
-              'Dermaga Kapal Kayu',
-              'Menara Jam Sunyi',
-              'Gang Bayangan'
-            ]
-          },
-          {
-            id: 'frostpeak',
-            name: 'Pegunungan Frostpeak',
-            description: 'Puncak abadi berselimut salju kristal. Udara tipis dan hawa dingin menusuk tulang.',
-            traits: [
-              { name: 'Hawa Dingin Ekstrem', desc: 'Setiap giliran menguras 10 SE kecuali memiliki proteksi Elemen Fire atau jubah tebal.' },
-              { name: 'Resonansi Es', desc: 'Sihir Ice & Water mengalami penguatan daya ledak 15%.' }
-            ],
-            places: [
-              'Puncak Badai Salju',
-              'Gua Es Abadi',
-              'Celah Jurang Gletser',
-              'Kuil Es Frostveil'
-            ]
-          }
-        ]
       }))
       return
     }
