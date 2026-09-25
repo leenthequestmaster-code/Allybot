@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Benua Allyssea — Registri Warga</title>
+  <title>Benua Allyssea — Buku Induk Registri Warga</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,41 +18,44 @@
             mono: ['"JetBrains Mono"', 'monospace'],
           },
           colors: {
-            canvas: '#08090b',
-            surface: '#0f1115',
-            surfaceElevated: '#15171d',
-            field: '#0b0d10',
-            borderDefault: 'rgba(255, 255, 255, 0.07)',
+            canvas: '#07080a',
+            surface: '#0d0f14',
+            surfaceElevated: '#13161c',
+            surfaceWell: '#090a0e',
+            borderSubtle: 'rgba(255, 255, 255, 0.07)',
             borderStrong: 'rgba(255, 255, 255, 0.12)',
             gold: {
-              300: '#edd8a5',
+              300: '#eed9a8',
               400: '#dfc17b',
               500: '#c5a059',
               600: '#9d7c36',
               900: '#231d10',
             },
-            parchment: '#f3f2ee',
-            slateText: '#989aa4',
-            darkSlate: '#515461',
+            parchment: '#f4f3ef',
+            silver: '#989aa4',
+            darkSlate: '#505360',
           }
         }
       }
     }
   </script>
   <style>
+    :root {
+      color-scheme: dark;
+    }
     body {
-      background-color: #08090b;
-      color: #f3f2ee;
+      background-color: #07080a;
+      color: #f4f3ef;
       font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
       -webkit-tap-highlight-color: transparent;
       letter-spacing: -0.01em;
     }
 
-    .border-subtle {
+    /* Architectural Hairlines & Borders */
+    .hairline-border {
       border: 1px solid rgba(255, 255, 255, 0.07);
     }
-
-    .border-gold-subtle {
+    .hairline-gold {
       border: 1px solid rgba(197, 160, 89, 0.28);
     }
 
@@ -66,67 +69,78 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(197, 160, 89, 0.4), transparent);
+      background: linear-gradient(90deg, transparent, rgba(197, 160, 89, 0.45), transparent);
     }
 
-    .corner-decor {
+    /* Minimal Corner Brackets (Manuscript Aesthetic) */
+    .corner-brackets {
       position: relative;
     }
-    .corner-decor::before {
+    .corner-brackets::before {
       content: '';
       position: absolute;
       top: -1px;
       left: -1px;
-      width: 5px;
-      height: 5px;
+      width: 6px;
+      height: 6px;
       border-top: 1px solid #c5a059;
       border-left: 1px solid #c5a059;
+      pointer-events: none;
     }
-    .corner-decor::after {
+    .corner-brackets::after {
       content: '';
       position: absolute;
       bottom: -1px;
       right: -1px;
-      width: 5px;
-      height: 5px;
+      width: 6px;
+      height: 6px;
       border-bottom: 1px solid #c5a059;
       border-right: 1px solid #c5a059;
+      pointer-events: none;
     }
 
+    /* Custom Form Fields */
     input, select, textarea {
-      background-color: #0b0d10 !important;
+      background-color: #090a0e !important;
       border: 1px solid rgba(255, 255, 255, 0.09) !important;
-      color: #f3f2ee !important;
-      transition: all 0.15s ease;
+      color: #f4f3ef !important;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     input:focus, select:focus, textarea:focus {
       border-color: #c5a059 !important;
       outline: none !important;
-      box-shadow: 0 0 0 1px rgba(197, 160, 89, 0.3) !important;
+      box-shadow: 0 0 0 1px rgba(197, 160, 89, 0.35) !important;
     }
 
-    /* Custom scrollbar */
+    /* Custom Scrollbar */
     ::-webkit-scrollbar {
       width: 4px;
     }
     ::-webkit-scrollbar-track {
-      background: #08090b;
+      background: #07080a;
     }
     ::-webkit-scrollbar-thumb {
-      background: #1c1f26;
+      background: #191c24;
       border-radius: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start p-3 sm:p-6 selection:bg-gold-500/20 selection:text-gold-300">
+<body class="min-h-screen flex flex-col items-center justify-start p-3.5 sm:p-6 selection:bg-gold-500/20 selection:text-gold-300">
 
   <div class="w-full max-w-xl mx-auto space-y-4">
 
     <!-- Official Header Banner -->
-    <header class="border-subtle hairline-top rounded bg-surface p-4 flex items-center justify-between">
+    <header class="hairline-border hairline-top rounded bg-surface p-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <!-- Minimal Geometric Insignia -->
-        <div class="w-9 h-9 rounded border border-gold-500/30 bg-wellBg flex items-center justify-center p-1.5 flex-shrink-0">
+        <div class="w-9 h-9 rounded border border-gold-500/30 bg-surfaceWell flex items-center justify-center p-1.5 flex-shrink-0">
           <svg viewBox="0 0 24 24" class="w-full h-full text-gold-500 fill-none stroke-current stroke-[1.25]">
             <circle cx="12" cy="12" r="9.5" />
             <circle cx="12" cy="12" stroke-dasharray="1.5 2" r="6.5" />
@@ -134,34 +148,34 @@
           </svg>
         </div>
         <div>
-          <div class="text-[9px] font-mono tracking-widest text-gold-500 uppercase">ALLYSSEA COMMUNITY ARCHIVES</div>
-          <h1 class="text-xs font-serif font-bold tracking-wider text-parchment uppercase">Registri Sipil Karakter</h1>
+          <div class="text-[9px] font-mono tracking-widest text-gold-500 uppercase">ALLYSSEA IMPERIAL ARCHIVES</div>
+          <h1 class="text-xs font-serif font-bold tracking-wider text-parchment uppercase">Buku Induk Registri Sipil</h1>
         </div>
       </div>
 
       <div class="text-right">
-        <div id="statusBadge" class="inline-flex items-center gap-1.5 text-[9px] font-mono tracking-wider px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.08] text-slateText">
-          <span class="w-1.5 h-1.5 rounded-full bg-gold-500/80"></span>
-          <span>AUTENTIKASI</span>
+        <div id="statusBadge" class="inline-flex items-center gap-1.5 text-[9px] font-mono tracking-wider px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.08] text-silver">
+          <span class="w-1.5 h-1.5 rounded-full bg-gold-500/80 animate-pulse"></span>
+          <span>TERAUTENTIKASI</span>
         </div>
         <div id="userPhone" class="text-[10px] font-mono text-darkSlate mt-0.5 tracking-tight">—</div>
       </div>
     </header>
 
     <!-- Loading Screen -->
-    <div id="loadingView" class="border-subtle rounded bg-surface p-12 text-center space-y-3">
+    <div id="loadingView" class="hairline-border rounded bg-surface p-12 text-center space-y-3">
       <div class="inline-block w-5 h-5 border-2 border-gold-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-xs font-mono text-slateText tracking-wider uppercase">Memuat Registri Sipil...</p>
+      <p class="text-xs font-mono text-silver tracking-wider uppercase">Memuat Berkas Registri Sipil...</p>
     </div>
 
     <!-- Error Screen -->
-    <div id="errorView" class="hidden border-subtle rounded bg-surface p-8 text-center space-y-3">
+    <div id="errorView" class="hidden hairline-border rounded bg-surface p-8 text-center space-y-3">
       <div class="w-9 h-9 mx-auto rounded border border-rose-900/60 bg-rose-950/20 flex items-center justify-center text-rose-400 font-mono text-sm">
         !
       </div>
       <div>
         <h3 class="font-serif font-bold text-parchment text-sm tracking-wide">Sesi Tidak Ditemukan</h3>
-        <p id="errorMessage" class="text-xs text-slateText mt-1 leading-relaxed max-w-sm mx-auto"></p>
+        <p id="errorMessage" class="text-xs text-silver mt-1 leading-relaxed max-w-sm mx-auto"></p>
       </div>
       <div class="pt-2">
         <span class="text-[11px] font-mono text-darkSlate">Ketik <code class="text-gold-400">!daftar</code> di WhatsApp untuk menerbitkan tautan baru.</span>
@@ -175,10 +189,10 @@
       <form id="registerForm" onsubmit="handleRegister(event)" class="space-y-4">
 
         <!-- Form Overview Card -->
-        <div class="border-subtle corner-decor rounded bg-surface p-5 space-y-1.5">
+        <div class="hairline-border corner-brackets rounded bg-surface p-5 space-y-1.5">
           <div class="text-[9px] font-mono text-gold-500 uppercase tracking-widest">AKTA PENETAPAN WARGA BARU</div>
           <h2 class="text-xl font-serif font-bold text-parchment tracking-wide">Pendaftaran Karakter</h2>
-          <p class="text-xs text-slateText leading-relaxed">
+          <p class="text-xs text-silver leading-relaxed">
             Data yang dimasukkan ke registri ini terikat langsung ke nomor WhatsApp Anda. Setelah disimpan, karakter otomatis aktif dan dapat dipanggil dengan <code class="text-gold-400 font-mono">!character</code>.
           </p>
         </div>
@@ -187,7 +201,7 @@
         <div id="formAlert" class="hidden p-3 rounded bg-rose-950/30 border border-rose-800/40 text-xs text-rose-300 font-mono"></div>
 
         <!-- Articulus I: Identitas Pribadi -->
-        <div class="border-subtle rounded bg-surface p-5 space-y-4">
+        <div class="hairline-border rounded bg-surface p-5 space-y-4">
           <div class="border-b border-white/[0.06] pb-2 flex justify-between items-center">
             <h3 class="font-serif font-bold text-xs uppercase tracking-wider text-gold-400">Articulus I · Identitas Pribadi</h3>
             <span class="text-[9px] font-mono text-darkSlate">WAJIB</span>
@@ -195,13 +209,13 @@
 
           <div class="space-y-3 text-xs">
             <div class="space-y-1">
-              <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Nama Karakter</label>
+              <label for="inputName" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Nama Karakter</label>
               <input type="text" id="inputName" required maxlength="60" placeholder="misal: Aruna Vane, Cheryl, Kaelen" class="w-full px-3 py-2 rounded text-xs">
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1">
-                <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Jenis Kelamin</label>
+                <label for="inputGender" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Jenis Kelamin</label>
                 <select id="inputGender" required class="w-full px-3 py-2 rounded text-xs cursor-pointer">
                   <option value="Male">Laki-laki (Male)</option>
                   <option value="Female">Perempuan (Female)</option>
@@ -210,14 +224,14 @@
               </div>
 
               <div class="space-y-1">
-                <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Umur (5 - 500 Tahun)</label>
+                <label for="inputAge" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Umur (5 - 500 Tahun)</label>
                 <input type="number" id="inputAge" required min="5" max="500" value="20" oninput="updateBirthYear()" class="w-full px-3 py-2 rounded text-xs font-mono">
               </div>
             </div>
 
             <!-- Tanggal Lahir (Kalender KAR) -->
             <div class="space-y-1">
-              <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Kelahiran (Kalender KAR)</label>
+              <label class="block font-mono text-[10px] uppercase tracking-wider text-silver">Kelahiran (Kalender KAR)</label>
               <div class="grid grid-cols-3 gap-2">
                 <div>
                   <input type="number" id="inputBirthDay" min="1" max="30" value="12" placeholder="Hari (1-30)" required class="w-full px-2.5 py-2 rounded text-xs font-mono text-center">
@@ -239,7 +253,7 @@
                   </select>
                 </div>
                 <div class="relative">
-                  <input type="text" id="inputBirthYear" readonly class="w-full px-2.5 py-2 rounded text-xs font-mono text-center text-gold-400 bg-wellBg cursor-not-allowed">
+                  <input type="text" id="inputBirthYear" readonly class="w-full px-2.5 py-2 rounded text-xs font-mono text-center text-gold-400 bg-surfaceWell cursor-not-allowed">
                   <span class="absolute right-2 top-2 text-[9px] font-mono text-darkSlate">KAR</span>
                 </div>
               </div>
@@ -249,7 +263,7 @@
         </div>
 
         <!-- Articulus II: Jati Diri & Takdir Magis -->
-        <div class="border-subtle rounded bg-surface p-5 space-y-4">
+        <div class="hairline-border rounded bg-surface p-5 space-y-4">
           <div class="border-b border-white/[0.06] pb-2 flex justify-between items-center">
             <h3 class="font-serif font-bold text-xs uppercase tracking-wider text-gold-400">Articulus II · Jati Diri & Takdir</h3>
             <span class="text-[9px] font-mono text-darkSlate">HUKUM ALYSSEA</span>
@@ -258,7 +272,7 @@
           <div class="space-y-3 text-xs">
             <!-- Ras -->
             <div class="space-y-1">
-              <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Ras Karakter</label>
+              <label for="inputRace" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Ras Karakter</label>
               <select id="inputRace" required onchange="handleRaceChange()" class="w-full px-3 py-2 rounded text-xs cursor-pointer">
                 <option value="Human">Human (Manusia)</option>
                 <option value="Elf">Elf (Peri Hutan & Cahaya)</option>
@@ -282,7 +296,7 @@
 
             <!-- Kelas -->
             <div class="space-y-1">
-              <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Kelas Tempur</label>
+              <label for="inputClass" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Kelas Tempur</label>
               <select id="inputClass" required class="w-full px-3 py-2 rounded text-xs cursor-pointer">
                 <optgroup label="Disiplin Martial">
                   <option value="Knight" selected>Knight (Ksatria Berpelindung)</option>
@@ -332,15 +346,15 @@
               </select>
             </div>
 
-            <!-- Elemen Afinitas -->
+            <!-- Elemen Afinitas (Sesuai Skema Kanonikal Allyssea) -->
             <div class="space-y-1">
-              <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Elemen Afinitas</label>
+              <label for="inputElement" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Elemen Afinitas</label>
               <select id="inputElement" required class="w-full px-3 py-2 rounded text-xs cursor-pointer">
                 <option value="Fire" selected>Fire (Api)</option>
                 <option value="Water">Water (Air)</option>
                 <option value="Wind">Wind (Angin)</option>
                 <option value="Earth">Earth (Tanah)</option>
-                <option value="Lightning">Lightning (Petir)</option>
+                <option value="Electro">Electro (Petir)</option>
                 <option value="Ice">Ice (Es)</option>
                 <option value="Light">Light (Cahaya)</option>
                 <option value="Dark">Dark (Kegelapan)</option>
@@ -360,19 +374,19 @@
 
             <!-- Will of Path -->
             <div class="space-y-1">
-              <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Will of Path (Jalur Kehendak)</label>
+              <span class="block font-mono text-[10px] uppercase tracking-wider text-silver">Will of Path (Jalur Kehendak)</span>
               <div class="grid grid-cols-3 gap-2">
-                <label class="cursor-pointer border border-white/[0.08] p-2.5 rounded text-center bg-field flex flex-col items-center">
+                <label class="cursor-pointer border border-white/[0.08] p-2.5 rounded text-center bg-surfaceWell flex flex-col items-center transition-all duration-150 active:scale-[0.98]">
                   <input type="radio" name="willOfPath" value="Light" class="hidden">
                   <span class="text-xs font-serif font-bold text-sky-300">Light</span>
                   <span class="text-[9px] font-mono text-darkSlate mt-0.5">Kebajikan</span>
                 </label>
-                <label class="cursor-pointer border border-gold-500/60 p-2.5 rounded text-center bg-field flex flex-col items-center ring-1 ring-gold-500/30">
+                <label class="cursor-pointer border border-gold-500/60 p-2.5 rounded text-center bg-surfaceWell flex flex-col items-center ring-1 ring-gold-500/30 transition-all duration-150 active:scale-[0.98]">
                   <input type="radio" name="willOfPath" value="Neutral" checked class="hidden">
                   <span class="text-xs font-serif font-bold text-amber-300">Neutral</span>
                   <span class="text-[9px] font-mono text-darkSlate mt-0.5">Keseimbangan</span>
                 </label>
-                <label class="cursor-pointer border border-white/[0.08] p-2.5 rounded text-center bg-field flex flex-col items-center">
+                <label class="cursor-pointer border border-white/[0.08] p-2.5 rounded text-center bg-surfaceWell flex flex-col items-center transition-all duration-150 active:scale-[0.98]">
                   <input type="radio" name="willOfPath" value="Dark" class="hidden">
                   <span class="text-xs font-serif font-bold text-rose-300">Dark</span>
                   <span class="text-[9px] font-mono text-darkSlate mt-0.5">Ambisi</span>
@@ -383,7 +397,7 @@
         </div>
 
         <!-- Articulus III: Catatan Riwayat Hidup (Opsional) -->
-        <div class="border-subtle rounded bg-surface p-5 space-y-4">
+        <div class="hairline-border rounded bg-surface p-5 space-y-4">
           <div class="border-b border-white/[0.06] pb-2 flex justify-between items-center">
             <h3 class="font-serif font-bold text-xs uppercase tracking-wider text-gold-400">Articulus III · Catatan Sipil</h3>
             <span class="text-[9px] font-mono text-darkSlate">OPSIONAL</span>
@@ -392,17 +406,17 @@
           <div class="space-y-3 text-xs">
             <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1">
-                <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Profesi Sipil</label>
+                <label for="inputProfession" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Profesi Sipil</label>
                 <input type="text" id="inputProfession" maxlength="120" placeholder="Pustakawan, Pengrajin, dll." class="w-full px-3 py-2 rounded text-xs">
               </div>
               <div class="space-y-1">
-                <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Asal Wilayah</label>
+                <label for="inputOrigin" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Asal Wilayah</label>
                 <input type="text" id="inputOrigin" maxlength="160" placeholder="Old York, Lembah Jura, dll." class="w-full px-3 py-2 rounded text-xs">
               </div>
             </div>
 
             <div class="space-y-1">
-              <label class="block font-mono text-[10px] uppercase tracking-wider text-slateText">Motto Karakter</label>
+              <label for="inputMotto" class="block font-mono text-[10px] uppercase tracking-wider text-silver">Motto Karakter</label>
               <textarea id="inputMotto" rows="2" maxlength="500" placeholder="Prinsip hidup atau kutipan karakter..." class="w-full px-3 py-2 rounded text-xs resize-none"></textarea>
             </div>
           </div>
@@ -410,7 +424,7 @@
 
         <!-- Submit Button -->
         <div class="pt-2">
-          <button type="submit" id="submitBtn" class="w-full border-gold-subtle corner-decor py-3 px-4 bg-gradient-to-r from-gold-900/40 via-gold-600/30 to-gold-900/40 hover:from-gold-600/40 hover:to-gold-500/50 rounded font-serif font-bold text-parchment tracking-widest text-xs uppercase transition-all duration-200">
+          <button type="submit" id="submitBtn" class="w-full hairline-gold corner-brackets py-3 px-4 bg-gradient-to-r from-gold-900/40 via-gold-600/30 to-gold-900/40 hover:from-gold-600/40 hover:to-gold-500/50 active:scale-[0.99] rounded font-serif font-bold text-parchment tracking-widest text-xs uppercase transition-all duration-150">
             Daftarkan Karakter ke Registri Resmi
           </button>
         </div>
@@ -427,15 +441,15 @@
       <div id="successNotice" class="hidden border border-emerald-700/40 rounded bg-emerald-950/20 p-4 text-center space-y-1">
         <div class="text-[9px] font-mono text-emerald-400 uppercase tracking-widest">REGISTRASI SELESAI</div>
         <h3 class="font-serif font-bold text-parchment text-sm">Karakter Sah Terdaftar di Benua Allyssea</h3>
-        <p class="text-xs text-slateText">Data telah dikunci di basis data. Anda dapat langsung menjalankan <code class="text-gold-400 font-mono">!character</code> di WhatsApp.</p>
+        <p class="text-xs text-silver">Data telah dikunci di basis data. Anda dapat langsung menjalankan <code class="text-gold-400 font-mono">!character</code> di WhatsApp.</p>
       </div>
 
-      <!-- Hero Dossier Passport Card -->
-      <section class="border-subtle corner-decor rounded bg-surface p-5 sm:p-6 space-y-5">
+      <!-- Hero Dossier Passport Card (Bento Master) -->
+      <section class="hairline-border corner-brackets rounded bg-surface p-5 sm:p-6 space-y-5">
         <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-white/[0.06] pb-5">
           <div class="space-y-1.5">
             <div class="flex items-center gap-2 flex-wrap">
-              <span id="charPathBadge" class="text-[9px] font-mono tracking-widest uppercase px-2 py-0.5 rounded border border-white/[0.08] bg-wellBg text-slateText">
+              <span id="charPathBadge" class="text-[9px] font-mono tracking-widest uppercase px-2 py-0.5 rounded border border-white/[0.08] bg-surfaceWell text-silver">
                 Neutral
               </span>
               <span id="charTitleBadge" class="text-[9px] font-serif tracking-wider uppercase px-2 py-0.5 rounded border border-gold-500/30 bg-gold-900/30 text-gold-400">
@@ -445,7 +459,7 @@
             <h2 id="charName" class="text-2xl sm:text-3xl font-serif font-bold tracking-wide text-parchment">
               —
             </h2>
-            <p id="charClassRace" class="text-xs font-mono text-slateText tracking-wide">
+            <p id="charClassRace" class="text-xs font-mono text-silver tracking-wide">
               — · —
             </p>
           </div>
@@ -455,7 +469,7 @@
             <div id="charRank" class="text-3xl font-serif font-bold text-gold-400 tracking-wider">
               F-
             </div>
-            <div id="charLevel" class="text-[10px] font-mono text-slateText">
+            <div id="charLevel" class="text-[10px] font-mono text-silver">
               Level 1
             </div>
           </div>
@@ -463,30 +477,30 @@
 
         <!-- Vital Gauges -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <div class="bg-wellBg border border-white/[0.06] rounded p-3 space-y-1.5">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-3 space-y-1.5">
             <div class="flex justify-between items-baseline text-[9px] font-mono">
               <span class="text-rose-400 font-semibold tracking-wider uppercase">Health Point</span>
-              <span id="hpNumbers" class="text-parchment">800 / 800</span>
+              <span id="hpNumbers" class="text-parchment font-mono">800 / 800</span>
             </div>
             <div class="w-full h-1 bg-black rounded-full overflow-hidden border border-rose-950/60">
-              <div id="hpFill" class="h-full bg-rose-600 rounded-full" style="width: 100%"></div>
+              <div id="hpFill" class="h-full bg-rose-600 rounded-full transition-all duration-300" style="width: 100%"></div>
             </div>
           </div>
 
-          <div class="bg-wellBg border border-white/[0.06] rounded p-3 space-y-1.5">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-3 space-y-1.5">
             <div class="flex justify-between items-baseline text-[9px] font-mono">
               <span class="text-sky-400 font-semibold tracking-wider uppercase">Star Energy</span>
-              <span id="seNumbers" class="text-parchment">200 / 200</span>
+              <span id="seNumbers" class="text-parchment font-mono">200 / 200</span>
             </div>
             <div class="w-full h-1 bg-black rounded-full overflow-hidden border border-sky-950/60">
-              <div id="seFill" class="h-full bg-sky-600 rounded-full" style="width: 100%"></div>
+              <div id="seFill" class="h-full bg-sky-600 rounded-full transition-all duration-300" style="width: 100%"></div>
             </div>
           </div>
         </div>
 
-        <!-- Ledger Table: Matrix Fields -->
+        <!-- Ledger Table: Matrix Bento Fields -->
         <div class="border border-white/[0.06] rounded overflow-hidden divide-y divide-white/[0.06] text-xs">
-          <div class="grid grid-cols-2 divide-x divide-white/[0.06] bg-wellBg/40">
+          <div class="grid grid-cols-2 divide-x divide-white/[0.06] bg-surfaceWell/40">
             <div class="p-2.5 sm:p-3">
               <div class="text-[9px] font-mono text-darkSlate uppercase tracking-wider">Elemen Afinitas</div>
               <div id="charElement" class="font-serif font-semibold text-parchment mt-0.5 text-sm">—</div>
@@ -504,25 +518,25 @@
             </div>
             <div class="p-2.5 sm:p-3">
               <div class="text-[9px] font-mono text-darkSlate uppercase tracking-wider">Asal Wilayah</div>
-              <div id="charOrigin" class="font-serif text-slateText mt-0.5 text-xs">—</div>
+              <div id="charOrigin" class="font-serif text-silver mt-0.5 text-xs">—</div>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 divide-x divide-white/[0.06] bg-wellBg/40">
+          <div class="grid grid-cols-2 divide-x divide-white/[0.06] bg-surfaceWell/40">
             <div class="p-2.5 sm:p-3">
               <div class="text-[9px] font-mono text-darkSlate uppercase tracking-wider">Roh Penjaga</div>
-              <div id="charSpirit" class="font-serif text-slateText mt-0.5 text-xs">—</div>
+              <div id="charSpirit" class="font-serif text-silver mt-0.5 text-xs">—</div>
             </div>
             <div class="p-2.5 sm:p-3">
               <div class="text-[9px] font-mono text-darkSlate uppercase tracking-wider">Afiliasi Kru</div>
-              <div id="charCrew" class="font-serif text-slateText mt-0.5 text-xs">—</div>
+              <div id="charCrew" class="font-serif text-silver mt-0.5 text-xs">—</div>
             </div>
           </div>
 
           <div class="grid grid-cols-1">
             <div class="p-2.5 sm:p-3">
               <div class="text-[9px] font-mono text-darkSlate uppercase tracking-wider">Profesi Sipil</div>
-              <div id="charProfession" class="font-serif text-slateText mt-0.5 text-xs">—</div>
+              <div id="charProfession" class="font-serif text-silver mt-0.5 text-xs">—</div>
             </div>
           </div>
         </div>
@@ -530,8 +544,8 @@
         <!-- Motto Quote -->
         <div class="space-y-1.5 pt-1">
           <div class="text-[9px] font-mono text-darkSlate uppercase tracking-widest">Motto Karakter</div>
-          <div class="bg-wellBg border border-white/[0.06] rounded p-3">
-            <blockquote id="charMotto" class="font-serif italic text-xs text-slateText leading-relaxed">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-3">
+            <blockquote id="charMotto" class="font-serif italic text-xs text-silver leading-relaxed">
               "—"
             </blockquote>
           </div>
@@ -539,26 +553,26 @@
       </section>
 
       <!-- Section: Perbendaharaan Karakter -->
-      <section class="border-subtle rounded bg-surface p-4 sm:p-5">
+      <section class="hairline-border rounded bg-surface p-4 sm:p-5">
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-3 mb-3">
           <div class="text-[9px] font-mono tracking-widest text-gold-500 uppercase">PERBENDAHARAAN KARAKTER</div>
           <div class="text-[9px] font-mono text-darkSlate">MATA UANG: VELA</div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
-          <div class="bg-wellBg border border-white/[0.06] rounded p-3">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-3">
             <div class="text-[9px] font-mono text-darkSlate uppercase tracking-wider">Dompet Pribadi</div>
             <div id="walletValue" class="text-base sm:text-lg font-mono font-bold text-gold-400 mt-0.5">0 VELA</div>
           </div>
-          <div class="bg-wellBg border border-white/[0.06] rounded p-3">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-3">
             <div class="text-[9px] font-mono text-darkSlate uppercase tracking-wider">Brankas Bank</div>
-            <div id="safeValue" class="text-base sm:text-lg font-mono font-semibold text-slateText mt-0.5">0 VELA</div>
+            <div id="safeValue" class="text-base sm:text-lg font-mono font-semibold text-silver mt-0.5">0 VELA</div>
           </div>
         </div>
       </section>
 
       <!-- Section: Detak Waktu Benua (Live Time RP) -->
-      <section class="border-subtle rounded bg-surface p-4 sm:p-5 space-y-3">
+      <section class="hairline-border rounded bg-surface p-4 sm:p-5 space-y-3">
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
           <div>
             <div class="text-[9px] font-mono tracking-widest text-gold-500 uppercase">DETAK WAKTU BENUA ALLYSSEA</div>
@@ -571,19 +585,19 @@
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-          <div class="bg-wellBg border border-white/[0.06] rounded p-2">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-2">
             <div class="text-[9px] font-mono text-darkSlate uppercase">Hari</div>
             <div id="rpDay" class="font-serif font-semibold text-parchment mt-0.5">—</div>
           </div>
-          <div class="bg-wellBg border border-white/[0.06] rounded p-2">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-2">
             <div class="text-[9px] font-mono text-darkSlate uppercase">Bulan</div>
             <div id="rpMonth" class="font-serif font-semibold text-parchment mt-0.5">—</div>
           </div>
-          <div class="bg-wellBg border border-white/[0.06] rounded p-2">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-2">
             <div class="text-[9px] font-mono text-darkSlate uppercase">Tahun</div>
             <div id="rpYear" class="font-mono font-semibold text-gold-400 mt-0.5">— KAR</div>
           </div>
-          <div class="bg-wellBg border border-white/[0.06] rounded p-2">
+          <div class="bg-surfaceWell border border-white/[0.06] rounded p-2">
             <div class="text-[9px] font-mono text-darkSlate uppercase">Musim</div>
             <div id="rpSeason" class="font-serif font-semibold text-parchment mt-0.5">—</div>
           </div>
@@ -635,7 +649,7 @@
       }
     }
 
-    // Radio style toggle
+    // Radio style toggle with tactile feedback
     document.querySelectorAll('input[name="willOfPath"]').forEach(radio => {
       radio.closest('label').addEventListener('click', () => {
         document.querySelectorAll('input[name="willOfPath"]').forEach(r => {
