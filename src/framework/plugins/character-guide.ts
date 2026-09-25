@@ -16,6 +16,7 @@ import {
   calculateTimeRp,
   formatTimeRp,
 } from '../../services/character-guide-service.js'
+import { calculateCharacterStats, renderStatsCard } from '../../services/character-stats.js'
 import { extractCommandPayload, parseCharacterSheet } from '../../services/character-sheet-parser.js'
 import { GroupContextService } from '../../services/group-context-service.js'
 
@@ -192,25 +193,35 @@ function renderParseIssues(issues: readonly { field?: string; message: string }[
 
 function renderCharacter(record: Awaited<ReturnType<CharacterGuideService['getActive']>>): string {
   if (!record) return 'Kamu belum memiliki Character aktif. Gunakan !daftar di Grup Guide.'
+  const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
   return [
-    '*YOUR CHARACTER*',
-    `• Name: ${record.name}`,
-    `• Gender: ${record.gender}`,
-    `• Age: ${record.age}`,
-    `• Birthday: ${record.birthday}`,
-    `• Race: ${record.race}`,
-    `• Class: ${record.className}`,
-    `• Element: ${record.element}`,
-    `• Spirit: ${record.spirit ?? '—'}`,
-    `• Crew: ${record.crew ?? '—'}`,
-    `• Rank: ${record.rank}`,
-    `• Level: ${record.level}`,
-    `• Will Of Path: ${record.willOfPath}`,
-    `• Profession: ${record.profession ?? '—'}`,
-    `• Titles: ${record.titles.join(', ') || '—'}`,
-    `• Motto: ${record.motto ?? '—'}`,
-    `• Visual: ${record.visual ?? '—'}`,
-    `• Origin: ${record.origin ?? '—'}`,
+    '╔═══════════════════════════════╗',
+    '    ALLYSSEA · PASPOR WARGA RESMI',
+    '╚═══════════════════════════════╝',
+    `Nama       : *${record.name}*`,
+    `Klasifikasi: ${record.race} · ${record.className} [${record.willOfPath}]`,
+    `Status     : Rank ${record.rank} · Level ${record.level}`,
+    `Kelahiran  : ${record.birthday} (${record.age} Thn)`,
+    `Elemen     : ${record.element}`,
+    '',
+    '[VITALITAS BINTANG]',
+    `HP : ${stats.hp}/${stats.maxHp}`,
+    `SE : ${stats.se}/${stats.maxSe}`,
+    '',
+    '[POTENSI ATRIBUT]',
+    `STR ${stats.str} │ DEF ${stats.def} │ MP ${stats.mp} │ RES ${stats.res}`,
+    `SPD ${stats.spd} │ INT ${stats.int} │ LCK ${stats.lck}`,
+    `Sisa Stat Token: ${stats.statTokens} (Ketik !alokasi untuk meningkatkan)`,
+    '',
+    '[CATATAN SIPIL]',
+    `• Spirit    : ${record.spirit ?? '—'}`,
+    `• Crew      : ${record.crew ?? '—'}`,
+    `• Asal      : ${record.origin ?? '—'}`,
+    `• Profesi   : ${record.profession ?? '—'}`,
+    `• Gelar     : ${record.titles.join(', ') || '—'}`,
+    `• Motto     : ${record.motto ? `"${record.motto}"` : '—'}`,
+    '─────────────────────────────────',
+    'Gunakan *!stats* untuk detail lengkap atau *!timerp* untuk waktu benua.',
   ].join('\n')
 }
 
@@ -652,6 +663,57 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         handler: async (commandContext) => {
           const result = calculateTimeRp()
           await commandContext.reply(formatTimeRp(result))
+        },
+      })
+
+      context.commands.register({
+        name: 'stats',
+        aliases: ['status', 'mystats'],
+        description: 'Lihat status atribut & alokasi token karakter',
+        category: 'your-character',
+        menuOrder: 6,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+          const record = await service.getActiveForOwner(actor)
+          if (!record) return void await commandContext.reply('Kamu belum memiliki Character aktif. Ketik !daftar untuk membuat karakter.')
+          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
+          await commandContext.reply(renderStatsCard(record.name, record.race, record.className, record.rank, record.level, stats))
+        },
+      })
+
+      context.commands.register({
+        name: 'alokasi',
+        aliases: ['addstat', 'upstat', 'allocatestat'],
+        description: 'Alokasikan Stat Token ke atribut (HP/SE/STR/DEF/MP/RES/SPD/INT/LCK)',
+        category: 'your-character',
+        menuOrder: 7,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+          const statKey = commandContext.args[0]?.toLowerCase()
+          const amount = parseInt(commandContext.args[1] ?? '1', 10)
+          if (!statKey) {
+            return void await commandContext.reply([
+              '*Format Alokasi Stat Token:*',
+              `${commandContext.prefix}alokasi <stat> <jumlah>`,
+              '',
+              'Pilihan Stat:',
+              '• hp  (+150 HP per token)',
+              '• se  (+100 SE per token)',
+              '• str, def, mp, res, spd, int, lck (+1 poin per token)',
+              '',
+              'Contoh: `!alokasi str 2` atau `!alokasi hp 1`',
+            ].join('\n'))
+          }
+          const result = await service.allocateStats(groupJid(commandContext) || 'global', actor, statKey, isNaN(amount) ? 1 : amount)
+          await commandContext.reply(result.message)
         },
       })
 

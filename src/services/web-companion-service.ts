@@ -6,6 +6,7 @@ import type { Logger } from 'pino'
 import type { Service, ServiceContext, WhatsAppPort } from '../framework/contracts.js'
 import type { RedisService } from '../redis.js'
 import { CharacterGuideService, calculateTimeRp } from './character-guide-service.js'
+import { calculateCharacterStats } from './character-stats.js'
 import { parseCharacterSheet } from './character-sheet-parser.js'
 import type { EconomyService } from './economy-service.js'
 
@@ -245,6 +246,7 @@ export class WebCompanionService implements Service {
       const phone = session.ownerJid.split('@')[0]?.replace(/\D/g, '') ?? ''
       const phoneDisplay = phone.length > 6 ? `${phone.slice(0, 4)}••••${phone.slice(-4)}` : phone
       const timeRp = calculateTimeRp(Date.now())
+      const stats = character ? calculateCharacterStats(character.race, character.level, character.allocatedStats ?? {}) : null
 
       res.writeHead(200)
       res.end(JSON.stringify({
@@ -255,6 +257,7 @@ export class WebCompanionService implements Service {
           groupJid: session.groupJid,
         },
         character,
+        stats,
         economy,
         timeRp,
         serverTime: Date.now(),

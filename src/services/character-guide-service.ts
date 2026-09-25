@@ -51,6 +51,7 @@ export interface CharacterActiveRecord {
   readonly motto?: string
   readonly visual?: string
   readonly origin?: string
+  readonly allocatedStats?: Readonly<Record<string, number>>
   readonly status: 'active'
   readonly revision: number
 }
@@ -519,9 +520,31 @@ export class CharacterGuideService implements Service {
       ...(typeof raw.motto === 'string' ? { motto: raw.motto } : {}),
       ...(typeof raw.visual === 'string' ? { visual: raw.visual } : {}),
       ...(typeof raw.origin === 'string' ? { origin: raw.origin } : {}),
+      allocatedStats: typeof raw.allocated_stats === 'object' && raw.allocated_stats !== null ? raw.allocated_stats as Record<string, number> : {},
       status: 'active',
       revision: Number(raw.revision ?? 1),
     }
+  }
+
+  async allocateStats(
+    groupJid: string,
+    ownerJid: string,
+    statKey: string,
+    amount = 1,
+  ): Promise<{ ok: boolean; message: string }> {
+    this.assertJid(ownerJid, 'owner')
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_allocate_stats', {
+      p_guide_key: worldScopeKey(),
+      p_owner_key: hashIdentity(ownerJid),
+      p_stat_key: statKey,
+      p_amount: amount,
+    })
+    const raw = asRecord(result)
+    if (!raw || raw.ok !== true) {
+      return { ok: false, message: typeof raw?.error === 'string' ? raw.error : 'Gagal mengalokasikan stat.' }
+    }
+    return { ok: true, message: String(raw.message ?? 'Alokasi stat berhasil disimpan.') }
   }
 
   async retire(groupJid: string, ownerJid: string, characterId: string, reasonCode = 'owner_requested', sourceMessageId = ''): Promise<void> {

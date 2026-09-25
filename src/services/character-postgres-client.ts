@@ -55,11 +55,14 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           origin TEXT,
           rank TEXT NOT NULL DEFAULT 'F-',
           level INTEGER NOT NULL DEFAULT 1,
+          allocated_stats JSONB DEFAULT '{}'::jsonb,
           status TEXT NOT NULL DEFAULT 'active',
           revision INTEGER NOT NULL DEFAULT 1,
           created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
           updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
+
+        ALTER TABLE character_profiles ADD COLUMN IF NOT EXISTS allocated_stats JSONB DEFAULT '{}'::jsonb;
 
         CREATE TABLE IF NOT EXISTS character_delivery_outbox (
           delivery_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -288,6 +291,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           motto: row.motto ? String(row.motto) : undefined,
           visual: row.visual ? String(row.visual) : undefined,
           origin: row.origin ? String(row.origin) : undefined,
+          allocated_stats: typeof row.allocated_stats === 'object' && row.allocated_stats !== null ? row.allocated_stats : {},
           status: 'active',
           revision: Number(row.revision ?? 1),
         }
@@ -298,6 +302,60 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         }
 
         return { data: resultData, error: null }
+      }
+
+      if (functionName === 'character_allocate_stats') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const ownerKey = String(args.p_owner_key ?? '')
+        const statKey = String(args.p_stat_key ?? '').toLowerCase()
+        const amount = Number(args.p_amount ?? 1)
+
+        const validKeys = ['hp', 'se', 'str', 'def', 'mp', 'res', 'spd', 'int', 'lck']
+        if (!validKeys.includes(statKey) || amount <= 0 || !Number.isInteger(amount)) {
+          return { data: { ok: false, error: 'Kunci stat atau jumlah alokasi tidak valid.' }, error: null }
+        }
+
+        const rows = await sql`
+          SELECT character_id, race, level, allocated_stats FROM character_profiles
+          WHERE guide_key = ${guideKey} AND owner_key = ${ownerKey} AND status = 'active'
+          LIMIT 1
+        `
+        if (rows.length === 0) {
+          return { data: { ok: false, error: 'Karakter aktif tidak ditemukan.' }, error: null }
+        }
+
+        const row = rows[0]
+        const level = Number(row.level ?? 1)
+        const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5
+        const currentAlloc: Record<string, number> = typeof row.allocated_stats === 'object' && row.allocated_stats !== null ? { ...row.allocated_stats } : {}
+
+        const currentUsed = validKeys.reduce((sum, k) => sum + (Number(currentAlloc[k]) || 0), 0)
+        if (currentUsed + amount > totalTokensEarned) {
+          return { data: { ok: false, error: `Stat Token tidak mencukupi. Sisa token: ${totalTokensEarned - currentUsed}.` }, error: null }
+        }
+
+        currentAlloc[statKey] = (Number(currentAlloc[statKey]) || 0) + amount
+
+        await sql`
+          UPDATE character_profiles
+          SET allocated_stats = ${JSON.stringify(currentAlloc)}::jsonb, updated_at = now()
+          WHERE character_id = ${row.character_id}
+        `
+
+        if (redis) {
+          try {
+            await redis.cacheDelete('character:active', ownerKey)
+          } catch {}
+        }
+
+        return {
+          data: {
+            ok: true,
+            allocated_stats: currentAlloc,
+            message: `Berhasil mengalokasikan ${amount} token ke ${statKey.toUpperCase()}.`,
+          },
+          error: null,
+        }
       }
 
       if (functionName === 'character_retire') {
