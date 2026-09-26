@@ -115,11 +115,14 @@ export const technicalPlugin: Plugin = {
       cooldownMs: 3000,
       handler: async (commandContext) => {
         await commandContext.reply([
-          '🏓 *Pong — Allybot aktif.*',
-          '',
-          `↳ Latency: ${formatLatency(commandContext)} ms`,
-          `↳ Connection: ${connectionStatus(commandContext)}`,
-          `↳ Uptime: ${formatUptime(process.uptime())}`,
+          '𓏼 *`𝐒𝘆𝘀𝘁𝗲𝗺 𝐏𝗶𝗻𝗴`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ Status: Pong — Allybot aktif 🏓`,
+          `⡇╌ Latency: ${formatLatency(commandContext)} ms`,
+          `⡇╌ Koneksi: ${connectionStatus(commandContext)}`,
+          `⡇╌ Uptime: ${formatUptime(process.uptime())}`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
         ].join('\n'))
       },
     })

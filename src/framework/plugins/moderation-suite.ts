@@ -785,10 +785,13 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           }
 
           await commandContext.reply([
-            '📋 *Informasi Pengguna*',
-            `• Nomor: +${phone}`,
-            `• Role: ${role}`,
-            `• JID: ${target}`,
+            '𓏼 *`𝐈𝗻𝗳𝗼𝗿𝗺𝗮𝘀𝗶 𝐏𝗲𝗻𝗴𝗴𝘂𝗻𝗮`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Nomor* : +${phone}`,
+            `⡇╌ *Role*  : ${role}`,
+            `⡇╌ *JID*   : ${target}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
           ].join('\n'))
         },
       })

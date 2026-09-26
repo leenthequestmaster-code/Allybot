@@ -335,7 +335,7 @@ test('Moderation Suite: kick, ban, unban, mute, and unmute workflows', async () 
     timestamp: Date.now(),
     fromMe: false,
   })
-  assert.match(whatsapp.sentTexts.at(-1)?.text ?? '', /Informasi Pengguna/)
+  assert.match(whatsapp.sentTexts.at(-1)?.text ?? '', /Informasi Pengguna|𝐈𝗻𝗳𝗼𝗿𝗺𝗮𝘀𝗶 𝐏𝗲𝗻𝗴𝗴𝘂𝗻𝗮/)
 
   await whatsapp.emitMessage({
     id: 'msg-tagme-1',

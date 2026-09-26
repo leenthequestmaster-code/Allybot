@@ -63,12 +63,37 @@ export const toolsSearchPlugin: Plugin = {
           })
           const data = (await res.json()) as any
           if (data?.AbstractText) {
-            await commandContext.reply(`🔍 *Hasil Pencarian: ${query}*\n\n${data.AbstractText}\n\nSumber: ${data.AbstractURL || data.AbstractSource || 'Web'}`)
+            await commandContext.reply([
+              '𓏼 *`𝐆𝗼𝗼𝗴𝗹𝗲 𝐒𝗲𝗮𝗿𝗰𝗵`*',
+              '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+              `⡇╌ *Query*  : ${query}`,
+              `⡇╌ *Sumber* : ${data.AbstractURL || data.AbstractSource || 'Web'}`,
+              '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+              data.AbstractText,
+              '━━━━━━━━━━━━━━━━━━━━',
+              '*© Allyssea Roleplay Community*',
+            ].join('\n'))
             return
           }
-          await commandContext.reply(`🔍 *Pencarian Web: ${query}*\n\nBuka pencarian lengkap di browser:\nhttps://www.google.com/search?q=${encodeURIComponent(query)}`)
+          await commandContext.reply([
+            '𓏼 *`𝐆𝗼𝗼𝗴𝗹𝗲 𝐒𝗲𝗮𝗿𝗰𝗵`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Query* : ${query}`,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            `Buka pencarian lengkap di browser:\nhttps://www.google.com/search?q=${encodeURIComponent(query)}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n'))
         } catch {
-          await commandContext.reply(`🔍 *Pencarian Web: ${query}*\n\nhttps://www.google.com/search?q=${encodeURIComponent(query)}`)
+          await commandContext.reply([
+            '𓏼 *`𝐆𝗼𝗼𝗴𝗹𝗲 𝐒𝗲𝗮𝗿𝗰𝗵`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Query* : ${query}`,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n'))
         }
       },
     })
@@ -136,7 +161,16 @@ export const toolsSearchPlugin: Plugin = {
             return
           }
           const lyrics = track.plainLyrics.length > 2000 ? `${track.plainLyrics.slice(0, 1990)}...` : track.plainLyrics
-          await commandContext.reply(`🎵 *${track.trackName} - ${track.artistName}*\n\n${lyrics}`)
+          await commandContext.reply([
+            '𓏼 *`𝐒𝗼𝗻𝗴 𝐋𝘆𝗿𝗶𝗰𝐬`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Judul*  : ${track.trackName}`,
+            `⡇╌ *Artis*  : ${track.artistName}`,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            lyrics,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n'))
         } catch (error) {
           commandContext.logger.warn({ error }, 'lyrics command failed')
           await commandContext.reply('Lirik lagu itu belum ketemu nih, coba cek lagi judulnya ya~ 🎧')
@@ -171,7 +205,15 @@ export const toolsSearchPlugin: Plugin = {
             const searchData = (await searchRes.json()) as any[]
             const suggestions = (searchData[1] as string[]) || []
             if (suggestions.length > 0) {
-              await commandContext.reply(`Topik itu belum pas nih. Mungkin maksud kamu:\n• ${suggestions.join('\n• ')}`)
+              await commandContext.reply([
+                '𓏼 *`𝐖𝗶𝗸𝗶𝗽𝗲𝗱𝗶𝗮 𝐒𝘂𝗺𝗺𝗮𝗿𝘆`*',
+                '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+                'Topik itu belum pas nih. Mungkin maksud kamu:',
+                '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+                ...suggestions.map(s => `- — *+ ${s}*`),
+                '━━━━━━━━━━━━━━━━━━━━',
+                '*© Allyssea Roleplay Community*',
+              ].join('\n'))
             } else {
               await commandContext.reply('Topik itu belum ada di Wikipedia nih, coba kata kunci lain ya~ 📖')
             }
@@ -182,7 +224,17 @@ export const toolsSearchPlugin: Plugin = {
             await commandContext.reply(`Topiknya ada banyak arti nih:\n${data.extract}\n\nCoba ketik topik yang lebih spesifik ya~ 💡`)
             return
           }
-          await commandContext.reply(`📚 *Wikipedia: ${data.title}*\n\n${data.extract}\n\n🔗 ${data.content_urls?.desktop?.page ?? ''}`)
+          await commandContext.reply([
+            '𓏼 *`𝐖𝗶𝗸𝗶𝗽𝗲𝗱𝗶𝗮 𝐒𝘂𝗺𝗺𝗮𝗿𝘆`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Topik* : ${data.title}`,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            data.extract,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            `🔗 ${data.content_urls?.desktop?.page ?? ''}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n'))
         } catch (error) {
           commandContext.logger.warn({ error }, 'wikipedia command failed')
           await commandContext.reply('Belum bisa buka artikelnya nih, coba sebentar lagi ya~ 🙏')
@@ -222,11 +274,15 @@ export const toolsSearchPlugin: Plugin = {
           if (!cur) throw new Error('weather data unavailable')
 
           await commandContext.reply([
-            `🌤️ *Cuaca di ${loc.name}, ${loc.country || ''}*`,
-            `• Kondisi: ${describeWeatherCode(cur.weathercode)}`,
-            `• Suhu: ${cur.temperature}°C`,
-            `• Kecepatan Angin: ${cur.windspeed} km/h`,
-            `• Waktu Pantauan: ${cur.time}`,
+            '𓏼 *`𝐖𝗲𝗮𝘁𝗵𝗲𝗿 𝐑𝗲𝗽𝗼𝗿𝘁`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Wilayah*  : ${loc.name}, ${loc.country || ''}`,
+            `⡇╌ *Kondisi*  : ${describeWeatherCode(cur.weathercode)}`,
+            `⡇╌ *Suhu*     : ${cur.temperature}°C`,
+            `⡇╌ *Angin*    : ${cur.windspeed} km/h`,
+            `⡇╌ *Pantauan* : ${cur.time}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
           ].join('\n'))
         } catch (error) {
           commandContext.logger.warn({ error }, 'weather command failed')

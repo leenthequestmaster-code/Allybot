@@ -381,7 +381,14 @@ export const utilityPlugin: Plugin = {
           await commandContext.reply(usage(commandContext, 'calc', '<angka dan operator>') + '\nContoh: `!calc (12 + 8) / 2`')
           return
         }
-        await commandContext.reply(`🧮 Hasil: *${formatNumber(result)}*`)
+        await commandContext.reply([
+          '𓏼 *`𝐂𝐚𝐥𝐜𝘂𝐥𝐚𝘁𝗼𝗿`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Hitungan* : \`${input}\``,
+          `⡇╌ *Hasil*    : *${formatNumber(result)}*`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'))
       },
     })
 
@@ -399,7 +406,14 @@ export const utilityPlugin: Plugin = {
           await commandContext.reply(usage(commandContext, 'convert', '<angka> <dari> <ke>') + '\nContoh: `!convert 10 km m`, `!convert 32 f c`')
           return
         }
-        await commandContext.reply(`🔁 ${formatNumber(value as number)} ${from} = *${formatNumber(result)} ${to}*`)
+        await commandContext.reply([
+          '𓏼 *`𝐔𝗻𝗶𝘁 𝐂𝗼𝗻𝘃𝗲𝗿𝘁𝗲𝗿`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Input* : ${formatNumber(value as number)} ${from}`,
+          `⡇╌ *Hasil* : *${formatNumber(result)} ${to}*`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'))
       },
     })
 
@@ -421,7 +435,14 @@ export const utilityPlugin: Plugin = {
             timeStyle: 'medium',
             timeZone: timezone,
           }).format(new Date())
-          await commandContext.reply(`🕒 *${timezone}*\n${formatted}`)
+          await commandContext.reply([
+            '𓏼 *`𝐖𝗼𝗿𝗹𝗱 𝐓𝗶𝗺𝗲`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Zona*  : ${timezone}`,
+            `⡇╌ *Waktu* : ${formatted}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n'))
         } catch {
           await commandContext.reply('Zona waktu tidak dikenali. Contoh: `!time Asia/Jakarta`.')
         }
@@ -436,7 +457,13 @@ export const utilityPlugin: Plugin = {
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
         const formatted = new Intl.DateTimeFormat('id-ID', { dateStyle: 'full', timeZone: 'Asia/Jakarta' }).format(new Date())
-        await commandContext.reply(`📅 Hari ini: ${formatted}`)
+        await commandContext.reply([
+          '𓏼 *`𝐂𝐚𝐥𝗲𝗻𝗱𝐚𝐫 𝐃𝗮𝘁𝗲`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Hari ini* : ${formatted}`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'))
       },
     })
 
