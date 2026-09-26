@@ -107,7 +107,7 @@ async function defaultDownloadYouTubeMedia(
   const tmpId = `ytdl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   const tmpOut = `/tmp/${tmpId}.%(ext)s`
   const formatArgs = kind === 'audio'
-    ? ['-f', 'ba/b', '-x', '--audio-format', 'mp3', '--max-filesize', '30M', '-o', tmpOut, url]
+    ? ['-f', 'ba/b', '-x', '--audio-format', 'm4a', '--max-filesize', '30M', '-o', tmpOut, url]
     : ['-S', 'res:480', '-f', 'b/bv+ba', '--merge-output-format', 'mp4', '--max-filesize', '45M', '-o', tmpOut, url]
 
   const { execFile } = await import('node:child_process')
@@ -143,7 +143,7 @@ async function defaultDownloadYouTubeMedia(
 
     return {
       data: new Uint8Array(buffer),
-      mimeType: kind === 'audio' ? 'audio/mp3' : 'video/mp4',
+      mimeType: kind === 'audio' ? 'audio/mp4' : 'video/mp4',
       fileName: match,
       kind,
     }
@@ -252,10 +252,47 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
+function generateBratSvg(text: string): string {
+  const words = text.trim().split(/\s+/)
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    if ((current + ' ' + word).trim().length > 14) {
+      if (current) lines.push(current)
+      current = word
+    } else {
+      current = current ? current + ' ' + word : word
+    }
+  }
+  if (current) lines.push(current)
+
+  const fontSize = lines.length > 6 ? 28 : lines.length > 4 ? 36 : lines.length > 2 ? 44 : 52
+  const lineHeight = Math.round(fontSize * 1.25)
+  const totalHeight = lines.length * lineHeight
+  const startY = Math.round((512 - totalHeight) / 2 + fontSize * 0.85)
+
+  const escapeXml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+  const tspans = lines
+    .map(
+      (line, idx) =>
+        `<tspan x="50%" dy="${idx === 0 ? 0 : lineHeight}px">${escapeXml(line)}</tspan>`,
+    )
+    .join('\n      ')
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
+  <rect width="512" height="512" fill="#ffffff" />
+  <text x="50%" y="${startY}" font-family="DejaVu Sans, Arial, Helvetica, sans-serif" font-weight="bold" font-size="${fontSize}" fill="#000000" text-anchor="middle">
+      ${tspans}
+  </text>
+</svg>`
+}
+
       // brat - brat generator (album cover style)
       context.commands.register({
         name: 'brat',
-        description: 'Buat stiker brat style (album cover green dengan teks)',
+        description: 'Buat stiker brat teks hitam background putih',
         category: 'tools',
         menuOrder: 16,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
@@ -275,29 +312,35 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
 
           try {
-            // Generate brat-style image using FFmpeg
-            const bratArgs = [
-              '-f', 'lavfi',
-              '-i', `color=c=#8FCE00:s=512x512:d=1`,
-              '-vf', `drawtext=text='${text.replace(/'/g, "\\'")}':fontsize=48:fontcolor=black:x=(w-text_w)/2:y=(h-text_h)/2:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf`,
-              '-frames:v', '1',
-              '-f', 'webp',
-              'pipe:1',
-            ]
+            const svg = generateBratSvg(text)
+            const tmpId = `brat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+            const svgPath = `/tmp/${tmpId}.svg`
+            const webpPath = `/tmp/${tmpId}.webp`
 
-            const { runFfmpeg } = await import('../../media.js')
-            const data = await runFfmpeg(bratArgs, new Uint8Array(), MEDIA_TRANSFORM_MAX_OUTPUT_BYTES, MEDIA_COMMAND_COOLDOWN_MS)
+            const { writeFile, readFile, unlink } = await import('node:fs/promises')
+            const { execFile } = await import('node:child_process')
+            const { promisify } = await import('node:util')
+            const execFileAsync = promisify(execFile)
 
-            if (data.byteLength === 0 || data.byteLength > MEDIA_TRANSFORM_MAX_OUTPUT_BYTES) {
-              await commandContext.reply('Hasil media terlalu besar atau kosong.')
-              return
+            await writeFile(svgPath, svg, 'utf8')
+            try {
+              await execFileAsync('ffmpeg', ['-y', '-i', svgPath, '-vcodec', 'libwebp', '-f', 'webp', webpPath])
+              const data = await readFile(webpPath)
+              await unlink(webpPath).catch(() => {})
+
+              if (data.byteLength === 0 || data.byteLength > MEDIA_TRANSFORM_MAX_OUTPUT_BYTES) {
+                await commandContext.reply('Hasil media terlalu besar atau kosong.')
+                return
+              }
+
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'sticker',
+                data: new Uint8Array(data),
+                mimeType: 'image/webp',
+              })
+            } finally {
+              await unlink(svgPath).catch(() => {})
             }
-
-            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-              kind: 'sticker',
-              data,
-              mimeType: 'image/webp',
-            })
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
             await commandContext.reply(safeMediaFailure(error))
@@ -590,7 +633,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               kind: 'audio',
               data: result.data,
               mimeType: result.mimeType,
-              fileName: 'audio.mp3',
+              fileName: 'audio.m4a',
             })
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'ytmp3 download failed')

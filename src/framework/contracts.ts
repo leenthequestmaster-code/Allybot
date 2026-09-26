@@ -79,6 +79,7 @@ export interface WhatsAppMediaPayload {
   readonly isAnimated?: boolean
   readonly durationSeconds?: number
   readonly gifPlayback?: boolean
+  readonly ptt?: boolean
 }
 
 export interface WhatsAppPollOptions {

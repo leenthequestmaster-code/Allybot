@@ -494,7 +494,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       | { sticker: Buffer; mimetype?: string; isAnimated?: boolean }
       | { image: Buffer; mimetype?: string; caption?: string }
       | { video: Buffer; mimetype?: string; caption?: string; gifPlayback?: boolean }
-      | { audio: Buffer; mimetype?: string }
+      | { audio: Buffer; mimetype?: string; ptt?: boolean }
       | { document: Buffer; mimetype: string; fileName?: string; caption?: string }
     switch (payload.kind) {
       case 'sticker':
@@ -511,7 +511,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         break
       case 'audio':
         if (!mimeType.startsWith('audio/')) throw new Error('Audio payload MIME mismatch')
-        content = { audio: data, mimetype: mimeType }
+        content = { audio: data, mimetype: mimeType, ...(payload.ptt !== undefined ? { ptt: payload.ptt } : {}) }
         break
       case 'document':
         if (!payload.fileName || !/^[a-zA-Z0-9][a-zA-Z0-9._ -]{0,99}$/.test(payload.fileName)) throw new Error('Document filename is invalid')
@@ -520,7 +520,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       default:
         throw new Error('Unsupported media kind')
     }
-    await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework media response')
+    await withTimeout(socket.sendMessage(remoteJid, content), 120_000, 'framework media response')
   }
 
   async sendNativeQuickReplies(remoteJid: string, payload: NativeQuickReplyPayload): Promise<void> {

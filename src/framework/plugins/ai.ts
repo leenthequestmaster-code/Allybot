@@ -165,12 +165,38 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=id&client=tw-ob`
             const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
             if (!res.ok) throw new Error(`HTTP ${res.status}`)
-            const buffer = new Uint8Array(await res.arrayBuffer())
+            const mp3Buffer = Buffer.from(await res.arrayBuffer())
+
+            let audioData: Uint8Array = new Uint8Array(mp3Buffer)
+            let mimeType = 'audio/mp4'
+            const isPtt = true
+
+            try {
+              const { spawn } = await import('node:child_process')
+              const opus = await new Promise<Buffer>((resolve, reject) => {
+                const ff = spawn('ffmpeg', ['-y', '-i', 'pipe:0', '-c:a', 'libopus', '-b:a', '32k', '-f', 'ogg', 'pipe:1'])
+                const chunks: Buffer[] = []
+                ff.stdout.on('data', (d: Buffer) => chunks.push(d))
+                ff.on('error', reject)
+                ff.on('close', (code) => {
+                  if (code === 0 && chunks.length > 0) resolve(Buffer.concat(chunks))
+                  else reject(new Error(`FFmpeg exited with code ${code}`))
+                })
+                ff.stdin.write(mp3Buffer)
+                ff.stdin.end()
+              })
+              audioData = new Uint8Array(opus)
+              mimeType = 'audio/ogg; codecs=opus'
+            } catch {
+              // fallback to audioData as is
+            }
+
             if (commandContext.whatsapp.sendMedia) {
               await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
                 kind: 'audio',
-                data: buffer,
-                mimeType: 'audio/mp3',
+                data: audioData,
+                mimeType,
+                ptt: isPtt,
               })
             } else {
               await commandContext.reply('Pesan suara belum bisa kekirim nih, coba lagi nanti ya~ 🎙️')

@@ -32,7 +32,7 @@ function createHarness({ media = {}, transformer } = {}) {
   const commands = new CommandRegistry(config, logger, whatsapp, { get() { throw new Error('service unavailable') } }, events)
   createMediaPlugin({
     transformer: transformer ?? { async transform() { return new Uint8Array([1, 2, 3]) } },
-    ytDownloader: async (url, kind) => ({ data: new Uint8Array([1, 2, 3]), mimeType: kind === 'audio' ? 'audio/mp3' : 'video/mp4', fileName: 'test', kind }),
+    ytDownloader: async (url, kind) => ({ data: new Uint8Array([1, 2, 3]), mimeType: kind === 'audio' ? 'audio/mp4' : 'video/mp4', fileName: 'test', kind }),
   }).load?.({
     logger,
     config,
