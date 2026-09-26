@@ -283,6 +283,15 @@ export class SqliteStorage {
     return { rows: Number(row.rows), bytes: Number(row.bytes) }
   }
 
+  getRecentMessageIds(remoteJid: string, limit: number): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT message_id FROM messages WHERE account_id = ? AND remote_jid = ? ORDER BY timestamp DESC, updated_at DESC LIMIT ?`,
+      )
+      .all(this.accountId, remoteJid, limit) as Array<{ message_id: string }>
+    return rows.map((r) => r.message_id)
+  }
+
   pruneMessageCache(now = Date.now()): MessageCachePruneResult {
     if (!Number.isFinite(now)) throw new Error('message cache prune clock must be finite')
     const prune = this.db.transaction((clock: number) => this.pruneMessageCacheWithinTransaction(clock))

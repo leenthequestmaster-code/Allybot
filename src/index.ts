@@ -14,6 +14,7 @@ import { createWelcomeLeavePlugin } from './framework/plugins/welcome-leave.js'
 import { groupPlugin } from './framework/plugins/group.js'
 import { createGroupSafetyPlugin } from './framework/plugins/group-safety.js'
 import { createGroupModerationPlugin } from './framework/plugins/group-moderation.js'
+import { createModerationSuitePlugin } from './framework/plugins/moderation-suite.js'
 import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-mission.js'
 
 import { createGroupGovernancePlugin } from './framework/plugins/group-governance.js'
@@ -34,6 +35,7 @@ import { DeveloperModeService } from './services/developer-mode-service.js'
 import { PlatformGuardrailService } from './services/platform-guardrail-service.js'
 import { GroupSafetyService } from './services/group-safety-service.js'
 import { GroupModerationService } from './services/group-moderation-service.js'
+import { GroupModerationSuiteService } from './services/group-moderation-suite-service.js'
 import { KnowledgeService } from './services/knowledge-service.js'
 import { SceneService } from './services/scene-service.js'
 import { GroupGovernanceService } from './services/group-governance-service.js'
@@ -150,6 +152,7 @@ async function main(): Promise<void> {
   }))
   framework.registerService(redis)
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
+  framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
@@ -164,6 +167,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
+  framework.registerPlugin(createModerationSuitePlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))

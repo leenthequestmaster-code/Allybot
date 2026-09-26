@@ -647,6 +647,27 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     }
   }
 
+  async deleteMessage(remoteJid: string, key: { readonly id: string; readonly remoteJid?: string; readonly fromMe?: boolean; readonly participant?: string }): Promise<void> {
+    const socket = this.requireSocket()
+    try {
+      await withTimeout(
+        socket.sendMessage(remoteJid, {
+          delete: {
+            id: key.id,
+            remoteJid: key.remoteJid ?? remoteJid,
+            fromMe: key.fromMe ?? false,
+            ...(key.participant ? { participant: key.participant } : {}),
+          },
+        }),
+        20_000,
+        'delete message',
+      )
+    } catch (error) {
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'delete message failed')
+      throw error
+    }
+  }
+
   private async resolveGroupName(remoteJid: string): Promise<string | undefined> {
     if (!isGroupJid(remoteJid)) return undefined
 

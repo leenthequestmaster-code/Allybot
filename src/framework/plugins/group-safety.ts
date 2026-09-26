@@ -128,10 +128,62 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const warning = safetyService(commandContext).issueWarning(group, target, actor, reason)
           const activeCount = safetyService(commandContext).countActiveWarnings(group, target)
+
+          let limit = 3
+          try {
+            const suite = commandContext.services.get<{ readonly name: string; getWarnLimit(g: string): number }>('group-moderation-suite')
+            if (suite?.getWarnLimit) limit = suite.getWarnLimit(group)
+          } catch {}
+
+          if (activeCount >= limit) {
+            try {
+              if (commandContext.whatsapp.groupParticipantsUpdate) {
+                await commandContext.whatsapp.groupParticipantsUpdate(group, [target], 'remove')
+              }
+              await commandContext.reply(
+                `⚠️ [WARN] @${target.split('@')[0]} mencapai batas ${activeCount}/${limit} peringatan dan dikeluarkan dari grup!\nAlasan: ${reason}`,
+                { mentions: [target] },
+              )
+              return
+            } catch (kickError) {
+              commandContext.logger.warn({ kickError }, 'failed to auto-kick member reaching warning limit')
+            }
+          }
+
           await commandContext.reply(
-            `[WARN] @${target.split('@')[0]} mendapat peringatan ke-${activeCount}. Alasan: ${reason} (ID: ${warning.id.slice(0, 8)})`,
+            `[WARN] @${target.split('@')[0]} mendapat peringatan ke-${activeCount}/${limit}. Alasan: ${reason} (ID: ${warning.id.slice(0, 8)})`,
             { mentions: [target] },
           )
+        },
+      })
+
+      context.commands.register({
+        name: 'unwarn',
+        description: 'Kurangi hitungan peringatan member',
+        category: 'moderation',
+        menuOrder: 5,
+        permission: permissionNames.groupAdmin,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext.message)
+          if (!group) {
+            await commandContext.reply('Command ini hanya dapat digunakan di dalam grup WhatsApp.')
+            return
+          }
+          const target = targetJid(commandContext.message, commandContext.whatsapp)
+          const actor = actorJid(commandContext.message, commandContext.whatsapp)
+          if (!target || !actor) {
+            await commandContext.reply(`Format: ${commandContext.prefix}unwarn @member`)
+            return
+          }
+          const warnings = safetyService(commandContext).listWarnings(group, target)
+          const activeWarning = warnings.find((w) => w.status === 'active')
+          if (!activeWarning) {
+            await commandContext.reply(`@${target.split('@')[0]} tidak memiliki peringatan aktif.`, { mentions: [target] })
+            return
+          }
+          safetyService(commandContext).revokeWarning(group, activeWarning.id, actor)
+          const remaining = safetyService(commandContext).countActiveWarnings(group, target)
+          await commandContext.reply(`✅ Peringatan untuk @${target.split('@')[0]} berhasil dikurangi. Sisa peringatan aktif: ${remaining}.`, { mentions: [target] })
         },
       })
 

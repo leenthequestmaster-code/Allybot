@@ -53,8 +53,11 @@ function formatLeave(event: CoreGroupParticipantUpdate): string {
 function formatCustomMessage(template: string, event: CoreGroupParticipantUpdate): string {
   return template
     .replaceAll('{{user}}', event.participantJids.map(userLabel).join(', '))
+    .replaceAll('{user}', event.participantJids.map(userLabel).join(', '))
     .replaceAll('{{group}}', event.groupName ?? event.groupJid)
+    .replaceAll('{group}', event.groupName ?? event.groupJid)
     .replaceAll('{{count}}', String(event.participantJids.length))
+    .replaceAll('{count}', String(event.participantJids.length))
 }
 
 export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
@@ -67,6 +70,22 @@ export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
       const groupContext = context.services.get<GroupContextService>('group-context')
       context.events.on('group.participants.changed', async (event) => {
         if (event.action !== 'add' && event.action !== 'remove') return
+
+        // Jangan terpicu untuk bot sendiri saat join/leave
+        if (whatsapp.userJid) {
+          const botBare = jidNormalizedUser(whatsapp.userJid)
+          if (event.participantJids.some((jid) => jidNormalizedUser(jid) === botBare)) return
+        }
+
+        // Cek toggle enable/disable dari GroupModerationSuiteService
+        try {
+          const suite = context.services.get<{ readonly name: string; isWelcomeEnabled(jid: string): boolean; isLeaveEnabled(jid: string): boolean }>('group-moderation-suite')
+          if (suite) {
+            if (event.action === 'add' && !suite.isWelcomeEnabled(event.groupJid)) return
+            if (event.action === 'remove' && !suite.isLeaveEnabled(event.groupJid)) return
+          }
+        } catch {}
+
         if (groupContext.isEnabled && (await groupContext.get(event.groupJid)).mode !== 'ooc') return
         const custom = event.action === 'add'
           ? configuration.getWelcome(event.groupJid)

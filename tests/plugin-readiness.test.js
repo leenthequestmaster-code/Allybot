@@ -18,6 +18,7 @@ import { createCharacterGuidePlugin } from '../dist/framework/plugins/character-
 import { createWelcomeLeavePlugin } from '../dist/framework/plugins/welcome-leave.js'
 import { createGroupSafetyPlugin } from '../dist/framework/plugins/group-safety.js'
 import { createGroupModerationPlugin } from '../dist/framework/plugins/group-moderation.js'
+import { createModerationSuitePlugin } from '../dist/framework/plugins/moderation-suite.js'
 import { createGroupSetupMissionPlugin } from '../dist/framework/plugins/group-setup-mission.js'
 import { economyPlugin } from '../dist/framework/plugins/economy.js'
 import { createGroupGovernancePlugin } from '../dist/framework/plugins/group-governance.js'
@@ -48,6 +49,7 @@ const SERVICE_NAMES = [
   'suggestion-relay',
   'redis',
   'group-safety',
+  'group-moderation-suite',
 ]
 
 // Every property resolves to another callable stub, so plugin load hooks can read flags,
@@ -139,6 +141,7 @@ test('every production plugin reaches ready, except the documented pending colli
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
+  framework.registerPlugin(createModerationSuitePlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
