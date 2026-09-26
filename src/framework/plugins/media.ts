@@ -283,7 +283,7 @@ function generateBratSvg(text: string): string {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
   <rect width="512" height="512" fill="#ffffff" />
-  <text x="50%" y="${startY}" font-family="DejaVu Sans, Arial, Helvetica, sans-serif" font-weight="bold" font-size="${fontSize}" fill="#000000" text-anchor="middle">
+  <text x="50%" y="${startY}" font-family="DejaVu Sans, Arial, 'Noto Color Emoji', Symbola, sans-serif" font-weight="bold" font-size="${fontSize}" fill="#000000" text-anchor="middle">
       ${tspans}
   </text>
 </svg>`

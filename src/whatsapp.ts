@@ -488,7 +488,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const data = Buffer.from(payload.data)
     if (!remoteJid || data.length === 0 || data.length > MEDIA_SEND_MAX_BYTES) throw new Error('Media payload is out of bounds')
     const mimeType = payload.mimeType.trim().toLowerCase()
-    if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(mimeType)) throw new Error('Invalid media MIME type')
+    if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*(?:;\s*[a-z0-9!#$&^_.+-]+=[a-z0-9!#$&^_.+-]+)*$/.test(mimeType)) throw new Error('Invalid media MIME type')
     if (payload.caption && payload.caption.length > 1_000) throw new Error('Media caption is too long')
     let content:
       | { sticker: Buffer; mimetype?: string; isAnimated?: boolean }
