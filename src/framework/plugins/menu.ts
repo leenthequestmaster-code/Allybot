@@ -25,10 +25,7 @@ const ROADMAP_CATEGORY_NAMES = [
   'moderation',
   'roleplay',
   'your-character',
-  'tools-media',
-  'tools-search',
-  'tools-sticker',
-  'tools-ai',
+  'tools',
   'fun',
   'developer',
   'owner',
@@ -39,30 +36,32 @@ const categoryPresentation: Record<string, CategoryPresentation> = {
   moderation: { label: 'MODERATION', icon: '🛡️' },
   roleplay: { label: 'ROLEPLAY', icon: '🎭' },
   'your-character': { label: 'YOUR CHARACTER', icon: '🎭' },
-  'tools-media': { label: 'TOOLS: MEDIA', icon: '🖼️' },
-  'tools-search': { label: 'TOOLS: SEARCH', icon: '🔍' },
-  'tools-sticker': { label: 'TOOLS: STICKER', icon: '🎨' },
-  'tools-ai': { label: 'TOOLS: AI', icon: '🤖' },
+  tools: { label: 'TOOLS LENGKAP', icon: '🧰' },
   fun: { label: 'FUN', icon: '🎲' },
   developer: { label: 'DEVELOPER', icon: '🛠️' },
   owner: { label: 'OWNER', icon: '👑' },
 }
 
 const CATEGORY_ALIASES: Record<string, string> = {
-  ai: 'tools-ai',
+  ai: 'tools',
   bank: 'your-character',
   creativity: 'fun',
-  download: 'tools-media',
+  download: 'tools',
   economy: 'your-character',
   general: 'your-character',
   governance: 'moderation',
-  media: 'tools-media',
+  media: 'tools',
   personalization: 'your-character',
   roleplay: 'roleplay',
   rpg: 'roleplay',
   scene: 'roleplay',
-  search: 'tools-search',
-  sticker: 'tools-sticker',
+  search: 'tools',
+  sticker: 'tools',
+  tools: 'tools',
+  'tools-ai': 'tools',
+  'tools-media': 'tools',
+  'tools-search': 'tools',
+  'tools-sticker': 'tools',
   vela: 'your-character',
   yourcharacter: 'your-character',
 }
@@ -222,7 +221,7 @@ function resolveCategory(categories: readonly MenuCategory[], identifier: string
 
 function renderCategoryMenu(category: MenuCategory, prefix: string): string {
   const { icon, label } = presentationFor(category.name)
-  const categoryTitle = label.replace(/^TOOLS:\s*/i, '').trim()
+  const categoryTitle = label.replace(/^(TOOLS:\s*|TOOLS\s+)/i, '').trim()
   const header = [
     `⿴⃟۪۪⃕᎒⃟${icon} *𝐓𝗼𝗼𝗹𝘀: ${categoryTitle}*`,
     '. . . ▭▬▭▬▭ ︵⏜︵',

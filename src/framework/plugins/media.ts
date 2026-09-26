@@ -109,7 +109,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'sticker',
         aliases: ['stiker'],
         description: 'Ubah gambar menjadi sticker',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 11,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'sticker'),
@@ -118,7 +118,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'toimg',
         aliases: ['togambar'],
         description: 'Ubah sticker menjadi gambar',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 12,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'image'),
@@ -127,7 +127,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'togif',
         aliases: ['gif'],
         description: 'Ubah video pendek menjadi GIF',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 13,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'gif'),
@@ -136,7 +136,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'toaudio',
         aliases: ['audio', 'tomp3'],
         description: 'Ambil audio dari video atau audio',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 14,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'audio'),
@@ -147,7 +147,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'smeme',
         aliases: [],
         description: 'Buat stiker meme dari gambar + teks (dengan filter downscale)',
-        category: 'tools-sticker',
+        category: 'tools',
         menuOrder: 15,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -198,7 +198,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'brat',
         description: 'Buat stiker brat style (album cover green dengan teks)',
-        category: 'tools-sticker',
+        category: 'tools',
         menuOrder: 16,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -252,7 +252,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'stickerwm',
         aliases: ['swm'],
         description: 'Ubah gambar menjadi sticker dengan watermark custom',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 17,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -275,7 +275,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'tovideo',
         aliases: ['tomp4'],
         description: 'Ubah stiker animasi menjadi video pendek MP4',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 18,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -292,7 +292,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'compress',
         description: 'Perkecil ukuran file media',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 19,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -333,7 +333,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'emojimix',
         aliases: ['mixemoji'],
         description: 'Gabungkan dua emoji menjadi satu stiker',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 20,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
@@ -354,7 +354,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'removebg',
         aliases: ['nobg'],
         description: 'Hapus latar belakang gambar',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 21,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -377,7 +377,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         name: 'ss',
         aliases: ['screenshot'],
         description: 'Ambil tangkapan layar sebuah website',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 22,
         cooldownMs: 10_000,
         handler: async (commandContext) => {
@@ -416,7 +416,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'ocr',
         description: 'Ekstrak teks dari gambar',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 23,
         cooldownMs: 10_000,
         handler: async (commandContext) => {
@@ -433,7 +433,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'qr',
         description: 'Buat kode QR dari teks',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 24,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
@@ -471,7 +471,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'tourl',
         description: 'Unggah media ke penyimpanan publik dan dapatkan link',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 25,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -514,7 +514,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'ytmp3',
         description: 'Unduh audio dari YouTube',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 26,
         cooldownMs: 25_000,
         handler: async (commandContext) => {
@@ -530,7 +530,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'ytmp4',
         description: 'Unduh video dari YouTube',
-        category: 'tools-media',
+        category: 'tools',
         menuOrder: 27,
         cooldownMs: 25_000,
         handler: async (commandContext) => {

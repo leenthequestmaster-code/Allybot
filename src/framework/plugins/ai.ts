@@ -46,7 +46,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'translate',
         aliases: ['terjemah', 'trans'],
         description: 'Terjemahkan teks yang kamu kirim secara langsung',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 2,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -69,7 +69,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'summarize',
         aliases: ['ringkas'],
         description: 'Ringkas teks yang kamu kirim secara langsung',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 3,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -92,7 +92,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'ai',
         aliases: ['ally', 'tanya'],
         description: 'Ask Allybot AI without conversation memory',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 1,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -120,7 +120,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'aidetection',
         aliases: ['deteksiai', 'aidetect'],
         description: 'Deteksi teks AI via reply message atau teks input',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 4,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -148,7 +148,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'tts',
         aliases: ['suara'],
         description: 'Ubah teks menjadi pesan suara',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 5,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -187,7 +187,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'text2img',
         aliases: ['buatgambar', 't2i'],
         description: 'Hasilkan gambar dari deskripsi teks',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 6,
         cooldownMs: 20_000,
         handler: async (commandContext) => {
@@ -226,7 +226,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'img2text',
         aliases: ['deskripsigambar'],
         description: 'Deskripsikan isi gambar menggunakan AI',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 7,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {

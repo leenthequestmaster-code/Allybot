@@ -67,7 +67,7 @@ context.commands.register({
         name: 'suggest',
         aliases: ['suggestion', 'usul'],
         description: 'Typed suggestion from explicit approved context',
-        category: 'tools-ai',
+        category: 'tools',
         menuOrder: 85,
         handler: async (commandContext) => {
         const group = groupJid(commandContext.message)

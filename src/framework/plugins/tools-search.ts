@@ -48,7 +48,7 @@ export const toolsSearchPlugin: Plugin = {
       name: 'google',
       aliases: ['search'],
       description: 'Cari informasi di web',
-      category: 'tools-search',
+      category: 'tools',
       menuOrder: 1,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -78,7 +78,7 @@ export const toolsSearchPlugin: Plugin = {
       name: 'image',
       aliases: ['gambar'],
       description: 'Cari gambar dengan filter aman',
-      category: 'tools-search',
+      category: 'tools',
       menuOrder: 2,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -115,7 +115,7 @@ export const toolsSearchPlugin: Plugin = {
       name: 'lirik',
       aliases: ['lyrics'],
       description: 'Cari lirik lagu',
-      category: 'tools-search',
+      category: 'tools',
       menuOrder: 3,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -149,7 +149,7 @@ export const toolsSearchPlugin: Plugin = {
       name: 'wiki',
       aliases: ['wikipedia'],
       description: 'Ringkasan artikel dari Wikipedia',
-      category: 'tools-search',
+      category: 'tools',
       menuOrder: 4,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -195,7 +195,7 @@ export const toolsSearchPlugin: Plugin = {
       name: 'cuaca',
       aliases: ['weather'],
       description: 'Informasi prakiraan cuaca suatu kota',
-      category: 'tools-search',
+      category: 'tools',
       menuOrder: 5,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -240,7 +240,7 @@ export const toolsSearchPlugin: Plugin = {
       name: 'pin',
       aliases: ['pinterest'],
       description: 'Cari gambar di Pinterest',
-      category: 'tools-search',
+      category: 'tools',
       menuOrder: 6,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -257,7 +257,7 @@ export const toolsSearchPlugin: Plugin = {
     context.commands.register({
       name: 'pixiv',
       description: 'Cari ilustrasi di Pixiv',
-      category: 'tools-search',
+      category: 'tools',
       menuOrder: 7,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {

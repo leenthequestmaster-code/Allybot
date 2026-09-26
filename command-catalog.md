@@ -137,76 +137,68 @@ Aturan baca:
 | `!menu` (m, help) | Menu utama compact interaktif. |
 | `!clearcache` (cacheclear) | Bersihkan cache runtime. |
 
-## tools-ai (8)
-| Command | Fungsi |
-|---|---|
-| `!ai` (ally, tanya) | Tanya AI tanpa memori percakapan. |
-| `!aidetection` (deteksiai, aidetect) | Deteksi teks AI. |
-| `!img2text` (deskripsigambar) | Analisis dan deskripsi gambar berbasis AI. |
-| `!suggest` (suggestion, usul) | Saran dari konteks approved. |
-| `!summarize` (ringkas) | Ringkas teks panjang. |
-| `!text2img` (buatgambar, t2i) | Hasilkan gambar visual dari prompt teks. |
-| `!translate` (terjemah, trans) | Terjemahkan teks antar-bahasa. |
-| `!tts` (suara) | Konversi teks menjadi pesan suara MP3. |
-
-## tools-media (32)
+## tools (56) - Tools Lengkap (Media, Search, Sticker & AI)
 | Command | Fungsi |
 |---|---|
 | `!about` | Tentang Allybot. |
+| `!ai` (ally, tanya) | Tanya AI tanpa memori percakapan. |
+| `!aidetection` (deteksiai, aidetect) | Deteksi teks AI. |
+| `!bookmark` | Bookmark pesan ter-quote. |
+| `!bookmarks` (tersimpan) | Daftar bookmark. |
 | `!botprofile` (bprofile) | Profil publik bot. |
 | `!brat` | Stiker brat album-cover style. |
 | `!calc` | Kalkulator matematika sederhana. |
 | `!commands` (cmds) | Daftar command aktif. |
 | `!compress` | Kompres ukuran gambar/video. |
 | `!convert` | Konversi satuan. |
+| `!cuaca` (weather) | Prakiraan cuaca kota (Open-Meteo). |
 | `!date` | Tanggal hari ini. |
 | `!diag` [hidden] | Snapshot diagnostik non-sensitif. |
 | `!emojimix` (mixemoji) | Gabungkan dua emoji menjadi stiker. |
 | `!features` | Ringkasan fitur. |
+| `!find` (cari) | Cari knowledge eksplisit. |
+| `!forget` | Hapus sumber milikmu. |
+| `!google` (search) | Pencarian ringkas web. |
 | `!health` [hidden] | Snapshot health bot. |
+| `!image` (gambar) | Cari gambar aman (Wikimedia/Commons). |
+| `!img2text` (deskripsigambar) | Analisis dan deskripsi gambar berbasis AI (Antigravity Vision). |
+| `!knowledge` (know) | Status knowledge grup. |
+| `!knowledgeexport` (knowexport, exportcatatan) | Export knowledge. |
+| `!lirik` (lyrics) | Cari lirik lagu lengkap (LRCLIB). |
 | `!ocr` | Ekstrak teks dari gambar. |
 | `!owner` | Profil publik Owner. |
+| `!pin` (pinterest) | Cari gambar Pinterest. |
 | `!ping` | Latency dan uptime. |
+| `!pixiv` | Cari ilustrasi Pixiv. |
 | `!privacy` | Ringkasan privasi data. |
 | `!qr` | Buat kode QR dari teks/link. |
+| `!quote` | Kutip pesan tanpa menyimpan. |
 | `!removebg` (nobg) | Hapus latar belakang gambar. |
 | `!searchcmd` | Cari command. |
+| `!setknowledge` (catatan) | Aktif/nonaktif knowledge. |
 | `!smeme` | Stiker meme gambar + teks. |
+| `!source` (sourceinfo) | Baca satu sumber per ID. |
 | `!ss` (screenshot) | Ambil tangkapan layar website. |
 | `!status` | Status umum runtime. |
 | `!sticker` (stiker) | Gambar → sticker WebP. |
 | `!stickerwm` (swm) | Stiker dengan watermark custom. |
+| `!suggest` (suggestion, usul) | Saran dari konteks approved. |
+| `!summarize` (ringkas) | Ringkas teks panjang. |
 | `!support` | Panduan langkah bantuan. |
+| `!text2img` (buatgambar, t2i) | Hasilkan gambar visual dari prompt teks. |
 | `!time` | Waktu zona dunia. |
 | `!toaudio` (audio, tomp3) | Ekstrak audio dari video/pesan suara. |
 | `!togif` (gif) | Video pendek → GIF MP4. |
 | `!toimg` (togambar) | Sticker → gambar PNG. |
 | `!tourl` | Unggah media ke web publik dan dapatkan link. |
 | `!tovideo` (tomp4) | Stiker animasi → video pendek MP4. |
+| `!translate` (terjemah, trans) | Terjemahkan teks antar-bahasa. |
+| `!tts` (suara) | Konversi teks menjadi pesan suara MP3. |
 | `!uptime` | Lama bot berjalan. |
 | `!version` | Info runtime bot. |
+| `!wiki` (wikipedia) | Ringkasan artikel Wikipedia ID. |
 | `!ytmp3` | Unduh audio dari YouTube. |
 | `!ytmp4` | Unduh video dari YouTube. |
-
-## tools-search (16)
-| Command | Fungsi |
-|---|---|
-| `!bookmark` | Bookmark pesan ter-quote. |
-| `!bookmarks` (tersimpan) | Daftar bookmark. |
-| `!cuaca` (weather) | Prakiraan cuaca kota (Open-Meteo). |
-| `!find` (cari) | Cari knowledge eksplisit. |
-| `!forget` | Hapus sumber milikmu. |
-| `!google` (search) | Pencarian ringkas web (DuckDuckGo/Google). |
-| `!image` (gambar) | Cari gambar aman (Wikimedia/Unsplash). |
-| `!knowledge` (know) | Status knowledge grup. |
-| `!knowledgeexport` (knowexport, exportcatatan) | Export knowledge. |
-| `!lirik` (lyrics) | Cari lirik lagu lengkap (LRCLIB). |
-| `!pin` (pinterest) | Cari gambar Pinterest. |
-| `!pixiv` | Cari ilustrasi Pixiv. |
-| `!quote` | Kutip pesan tanpa menyimpan. |
-| `!setknowledge` (catatan) | Aktif/nonaktif knowledge. |
-| `!source` (sourceinfo) | Baca satu sumber per ID. |
-| `!wiki` (wikipedia) | Ringkasan artikel Wikipedia ID. |
 
 ## your-character (12)
 | Command | Fungsi |
