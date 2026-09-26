@@ -857,7 +857,17 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           return
         }
 
-        // Cek Admin status untuk filter antilink, antispam, antitoxic
+        // Cek automod settings dulu (SQLite lookup cepat)
+        const automod = suite.getAutomod(group)
+        if (!automod.antispam && !automod.antilink && !automod.antitoxic) return
+
+        const isSpam = automod.antispam ? suite.checkAndRecordSpam(group, sender, 5, 5000) : false
+        const isLink = automod.antilink && text ? LINK_PATTERN.test(text) : false
+        const isToxic = automod.antitoxic && text ? TOXIC_PATTERN.test(text) : false
+
+        if (!isSpam && !isLink && !isToxic) return
+
+        // Jika ada potensi pelanggaran, baru periksa apakah sender adalah admin
         let senderIsAdmin = false
         try {
           const metadata = await whatsapp.getGroupMetadata(group)
@@ -866,34 +876,29 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
 
         if (senderIsAdmin) return
 
-        const automod = suite.getAutomod(group)
-
         // Cek Antispam
-        if (automod.antispam) {
-          const isSpam = suite.checkAndRecordSpam(group, sender, 5, 5000)
-          if (isSpam) {
-            suite.mute(group, sender, whatsapp.userJid ?? 'system', 5 * 60 * 1000)
-            if (whatsapp.deleteMessage) {
-              try {
-                await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
-              } catch {}
-            }
-            const phone = normalizePhone(sender)
-            await whatsapp.sendText(
-              group,
-              `⚠️ @${phone} terdeteksi mengirim pesan terlalu cepat (spam) dan di-mute otomatis selama 5 menit.`,
-              { mentions: [sender] },
-            )
-            return
+        if (isSpam) {
+          suite.mute(group, sender, whatsapp.userJid ?? 'system', 5 * 60 * 1000)
+          if (whatsapp.deleteMessage) {
+            try {
+              await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
+            } catch {}
           }
+          const phone = normalizePhone(sender)
+          await whatsapp.sendText(
+            group,
+            `⚠️ @${phone} terdeteksi mengirim pesan terlalu cepat (spam) dan di-mute otomatis selama 5 menit.`,
+            { mentions: [sender] },
+          )
+          return
         }
 
         // Cek Antilink
-        if (automod.antilink && text && LINK_PATTERN.test(text)) {
+        if (isLink) {
           let isWhitelisted = false
           try {
             const inviteLink = await whatsapp.getGroupInviteLink(group)
-            if (inviteLink && text.includes(inviteLink)) isWhitelisted = true
+            if (inviteLink && text && text.includes(inviteLink)) isWhitelisted = true
           } catch {}
 
           if (!isWhitelisted) {
@@ -913,17 +918,13 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         }
 
         // Cek Antitoxic
-        if (automod.antitoxic && text) {
+        if (isToxic) {
           try {
-            if (TOXIC_PATTERN.test(text)) {
-              if (whatsapp.deleteMessage) {
-                await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
-              }
-              return
+            if (whatsapp.deleteMessage) {
+              await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
             }
-          } catch {
-            // Default pass on error
-          }
+          } catch {}
+          return
         }
       })
     },

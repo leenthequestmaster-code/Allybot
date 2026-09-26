@@ -237,6 +237,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private lastActivityAt = Date.now()
   private readonly seenMessages = new Map<string, number>()
   private readonly groupNameCache = new Map<string, { name: string; expiresAt: number }>()
+  private readonly groupMetadataCache = new Map<string, { metadata: WhatsAppGroupMetadata; expiresAt: number }>()
   private readonly profilePictureCache = new Map<string, { url?: string; expiresAt: number }>()
   private static readonly MAX_PROFILE_PICTURE_CACHE_SIZE = 500
   private readonly messageListeners = new Set<(message: CoreMessage) => Promise<void> | void>()
@@ -284,6 +285,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     }
     this.seenMessages.clear()
     this.groupNameCache.clear()
+    this.groupMetadataCache.clear()
     this.profilePictureCache.clear()
     retryCache.flushAll()
     return result
@@ -564,6 +566,9 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
   async getGroupMetadata(groupJid: string): Promise<WhatsAppGroupMetadata> {
     if (!isGroupJid(groupJid)) throw new Error('group metadata is only available for WhatsApp groups')
+    const cached = this.groupMetadataCache.get(groupJid)
+    if (cached && cached.expiresAt > Date.now()) return cached.metadata
+
     const socket = this.requireSocket()
 
     const metadata = await withTimeout(socket.groupMetadata(groupJid), 10_000, 'group metadata lookup')
@@ -584,13 +589,15 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       : undefined
     const subject = metadata.subject?.trim() || 'Unnamed group'
     const description = metadata.desc?.trim() || undefined
-    return {
+    const result: WhatsAppGroupMetadata = {
       jid: groupJid,
       subject,
       ...(ownerJid ? { ownerJid } : {}),
       ...(description ? { description } : {}),
       participants,
     }
+    this.groupMetadataCache.set(groupJid, { metadata: result, expiresAt: Date.now() + 60_000 })
+    return result
   }
 
   async groupParticipantsUpdate(
@@ -606,6 +613,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     if (normalizedJids.length === 0) throw new Error('group participant update requires at least one target')
 
     try {
+      this.groupMetadataCache.delete(groupJid)
       const results = await withTimeout(socket.groupParticipantsUpdate(groupJid, normalizedJids, action), 20_000, 'group participant update')
       return Promise.all(results.map(async (result, index) => ({
         participantJid: result.jid
@@ -966,6 +974,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       .filter((jid): jid is string => Boolean(jid))
 
     if (!update.id || participantJids.length === 0) return
+    this.groupMetadataCache.delete(update.id)
     const groupName = await this.resolveGroupName(update.id)
     const event: CoreGroupParticipantUpdate = {
       groupJid: update.id,
