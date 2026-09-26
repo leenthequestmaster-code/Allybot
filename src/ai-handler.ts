@@ -17,6 +17,8 @@ export const PRIMARY_MODEL = 'gpt-4o-mini'
 export const FALLBACK_MODEL = 'gpt-4o'
 export const MAX_AI_INPUT_LENGTH = 1_200
 export const MAX_AI_OUTPUT_LENGTH = 2_000
+export const MAX_AI_CONTEXT_TOKENS = 120_000
+export const DEFAULT_MAX_OUTPUT_TOKENS = 1_000
 export const AI_REQUEST_TIMEOUT_MS = 15_000
 
 export const AI_SYSTEM_PROMPT = [
@@ -95,13 +97,18 @@ export function createOpenAiCompatibleTransport(options: { apiKey: string; baseU
   })
 
   return async ({ model, userMessage }) => {
+    const estimatedContextTokens = Math.ceil((userMessage.length + AI_SYSTEM_PROMPT.length) / 3.5)
+    if (estimatedContextTokens > MAX_AI_CONTEXT_TOKENS) {
+      throw new AiHandlerError('invalid_input', `Konteks input melebihi batas maksimal ${MAX_AI_CONTEXT_TOKENS.toLocaleString()} token.`)
+    }
+    const maxTokens = Math.min(Number(process.env.AI_MAX_OUTPUT_TOKENS) || DEFAULT_MAX_OUTPUT_TOKENS, 4_000)
     const response = await client.chat.completions.create({
       model,
       messages: [
         { role: 'system', content: AI_SYSTEM_PROMPT },
         { role: 'user', content: userMessage },
       ],
-      max_tokens: 300,
+      max_tokens: maxTokens,
     })
     return { content: response.choices[0]?.message?.content }
   }
