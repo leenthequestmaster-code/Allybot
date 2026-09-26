@@ -168,3 +168,8 @@ test('AI plugin dispatches !ai and !ally through the ApplicationFramework', asyn
   assert.match(dotCore.sent[0].text, /jawaban prefix titik/)
   await dotApp.stop()
 })
+
+test('describeImageWithAi rejects when missing api key', async () => {
+  const { describeImageWithAi } = await import('../dist/ai-handler.js')
+  await assert.rejects(describeImageWithAi('data:image/png;base64,abc', 'tes', { apiKey: '' }), (err) => err.code === 'missing_api_key')
+})

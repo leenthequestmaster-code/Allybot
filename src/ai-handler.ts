@@ -157,3 +157,42 @@ export function createAiHandler(options: AiHandlerOptions = {}): (message: strin
 
 /** Default handler instance; configured lazily from env (AI_API_KEY, AI_MODEL, ...). */
 export const chatCompletion = createAiHandler()
+
+export async function describeImageWithAi(
+  dataUrl: string,
+  prompt?: string,
+  options: { apiKey?: string; baseUrl?: string; model?: string } = {},
+): Promise<string> {
+  const configuredKey = options.apiKey ?? process.env.AI_API_KEY
+  const apiKey = configuredKey?.trim()
+  if (!apiKey) throw new AiHandlerError('missing_api_key', 'AI provider belum dikonfigurasi.')
+
+  const baseUrl = options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL
+  const model = options.model ?? process.env.AI_VISION_MODEL ?? 'ag/gemini-3.8-flash-low'
+
+  const client = new OpenAI({
+    apiKey,
+    baseURL: baseUrl,
+    timeout: 25_000,
+    maxRetries: 0,
+  })
+
+  const userPrompt = prompt?.trim() || 'Deskripsikan isi gambar ini secara singkat, padat, dan akurat dalam bahasa Indonesia.'
+  const response = await client.chat.completions.create({
+    model,
+    stream: false,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: userPrompt },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ],
+    max_tokens: 600,
+  })
+
+  return boundedOutput(response.choices[0]?.message?.content ?? 'Tidak ada deskripsi yang dihasilkan.')
+}
+

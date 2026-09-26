@@ -230,11 +230,39 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         menuOrder: 7,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
-          if (!commandContext.message.quotedMedia && !commandContext.message.media) {
-            await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}img2text.`)
+          const selected = commandContext.message.media
+            ? { descriptor: commandContext.message.media, source: 'direct' as const }
+            : commandContext.message.quotedMedia
+              ? { descriptor: commandContext.message.quotedMedia, source: 'quoted' as const }
+              : undefined
+
+          if (!selected || selected.descriptor.kind !== 'image') {
+            await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}img2text [opsional: instruksi], atau balas gambar lalu ketik ${commandContext.prefix}img2text.`)
             return
           }
-          await commandContext.reply('🤖 *Analisis Visual:*\nFitur vision AI memerlukan API key penyedia multi-modal yang aktif pada server.')
+
+          if (!commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply('Fitur unduh media belum aktif di server.')
+            return
+          }
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 5 * 1024 * 1024,
+              timeoutMs: 20_000,
+            })
+            const base64 = Buffer.from(downloaded.data).toString('base64')
+            const mime = downloaded.mimeType || 'image/jpeg'
+            const dataUrl = `data:${mime};base64,${base64}`
+
+            const prompt = commandContext.args.join(' ').trim() || undefined
+            const { describeImageWithAi } = await import('../../ai-handler.js')
+            const result = await describeImageWithAi(dataUrl, prompt)
+            await commandContext.reply(`🤖 *Analisis Gambar (AI Vision):*\n\n${result}`)
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'img2text command failed')
+            await commandContext.reply('Maaf, analisis gambar gagal diproses saat ini. Pastikan gambar jelas dan coba lagi.')
+          }
         },
       })
     },

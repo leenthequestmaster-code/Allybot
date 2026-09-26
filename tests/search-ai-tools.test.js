@@ -97,5 +97,5 @@ test('AI Tools: tts, text2img, and img2text commands', async () => {
 
   // 3. img2text requires media
   await harness.commands.dispatch(message('!img2text'))
-  assert.match(harness.sent.at(-1)?.text ?? '', /Balas gambar lalu ketik/)
+  assert.match(harness.sent.at(-1)?.text ?? '', /balas gambar/i)
 })
