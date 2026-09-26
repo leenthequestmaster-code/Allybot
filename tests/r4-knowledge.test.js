@@ -219,7 +219,7 @@ test('R4 plugin is default-off, admin-gated, explicit-reply-only, and has text f
     await core.emitMessage(groupMessage('member-off', memberJid, '!bookmark should fail', { quotedText: 'explicit text' }))
     assert.match(core.sent.at(-1).text, /belum aktif/i)
     await core.emitMessage(groupMessage('member-enable', memberJid, '!setknowledge on'))
-    assert.match(core.sent.at(-1).text, /hanya dapat digunakan oleh admin/i)
+    assert.match(core.sent.at(-1).text, /khusus admin/i)
     await core.emitMessage(groupMessage('admin-enable', adminJid, '!setknowledge on'))
     assert.match(core.sent.at(-1).text, /on/i)
     await core.emitMessage(groupMessage('member-no-quote', memberJid, '!bookmark title'))

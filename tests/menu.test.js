@@ -130,6 +130,38 @@ test('kategori privileged tidak tampil untuk member dan tampil untuk owner', asy
   assert.match(ownerWhatsapp.sent[1].text, /DEVELOPER/)
 })
 
+test('kategori ADMIN TOOLS hanya tampil untuk admin grup dan disembunyikan untuk member biasa', async () => {
+  const groupJid = '1203630123456789@g.us'
+  const memberJid = 'member@s.whatsapp.net'
+  const adminJid = 'admin@s.whatsapp.net'
+  const groupMetadata = {
+    jid: groupJid,
+    subject: 'Test Group',
+    participants: [
+      { jid: memberJid, role: 'member' },
+      { jid: adminJid, role: 'admin' },
+    ],
+  }
+  const whatsapp = {
+    ...fakeWhatsapp(),
+    async getGroupMetadata(jid) {
+      if (jid === groupJid) return groupMetadata
+      throw new Error('Group not found')
+    },
+  }
+  const { registry } = createRegistry(whatsapp)
+  registerCommand(registry, 'kick', 'moderation', 'Keluarkan member', { permission: 'group.admin' })
+  registerCommand(registry, 'ping', 'general', 'Check latency')
+
+  // 1. Member ketik !menu -> ADMIN TOOLS tersembunyi
+  await registry.dispatch({ id: 'm-1', remoteJid: groupJid, senderJid: memberJid, text: '!menu', timestamp: Date.now(), fromMe: false })
+  assert.doesNotMatch(whatsapp.sent.at(-1)?.text ?? '', /ADMIN TOOLS/)
+
+  // 2. Admin ketik !menu -> ADMIN TOOLS tampil
+  await registry.dispatch({ id: 'm-2', remoteJid: groupJid, senderJid: adminJid, text: '!menu', timestamp: Date.now(), fromMe: false })
+  assert.match(whatsapp.sent.at(-1)?.text ?? '', /ADMIN TOOLS/)
+})
+
 test('menu mengikuti effective prefix tanpa mengandalkan nama kategori', async () => {
   const whatsapp = fakeWhatsapp()
   const { registry } = createRegistry(whatsapp, (incomingMessage, _services, fallback) => (

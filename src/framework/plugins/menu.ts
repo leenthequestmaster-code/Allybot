@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { proto, prepareWAMessageMedia, type WASocket } from '@whiskeysockets/baileys'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import type { DeveloperModeService } from '../../services/developer-mode-service.js'
+import { permissionNames } from '../../permissions.js'
 import { commandDescription } from '../command-copy.js'
 import { MsgBuilder } from '../msg-builder.js'
 import { isGroupJid } from '../validation.js'
@@ -33,7 +34,7 @@ const ROADMAP_CATEGORY_NAMES = [
 
 const categoryPresentation: Record<string, CategoryPresentation> = {
   group: { label: 'GROUP', icon: '👥' },
-  moderation: { label: 'MODERATION', icon: '🛡️' },
+  moderation: { label: 'ADMIN TOOLS', icon: '🛡️' },
   roleplay: { label: 'ROLEPLAY', icon: '🎭' },
   'your-character': { label: 'YOUR CHARACTER', icon: '🎭' },
   tools: { label: 'TOOLS LENGKAP', icon: '🧰' },
@@ -43,6 +44,9 @@ const categoryPresentation: Record<string, CategoryPresentation> = {
 }
 
 const CATEGORY_ALIASES: Record<string, string> = {
+  admin: 'moderation',
+  'admin-tools': 'moderation',
+  admintools: 'moderation',
   ai: 'tools',
   bank: 'your-character',
   creativity: 'fun',
@@ -51,6 +55,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   general: 'your-character',
   governance: 'moderation',
   media: 'tools',
+  moderation: 'moderation',
   personalization: 'your-character',
   roleplay: 'roleplay',
   rpg: 'roleplay',
@@ -101,9 +106,16 @@ async function getOrPrepareMenuThumbnail(
 }
 
 function normalizeCategory(command: CommandDefinition): string {
+  if (
+    command.permission === permissionNames.groupAdmin ||
+    command.permission === permissionNames.groupAdminOrBotOwner ||
+    command.permission === permissionNames.groupOwner
+  ) {
+    return 'moderation'
+  }
   const category = command.category?.trim().toLowerCase()
   if (!category || !/^[a-z][a-z0-9_-]{0,31}$/.test(category)) return 'your-character'
-  return CATEGORY_ALIASES[category] ?? (category in categoryPresentation ? category : 'tools-media')
+  return CATEGORY_ALIASES[category] ?? (category in categoryPresentation ? category : 'tools')
 }
 
 function sortCommands(commands: readonly CommandDefinition[]): CommandDefinition[] {
@@ -168,20 +180,45 @@ function isBotOwner(commandContext: Pick<CommandContext, 'message' | 'config'>):
   return isSameJid(commandContext.message.senderJid, commandContext.config.botOwnerJid)
 }
 
-function canSeePrivilegedCategory(
-  category: MenuCategory,
-  commandContext: Pick<CommandContext, 'message' | 'config' | 'services'>,
-): boolean {
-  if (category.name === 'owner') return isBotOwner(commandContext)
-  if (category.name !== 'developer') return true
+async function isGroupAdminOrOwner(commandContext: CommandContext): Promise<boolean> {
   if (isBotOwner(commandContext)) return true
-  const sender = commandContext.message.senderJid
-  if (!sender || !commandContext.services.has('developer-mode')) return false
+  const remoteJid = commandContext.message.remoteJid
+  if (!isGroupJid(remoteJid)) {
+    return false
+  }
+  const senderJid = commandContext.message.senderJid
+  if (!senderJid) return false
   try {
-    return commandContext.services.get<DeveloperModeService>('developer-mode').listVisibleActivations(sender, false).length > 0
+    const metadata = await commandContext.whatsapp.getGroupMetadata(remoteJid)
+    if (!metadata || !metadata.participants) return false
+    const bareSender = senderJid.split('@')[0].split(':')[0]
+    if (metadata.ownerJid && metadata.ownerJid.split('@')[0].split(':')[0] === bareSender) return true
+    const participant = metadata.participants.find((p) => p.jid.split('@')[0].split(':')[0] === bareSender)
+    return participant?.role === 'admin' || participant?.role === 'superadmin'
   } catch {
     return false
   }
+}
+
+async function canSeePrivilegedCategory(
+  category: MenuCategory,
+  commandContext: CommandContext,
+): Promise<boolean> {
+  if (category.name === 'owner') return isBotOwner(commandContext)
+  if (category.name === 'developer') {
+    if (isBotOwner(commandContext)) return true
+    const sender = commandContext.message.senderJid
+    if (!sender || !commandContext.services.has('developer-mode')) return false
+    try {
+      return commandContext.services.get<DeveloperModeService>('developer-mode').listVisibleActivations(sender, false).length > 0
+    } catch {
+      return false
+    }
+  }
+  if (category.name === 'moderation') {
+    return isGroupAdminOrOwner(commandContext)
+  }
+  return true
 }
 
 function formatCommand(command: CommandDefinition, prefix: string, position: number): string {
@@ -309,7 +346,14 @@ export const menuPlugin: Plugin = {
   load(context) {
     const handleMenu = async (commandContext: CommandContext): Promise<void> => {
       const visibleCommands = context.commands.list().filter((command) => command.name !== 'menu' && !command.hidden)
-      const categories = collectCategories(visibleCommands).filter((category) => canSeePrivilegedCategory(category, commandContext))
+      const allCategories = collectCategories(visibleCommands)
+      const allowedCategories: MenuCategory[] = []
+      for (const cat of allCategories) {
+        if (await canSeePrivilegedCategory(cat, commandContext)) {
+          allowedCategories.push(cat)
+        }
+      }
+      const categories = allowedCategories
       const category = resolveCategory(categories, commandContext.args[0])
       const thumbnail = await loadMenuThumbnail()
 

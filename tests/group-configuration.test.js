@@ -75,7 +75,7 @@ test('group rules require admin access, stay isolated by group, validate input, 
     await app.start()
 
     await core.emitMessage(message('member-set', groupA, memberJid, '!setrules Jangan spam.'))
-    assert.equal(core.sent[0].text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+    assert.equal(core.sent[0].text, 'Command ini khusus admin')
 
     await core.emitMessage(message('admin-set', groupA, adminJid, '!setrules Saling menghormati dan tidak spam.'))
     assert.match(core.sent[1].text, /Aturan grup berhasil disimpan/)
@@ -91,7 +91,7 @@ test('group rules require admin access, stay isolated by group, validate input, 
     assert.match(core.sent[4].text, /terlalu panjang/)
 
     await core.emitMessage(message('member-clear', groupA, memberJid, '!clearrules'))
-    assert.equal(core.sent[5].text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+    assert.equal(core.sent[5].text, 'Command ini khusus admin')
 
     await core.emitMessage(message('admin-set-persisted', groupA, adminJid, '!setrules Rules yang bertahan setelah restart.'))
     assert.match(core.sent[6].text, /berhasil disimpan/)
@@ -137,7 +137,7 @@ test('welcome and leave configuration commands are admin-only and expose active 
   try {
     await app.start()
     await core.emitMessage(message('member-welcome', groupA, memberJid, '!setwelcome Halo {{user}}.'))
-    assert.equal(core.sent[0].text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+    assert.equal(core.sent[0].text, 'Command ini khusus admin')
 
     await core.emitMessage(message('admin-welcome', groupA, adminJid, '!setwelcome Halo {{user}} di {{group}}.'))
     assert.equal(core.sent[1].text, '✅ Pesan welcome custom berhasil disimpan.')
@@ -165,7 +165,7 @@ test('prefix configuration remains validated, group-scoped, and persistent', asy
   try {
     await app.start()
     await core.emitMessage(message('member-prefix', groupA, memberJid, '!setprefix ##'))
-    assert.equal(core.sent[0].text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+    assert.equal(core.sent[0].text, 'Command ini khusus admin')
 
     await core.emitMessage(message('admin-prefix', groupA, adminJid, '!setprefix ##'))
     assert.match(core.sent[1].text, /Prefix grup berhasil diubah menjadi `##`/)

@@ -191,7 +191,7 @@ export function createGroupContextPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'setgroup',
         description: 'Atur mode dan konteks sebuah grup',
-        category: 'group',
+        category: 'moderation',
         menuOrder: 50,
         permission: permissionNames.groupAdminOrBotOwner,
         handler: async (commandContext) => {

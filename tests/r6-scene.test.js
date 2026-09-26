@@ -275,7 +275,7 @@ test('R6 plugin is default-off, admin-gated, text-only, and supports lifecycle f
     await core.emitMessage(groupMessage('off', userA, '!scene open Blocked'))
     assert.match(core.sent.at(-1).text, /belum aktif/i)
     await core.emitMessage(groupMessage('forbidden', userA, '!setscene on'))
-    assert.match(core.sent.at(-1).text, /hanya dapat digunakan oleh admin/i)
+    assert.match(core.sent.at(-1).text, /khusus admin/i)
     await core.emitMessage(groupMessage('enable', adminJid, '!setscene on'))
     assert.match(core.sent.at(-1).text, /on/i)
     await core.emitMessage(groupMessage('open', userA, '!scene open Town Square public ttl=30'))

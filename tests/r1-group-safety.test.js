@@ -157,7 +157,7 @@ test('R1 plugin keeps admin boundary and creates dry-run cases without destructi
 
   try {
     await core.emitMessage(groupMessage('member-enable', memberJid, '!setsafety dry-run'))
-    assert.equal(core.sent.at(-1).text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+    assert.equal(core.sent.at(-1).text, 'Command ini khusus admin')
 
     await core.emitMessage(groupMessage('admin-enable', adminJid, '!setsafety dry-run'))
     assert.match(core.sent.at(-1).text, /sekarang: \*dry-run\*/)

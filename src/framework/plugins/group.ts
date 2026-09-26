@@ -275,7 +275,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'link',
       description: 'Show the group invite link for administrators',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 7,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
@@ -310,7 +310,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'setrules',
       description: 'Set the rules for the current group',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 11,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
@@ -340,7 +340,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'clearrules',
       description: 'Clear the rules for the current group',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 12,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
@@ -360,7 +360,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'setwelcome',
       description: 'Set a custom welcome message for the current group',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 13,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
@@ -387,7 +387,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'clearwelcome',
       description: 'Clear the custom welcome message for the current group',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 14,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
@@ -405,7 +405,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'setleave',
       description: 'Set a custom leave message for the current group',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 15,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
@@ -432,7 +432,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'clearleave',
       description: 'Clear the custom leave message for the current group',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 16,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {
@@ -475,7 +475,7 @@ export const groupPlugin: Plugin = {
     context.commands.register({
       name: 'setprefix',
       description: 'Set the command prefix for the current group',
-      category: 'group',
+      category: 'moderation',
       menuOrder: 19,
       permission: permissionNames.groupAdmin,
       handler: async (commandContext) => {

@@ -64,14 +64,14 @@ test('group admin permission allows admins and denies regular members with a den
   await core.emitMessage(message('member', core.metadata.jid, '628120000003@s.whatsapp.net', '!adminprobe'))
   assert.deepEqual(core.sent, [{
     remoteJid: core.metadata.jid,
-    text: 'Maaf, command ini hanya dapat digunakan oleh admin grup.',
+    text: 'Command ini khusus admin',
   }])
 
   await core.emitMessage(message('admin', core.metadata.jid, '628120000002@s.whatsapp.net', '!adminprobe'))
   assert.equal(core.sent[1].text, 'admin command accepted')
 
   await core.emitMessage(message('member-link', core.metadata.jid, '628120000003@s.whatsapp.net', '!link'))
-  assert.equal(core.sent[2].text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+  assert.equal(core.sent[2].text, 'Command ini khusus admin')
 
   await core.emitMessage(message('admin-link', core.metadata.jid, '628120000002@s.whatsapp.net', '!link'))
   assert.equal(core.sent[3].text, '🔗 *Invite Link Grup*\nhttps://chat.whatsapp.com/test-invite-code')
@@ -94,7 +94,7 @@ test('configured bot owner bypasses group admin permission in groups', async () 
   assert.equal(core.sent[0].text, 'admin command accepted')
 
   await core.emitMessage(message('member-admin', core.metadata.jid, '628120000003@s.whatsapp.net', '!adminprobe'))
-  assert.equal(core.sent[1].text, 'Maaf, command ini hanya dapat digunakan oleh admin grup.')
+  assert.equal(core.sent[1].text, 'Command ini khusus admin')
 
   await app.stop()
 })
