@@ -118,30 +118,25 @@ function formatHistoryTime(timestamp: number, timezone: string, language: 'id' |
   }).format(new Date(timestamp))
 }
 
-function renderGroupInfo(metadata: WhatsAppGroupMetadata, botJid?: string, contextStatus?: GroupContextRecord, oocWhitelistCount?: number): string {
+function renderGroupInfo(metadata: WhatsAppGroupMetadata, botJid?: string, contextStatus?: GroupContextRecord, _oocWhitelistCount?: number): string {
   const adminCount = metadata.participants.filter((participant) => participant.role === 'admin' || participant.role === 'superadmin').length
   const bot = findParticipant(metadata, botJid)
-  const lines = [
-    `*Informasi Grup: ${metadata.subject}*`,
-    '',
-    `• ID Grup: ${metadata.jid}`,
-    `• Member: ${metadata.participants.length} orang`,
-    `• Admin: ${adminCount} orang`,
-    `• Status Bot: ${bot ? participantRoleLabel(bot.role) : 'Tidak terdeteksi'}`,
-  ]
-  if (contextStatus) {
-    lines.push(...renderContextStatus(contextStatus))
-  }
-  if (contextStatus?.mode === 'ic') {
-    lines.push(`• OOC Whitelist: ${oocWhitelistCount ?? 0} user`)
-  }
-  if (metadata.ownerJid) {
-    lines.push(`• Creator: ${userLabel(metadata.ownerJid)}`)
-  }
-  if (metadata.description) {
-    lines.push('', `*Deskripsi:*`, metadata.description)
-  }
-  return lines.join('\n')
+  const modeLabel = contextStatus ? contextStatus.mode.toUpperCase() : 'NORMAL'
+  const desc = metadata.description?.trim() ? `_(${metadata.description.trim()})_` : '_( Tidak ada deskripsi grup )_'
+
+  return [
+    '𓏼 *`𝐆𝗿𝗼𝘂𝗽 𝐈𝗻𝗳𝗼𝗿𝗺𝗮𝘁𝗶𝗼𝗻`*',
+    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+    `⡇╌ *Nama* : ${metadata.subject}`,
+    `⡇╌ *Total User*  : ${metadata.participants.length}`,
+    `⡇╌ *Admin*  : ${adminCount}`,
+    `⡇╌ *Status Bot*   : ${bot ? participantRoleLabel(bot.role) : 'Tidak terdeteksi'}`,
+    `⡇╌ *Mode Grup*   : ${modeLabel}`,
+    '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+    desc,
+    '━━━━━━━━━━━━━━━━━━━━',
+    '*© Allyssea Roleplay Community*',
+  ].join('\n')
 }
 
 function renderParticipantList(
@@ -156,18 +151,26 @@ function renderParticipantList(
   const currentPage = Math.min(Math.max(page, 1), totalPages)
   const start = (currentPage - 1) * PAGE_SIZE
   const visible = participants.slice(start, start + PAGE_SIZE)
+  const titleHeader = title === 'Daftar Admin' ? '𝐆𝗿𝗼𝘂𝗽 𝐀𝗱𝗺𝗶𝗻𝘀' : '𝐆𝗿𝗼𝘂𝗽 𝐌𝗲𝗺𝗯𝗲𝗿𝘀'
   const lines = [
-    `*${title} — ${metadata.subject}*`,
-    `Halaman ${currentPage}/${totalPages} (Total: ${participants.length})`,
-    '',
+    `𓏼 *\`${titleHeader}\`*`,
+    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+    `⡇╌ *Wilayah* : ${metadata.subject}`,
+    `⡇╌ *Halaman* : ${currentPage}/${totalPages} (Total: ${participants.length})`,
+    '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
   ]
-  if (visible.length === 0) lines.push('Belum ada data member.')
+  if (visible.length === 0) lines.push('Belum ada data.')
   else {
     for (const [index, participant] of visible.entries()) {
       lines.push(`${start + index + 1}. ${userLabel(participant.jid)} — ${participantRoleLabel(participant.role)}`)
     }
   }
-  if (totalPages > 1) lines.push('', `Ketik ${prefix}${nextCommand} ${currentPage < totalPages ? currentPage + 1 : 1} untuk halaman berikutnya.`)
+  if (totalPages > 1) {
+    lines.push('─͜──͜──͜─  · • ·  ─͜──͜──͜─')
+    lines.push(`Ketik ${prefix}${nextCommand} ${currentPage < totalPages ? currentPage + 1 : 1} untuk halaman berikutnya.`)
+  }
+  lines.push('━━━━━━━━━━━━━━━━━━━━')
+  lines.push('*© Allyssea Roleplay Community*')
   return { text: lines.join('\n'), mentions: visible.map((participant) => participant.jid) }
 }
 
@@ -214,7 +217,15 @@ export const groupPlugin: Plugin = {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
         const adminCount = metadata.participants.filter((participant) => participant.role === 'admin' || participant.role === 'superadmin').length
-        await commandContext.reply(`*${metadata.subject}*\n• Member: ${metadata.participants.length}\n• Admin: ${adminCount}`)
+        await commandContext.reply([
+          '𓏼 *`𝐌𝗲𝗺𝗯𝗲𝗿 𝐂𝗼𝘂𝗻𝘁`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Nama* : ${metadata.subject}`,
+          `⡇╌ *Total User*  : ${metadata.participants.length}`,
+          `⡇╌ *Admin*  : ${adminCount}`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'))
       },
     })
 
@@ -265,10 +276,14 @@ export const groupPlugin: Plugin = {
           await commandContext.reply('Member tersebut tidak ditemukan di metadata grup.')
           return
         }
-        await commandContext.reply(
-          `*Informasi Member*\n• User: ${userLabel(participant.jid)}\n• Role : ${roleLabel(commandContext, participant)}`,
-          mentionOptions([participant.jid]),
-        )
+        await commandContext.reply([
+          '𓏼 *`𝐌𝗲𝗺𝗯𝗲𝗿 𝐈𝗻𝗳𝗼`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *User* : ${userLabel(participant.jid)}`,
+          `⡇╌ *Role* : ${roleLabel(commandContext, participant)}`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'), mentionOptions([participant.jid]))
       },
     })
 
@@ -296,11 +311,16 @@ export const groupPlugin: Plugin = {
         if (!(await requireGroup(commandContext))) return
         const metadata = await commandContext.whatsapp.getGroupMetadata(commandContext.message.remoteJid)
         const record = groupConfiguration(commandContext).getRules(commandContext.message.remoteJid)
+        const rulesText = record?.rules ?? 'Aturan grup belum dikonfigurasi.'
+        const helpText = record ? '' : `\n\n_Ketik ${commandContext.prefix}setrules <aturan> untuk mengaturnya._`
         await commandContext.reply([
-          `*Aturan Grup: ${metadata.subject}*`,
-          '',
-          record?.rules ?? 'Aturan grup belum dikonfigurasi.',
-          ...(record ? [] : [`\nGunakan ${commandContext.prefix}setrules <aturan> untuk menambahkannya.`]),
+          '𓏼 *`𝐆𝗿𝗼𝘂𝗽 𝐑𝘂𝗹𝗲𝐬`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Nama* : ${metadata.subject}`,
+          '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+          `${rulesText}${helpText}`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
         ].join('\n').trim())
       },
     })
@@ -460,14 +480,16 @@ export const groupPlugin: Plugin = {
         const settings = configuration.getSettings(commandContext.message.remoteJid)
         const override = configuration.getPrefix(commandContext.message.remoteJid)
         await commandContext.reply([
-          '*Prefix Grup*',
-          `• Prefix aktif: \`${commandContext.prefix}\``,
-          `• Sumber: ${override ? 'Override grup' : 'Prefix global'}`,
-          `• Prefix global: \`${commandContext.config.commandPrefix}\``,
-          `• Bahasa: ${settings.language?.language ?? 'id'}`,
-          '',
-          `Ubah: \`${commandContext.prefix}setprefix <simbol>\``,
+          '𓏼 *`𝐆𝗿𝗼𝘂𝗽 𝐏𝗿𝗲𝗳𝗶𝘅`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Prefix Aktif* : \`${commandContext.prefix}\``,
+          `⡇╌ *Sumber*       : ${override ? 'Override grup' : 'Prefix global'}`,
+          `⡇╌ *Prefix global* : \`${commandContext.config.commandPrefix}\``,
+          `⡇╌ *Bahasa*       : ${settings.language?.language ?? 'id'}`,
+          '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
           `Reset ke global: \`${commandContext.prefix}setprefix default\``,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
         ].join('\n'), override ? mentionOptions([override.updatedBy]) : undefined)
       },
     })
@@ -529,7 +551,14 @@ export const groupPlugin: Plugin = {
           await commandContext.reply('Role pengguna tidak ditemukan di metadata grup.')
           return
         }
-        await commandContext.reply(`• ${userLabel(participant.jid)} memiliki role *${roleLabel(commandContext, participant)}*.`)
+        await commandContext.reply([
+          '𓏼 *`𝐔𝘀𝗲𝗿 𝐑𝗼𝗹𝗲`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *User* : ${userLabel(participant.jid)}`,
+          `⡇╌ *Role* : ${roleLabel(commandContext, participant)}`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'), mentionOptions([participant.jid]))
       },
     })
 
@@ -550,9 +579,13 @@ export const groupPlugin: Plugin = {
             ? ['Melihat metadata grup', 'Melihat daftar member', 'Menggunakan command admin']
             : ['Melihat metadata grup', 'Melihat daftar member']
         await commandContext.reply([
-          '*Izin Akses*',
-          `Role : ${botOwner ? 'Bot Owner' : participantRoleLabel(role)}`,
-          ...permissions.map((permission) => `• ${permission}`),
+          '𓏼 *`𝐔𝘀𝗲𝗿 𝐏𝗲𝗿𝗺𝗶𝘀𝘀𝗶𝗼𝗻𝘀`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Role* : ${botOwner ? 'Bot Owner' : participantRoleLabel(role)}`,
+          '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+          ...permissions.map((p) => `- — *+ ${p}*`),
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
         ].join('\n'))
       },
     })

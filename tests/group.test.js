@@ -67,7 +67,7 @@ test('group foundation serves read-only metadata and clickable member lists', as
     fromMe: false,
   })
   assert.match(core.sent[1].text, /Allyssea Test Room/)
-  assert.match(core.sent[1].text, /Member.*3/)
+  assert.match(core.sent[1].text, /Total User.*3/)
 
   await core.emitMessage({
     id: 'admins',
@@ -102,7 +102,7 @@ test('group foundation serves read-only metadata and clickable member lists', as
     timestamp: Date.now(),
     fromMe: false,
   })
-  assert.match(core.sent[4].text, /Role : Admin/)
+  assert.match(core.sent[4].text, /Role.*Admin/)
 
   await core.emitMessage({
     id: 'rules',
