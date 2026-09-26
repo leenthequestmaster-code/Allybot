@@ -17,10 +17,10 @@ function sourceFor(context: CommandContext): { descriptor: CoreMediaDescriptor; 
 }
 
 function safeMediaFailure(error: unknown): string {
-  if (error instanceof MediaTransformError && error.code === 'unsupported') return 'Format media belum didukung untuk perintah ini.'
-  if (error instanceof MediaTransformError && error.code === 'output_limit') return 'Hasil media terlalu besar untuk dikirim.'
-  if (error instanceof MediaTransformError && error.code === 'timeout') return 'Pengolahan media terlalu lama. Coba file yang lebih kecil.'
-  return 'Media tidak dapat diproses saat ini. Coba lagi dengan file lain.'
+  if (error instanceof MediaTransformError && error.code === 'unsupported') return 'Format file ini belum didukung nih, coba file lain ya~ 📂'
+  if (error instanceof MediaTransformError && error.code === 'output_limit') return 'Hasilnya terlalu besar untuk dikirim nih~ 📦'
+  if (error instanceof MediaTransformError && error.code === 'timeout') return 'Prosesnya terlalu lama nih, coba file yang lebih kecil ya~ ⏳'
+  return 'Gagal diproses nih, coba lagi pakai file lain ya~ 🙏'
 }
 
 async function transformAndSend(
@@ -41,19 +41,19 @@ async function transformAndSend(
     return
   }
   if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > MEDIA_INPUT_MAX_BYTES) {
-    await context.reply('File terlalu besar. Gunakan media maksimal 3 MB.')
+    await context.reply('File terlalu besar nih, maksimal 3 MB ya~ 📁')
     return
   }
   if (target === 'gif' && selected.descriptor.durationSeconds !== undefined && selected.descriptor.durationSeconds > 15) {
-    await context.reply('Video terlalu panjang. Untuk GIF, gunakan video maksimal 15 detik.')
+    await context.reply('Videonya kepanjangan nih, buat GIF maksimal 15 detik ya~ ⏱️')
     return
   }
   if (target === 'audio' && selected.descriptor.durationSeconds !== undefined && selected.descriptor.durationSeconds > 60) {
-    await context.reply('Media terlalu panjang. Untuk audio, gunakan media maksimal 60 detik.')
+    await context.reply('Audionya kepanjangan nih, maksimal 60 detik ya~ 🎵')
     return
   }
   if (!context.whatsapp.downloadMedia || !context.whatsapp.sendMedia) {
-    await context.reply('Fitur media belum tersedia di server ini.')
+    await context.reply('Fitur media belum tersedia saat ini nih 😅')
     return
   }
 
@@ -157,11 +157,11 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
           if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > MEDIA_INPUT_MAX_BYTES) {
-            await commandContext.reply('File terlalu besar. Gunakan media maksimal 3 MB.')
+            await commandContext.reply('File terlalu besar nih, maksimal 3 MB ya~ 📁')
             return
           }
           if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
-            await commandContext.reply('Fitur media belum tersedia di server ini.')
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
             return
           }
 
@@ -178,7 +178,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             const data = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, 'sticker')
             const outputLimit = MEDIA_TRANSFORM_MAX_OUTPUT_BYTES
             if (data.byteLength === 0 || data.byteLength > outputLimit) {
-              await commandContext.reply('Hasil media terlalu besar atau kosong.')
+              await commandContext.reply('Hasilnya terlalu besar atau kosong nih, coba file lain ya~ 📦')
               return
             }
 
@@ -208,11 +208,11 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
           if (text.length > 100) {
-            await commandContext.reply('Teks terlalu panjang. Maksimal 100 karakter.')
+            await commandContext.reply('Teksnya kepanjangan nih, maksimal 100 karakter ya~ ✍️')
             return
           }
           if (!commandContext.whatsapp.sendMedia) {
-            await commandContext.reply('Fitur media belum tersedia di server ini.')
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
             return
           }
 
@@ -302,7 +302,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
           if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
-            await commandContext.reply('Fitur media belum tersedia di server ini.')
+            await commandContext.reply('Fitur media belum bisa dipakai nih 😅')
             return
           }
           try {
@@ -313,7 +313,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             const target = downloaded.kind === 'video' ? 'gif' : 'image'
             const compressed = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, target)
             if (compressed.byteLength >= downloaded.data.byteLength) {
-              await commandContext.reply('Ukuran media ini sudah optimal, tidak dapat diperkecil lagi.')
+              await commandContext.reply('Ukuran file ini udah pas banget, nggak bisa dikecilin lagi~ 👌')
               return
             }
             await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
@@ -345,7 +345,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}emojimix <emoji1>+<emoji2>\nContoh: ${commandContext.prefix}emojimix 😂+😎`)
             return
           }
-          await commandContext.reply(`Kombinasi ${emoji1} + ${emoji2} sedang disiapkan. Jika stiker tidak muncul, kombinasi kedua emoji ini belum didukung oleh Google Emoji Kitchen.`)
+          await commandContext.reply(`Kombinasi ${emoji1} + ${emoji2} lagi disiapin nih... Kalau stikernya nggak muncul, berarti belum bisa digabung ya 🙏`)
         },
       })
 
@@ -365,10 +365,10 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
           const apiKey = process.env.REMOVEBG_API_KEY
           if (!apiKey) {
-            await commandContext.reply('Layanan remove.bg memerlukan API key. Tambahkan REMOVEBG_API_KEY di .env server untuk mengaktifkan.')
+            await commandContext.reply('Fitur hapus background belum disetel nih, colek owner ya~ 🙏')
             return
           }
-          await commandContext.reply('Memproses penghapusan latar belakang gambar...')
+          await commandContext.reply('Lagi hapus background gambar nih, tunggu bentar ya~ ⏳')
         },
       })
 
@@ -388,7 +388,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
           if (!/^https?:\/\//i.test(url)) url = `https://${url}`
           if (!/^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i.test(url)) {
-            await commandContext.reply('Format URL tidak valid. Masukkan alamat website yang benar.')
+            await commandContext.reply('Alamat website-nya nggak valid nih, cek lagi ya~ 🔗')
             return
           }
           try {
@@ -407,7 +407,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             }
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'screenshot command failed')
-            await commandContext.reply('Gagal mengambil tangkapan layar website. Pastikan website dapat diakses publik.')
+            await commandContext.reply('Gagal ambil screenshot nih, pastiin website-nya bisa dibuka ya~ 🌐')
           }
         },
       })
@@ -425,7 +425,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}ocr.`)
             return
           }
-          await commandContext.reply('🔍 *Hasil OCR Ekstraksi Teks:*\n\nTidak ada teks yang terdeteksi pada gambar atau layanan OCR sedang offline.')
+          await commandContext.reply('🔍 *Hasil Baca Teks:*\n\nNggak ada tulisan yang kebaca di gambar nih, coba foto yang lebih jelas ya~ 📝')
         },
       })
 
@@ -443,7 +443,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
           if (text.length > 500) {
-            await commandContext.reply('Teks terlalu panjang untuk kode QR. Maksimal 500 karakter.')
+            await commandContext.reply('Teksnya kepanjangan buat QR code nih, maksimal 500 karakter ya~ ✍️')
             return
           }
           try {
@@ -462,7 +462,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             }
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'qr generation failed')
-            await commandContext.reply('Gagal membuat kode QR.')
+            await commandContext.reply('Gagal bikin kode QR nih, coba teks yang lebih pendek ya~ 😅')
           }
         },
       })
@@ -481,7 +481,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
           if (!commandContext.whatsapp.downloadMedia) {
-            await commandContext.reply('Fitur unduh media belum aktif di server.')
+            await commandContext.reply('Waduh, belum bisa unduh media saat ini. Coba lagi nanti ya~ ⏳')
             return
           }
           try {
@@ -505,7 +505,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             }
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'tourl upload failed')
-            await commandContext.reply('Gagal mengunggah media ke server publik. Coba file yang lebih kecil atau coba lagi nanti.')
+            await commandContext.reply('Upload gagal nih, coba file lebih kecil ya~ 📁')
           }
         },
       })
@@ -523,7 +523,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}ytmp3 <url youtube>\nContoh: ${commandContext.prefix}ytmp3 https://youtu.be/dQw4w9WgXcQ`)
             return
           }
-          await commandContext.reply('⏳ Mengambil data audio YouTube... Harap dicatat bahwa fitur ini bergantung pada ketersediaan API pihak ketiga dan tunduk pada kebijakan YouTube.')
+          await commandContext.reply('⏳ Lagi ngambil audio YouTube nih... Kadang bisa gagal/lambat tergantung video-nya, sabar ya 🙏')
         },
       })
 
@@ -539,7 +539,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}ytmp4 <url youtube>\nContoh: ${commandContext.prefix}ytmp4 https://youtu.be/dQw4w9WgXcQ`)
             return
           }
-          await commandContext.reply('⏳ Mengambil data video YouTube... Harap dicatat bahwa fitur ini dibatasi durasi pendek dan tunduk pada kebijakan YouTube.')
+          await commandContext.reply('⏳ Lagi ngambil video YouTube nih... Kadang bisa gagal/lambat tergantung video-nya, sabar ya 🙏')
         },
       })
     },

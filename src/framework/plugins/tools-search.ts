@@ -102,10 +102,10 @@ export const toolsSearchPlugin: Plugin = {
             }
             return
           }
-          await commandContext.reply(`Gambar untuk "${query}" tidak ditemukan atau filter keamanan aktif.`)
+          await commandContext.reply(`Nggak nemu gambar "${query}" nih, coba kata kunci lain ya~ 🔎`)
         } catch (error) {
           commandContext.logger.warn({ error }, 'image search failed')
-          await commandContext.reply('Gagal mencari gambar saat ini.')
+          await commandContext.reply('Lagi susah cari gambarnya nih, coba sebentar lagi ya~ 😅')
         }
       },
     })
@@ -132,14 +132,14 @@ export const toolsSearchPlugin: Plugin = {
           const items = (await res.json()) as any[]
           const track = items.find((i) => i.plainLyrics)
           if (!track || !track.plainLyrics) {
-            await commandContext.reply('Lirik lagu tersebut tidak ditemukan. Coba sertakan judul dan nama artis yang lebih spesifik.')
+            await commandContext.reply('Liriknya nggak ketemu nih. Coba tulis judul sama penyanyinya lebih lengkap ya~ 🎶')
             return
           }
           const lyrics = track.plainLyrics.length > 2000 ? `${track.plainLyrics.slice(0, 1990)}...` : track.plainLyrics
           await commandContext.reply(`🎵 *${track.trackName} - ${track.artistName}*\n\n${lyrics}`)
         } catch (error) {
           commandContext.logger.warn({ error }, 'lyrics command failed')
-          await commandContext.reply('Lirik lagu tersebut tidak ditemukan atau layanan sedang offline.')
+          await commandContext.reply('Lirik lagu itu belum ketemu nih, coba cek lagi judulnya ya~ 🎧')
         }
       },
     })
@@ -171,21 +171,21 @@ export const toolsSearchPlugin: Plugin = {
             const searchData = (await searchRes.json()) as any[]
             const suggestions = (searchData[1] as string[]) || []
             if (suggestions.length > 0) {
-              await commandContext.reply(`Topik tidak ditemukan secara langsung. Beberapa topik serupa:\n• ${suggestions.join('\n• ')}`)
+              await commandContext.reply(`Topik itu belum pas nih. Mungkin maksud kamu:\n• ${suggestions.join('\n• ')}`)
             } else {
-              await commandContext.reply('Topik tersebut tidak ditemukan di Wikipedia.')
+              await commandContext.reply('Topik itu belum ada di Wikipedia nih, coba kata kunci lain ya~ 📖')
             }
             return
           }
           const data = (await res.json()) as any
           if (data.type === 'disambiguation') {
-            await commandContext.reply(`Topik ambigu (banyak topik serupa):\n${data.extract}\n\nSilakan cari dengan istilah yang lebih spesifik.`)
+            await commandContext.reply(`Topiknya ada banyak arti nih:\n${data.extract}\n\nCoba ketik topik yang lebih spesifik ya~ 💡`)
             return
           }
           await commandContext.reply(`📚 *Wikipedia: ${data.title}*\n\n${data.extract}\n\n🔗 ${data.content_urls?.desktop?.page ?? ''}`)
         } catch (error) {
           commandContext.logger.warn({ error }, 'wikipedia command failed')
-          await commandContext.reply('Gagal mengambil ringkasan dari Wikipedia.')
+          await commandContext.reply('Belum bisa buka artikelnya nih, coba sebentar lagi ya~ 🙏')
         }
       },
     })
@@ -211,7 +211,7 @@ export const toolsSearchPlugin: Plugin = {
           const geoData = (await geoRes.json()) as any
           const loc = geoData?.results?.[0]
           if (!loc) {
-            await commandContext.reply(`Kota "${city}" tidak dikenali. Pastikan ejaan nama kota sudah benar.`)
+            await commandContext.reply(`Kota "${city}" nggak ketemu nih, coba cek lagi ejaannya ya~ 🌤️`)
             return
           }
           const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true`, {
@@ -230,7 +230,7 @@ export const toolsSearchPlugin: Plugin = {
           ].join('\n'))
         } catch (error) {
           commandContext.logger.warn({ error }, 'weather command failed')
-          await commandContext.reply('Gagal mengambil data cuaca saat ini.')
+          await commandContext.reply('Info cuacanya belum bisa dicek nih, coba sebentar lagi ya~ 🌦️')
         }
       },
     })

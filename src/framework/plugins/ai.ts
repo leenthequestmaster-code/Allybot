@@ -22,8 +22,8 @@ function pipeInput(context: CommandContext): { target: string; text: string } | 
 
 function safeFailureMessage(error: unknown): string {
   if (error instanceof AiHandlerError && error.code === 'invalid_input') return error.message
-  if (error instanceof AiHandlerError && error.code === 'missing_api_key') return 'Allybot AI belum dikonfigurasi oleh operator.'
-  return 'Maaf, Allybot AI sedang tidak tersedia. Coba lagi nanti.'
+  if (error instanceof AiHandlerError && error.code === 'missing_api_key') return 'Fitur AI belum siap dipakai nih, colek owner ya~ 🙏'
+  return 'Lagi pusing nih, coba tanya lagi beberapa saat ya~ 🤖🙏'
 }
 
 export interface AiPluginOptions {
@@ -102,7 +102,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             return
           }
           if (prompt.length > MAX_AI_INPUT_LENGTH) {
-            await commandContext.reply(`Pertanyaan terlalu panjang. Batasnya ${MAX_AI_INPUT_LENGTH} karakter.`)
+            await commandContext.reply(`Pertanyaannya kepanjangan nih, maksimal ${MAX_AI_INPUT_LENGTH} karakter ya~ ✍️`)
             return
           }
 
@@ -130,7 +130,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             return
           }
           if (text.length > MAX_AI_INPUT_LENGTH) {
-            await commandContext.reply(`Teks terlalu panjang. Batasnya ${MAX_AI_INPUT_LENGTH} karakter.`)
+            await commandContext.reply(`Teksnya kepanjangan nih, maksimal ${MAX_AI_INPUT_LENGTH} karakter ya~ ✍️`)
             return
           }
           try {
@@ -158,7 +158,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             return
           }
           if (text.length > 300) {
-            await commandContext.reply('Teks terlalu panjang untuk audio TTS. Maksimal 300 karakter.')
+            await commandContext.reply('Teksnya kepanjangan buat pesan suara nih, maksimal 300 karakter ya~ 🎙️')
             return
           }
           try {
@@ -173,11 +173,11 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
                 mimeType: 'audio/mp3',
               })
             } else {
-              await commandContext.reply('Koneksi WhatsApp belum mendukung pengiriman media suara.')
+              await commandContext.reply('Pesan suara belum bisa kekirim nih, coba lagi nanti ya~ 🎙️')
             }
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'tts command failed')
-            await commandContext.reply('Gagal membuat pesan suara saat ini.')
+            await commandContext.reply('Gagal bikin pesan suara nih, coba kalimat lain ya~ 😅')
           }
         },
       })
@@ -197,7 +197,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             return
           }
           if (prompt.length > 300) {
-            await commandContext.reply('Deskripsi terlalu panjang. Maksimal 300 karakter.')
+            await commandContext.reply('Deskripsinya kepanjangan nih, maksimal 300 karakter ya~ ✍️')
             return
           }
           try {
@@ -216,7 +216,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             }
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'text2img command failed')
-            await commandContext.reply('Gagal menghasilkan gambar dari teks saat ini.')
+            await commandContext.reply('Gagal bikin gambar nih, coba kata kunci lain ya~ 🎨')
           }
         },
       })
@@ -242,7 +242,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
 
           if (!commandContext.whatsapp.downloadMedia) {
-            await commandContext.reply('Fitur unduh media belum aktif di server.')
+            await commandContext.reply('Waduh, belum bisa ambil gambarnya nih. Coba kirim ulang ya~ 📥')
             return
           }
 
@@ -261,7 +261,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             await commandContext.reply(`🤖 *Analisis Gambar (AI Vision):*\n\n${result}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'img2text command failed')
-            await commandContext.reply('Maaf, analisis gambar gagal diproses saat ini. Pastikan gambar jelas dan coba lagi.')
+            await commandContext.reply('Gambarnya kurang jelas nih, coba kirim foto yang lebih terang ya~ 🔍📷')
           }
         },
       })

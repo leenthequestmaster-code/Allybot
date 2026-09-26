@@ -19,7 +19,7 @@ const TOXIC_PATTERN = /(?:kontol|memek|jembut|anjing|bangsat|babi|pantek|itil|ng
 
 function requireGroup(context: CommandContext): string | undefined {
   if (!isGroupJid(context.message.remoteJid)) {
-    context.reply('Command ini hanya dapat digunakan di dalam grup WhatsApp.')
+    context.reply('Command ini cuma bisa dipakai di dalam grup ya~ 👥')
     return undefined
   }
   return context.message.remoteJid
@@ -110,30 +110,30 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             metadata = await commandContext.whatsapp.getGroupMetadata(group)
           } catch {
-            await commandContext.reply('Gagal mengambil informasi grup.')
+            await commandContext.reply('Info grupnya lagi susah diambil nih, coba sebentar lagi ya~ 😅')
             return
           }
 
           const botJid = commandContext.whatsapp.userJid
           if (!isAdmin(metadata, botJid)) {
-            await commandContext.reply('Bot harus menjadi admin grup terlebih dahulu untuk mengeluarkan member.')
+            await commandContext.reply('Jadikan bot admin dulu ya biar bisa ngeluarin member~ 👑')
             return
           }
 
           const actor = commandContext.message.senderJid
           if (!isAdmin(metadata, actor)) {
-            await commandContext.reply('Hanya admin grup yang dapat menggunakan perintah kick.')
+            await commandContext.reply('Cuma admin grup yang boleh pakai perintah ini ya~ 🛡️')
             return
           }
 
           if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat dikeluarkan.')
+            await commandContext.reply('Owner grup tidak dapat dikeluarkan nih~ 👑😅')
             return
           }
 
           const p = getParticipant(metadata, target)
           if (!p) {
-            await commandContext.reply('Target sudah bukan merupakan anggota grup ini.')
+            await commandContext.reply('Orangnya udah bukan anggota grup ini lagi kok~ 👀')
             return
           }
 
@@ -142,7 +142,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply(`👋 @${normalizePhone(target)} telah dikeluarkan dari grup.`, { mentions: [target] })
           } catch (error) {
             commandContext.logger.warn({ error }, 'failed to kick member')
-            await commandContext.reply('Gagal mengeluarkan member dari grup.')
+            await commandContext.reply('Waduh, belum berhasil ngeluarin dia nih. Coba lagi ya~ 🙏')
           }
         },
       })
@@ -168,18 +168,18 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             metadata = await commandContext.whatsapp.getGroupMetadata(group)
           } catch {
-            await commandContext.reply('Gagal mengambil informasi grup.')
+            await commandContext.reply('Info grupnya lagi susah diambil nih, coba sebentar lagi ya~ 😅')
             return
           }
 
           const botJid = commandContext.whatsapp.userJid
           if (!isAdmin(metadata, botJid)) {
-            await commandContext.reply('Bot harus menjadi admin grup terlebih dahulu untuk melakukan ban.')
+            await commandContext.reply('Jadikan bot admin dulu ya biar bisa nge-ban member~ 👑')
             return
           }
 
           if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat di-ban.')
+            await commandContext.reply('Owner grup tidak dapat di-ban nih~ 👑😅')
             return
           }
 
@@ -212,7 +212,6 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
           if (!group) return
-
           const input = commandContext.args[0]?.trim()
           if (!input) {
             await commandContext.reply(`Format: ${commandContext.prefix}unban <nomor|@user>`)
@@ -224,7 +223,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           if (removed) {
             await commandContext.reply(`✅ Nomor ${input} berhasil dihapus dari blacklist grup.`)
           } else {
-            await commandContext.reply(`Nomor ${input} tidak ditemukan dalam daftar blacklist grup ini.`)
+            await commandContext.reply(`Nomor ${input} nggak ada di daftar blacklist grup ini kok~ 👌`)
           }
         },
       })
@@ -253,12 +252,12 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             metadata = await commandContext.whatsapp.getGroupMetadata(group)
           } catch {
-            await commandContext.reply('Gagal mengambil metadata grup.')
+            await commandContext.reply('Info grupnya lagi susah diambil nih, coba sebentar lagi ya~ 😅')
             return
           }
 
           if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat di-mute.')
+            await commandContext.reply('Owner grup tidak dapat di-mute nih~ 👑😅')
             return
           }
 
@@ -292,7 +291,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           if (unmuted) {
             await commandContext.reply(`🔊 Status mute untuk @${normalizePhone(target)} telah dicabut.`, { mentions: [target] })
           } else {
-            await commandContext.reply(`@${normalizePhone(target)} tidak sedang di-mute.`, { mentions: [target] })
+            await commandContext.reply(`@${normalizePhone(target)} lagi nggak di-mute kok~ 👌`, { mentions: [target] })
           }
         },
       })
@@ -318,18 +317,18 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             metadata = await commandContext.whatsapp.getGroupMetadata(group)
           } catch {
-            await commandContext.reply('Gagal mengambil metadata grup.')
+            await commandContext.reply('Info grupnya lagi susah diambil nih, coba sebentar lagi ya~ 😅')
             return
           }
 
           const botJid = commandContext.whatsapp.userJid
           if (!isAdmin(metadata, botJid)) {
-            await commandContext.reply('Bot harus menjadi admin grup terlebih dahulu.')
+            await commandContext.reply('Jadikan bot admin dulu ya biar bisa naikin admin~ 👑')
             return
           }
 
           if (isAdmin(metadata, target)) {
-            await commandContext.reply(`@${normalizePhone(target)} sudah menjadi admin grup.`, { mentions: [target] })
+            await commandContext.reply(`@${normalizePhone(target)} kan udah jadi admin grup~ ⭐`, { mentions: [target] })
             return
           }
 
@@ -338,7 +337,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply(`⭐ @${normalizePhone(target)} berhasil dipromosikan menjadi admin grup.`, { mentions: [target] })
           } catch (error) {
             commandContext.logger.warn({ error }, 'failed to promote member')
-            await commandContext.reply('Gagal mempromosikan member menjadi admin.')
+            await commandContext.reply('Waduh, belum berhasil naikin jadi admin nih. Coba lagi ya~ 🙏')
           }
         },
       })
@@ -364,23 +363,23 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             metadata = await commandContext.whatsapp.getGroupMetadata(group)
           } catch {
-            await commandContext.reply('Gagal mengambil metadata grup.')
+            await commandContext.reply('Info grupnya lagi susah diambil nih, coba sebentar lagi ya~ 😅')
             return
           }
 
           const botJid = commandContext.whatsapp.userJid
           if (!isAdmin(metadata, botJid)) {
-            await commandContext.reply('Bot harus menjadi admin grup terlebih dahulu.')
+            await commandContext.reply('Jadikan bot admin dulu ya biar bisa nurunin admin~ 👑')
             return
           }
 
           if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat di-demote.')
+            await commandContext.reply('Owner grup tidak dapat di-demote nih~ 👑😅')
             return
           }
 
           if (!isAdmin(metadata, target)) {
-            await commandContext.reply(`@${normalizePhone(target)} bukan admin grup.`, { mentions: [target] })
+            await commandContext.reply(`@${normalizePhone(target)} bukan admin grup kok~ 👌`, { mentions: [target] })
             return
           }
 
@@ -389,7 +388,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply(`🔻 Status admin @${normalizePhone(target)} telah dicabut.`, { mentions: [target] })
           } catch (error) {
             commandContext.logger.warn({ error }, 'failed to demote member')
-            await commandContext.reply('Gagal mencabut status admin member.')
+            await commandContext.reply('Waduh, belum berhasil nurunin admin nih. Coba lagi ya~ 🙏')
           }
         },
       })
@@ -408,7 +407,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           const now = Date.now()
           const lastTag = tagCooldowns.get(group) ?? 0
           if (now - lastTag < 30_000) {
-            await commandContext.reply('Perintah tagall memiliki jeda (cooldown) 30 detik antar penggunaan.')
+            await commandContext.reply('Sabar ya, tagall ada jeda 30 detik biar nggak spam~ ⏳')
             return
           }
           tagCooldowns.set(group, now)
@@ -417,7 +416,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             metadata = await commandContext.whatsapp.getGroupMetadata(group)
           } catch {
-            await commandContext.reply('Gagal mengambil daftar member grup.')
+            await commandContext.reply('Info grupnya lagi susah diambil nih, coba sebentar lagi ya~ 😅')
             return
           }
 
@@ -453,7 +452,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           const now = Date.now()
           const lastTag = tagCooldowns.get(group) ?? 0
           if (now - lastTag < 30_000) {
-            await commandContext.reply('Perintah hidetag memiliki jeda (cooldown) 30 detik antar penggunaan.')
+            await commandContext.reply('Sabar ya, hidetag ada jeda 30 detik biar nggak spam~ ⏳')
             return
           }
           tagCooldowns.set(group, now)
@@ -462,7 +461,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             metadata = await commandContext.whatsapp.getGroupMetadata(group)
           } catch {
-            await commandContext.reply('Gagal mengambil daftar member grup.')
+            await commandContext.reply('Info grupnya lagi susah diambil nih, coba sebentar lagi ya~ 😅')
             return
           }
 
@@ -488,7 +487,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           }
 
           if (!commandContext.whatsapp.deleteMessage) {
-            await commandContext.reply('Fitur penghapusan pesan belum didukung koneksi saat ini.')
+            await commandContext.reply('Belum bisa hapus pesan saat ini nih~ 😅')
             return
           }
 
@@ -507,7 +506,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             })
           } catch (error) {
             commandContext.logger.warn({ error }, 'failed to delete quoted message')
-            await commandContext.reply('Gagal menghapus pesan yang di-reply.')
+            await commandContext.reply('Waduh, pesannya nggak bisa dihapus nih. Pastiin bot udah jadi admin ya~ 🙏')
           }
         },
       })
@@ -530,7 +529,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           }
 
           if (!commandContext.whatsapp.deleteMessage) {
-            await commandContext.reply('Fitur delete pesan belum aktif.')
+            await commandContext.reply('Belum bisa hapus pesan saat ini nih~ 😅')
             return
           }
 

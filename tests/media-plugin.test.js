@@ -230,8 +230,8 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
 
   // 7. ytmp3 & ytmp4 validation
   await harness.commands.dispatch(message('!ytmp3 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
-  assert.match(harness.sent.at(-1)?.text ?? '', /kebijakan YouTube/)
+  assert.match(harness.sent.at(-1)?.text ?? '', /tergantung video-nya/i)
 
   await harness.commands.dispatch(message('!ytmp4 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
-  assert.match(harness.sent.at(-1)?.text ?? '', /kebijakan YouTube/)
+  assert.match(harness.sent.at(-1)?.text ?? '', /tergantung video-nya/i)
 })
