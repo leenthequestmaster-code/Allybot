@@ -176,19 +176,11 @@ test('!menu utilizes MsgBuilder interactive buttons when socket is available', a
   assert.equal(buttons[0]?.name, 'quick_reply')
 })
 
-test('!menu <category> utilizes MsgBuilder with AIRich message when socket is available', async () => {
-  const relayed = []
+test('!menu <category> delivers clean category interface without interactive buttons', async () => {
   const whatsapp = {
     isConnected: true,
     userJid: 'bot@s.whatsapp.net',
     sent: [],
-    socket: {
-      user: { id: 'bot@s.whatsapp.net' },
-      logger: { warn() {} },
-      async relayMessage(jid, msg, options) {
-        relayed.push({ jid, msg, options })
-      },
-    },
     onMessage() { return () => {} },
     onGroupParticipantUpdate() { return () => {} },
     onConnectionState() { return () => {} },
@@ -198,25 +190,18 @@ test('!menu <category> utilizes MsgBuilder with AIRich message when socket is av
   registerCommand(registry, 'ping', 'general', 'Check bot latency')
   await registry.dispatch(message('airich-menu', 'user@s.whatsapp.net', '!menu 1'))
 
-  assert.equal(relayed.length, 1)
-  const richMsg = relayed[0].msg.botInvokeMessage?.message?.richResponseMessage
-  assert.ok(richMsg)
-  assert.ok(Array.isArray(richMsg.submessages) && richMsg.submessages.length >= 2)
+  assert.equal(whatsapp.sent.length, 1)
+  assert.match(whatsapp.sent[0].text, /𝐓𝗼𝗼𝗹𝘀:/)
+  assert.match(whatsapp.sent[0].text, /command tersedia/)
+  assert.match(whatsapp.sent[0].text, /© Allybot/)
+  assert.doesNotMatch(whatsapp.sent[0].text, /Versi :/)
 })
 
-test('!menu <category> in group utilizes MsgBuilder interactive buttons', async () => {
-  const relayed = []
+test('!menu <category> in group delivers clean category text without interactive buttons or bot profile', async () => {
   const whatsapp = {
     isConnected: true,
     userJid: 'bot@s.whatsapp.net',
     sent: [],
-    socket: {
-      user: { id: 'bot@s.whatsapp.net' },
-      logger: { warn() {} },
-      async relayMessage(jid, msg, options) {
-        relayed.push({ jid, msg, options })
-      },
-    },
     onMessage() { return () => {} },
     onGroupParticipantUpdate() { return () => {} },
     onConnectionState() { return () => {} },
@@ -226,13 +211,11 @@ test('!menu <category> in group utilizes MsgBuilder interactive buttons', async 
   registerCommand(registry, 'ping', 'general', 'Check bot latency')
   await registry.dispatch(message('group-category-menu', '1203630123456789@g.us', '!menu 1'))
 
-  assert.equal(relayed.length, 1)
-  const im = relayed[0].msg.interactiveMessage
-  assert.ok(im)
-  assert.match(im.body?.text, /!ping/)
-  const buttons = im.nativeFlowMessage?.buttons
-  assert.ok(buttons && buttons.length >= 1)
-  assert.equal(buttons[0]?.name, 'quick_reply')
+  assert.equal(whatsapp.sent.length, 1)
+  assert.match(whatsapp.sent[0].text, /!ping/)
+  assert.match(whatsapp.sent[0].text, /𝐓𝗼𝗼𝗹𝘀:/)
+  assert.doesNotMatch(whatsapp.sent[0].text, /Menu Utama/)
+  assert.doesNotMatch(whatsapp.sent[0].text, /Semua Command/)
 })
 
 

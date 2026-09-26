@@ -186,11 +186,13 @@ function canSeePrivilegedCategory(
 }
 
 function formatCommand(command: CommandDefinition, prefix: string, position: number): string {
-  const aliases = command.aliases?.length
-    ? ` · alias: ${command.aliases.map((alias) => `${prefix}${alias}`).join(', ')}`
-    : ''
-  const accessMarker = command.permission ? ' 🔒' : ''
-  return `*${position}.* ${prefix}${command.name}${accessMarker}${aliases}\n   _${commandDescription(command)}_`
+  const lines = [`ㅤׄꖑ *${position}.* \`${prefix}${command.name}\``]
+  if (command.aliases && command.aliases.length > 0) {
+    const aliasStr = command.aliases.map((alias) => `\`${prefix}${alias}\``).join(' ')
+    lines.push(`       ⤷ alias: ${aliasStr}`)
+  }
+  lines.push(`       ⤷ _${commandDescription(command)}_`)
+  return lines.join('\n')
 }
 
 function renderBotProfile(): string {
@@ -218,27 +220,25 @@ function resolveCategory(categories: readonly MenuCategory[], identifier: string
   return categories[Number(identifier) - 1]
 }
 
-function renderCategoryMenu(category: MenuCategory, prefix: string, commandContext: Pick<CommandContext, 'config'>): string {
-  const { icon } = presentationFor(category.name)
-  const lines = [
-    `${icon} *${categoryLabel(category)}*`,
-    `_${category.commands.length} command tersedia_`,
+function renderCategoryMenu(category: MenuCategory, prefix: string): string {
+  const { icon, label } = presentationFor(category.name)
+  const categoryTitle = label.replace(/^TOOLS:\s*/i, '').trim()
+  const header = [
+    `⿴⃟۪۪⃕᎒⃟${icon} *𝐓𝗼𝗼𝗹𝘀: ${categoryTitle}*`,
+    '. . . ▭▬▭▬▭ ︵⏜︵',
+    `⡇╌ *${category.commands.length} command tersedia*`,
+    '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
     '',
   ]
-  category.commands.forEach((command, index) => lines.push(formatCommand(command, prefix, index + 1)))
-  lines.push(
-    '',
-    ':::tip',
-    `Ketik nama command dengan prefix ${prefix} untuk menggunakannya. Balas ${prefix}menu untuk kembali ke menu utama.`,
-    ':::',
-    '',
-    ':::suggest',
-    `${prefix}menu | ${prefix}commands | ${prefix}help`,
-    ':::',
-    '',
-    `Balas *${prefix}menu* untuk kembali ke menu utama.`,
+  const commandBlocks = category.commands.map((command, index) =>
+    formatCommand(command, prefix, index + 1)
   )
-  return [renderBotProfile(), '', ...lines].join('\n')
+  const footer = [
+    '',
+    '° ° ──────────── · · ·',
+    `*© ${BOT_NAME}*`,
+  ]
+  return [...header, commandBlocks.join('\n\n'), ...footer].join('\n')
 }
 
 async function sendMenu(
@@ -292,27 +292,9 @@ async function sendMenu(
   }
 
   if (options?.category) {
-    // In group chats, WhatsApp servers reject botInvokeMessage with 479, so we deliver
-    // interactive messages with action buttons and thumbnail. In private chats, AIRich delivers
-    // structured presentation with chips/tips natively.
-    if (isGroupJid(jid)) {
-      const { icon } = presentationFor(options.category.name)
-      const builder = MsgBuilder.to(jid)
-        .header(`${icon} ${categoryLabel(options.category)}`, `${options.category.commands.length} command tersedia`)
-        .text(body)
-        .footer(`Balas ${prefix}menu untuk kembali ke menu utama`)
-        .button({ type: 'reply', id: `${prefix}menu`, text: '📋 Menu Utama' })
-        .button({ type: 'reply', id: `${prefix}commands`, text: '📚 Semua Command' })
-
-      if (thumbnail) {
-        builder.image(thumbnail, MENU_THUMBNAIL_MIME_TYPE)
-      }
-
-      await builder.send(commandContext.whatsapp as any)
-      return
-    }
-
-    const builder = MsgBuilder.to(jid).text(body, { rich: true })
+    // Hilangkan button "Menu Utama" atau "Semua Command" HANYA PADA Submenu Kategori saja, bukan menu utama.
+    // Profile bot tidak usah ditampilkan lagi pada submenu.
+    const builder = MsgBuilder.to(jid).text(body)
     await builder.send(commandContext.whatsapp as any)
     return
   }
@@ -333,8 +315,8 @@ export const menuPlugin: Plugin = {
       const thumbnail = await loadMenuThumbnail()
 
       if (category) {
-        const body = renderCategoryMenu(category, commandContext.prefix, commandContext)
-        await sendMenu(commandContext, body, { category, prefix: commandContext.prefix, thumbnail })
+        const body = renderCategoryMenu(category, commandContext.prefix)
+        await sendMenu(commandContext, body, { category, prefix: commandContext.prefix })
         return
       }
 
