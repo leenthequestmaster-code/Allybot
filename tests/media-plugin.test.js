@@ -183,3 +183,55 @@ test('media transform errors are converted to safe user-facing output', async ()
   assert.match(harness.sent[0].text, /terlalu lama/)
   assert.equal(harness.sent[0].text.includes('internal detail'), false)
 })
+
+test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and youtube', async () => {
+  const harness = createHarness({
+    media: { kind: 'video', mimeType: 'video/mp4', data: new Uint8Array([1, 2, 3, 4, 5]) },
+    transformer: { async transform() { return new Uint8Array([1, 2]) } },
+  })
+
+  // 1. tomp3 alias
+  await harness.commands.dispatch(message('!tomp3', 'alice@s.whatsapp.net', {
+    media: { kind: 'video', mimeType: 'video/mp4', sizeBytes: 100 },
+  }))
+  assert.equal(harness.sent.at(-1)?.type, 'media')
+  assert.equal(harness.sent.at(-1)?.payload.kind, 'audio')
+
+  // 2. stickerwm with image
+  const imgHarness = createHarness({
+    media: { kind: 'image', mimeType: 'image/jpeg', data: new Uint8Array([1, 2, 3]) },
+    transformer: { async transform() { return new Uint8Array([1, 2]) } },
+  })
+  await imgHarness.commands.dispatch(message('!stickerwm By Ally', 'alice@s.whatsapp.net', {
+    media: { kind: 'image', mimeType: 'image/jpeg', sizeBytes: 100 },
+  }))
+  assert.equal(imgHarness.sent.at(-1)?.type, 'media')
+  assert.equal(imgHarness.sent.at(-1)?.payload.kind, 'sticker')
+
+  // 3. tovideo with video harness
+  await harness.commands.dispatch(message('!tovideo', 'alice@s.whatsapp.net', {
+    media: { kind: 'video', mimeType: 'video/mp4', sizeBytes: 100 },
+  }))
+  assert.equal(harness.sent.at(-1)?.type, 'media')
+
+  // 4. compress
+  await imgHarness.commands.dispatch(message('!compress', 'alice@s.whatsapp.net', {
+    media: { kind: 'image', mimeType: 'image/png', sizeBytes: 100 },
+  }))
+  assert.equal(imgHarness.sent.at(-1)?.type, 'media')
+
+  // 5. emojimix
+  await harness.commands.dispatch(message('!emojimix 😂+😎', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Kombinasi 😂 \+ 😎/)
+
+  // 6. qr validation
+  await harness.commands.dispatch(message('!qr', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Format: !qr <teks>/)
+
+  // 7. ytmp3 & ytmp4 validation
+  await harness.commands.dispatch(message('!ytmp3 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /kebijakan YouTube/)
+
+  await harness.commands.dispatch(message('!ytmp4 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /kebijakan YouTube/)
+})

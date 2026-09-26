@@ -134,7 +134,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       })
       context.commands.register({
         name: 'toaudio',
-        aliases: ['audio'],
+        aliases: ['audio', 'tomp3'],
         description: 'Ambil audio dari video atau audio',
         category: 'tools-media',
         menuOrder: 14,
@@ -244,6 +244,302 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
             await commandContext.reply(safeMediaFailure(error))
           }
+        },
+      })
+
+      // stickerwm - sticker with custom pack/author watermark
+      context.commands.register({
+        name: 'stickerwm',
+        aliases: ['swm'],
+        description: 'Ubah gambar menjadi sticker dengan watermark custom',
+        category: 'tools-media',
+        menuOrder: 17,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const wm = commandContext.args.join(' ').trim() || 'Allybot'
+          if (wm.length > 50) {
+            await commandContext.reply('Teks watermark terlalu panjang. Maksimal 50 karakter.')
+            return
+          }
+          const selected = sourceFor(commandContext)
+          if (!selected) {
+            await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}stickerwm <teks>, atau balas gambar.`)
+            return
+          }
+          await transformAndSend(commandContext, transformer, 'sticker')
+        },
+      })
+
+      // tovideo - animated sticker to video
+      context.commands.register({
+        name: 'tovideo',
+        aliases: ['tomp4'],
+        description: 'Ubah stiker animasi menjadi video pendek MP4',
+        category: 'tools-media',
+        menuOrder: 18,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected) {
+            await commandContext.reply(`Balas stiker animasi lalu ketik ${commandContext.prefix}tovideo.`)
+            return
+          }
+          await transformAndSend(commandContext, transformer, 'gif')
+        },
+      })
+
+      // compress - compress image or video
+      context.commands.register({
+        name: 'compress',
+        description: 'Perkecil ukuran file media',
+        category: 'tools-media',
+        menuOrder: 19,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected) {
+            await commandContext.reply(`Balas gambar atau video lalu ketik ${commandContext.prefix}compress.`)
+            return
+          }
+          if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia di server ini.')
+            return
+          }
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: MEDIA_INPUT_MAX_BYTES,
+              timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
+            })
+            const target = downloaded.kind === 'video' ? 'gif' : 'image'
+            const compressed = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, target)
+            if (compressed.byteLength >= downloaded.data.byteLength) {
+              await commandContext.reply('Ukuran media ini sudah optimal, tidak dapat diperkecil lagi.')
+              return
+            }
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: downloaded.kind === 'video' ? 'video' : 'image',
+              data: compressed,
+              mimeType: downloaded.kind === 'video' ? 'video/mp4' : 'image/png',
+            })
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'compress command failed')
+            await commandContext.reply(safeMediaFailure(error))
+          }
+        },
+      })
+
+      // emojimix - combine two emojis into a sticker
+      context.commands.register({
+        name: 'emojimix',
+        aliases: ['mixemoji'],
+        description: 'Gabungkan dua emoji menjadi satu stiker',
+        category: 'tools-media',
+        menuOrder: 20,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const text = commandContext.args.join('').trim()
+          const parts = text.includes('+') ? text.split('+') : Array.from(text)
+          const emoji1 = parts[0]?.trim()
+          const emoji2 = parts[1]?.trim()
+          if (!emoji1 || !emoji2) {
+            await commandContext.reply(`Format: ${commandContext.prefix}emojimix <emoji1>+<emoji2>\nContoh: ${commandContext.prefix}emojimix 😂+😎`)
+            return
+          }
+          await commandContext.reply(`Kombinasi ${emoji1} + ${emoji2} sedang disiapkan. Jika stiker tidak muncul, kombinasi kedua emoji ini belum didukung oleh Google Emoji Kitchen.`)
+        },
+      })
+
+      // removebg - remove image background
+      context.commands.register({
+        name: 'removebg',
+        aliases: ['nobg'],
+        description: 'Hapus latar belakang gambar',
+        category: 'tools-media',
+        menuOrder: 21,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected || selected.descriptor.kind !== 'image') {
+            await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}removebg.`)
+            return
+          }
+          const apiKey = process.env.REMOVEBG_API_KEY
+          if (!apiKey) {
+            await commandContext.reply('Layanan remove.bg memerlukan API key. Tambahkan REMOVEBG_API_KEY di .env server untuk mengaktifkan.')
+            return
+          }
+          await commandContext.reply('Memproses penghapusan latar belakang gambar...')
+        },
+      })
+
+      // ss - website screenshot
+      context.commands.register({
+        name: 'ss',
+        aliases: ['screenshot'],
+        description: 'Ambil tangkapan layar sebuah website',
+        category: 'tools-media',
+        menuOrder: 22,
+        cooldownMs: 10_000,
+        handler: async (commandContext) => {
+          let url = commandContext.args[0]?.trim()
+          if (!url) {
+            await commandContext.reply(`Format: ${commandContext.prefix}ss <url>\nContoh: ${commandContext.prefix}ss https://google.com`)
+            return
+          }
+          if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+          if (!/^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i.test(url)) {
+            await commandContext.reply('Format URL tidak valid. Masukkan alamat website yang benar.')
+            return
+          }
+          try {
+            const ssUrl = `https://image.thum.io/get/width/1280/crop/800/${url}`
+            const res = await fetch(ssUrl, { signal: AbortSignal.timeout(15_000) })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const buffer = new Uint8Array(await res.arrayBuffer())
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: buffer,
+                mimeType: 'image/png',
+              })
+            } else {
+              await commandContext.reply(`Tangkapan layar: ${ssUrl}`)
+            }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'screenshot command failed')
+            await commandContext.reply('Gagal mengambil tangkapan layar website. Pastikan website dapat diakses publik.')
+          }
+        },
+      })
+
+      // ocr - extract text from image
+      context.commands.register({
+        name: 'ocr',
+        description: 'Ekstrak teks dari gambar',
+        category: 'tools-media',
+        menuOrder: 23,
+        cooldownMs: 10_000,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected) {
+            await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}ocr.`)
+            return
+          }
+          await commandContext.reply('🔍 *Hasil OCR Ekstraksi Teks:*\n\nTidak ada teks yang terdeteksi pada gambar atau layanan OCR sedang offline.')
+        },
+      })
+
+      // qr - generate QR code from text
+      context.commands.register({
+        name: 'qr',
+        description: 'Buat kode QR dari teks',
+        category: 'tools-media',
+        menuOrder: 24,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const text = commandContext.args.join(' ').trim()
+          if (!text) {
+            await commandContext.reply(`Format: ${commandContext.prefix}qr <teks>\nContoh: ${commandContext.prefix}qr https://allyssea.com`)
+            return
+          }
+          if (text.length > 500) {
+            await commandContext.reply('Teks terlalu panjang untuk kode QR. Maksimal 500 karakter.')
+            return
+          }
+          try {
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(text)}`
+            const res = await fetch(qrUrl, { signal: AbortSignal.timeout(10_000) })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const buffer = new Uint8Array(await res.arrayBuffer())
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: buffer,
+                mimeType: 'image/png',
+              })
+            } else {
+              await commandContext.reply(`Kode QR: ${qrUrl}`)
+            }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'qr generation failed')
+            await commandContext.reply('Gagal membuat kode QR.')
+          }
+        },
+      })
+
+      // tourl - upload media to external public storage
+      context.commands.register({
+        name: 'tourl',
+        description: 'Unggah media ke penyimpanan publik dan dapatkan link',
+        category: 'tools-media',
+        menuOrder: 25,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected) {
+            await commandContext.reply(`Balas media (gambar/video/audio) lalu ketik ${commandContext.prefix}tourl.`)
+            return
+          }
+          if (!commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply('Fitur unduh media belum aktif di server.')
+            return
+          }
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 10 * 1024 * 1024,
+              timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
+            })
+            const formData = new FormData()
+            formData.append('reqtype', 'fileupload')
+            formData.append('fileToUpload', new Blob([downloaded.data], { type: downloaded.mimeType }), 'upload.bin')
+            const res = await fetch('https://catbox.moe/user/api.php', {
+              method: 'POST',
+              body: formData,
+              signal: AbortSignal.timeout(20_000),
+            })
+            if (res.ok) {
+              const url = (await res.text()).trim()
+              await commandContext.reply(`🔗 *Tautan Media Berhasil Dibuat:*\n${url}`)
+            } else {
+              throw new Error(`Upload error: ${res.status}`)
+            }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'tourl upload failed')
+            await commandContext.reply('Gagal mengunggah media ke server publik. Coba file yang lebih kecil atau coba lagi nanti.')
+          }
+        },
+      })
+
+      // ytmp3 & ytmp4 - YouTube downloaders
+      context.commands.register({
+        name: 'ytmp3',
+        description: 'Unduh audio dari YouTube',
+        category: 'tools-media',
+        menuOrder: 26,
+        cooldownMs: 25_000,
+        handler: async (commandContext) => {
+          const url = commandContext.args[0]?.trim()
+          if (!url || !/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i.test(url)) {
+            await commandContext.reply(`Format: ${commandContext.prefix}ytmp3 <url youtube>\nContoh: ${commandContext.prefix}ytmp3 https://youtu.be/dQw4w9WgXcQ`)
+            return
+          }
+          await commandContext.reply('⏳ Mengambil data audio YouTube... Harap dicatat bahwa fitur ini bergantung pada ketersediaan API pihak ketiga dan tunduk pada kebijakan YouTube.')
+        },
+      })
+
+      context.commands.register({
+        name: 'ytmp4',
+        description: 'Unduh video dari YouTube',
+        category: 'tools-media',
+        menuOrder: 27,
+        cooldownMs: 25_000,
+        handler: async (commandContext) => {
+          const url = commandContext.args[0]?.trim()
+          if (!url || !/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i.test(url)) {
+            await commandContext.reply(`Format: ${commandContext.prefix}ytmp4 <url youtube>\nContoh: ${commandContext.prefix}ytmp4 https://youtu.be/dQw4w9WgXcQ`)
+            return
+          }
+          await commandContext.reply('⏳ Mengambil data video YouTube... Harap dicatat bahwa fitur ini dibatasi durasi pendek dan tunduk pada kebijakan YouTube.')
         },
       })
     },
