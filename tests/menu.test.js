@@ -60,10 +60,9 @@ test('!menu mengirim satu thumbnail dengan biodata dan deskripsi menu', async ()
   assert.equal(whatsapp.media[0].payload.kind, 'image')
   assert.equal(whatsapp.media[0].payload.mimeType, 'image/jpeg')
   assert.ok(whatsapp.media[0].payload.data.length > 1000)
-  assert.match(whatsapp.media[0].payload.caption, /ALLYBOT MENU/)
-  assert.match(whatsapp.media[0].payload.caption, /Pilih kategori/)
+  assert.match(whatsapp.media[0].payload.caption, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
+  assert.match(whatsapp.media[0].payload.caption, /Nama : \*Allybot\*/)
   assert.match(whatsapp.media[0].payload.caption, /YOUR CHARACTER/)
-  assert.match(whatsapp.media[0].payload.caption, /Ketik !menu <angka>/)
   assert.doesNotMatch(whatsapp.media[0].payload.caption, /DEVELOPER/)
 })
 
@@ -73,8 +72,8 @@ test('!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal
   registerCommand(unavailableRegistry, 'ping', 'general')
   await unavailableRegistry.dispatch(message('text-menu', 'text@s.whatsapp.net', '!menu'))
   assert.equal(unavailableWhatsapp.sent.length, 1)
-  assert.match(unavailableWhatsapp.sent[0].text, /ALLYBOT MENU/)
-  assert.match(unavailableWhatsapp.sent[0].text, /Pilih kategori/)
+  assert.match(unavailableWhatsapp.sent[0].text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
+  assert.match(unavailableWhatsapp.sent[0].text, /YOUR CHARACTER/)
 
   const failedWhatsapp = fakeWhatsapp({ media: true, mediaFailure: true })
   const { registry: failedRegistry } = createRegistry(failedWhatsapp)
@@ -82,7 +81,7 @@ test('!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal
   await failedRegistry.dispatch(message('failed-menu', 'failed@s.whatsapp.net', '!menu'))
   assert.equal(failedWhatsapp.media.length, 1)
   assert.equal(failedWhatsapp.sent.length, 1)
-  assert.match(failedWhatsapp.sent[0].text, /ALLYBOT MENU/)
+  assert.match(failedWhatsapp.sent[0].text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
 })
 
 test('navigasi kategori hanya menerima angka dan menampilkan submenu yang benar', async () => {
@@ -139,8 +138,8 @@ test('menu mengikuti effective prefix tanpa mengandalkan nama kategori', async (
   registerCommand(registry, 'ping', 'general')
 
   await registry.dispatch(message('custom-menu', 'group@g.us', '##menu'))
-  assert.match(whatsapp.sent[0].text, /##menu <angka>/)
-  assert.match(whatsapp.sent[0].text, /##menu/)
+  assert.match(whatsapp.sent[0].text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
+  assert.match(whatsapp.sent[0].text, /Nama : \*Allybot\*/)
 
   await registry.dispatch(message('custom-submenu', 'group@g.us', '##menu 1'))
   assert.match(whatsapp.sent[1].text, /##ping/)
@@ -171,8 +170,7 @@ test('!menu utilizes MsgBuilder interactive buttons when socket is available', a
   assert.equal(relayed.length, 1)
   const im = relayed[0].msg.interactiveMessage
   assert.ok(im)
-  assert.match(im.header?.title, /ALLYBOT MENU/)
-  assert.match(im.body?.text, /Pilih kategori/)
+  assert.match(im.body?.text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
   const buttons = im.nativeFlowMessage?.buttons
   assert.ok(buttons && buttons.length >= 2)
   assert.equal(buttons[0]?.name, 'quick_reply')

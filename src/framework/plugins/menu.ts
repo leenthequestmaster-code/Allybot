@@ -193,45 +193,24 @@ function formatCommand(command: CommandDefinition, prefix: string, position: num
   return `*${position}.* ${prefix}${command.name}${accessMarker}${aliases}\n   _${commandDescription(command)}_`
 }
 
-function renderBotProfile(commandContext: Pick<CommandContext, 'config'>): string {
+function renderBotProfile(): string {
   return [
-    '*PROFILE BOT*',
-    `• Nama   : *${BOT_NAME}*`,
-    `• Uptime : *${formatUptime(process.uptime())}*`,
-    `• Owner  : *${formatOwner(commandContext.config.botOwnerJid)}*`,
-    `• Versi  : *v${BOT_VERSION}*`,
+    '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
+    '─֪──໋࣭─𝆭──꫶',
+    '> ⟐┃ Nama : *Allybot*',
+    '> ⟐┃ Uptime : *-*',
+    '> ⟐┃ Owner : *6283197859955*',
+    '> ⟐┃ Versi : *v0.1.0*',
+    '*─┼────────────────┼─*',
   ].join('\n')
 }
 
 function renderMainMenu(
-  categories: readonly MenuCategory[],
-  prefix: string,
-  commandContext: Pick<CommandContext, 'config'>,
+  _categories: readonly MenuCategory[],
+  _prefix: string,
+  _commandContext: Pick<CommandContext, 'config'>,
 ): string {
-  const lines = [
-    '*ALLYBOT MENU* 🤖',
-    '',
-    renderBotProfile(commandContext),
-    '',
-    'Pilih kategori dengan membalas angka di bawah:',
-    '',
-  ]
-
-  if (categories.length === 0) {
-    lines.push('_Belum ada command yang tersedia._')
-  } else {
-    categories.forEach((category, index) => {
-      const { icon } = presentationFor(category.name)
-      lines.push(`*${index + 1}.* ${icon} *${categoryLabel(category)}* — ${category.commands.length} command`)
-    })
-  }
-
-  lines.push(
-    '',
-    `Balas dengan *${prefix}menu 1*, *${prefix}menu 2*, dst.`,
-    `Ketik *${prefix}menu* kapan saja untuk kembali ke daftar ini.`,
-  )
-  return lines.join('\n')
+  return renderBotProfile()
 }
 
 function resolveCategory(categories: readonly MenuCategory[], identifier: string | undefined): MenuCategory | undefined {
@@ -259,7 +238,7 @@ function renderCategoryMenu(category: MenuCategory, prefix: string, commandConte
     '',
     `Balas *${prefix}menu* untuk kembali ke menu utama.`,
   )
-  return [renderBotProfile(commandContext), '', ...lines].join('\n')
+  return [renderBotProfile(), '', ...lines].join('\n')
 }
 
 async function sendMenu(
@@ -281,9 +260,7 @@ async function sendMenu(
   if (options?.isMain) {
     // Main Menu: structured presentation with thumbnail image header and interactive category buttons
     const builder = MsgBuilder.to(jid)
-      .header('ALLYBOT MENU 🤖', 'Asisten & Utilitas Komunitas')
       .text(body)
-      .footer(`Ketik ${prefix}menu <angka> atau tekan tombol kategori`)
 
     if (thumbnail) {
       builder.image(thumbnail, MENU_THUMBNAIL_MIME_TYPE)

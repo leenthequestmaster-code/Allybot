@@ -208,9 +208,8 @@ test('menu uses a text fallback with numeric navigation', async () => {
   assert.equal(whatsapp.sentLocations.length, 0)
   assert.equal(whatsapp.sentQuickReplies.length, 0)
   assert.equal(whatsapp.sentTexts.length, 1)
-  assert.match(whatsapp.sentTexts[0].text, /ALLYBOT MENU/)
+  assert.match(whatsapp.sentTexts[0].text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
   assert.match(whatsapp.sentTexts[0].text, /\[1\]/)
-  assert.match(whatsapp.sentTexts[0].text, /!menu/)
 
   await whatsapp.emitMessage(message({ id: 'menu-numeric', text: '!menu 1' }))
 
