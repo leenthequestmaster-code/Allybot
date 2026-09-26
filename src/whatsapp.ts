@@ -63,7 +63,7 @@ const MEDIA_DESCRIPTOR_KEYS: readonly [CoreMediaKind, string][] = [
 ]
 const MEDIA_DOWNLOAD_MAX_BYTES = 3 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
-const MEDIA_SEND_MAX_BYTES = 4 * 1024 * 1024
+const MEDIA_SEND_MAX_BYTES = 50 * 1024 * 1024
 
 function finiteMediaNumber(value: unknown): number | undefined {
   const number = Number(value)

@@ -197,8 +197,9 @@ Aturan baca:
 | `!uptime` | Lama bot berjalan. |
 | `!version` | Info runtime bot. |
 | `!wiki` (wikipedia) | Ringkasan artikel Wikipedia ID. |
-| `!ytmp3` | Unduh audio dari YouTube. |
-| `!ytmp4` | Unduh video dari YouTube. |
+| `!yt2` (youtube2, yt) | Unduh audio atau video YouTube via yt-dlp engine. |
+| `!ytmp3` (yta, ytaudio) | Unduh audio dari YouTube (MP3). |
+| `!ytmp4` (ytv, ytvideo) | Unduh video dari YouTube (MP4 480p). |
 
 ## your-character (12)
 | Command | Fungsi |

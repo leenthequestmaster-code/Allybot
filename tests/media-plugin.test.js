@@ -30,7 +30,10 @@ function createHarness({ media = {}, transformer } = {}) {
   }
   const events = new EventBus(logger)
   const commands = new CommandRegistry(config, logger, whatsapp, { get() { throw new Error('service unavailable') } }, events)
-  createMediaPlugin({ transformer: transformer ?? { async transform() { return new Uint8Array([1, 2, 3]) } } }).load?.({
+  createMediaPlugin({
+    transformer: transformer ?? { async transform() { return new Uint8Array([1, 2, 3]) } },
+    ytDownloader: async (url, kind) => ({ data: new Uint8Array([1, 2, 3]), mimeType: kind === 'audio' ? 'audio/mp3' : 'video/mp4', fileName: 'test', kind }),
+  }).load?.({
     logger,
     config,
     events,
@@ -230,8 +233,18 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
 
   // 7. ytmp3 & ytmp4 validation
   await harness.commands.dispatch(message('!ytmp3 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
-  assert.match(harness.sent.at(-1)?.text ?? '', /tergantung video-nya/i)
+  assert.match(harness.sent.at(-2)?.text ?? '', /tergantung video-nya/i)
+  assert.equal(harness.sent.at(-1)?.type, 'media')
 
   await harness.commands.dispatch(message('!ytmp4 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
-  assert.match(harness.sent.at(-1)?.text ?? '', /tergantung video-nya/i)
+  assert.match(harness.sent.at(-2)?.text ?? '', /tergantung video-nya/i)
+  assert.equal(harness.sent.at(-1)?.type, 'media')
+
+  // 8. yt2 downloader
+  await harness.commands.dispatch(message('!yt2', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Format: !yt2/)
+
+  await harness.commands.dispatch(message('!yt2 https://youtu.be/dQw4w9WgXcQ', 'bob@s.whatsapp.net'))
+  assert.match(harness.sent.at(-2)?.text ?? '', /Lagi ngambil/i)
+  assert.equal(harness.sent.at(-1)?.type, 'media')
 })
