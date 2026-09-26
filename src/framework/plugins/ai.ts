@@ -142,6 +142,101 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
         },
       })
+
+      // tts - text to speech
+      context.commands.register({
+        name: 'tts',
+        aliases: ['suara'],
+        description: 'Ubah teks menjadi pesan suara',
+        category: 'tools-ai',
+        menuOrder: 5,
+        cooldownMs: AI_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const text = commandContext.args.join(' ').trim()
+          if (!text) {
+            await commandContext.reply(`Format: ${commandContext.prefix}tts <teks>\nContoh: ${commandContext.prefix}tts Halo, selamat pagi`)
+            return
+          }
+          if (text.length > 300) {
+            await commandContext.reply('Teks terlalu panjang untuk audio TTS. Maksimal 300 karakter.')
+            return
+          }
+          try {
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=id&client=tw-ob`
+            const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const buffer = new Uint8Array(await res.arrayBuffer())
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'audio',
+                data: buffer,
+                mimeType: 'audio/mp3',
+              })
+            } else {
+              await commandContext.reply('Koneksi WhatsApp belum mendukung pengiriman media suara.')
+            }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'tts command failed')
+            await commandContext.reply('Gagal membuat pesan suara saat ini.')
+          }
+        },
+      })
+
+      // text2img - generate image from text prompt
+      context.commands.register({
+        name: 'text2img',
+        aliases: ['buatgambar', 't2i'],
+        description: 'Hasilkan gambar dari deskripsi teks',
+        category: 'tools-ai',
+        menuOrder: 6,
+        cooldownMs: 20_000,
+        handler: async (commandContext) => {
+          const prompt = commandContext.args.join(' ').trim()
+          if (!prompt) {
+            await commandContext.reply(`Format: ${commandContext.prefix}text2img <deskripsi gambar>\nContoh: ${commandContext.prefix}text2img a cute anime cat in space`)
+            return
+          }
+          if (prompt.length > 300) {
+            await commandContext.reply('Deskripsi terlalu panjang. Maksimal 300 karakter.')
+            return
+          }
+          try {
+            const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true`
+            const res = await fetch(url, { signal: AbortSignal.timeout(25_000) })
+            if (!res.ok) throw new Error(`HTTP ${res.status}`)
+            const buffer = new Uint8Array(await res.arrayBuffer())
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: buffer,
+                mimeType: 'image/jpeg',
+              })
+            } else {
+              await commandContext.reply(`Gambar hasil: ${url}`)
+            }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'text2img command failed')
+            await commandContext.reply('Gagal menghasilkan gambar dari teks saat ini.')
+          }
+        },
+      })
+
+      // img2text - describe image
+      context.commands.register({
+        name: 'img2text',
+        aliases: ['deskripsigambar'],
+        description: 'Deskripsikan isi gambar menggunakan AI',
+        category: 'tools-ai',
+        menuOrder: 7,
+        cooldownMs: AI_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          if (!commandContext.message.quotedMedia && !commandContext.message.media) {
+            await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}img2text.`)
+            return
+          }
+          await commandContext.reply('🤖 *Analisis Visual:*\nFitur vision AI memerlukan API key penyedia multi-modal yang aktif pada server.')
+        },
+      })
     },
   }
 }
