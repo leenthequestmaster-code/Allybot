@@ -252,47 +252,10 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-function generateBratSvg(text: string): string {
-  const words = text.trim().split(/\s+/)
-  const lines: string[] = []
-  let current = ''
-  for (const word of words) {
-    if ((current + ' ' + word).trim().length > 14) {
-      if (current) lines.push(current)
-      current = word
-    } else {
-      current = current ? current + ' ' + word : word
-    }
-  }
-  if (current) lines.push(current)
-
-  const fontSize = lines.length > 6 ? 28 : lines.length > 4 ? 36 : lines.length > 2 ? 44 : 52
-  const lineHeight = Math.round(fontSize * 1.25)
-  const totalHeight = lines.length * lineHeight
-  const startY = Math.round((512 - totalHeight) / 2 + fontSize * 0.85)
-
-  const escapeXml = (s: string) =>
-    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-
-  const tspans = lines
-    .map(
-      (line, idx) =>
-        `<tspan x="50%" dy="${idx === 0 ? 0 : lineHeight}px">${escapeXml(line)}</tspan>`,
-    )
-    .join('\n      ')
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512">
-  <rect width="512" height="512" fill="#ffffff" />
-  <text x="50%" y="${startY}" font-family="DejaVu Sans, Arial, 'Noto Color Emoji', Symbola, sans-serif" font-weight="bold" font-size="${fontSize}" fill="#000000" text-anchor="middle">
-      ${tspans}
-  </text>
-</svg>`
-}
-
-      // brat - brat generator (album cover style)
+      // brat - brat generator (authentic fuzzy white background with black text and color emoji)
       context.commands.register({
         name: 'brat',
-        description: 'Buat stiker brat teks hitam background putih',
+        description: 'Buat stiker brat teks hitam background putih dengan efek buram khas',
         category: 'tools',
         menuOrder: 16,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
@@ -312,35 +275,38 @@ function generateBratSvg(text: string): string {
           }
 
           try {
-            const svg = generateBratSvg(text)
             const tmpId = `brat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-            const svgPath = `/tmp/${tmpId}.svg`
             const webpPath = `/tmp/${tmpId}.webp`
 
-            const { writeFile, readFile, unlink } = await import('node:fs/promises')
-            const { execFile } = await import('node:child_process')
-            const { promisify } = await import('node:util')
-            const execFileAsync = promisify(execFile)
+            const { spawn } = await import('node:child_process')
+            const { readFile, unlink } = await import('node:fs/promises')
+            const { join } = await import('node:path')
 
-            await writeFile(svgPath, svg, 'utf8')
-            try {
-              await execFileAsync('ffmpeg', ['-y', '-i', svgPath, '-vcodec', 'libwebp', '-f', 'webp', webpPath])
-              const data = await readFile(webpPath)
-              await unlink(webpPath).catch(() => {})
-
-              if (data.byteLength === 0 || data.byteLength > MEDIA_TRANSFORM_MAX_OUTPUT_BYTES) {
-                await commandContext.reply('Hasil media terlalu besar atau kosong.')
-                return
-              }
-
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'sticker',
-                data: new Uint8Array(data),
-                mimeType: 'image/webp',
+            const scriptPath = join(process.cwd(), 'scripts', 'generate-brat.py')
+            await new Promise<void>((resolve, reject) => {
+              const py = spawn('python3', [scriptPath, webpPath])
+              py.on('error', reject)
+              py.on('close', (code) => {
+                if (code === 0) resolve()
+                else reject(new Error(`Python brat generator exited with code ${code}`))
               })
-            } finally {
-              await unlink(svgPath).catch(() => {})
+              py.stdin.write(text)
+              py.stdin.end()
+            })
+
+            const data = await readFile(webpPath)
+            await unlink(webpPath).catch(() => {})
+
+            if (data.byteLength === 0 || data.byteLength > MEDIA_TRANSFORM_MAX_OUTPUT_BYTES) {
+              await commandContext.reply('Hasil media terlalu besar atau kosong.')
+              return
             }
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'sticker',
+              data: new Uint8Array(data),
+              mimeType: 'image/webp',
+            })
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
             await commandContext.reply(safeMediaFailure(error))
