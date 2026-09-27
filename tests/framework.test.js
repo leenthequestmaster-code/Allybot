@@ -74,6 +74,7 @@ test('CommandRegistry supports alias, validation, cooldown, and reply context', 
   assert.equal(await registry.dispatch({ ...message, id: 'm3', text: '!validated' }), true)
   assert.deepEqual(whatsapp.sent, [
     { remoteJid: 'chat@s.whatsapp.net', text: 'hello bob' },
+    { remoteJid: 'chat@s.whatsapp.net', text: '⏳ Tunggu sebentar ya, command ini masih cooldown 1 detik lagi~ 🙏' },
     { remoteJid: 'chat@s.whatsapp.net', text: 'missing argument' },
   ])
 })

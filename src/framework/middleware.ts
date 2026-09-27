@@ -68,6 +68,7 @@ export function createCooldownMiddleware(
   now: () => number = () => Date.now(),
 ): CommandMiddleware {
   const lastRun = new Map<string, number>()
+  const lastNotice = new Map<string, number>()
   return async ({ command, context }, next) => {
     const cooldown = command.cooldownMs ?? context.config.defaultCooldownMs
     if (cooldown <= 0) return next()
@@ -76,11 +77,21 @@ export function createCooldownMiddleware(
     const previous = lastRun.get(key) ?? 0
     if (current - previous < cooldown) {
       context.logger.debug({ command: command.name }, 'command cooldown active')
+      const remainingMs = cooldown - (current - previous)
+      const remainingSec = Math.max(1, Math.ceil(remainingMs / 1000))
+      const previousNotice = lastNotice.get(key) ?? 0
+      if (current - previousNotice >= 2500) {
+        lastNotice.set(key, current)
+        await context.reply(`⏳ Tunggu sebentar ya, command ini masih cooldown ${remainingSec} detik lagi~ 🙏`)
+      }
       return
     }
     lastRun.set(key, current)
     for (const [oldKey, timestamp] of lastRun) {
       if (current - timestamp > Math.max(cooldown, 10 * 60 * 1000)) lastRun.delete(oldKey)
+    }
+    for (const [oldKey, timestamp] of lastNotice) {
+      if (current - timestamp > Math.max(cooldown, 10 * 60 * 1000)) lastNotice.delete(oldKey)
     }
     await next()
   }
