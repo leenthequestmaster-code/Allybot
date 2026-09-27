@@ -311,9 +311,11 @@ export const toolsSearchPlugin: Plugin = {
     })
 
     // 7. Pixiv
+    const recentPixivIdsByChat = new Map<string, Set<string>>()
+
     context.commands.register({
       name: 'pixiv',
-      description: 'Cari ilustrasi di Pixiv',
+      description: 'Cari ilustrasi acak di Pixiv',
       category: 'tools',
       menuOrder: 7,
       cooldownMs: SEARCH_COOLDOWN_MS,
@@ -330,15 +332,28 @@ export const toolsSearchPlugin: Plugin = {
         await commandContext.reply('⏳ Lagi nyari dan ngambil gambar dari Pixiv nih... Sabar ya~ 🎨')
 
         try {
-          const result = await searchIllust(query, 1)
+          const result = await searchIllust(query, { randomize: true })
           if (!result.items || result.items.length === 0) {
             await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pixiv nih, coba kata kunci lain ya~ 🔍`)
             return
           }
 
+          let recentIds = recentPixivIdsByChat.get(chatJid)
+          if (!recentIds) {
+            recentIds = new Set<string>()
+            recentPixivIdsByChat.set(chatJid, recentIds)
+          }
+
+          // Prioritaskan gambar yang belum pernah dikirim ke chat ini
+          let candidates = result.items.filter((item) => !recentIds.has(item.id))
+          if (candidates.length === 0) {
+            recentIds.clear()
+            candidates = [...result.items]
+          }
+
           let sent = false
-          // Kirim 1 hasil saja
-          for (const item of result.items) {
+          // Kirim 1 hasil acak
+          for (const item of candidates) {
             const firstImageUrl = item.imageUrls[0]
             if (!firstImageUrl) continue
 
@@ -363,6 +378,12 @@ export const toolsSearchPlugin: Plugin = {
               })
             } else {
               await commandContext.reply(`${caption}\n${firstImageUrl}`)
+            }
+
+            recentIds.add(item.id)
+            if (recentIds.size > 50) {
+              const firstVal = recentIds.values().next().value
+              if (firstVal) recentIds.delete(firstVal)
             }
 
             sent = true

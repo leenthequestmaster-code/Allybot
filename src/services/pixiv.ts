@@ -13,6 +13,11 @@ export interface PixivItem {
   readonly pageCount: number
 }
 
+export interface PixivSearchOptions {
+  readonly page?: number
+  readonly randomize?: boolean
+}
+
 export interface PixivSearchResult {
   readonly items: readonly PixivItem[]
   readonly nextPage: string | null
@@ -119,31 +124,47 @@ export class AppPixivAPI {
     return this.accessToken!
   }
 
-  async searchIllust(query: string, page = 1): Promise<PixivSearchResult> {
-    return this._executeSearchWithRetry(query, page, 0)
+  async searchIllust(query: string, options?: PixivSearchOptions | number): Promise<PixivSearchResult> {
+    const opts: PixivSearchOptions = typeof options === 'number' ? { page: options } : (options || {})
+    return this._executeSearchWithRetry(query, opts, 0)
   }
 
-  private async _executeSearchWithRetry(query: string, page: number, attempt: number): Promise<PixivSearchResult> {
+  private async _executeSearchWithRetry(
+    query: string,
+    options: PixivSearchOptions,
+    attempt: number,
+  ): Promise<PixivSearchResult> {
+    const page = options.page || 1
+    const shouldRandomize = Boolean(options.randomize)
+    let offset = Math.max(0, (page - 1) * 5)
+
+    if (shouldRandomize) {
+      const candidateOffsets = [0, 30, 60, 90, 120]
+      offset = candidateOffsets[Math.floor(Math.random() * candidateOffsets.length)]
+    }
+
     try {
       const token = await this.ensureAuth()
-      const offset = Math.max(0, (page - 1) * 5)
-      const params = new URLSearchParams({
-        word: query,
-        search_target: 'partial_match_for_tags',
-        filter: 'for_android',
-        offset: String(offset),
-      })
-      const searchUrl = `${API_BASE}/v1/search/illust?${params.toString()}`
+      const fetchIllustsAtOffset = async (off: number) => {
+        const params = new URLSearchParams({
+          word: query,
+          search_target: 'partial_match_for_tags',
+          filter: 'for_android',
+          offset: String(off),
+        })
+        const searchUrl = `${API_BASE}/v1/search/illust?${params.toString()}`
+        return await fetch(searchUrl, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'User-Agent': API_USER_AGENT,
+            'App-OS': 'ios',
+            'App-OS-Version': '14.6',
+          },
+          signal: AbortSignal.timeout(15_000),
+        })
+      }
 
-      const res = await fetch(searchUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'User-Agent': API_USER_AGENT,
-          'App-OS': 'ios',
-          'App-OS-Version': '14.6',
-        },
-        signal: AbortSignal.timeout(15_000),
-      })
+      let res = await fetchIllustsAtOffset(offset)
 
       if (res.status === 400 || res.status === 401 || res.status === 403) {
         const errorText = await res.text().catch(() => '')
@@ -151,7 +172,7 @@ export class AppPixivAPI {
         this.tokenExpiresAt = 0
         if (attempt < 1) {
           await this.auth()
-          return this._executeSearchWithRetry(query, page, attempt + 1)
+          return this._executeSearchWithRetry(query, options, attempt + 1)
         }
         throw new PixivError(`Pixiv API auth error (${res.status}): ${errorText}`, res.status)
       }
@@ -161,10 +182,28 @@ export class AppPixivAPI {
         throw new PixivError(`Pixiv search error (${res.status}): ${errorText}`, res.status)
       }
 
-      const data = (await res.json()) as any
-      const rawIllusts: any[] = Array.isArray(data.illusts) ? data.illusts : []
-      // Cap results to 5 per page for WA (bandwidth)
-      const capped = rawIllusts.slice(0, 5)
+      let data = (await res.json()) as any
+      let rawIllusts: any[] = Array.isArray(data.illusts) ? data.illusts : []
+
+      // If random offset yielded 0 results, fallback to offset 0
+      if (shouldRandomize && offset > 0 && rawIllusts.length === 0) {
+        const fallbackRes = await fetchIllustsAtOffset(0)
+        if (fallbackRes.ok) {
+          data = (await fallbackRes.json()) as any
+          rawIllusts = Array.isArray(data.illusts) ? data.illusts : []
+        }
+      }
+
+      // Shuffle when randomize is requested
+      if (shouldRandomize && rawIllusts.length > 1) {
+        for (let i = rawIllusts.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          ;[rawIllusts[i], rawIllusts[j]] = [rawIllusts[j], rawIllusts[i]]
+        }
+      }
+
+      // Cap results to 5 per page if not randomized
+      const capped = shouldRandomize ? rawIllusts : rawIllusts.slice(0, 5)
 
       const items: PixivItem[] = capped.map((ill) => {
         const id = String(ill.id || '')
@@ -205,7 +244,7 @@ export class AppPixivAPI {
         this.tokenExpiresAt = 0
         try {
           await this.auth()
-          return this._executeSearchWithRetry(query, page, attempt + 1)
+          return this._executeSearchWithRetry(query, options, attempt + 1)
         } catch {
           // Fall through to raise typed error
         }
@@ -218,8 +257,8 @@ export class AppPixivAPI {
 // Single AppPixivAPI instance, reused across bot lifecycle
 export const pixivApi = new AppPixivAPI()
 
-export async function searchIllust(query: string, page = 1): Promise<PixivSearchResult> {
-  return pixivApi.searchIllust(query, page)
+export async function searchIllust(query: string, options?: PixivSearchOptions | number): Promise<PixivSearchResult> {
+  return pixivApi.searchIllust(query, options)
 }
 
 export async function fetchImage(
