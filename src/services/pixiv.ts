@@ -139,7 +139,8 @@ export class AppPixivAPI {
     let offset = Math.max(0, (page - 1) * 5)
 
     if (shouldRandomize) {
-      const candidateOffsets = [0, 30, 60, 90, 120]
+      // Pick between offset 0 or 30 (covers 60 latest artworks) without risking deep empty pagination
+      const candidateOffsets = [0, 30]
       offset = candidateOffsets[Math.floor(Math.random() * candidateOffsets.length)]
     }
 
@@ -265,29 +266,36 @@ export async function fetchImage(
   url: string,
   options?: { logger?: { warn: (obj: any, msg: string) => void }; illustId?: string },
 ): Promise<Buffer | null> {
-  const proxiedUrl = proxyImageUrl(url)
-  try {
-    const res = await fetch(proxiedUrl, {
-      headers: {
-        Referer: 'https://www.pixiv.net/',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-      },
-      signal: AbortSignal.timeout(15_000),
-    })
+  const directUrl = url.replace(/i\.pixiv\.re/g, 'i.pximg.net')
+  const proxiedUrl = url.replace(/i\.pximg\.net/g, 'i.pixiv.re')
 
-    if (!res.ok) {
-      if (options?.logger) {
-        options.logger.warn({ id: options.illustId, status: res.status, url: proxiedUrl }, 'Non-200 response downloading Pixiv image')
-      }
+  const tryDownload = async (targetUrl: string, timeoutMs: number): Promise<Buffer | null> => {
+    try {
+      const res = await fetch(targetUrl, {
+        headers: {
+          Referer: 'https://www.pixiv.net/',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(timeoutMs),
+      })
+      if (!res.ok) return null
+      const arrayBuffer = await res.arrayBuffer()
+      return Buffer.from(arrayBuffer)
+    } catch {
       return null
     }
-
-    const arrayBuffer = await res.arrayBuffer()
-    return Buffer.from(arrayBuffer)
-  } catch (err) {
-    if (options?.logger) {
-      options.logger.warn({ id: options.illustId, error: err instanceof Error ? err.message : String(err) }, 'Failed to fetch Pixiv image')
-    }
-    return null
   }
+
+  // 1. Direct fetch dari i.pximg.net dengan Pixiv Referer (super cepat: ~0.5s)
+  const directBuf = await tryDownload(directUrl, 4_000)
+  if (directBuf && directBuf.length > 0) return directBuf
+
+  // 2. Fallback ke reverse proxy i.pixiv.re jika direct gagal/terblokir
+  const proxyBuf = await tryDownload(proxiedUrl, 10_000)
+  if (proxyBuf && proxyBuf.length > 0) return proxyBuf
+
+  if (options?.logger) {
+    options.logger.warn({ id: options.illustId, url: directUrl }, 'Failed to fetch Pixiv image from both direct and proxy')
+  }
+  return null
 }
