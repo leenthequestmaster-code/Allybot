@@ -6,7 +6,7 @@ import { upscaleImage } from '../../services/upscaler.js'
 
 const MEDIA_INPUT_MAX_BYTES = 3 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
-const MEDIA_COMMAND_COOLDOWN_MS = 20_000
+const MEDIA_COMMAND_COOLDOWN_MS = 3_000
 
 export interface MediaPluginOptions {
   readonly transformer?: MediaTransformer
@@ -404,7 +404,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Gabungkan dua emoji menjadi satu stiker',
         category: 'tools',
         menuOrder: 20,
-        cooldownMs: 5_000,
+        cooldownMs: 3_000,
         handler: async (commandContext) => {
           const text = commandContext.args.join('').trim()
           const parts = text.includes('+') ? text.split('+') : Array.from(text)
@@ -448,7 +448,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Ambil tangkapan layar sebuah website',
         category: 'tools',
         menuOrder: 22,
-        cooldownMs: 10_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           let url = commandContext.args[0]?.trim()
           if (!url) {
@@ -487,7 +487,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Ekstrak teks dari gambar',
         category: 'tools',
         menuOrder: 23,
-        cooldownMs: 10_000,
+        cooldownMs: 3_000,
         handler: async (commandContext) => {
           const selected = sourceFor(commandContext)
           if (!selected) {
@@ -504,7 +504,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Buat kode QR dari teks',
         category: 'tools',
         menuOrder: 24,
-        cooldownMs: 5_000,
+        cooldownMs: 3_000,
         handler: async (commandContext) => {
           const text = commandContext.args.join(' ').trim()
           if (!text) {
@@ -586,7 +586,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Unduh audio dari YouTube',
         category: 'tools',
         menuOrder: 26,
-        cooldownMs: 25_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           const url = commandContext.args[0]?.trim()
           if (!url || !/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i.test(url)) {
@@ -616,7 +616,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Unduh video dari YouTube',
         category: 'tools',
         menuOrder: 27,
-        cooldownMs: 25_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           const url = commandContext.args[0]?.trim()
           if (!url || !/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i.test(url)) {
@@ -646,7 +646,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Unduh video atau audio dari YouTube via yt-dlp',
         category: 'tools',
         menuOrder: 28,
-        cooldownMs: 25_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           let kind: 'audio' | 'video' = 'video'
           let url = commandContext.args[0]?.trim()
@@ -685,7 +685,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Unduh video TikTok tanpa watermark',
         category: 'tools',
         menuOrder: 29,
-        cooldownMs: 15_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           const rawText = commandContext.args.join(' ')
           const detected = extractMediaUrl(rawText)
@@ -737,7 +737,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Unduh audio/musik dari TikTok',
         category: 'tools',
         menuOrder: 30,
-        cooldownMs: 15_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           const rawText = commandContext.args.join(' ')
           const detected = extractMediaUrl(rawText)
@@ -784,7 +784,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Unduh video dari TikTok, YouTube, Instagram, X/Twitter, FB, Reddit',
         category: 'tools',
         menuOrder: 31,
-        cooldownMs: 20_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           const rawText = commandContext.args.join(' ')
           const detected = extractMediaUrl(rawText)
@@ -846,7 +846,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         description: 'Tingkatkan kualitas gambar menjadi HD / jernih',
         category: 'tools',
         menuOrder: 32,
-        cooldownMs: 15_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           const selected = sourceFor(commandContext)
           if (!selected || (selected.descriptor.kind !== 'image' && selected.descriptor.kind !== 'sticker')) {

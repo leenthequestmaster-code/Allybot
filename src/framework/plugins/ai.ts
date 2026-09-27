@@ -6,7 +6,7 @@ import {
   type AiTransport,
 } from '../../ai-handler.js'
 
-const AI_COMMAND_COOLDOWN_MS = 15_000
+const AI_COMMAND_COOLDOWN_MS = 3_000
 
 function usage(context: CommandContext): string {
   return `Format: ${context.prefix}ai <pertanyaan>\nAlias: ${context.prefix}ally <pertanyaan>`
@@ -215,7 +215,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         description: 'Hasilkan gambar dari deskripsi teks',
         category: 'tools',
         menuOrder: 6,
-        cooldownMs: 20_000,
+        cooldownMs: 5_000,
         handler: async (commandContext) => {
           const prompt = commandContext.args.join(' ').trim()
           if (!prompt) {

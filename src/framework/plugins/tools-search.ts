@@ -2,7 +2,7 @@ import type { CommandContext, Plugin } from '../contracts.js'
 import { searchIllust, fetchImage } from '../../services/pixiv.js'
 import { searchPinterest, fetchBuffer } from '../../services/pinterest.js'
 
-const SEARCH_COOLDOWN_MS = 5_000
+const SEARCH_COOLDOWN_MS = 3_000
 const MAX_QUERY_LENGTH = 100
 
 function usage(context: CommandContext, command: string, example: string): string {
