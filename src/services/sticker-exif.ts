@@ -3,6 +3,28 @@
  * Formats custom sticker-pack-name and sticker-pack-publisher into standard WhatsApp EXIF chunks.
  */
 
+function getWebpDimensions(chunkFourcc: string, chunkData: Buffer): { width: number; height: number } | null {
+  if (chunkFourcc === 'VP8 ' && chunkData.length >= 10) {
+    if (chunkData[3] === 0x9D && chunkData[4] === 0x01 && chunkData[5] === 0x2A) {
+      const w = chunkData.readUInt16LE(6) & 0x3FFF
+      const h = chunkData.readUInt16LE(8) & 0x3FFF
+      return { width: w, height: h }
+    }
+  }
+  if (chunkFourcc === 'VP8L' && chunkData.length >= 5) {
+    if (chunkData[0] === 0x2F) {
+      const b1 = chunkData[1] ?? 0
+      const b2 = chunkData[2] ?? 0
+      const b3 = chunkData[3] ?? 0
+      const b4 = chunkData[4] ?? 0
+      const w = 1 + (((b2 & 0x3F) << 8) | b1)
+      const h = 1 + (((b4 & 0x0F) << 10) | (b3 << 2) | ((b2 & 0xC0) >> 6))
+      return { width: w, height: h }
+    }
+  }
+  return null
+}
+
 export function buildWaExif(pack = 'Allybot', author = 'Cyrus', emojis = ['🙂']): Buffer {
   const jsonStr = JSON.stringify({
     'sticker-pack-id': `com.allybot.${pack.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'stickers'}`,
@@ -37,6 +59,7 @@ export function setStickerExif(webpBuffer: Buffer, pack = 'Allybot', author = 'C
   let vp8xBuffer: Buffer | null = null
   let hasAnim = false
   let hasAlpha = false
+  let detectedDims = { width: 512, height: 512 }
 
   while (idx < webpBuffer.length) {
     const fourcc = webpBuffer.subarray(idx, idx + 4).toString()
@@ -52,6 +75,10 @@ export function setStickerExif(webpBuffer: Buffer, pack = 'Allybot', author = 'C
     } else {
       if (fourcc === 'ANIM') hasAnim = true
       if (fourcc === 'ALPH') hasAlpha = true
+      if (fourcc === 'VP8 ' || fourcc === 'VP8L') {
+        const d = getWebpDimensions(fourcc, chunkData)
+        if (d) detectedDims = d
+      }
       chunks.push({ fourcc, data: Buffer.from(chunkData) })
     }
   }
@@ -70,11 +97,12 @@ export function setStickerExif(webpBuffer: Buffer, pack = 'Allybot', author = 'C
     if (hasAnim) flags |= 0x02 // Animation flag
     if (hasAlpha) flags |= 0x10 // Alpha flag
     vp8xBuffer[0] = flags
-    // 512x512: 511 in 24-bit LE
-    vp8xBuffer.writeUInt16LE(511, 4)
-    vp8xBuffer.writeUInt8(0, 6)
-    vp8xBuffer.writeUInt16LE(511, 7)
-    vp8xBuffer.writeUInt8(0, 9)
+    const wMinus1 = Math.max(0, detectedDims.width - 1)
+    const hMinus1 = Math.max(0, detectedDims.height - 1)
+    vp8xBuffer.writeUInt16LE(wMinus1 & 0xFFFF, 4)
+    vp8xBuffer.writeUInt8((wMinus1 >> 16) & 0xFF, 6)
+    vp8xBuffer.writeUInt16LE(hMinus1 & 0xFFFF, 7)
+    vp8xBuffer.writeUInt8((hMinus1 >> 16) & 0xFF, 9)
   } else {
     vp8xBuffer[0] |= 0x08 // Set EXIF flag
   }

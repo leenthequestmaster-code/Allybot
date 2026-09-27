@@ -44,6 +44,7 @@ async function transformAndSend(
   context: CommandContext,
   transformer: MediaTransformer,
   target: 'sticker' | 'image' | 'gif' | 'audio',
+  customPack?: string,
   customAuthor?: string,
 ): Promise<void> {
   const selected = sourceFor(context)
@@ -103,7 +104,9 @@ async function transformAndSend(
 
     let data = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, target)
     if (target === 'sticker') {
-      data = setStickerExif(Buffer.from(data), 'Allybot Stickers', customAuthor || 'Cyrus')
+      const defaultPack = 'Allybot Stickers'
+      const defaultAuthor = context.message.pushName || 'Cyrus'
+      data = setStickerExif(Buffer.from(data), customPack || defaultPack, customAuthor || defaultAuthor)
     }
     const outputLimit = target === 'sticker' ? MEDIA_TRANSFORM_MAX_OUTPUT_BYTES : MEDIA_TRANSFORM_HARD_OUTPUT_MAX_BYTES
     if (data.byteLength === 0 || data.byteLength > outputLimit) {
@@ -455,22 +458,35 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       context.commands.register({
         name: 'stickerwm',
         aliases: ['swm'],
-        description: 'Ubah gambar menjadi sticker dengan watermark custom',
+        description: 'Ubah gambar menjadi sticker dengan pack dan author custom',
         category: 'tools',
         menuOrder: 17,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
-          const wm = commandContext.args.join(' ').trim() || 'Allybot'
-          if (wm.length > 50) {
-            await commandContext.reply('Teks watermark terlalu panjang. Maksimal 50 karakter.')
+          const rawWm = commandContext.args.join(' ').trim()
+          let packName = ''
+          let authorName = ''
+
+          if (rawWm.includes('|')) {
+            const parts = rawWm.split('|')
+            packName = parts[0]?.trim() || ''
+            authorName = parts[1]?.trim() || ''
+          } else if (rawWm) {
+            packName = rawWm
+            authorName = rawWm
+          }
+
+          if (packName.length > 50 || authorName.length > 50) {
+            await commandContext.reply('Teks pack/author terlalu panjang. Maksimal 50 karakter.')
             return
           }
+
           const selected = sourceFor(commandContext)
           if (!selected) {
-            await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}stickerwm <teks>, atau balas gambar.`)
+            await commandContext.reply(`Format: ${commandContext.prefix}stickerwm <pack> | <author>\nAtau: ${commandContext.prefix}stickerwm <nama>\nContoh: ${commandContext.prefix}swm Stiker Keren | Cyrus`)
             return
           }
-          await transformAndSend(commandContext, transformer, 'sticker', wm)
+          await transformAndSend(commandContext, transformer, 'sticker', packName, authorName)
         },
       })
 

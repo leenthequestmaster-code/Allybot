@@ -48,7 +48,10 @@ def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
         draw.text((bx, by), bottom_str, font=font, fill=(255, 255, 255, 255), stroke_width=stroke_w, stroke_fill=(0, 0, 0, 255))
 
     img.thumbnail((512, 512), Image.Resampling.LANCZOS)
-    img.save(out_path, format="WEBP", quality=85)
+    nw, nh = img.size
+    canvas = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
+    canvas.paste(img, ((512 - nw) // 2, (512 - nh) // 2))
+    canvas.save(out_path, format="WEBP", quality=85)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
