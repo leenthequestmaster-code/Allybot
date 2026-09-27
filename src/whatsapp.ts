@@ -61,7 +61,7 @@ const MEDIA_DESCRIPTOR_KEYS: readonly [CoreMediaKind, string][] = [
   ['document', 'documentMessage'],
   ['sticker', 'stickerMessage'],
 ]
-const MEDIA_DOWNLOAD_MAX_BYTES = 3 * 1024 * 1024
+const MEDIA_DOWNLOAD_MAX_BYTES = 25 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
 const MEDIA_SEND_MAX_BYTES = 50 * 1024 * 1024
 

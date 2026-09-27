@@ -854,8 +854,8 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          if (selected.descriptor.sizeBytes && selected.descriptor.sizeBytes > 5 * 1024 * 1024) {
-            await commandContext.reply('Ukuran gambar terlalu besar nih, maksimal 5 MB ya~ 📁')
+          if (selected.descriptor.sizeBytes && selected.descriptor.sizeBytes > 10 * 1024 * 1024) {
+            await commandContext.reply('Ukuran gambar terlalu besar nih, maksimal 10 MB ya~ 📁')
             return
           }
 
@@ -864,8 +864,8 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
 
           try {
             const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
-              maxBytes: 5 * 1024 * 1024,
-              timeoutMs: 25_000,
+              maxBytes: 10 * 1024 * 1024,
+              timeoutMs: 30_000,
             })
 
             const upscaled = await upscaleImage(Buffer.from(downloaded.data), {
