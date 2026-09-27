@@ -50,7 +50,9 @@ async function run() {
   console.log('Universal resolve title:', resolved.title?.slice(0, 30));
 
   console.log('\n=== TEST 4: Image Upscaler (PicWish Native Node.js) ===');
-  const testImg = fs.readFileSync('/tmp/test_hd_in.png');
+  const sampleB64 =
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEA1StCErIngcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfdegAlYMQ8EIAAAAAElFTkSuQmCC';
+  const testImg = Buffer.from(sampleB64, 'base64');
   const up1 = await upscaleImage(testImg);
   console.log(`Upscale live: ${up1.buffer.length} bytes in ${up1.latencyMs}ms (fromCache: ${up1.fromCache})`);
   assert.ok(up1.buffer.length > 1000, 'Upscaled buffer must be valid');
