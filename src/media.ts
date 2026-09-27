@@ -106,6 +106,19 @@ function stickerToImageArgs(): readonly string[] {
   ]
 }
 
+function compressImageArgs(): readonly string[] {
+  return [
+    '-f', 'image2pipe',
+    '-i', 'pipe:0',
+    '-frames:v', '1',
+    '-vf', 'scale=trunc(iw*0.75/2)*2:trunc(ih*0.75/2)*2',
+    '-q:v', '75',
+    '-f', 'image2',
+    '-vcodec', 'png',
+    'pipe:1',
+  ]
+}
+
 function videoToGifArgs(): readonly string[] {
   return [
     '-i', 'pipe:0',
@@ -190,6 +203,9 @@ export class FfmpegMediaTransformer implements MediaTransformer {
     }
     if (target === 'image' && inputKind === 'sticker' && inputMimeType === 'image/webp') {
       return this.runner(stickerToImageArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
+    }
+    if (target === 'image' && inputKind === 'image' && inputMimeType.startsWith('image/')) {
+      return this.runner(compressImageArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
     if (target === 'gif' && inputKind === 'video' && inputMimeType.startsWith('video/')) {
       return this.runner(videoToGifArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
