@@ -552,7 +552,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       // qc - quote chat to sticker
       context.commands.register({
         name: 'qc',
-        aliases: ['quote', 'quotly'],
+        aliases: ['quotly', 'qchat'],
         description: 'Ubah teks atau pesan yang dibalas menjadi stiker bubble chat',
         category: 'tools',
         menuOrder: 22,
