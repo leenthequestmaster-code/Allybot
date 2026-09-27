@@ -820,21 +820,22 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.whatsapp.sendMedia(remoteJid, {
               kind: 'document',
               data: new Uint8Array(result.wastickersBuffer),
-              mimeType: 'application/octet-stream',
+              mimeType: 'application/zip',
               fileName: safeFileName,
-              caption: `📦 *${result.packName}* (${result.count} stiker)\nFile ini bisa kamu buka di app Sticker Maker / WAStickerApps untuk langsung di-import ke koleksi stiker WA!`,
+              caption: `📦 *${result.packName}* (${result.count} stiker)\nFile pack ini berformat *.wastickers*. Bisa kamu buka langsung di app *Sticker Maker* (Viko & Co) atau *WAStickerApps* untuk import ke WhatsApp!\n\nStikernya juga kukirimkan satu per satu di bawah ini ya~ ✨`,
             })
 
             // 2. Also send the stickers directly to the chat
+            const author = commandContext.message.pushName || 'Cyrus'
             for (let i = 0; i < result.stickerBuffers.length; i++) {
-              const stickerData = setStickerExif(result.stickerBuffers[i], result.packName, 'Allybot')
+              const stickerData = setStickerExif(result.stickerBuffers[i], result.packName, author)
               await commandContext.whatsapp.sendMedia(remoteJid, {
                 kind: 'sticker',
                 data: new Uint8Array(stickerData),
                 mimeType: 'image/webp',
               })
               if (i < result.stickerBuffers.length - 1) {
-                await new Promise((r) => setTimeout(r, 400))
+                await new Promise((r) => setTimeout(r, 600))
               }
             }
             return

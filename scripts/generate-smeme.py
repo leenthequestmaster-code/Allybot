@@ -5,11 +5,11 @@ from PIL import Image, ImageDraw, ImageFont
 
 def find_font(size: int):
     candidates = [
-        os.path.join(os.path.dirname(__file__), "..", "assets", "fonts", "Inter.ttf"),
-        "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        os.path.join(os.path.dirname(__file__), "..", "assets", "fonts", "Inter.ttf"),
     ]
     for p in candidates:
         if os.path.exists(p):
@@ -19,38 +19,110 @@ def find_font(size: int):
                 continue
     return ImageFont.load_default()
 
+def fit_text_lines(draw, text: str, max_w=480, max_h=130, start_size=52, min_size=24):
+    """
+    Find best font size and word-wrapped lines fitting cleanly in max_w and max_h.
+    Adaptive scaling down from start_size (huge & bold) to min_size.
+    """
+    text = text.upper().strip()
+    words = text.split()
+
+    for size in range(start_size, min_size - 1, -2):
+        font = find_font(size)
+        stroke = max(3, int(size * 0.12))
+        lines = []
+        curr = ""
+        valid = True
+
+        for w in words:
+            test_line = f"{curr} {w}".strip()
+            bbox = draw.textbbox((0, 0), test_line, font=font, stroke_width=stroke)
+            if bbox[2] - bbox[0] <= max_w:
+                curr = test_line
+            else:
+                if curr:
+                    lines.append(curr)
+                w_bbox = draw.textbbox((0, 0), w, font=font, stroke_width=stroke)
+                if w_bbox[2] - w_bbox[0] > max_w:
+                    valid = False
+                    break
+                curr = w
+
+        if not valid:
+            continue
+        if curr:
+            lines.append(curr)
+
+        # Max 2 lines per top / bottom section to preserve meme aesthetics
+        if len(lines) > 2:
+            continue
+
+        total_h = 0
+        for l in lines:
+            bbox = draw.textbbox((0, 0), l, font=font, stroke_width=stroke)
+            total_h += (bbox[3] - bbox[1]) + 4
+
+        if total_h <= max_h:
+            return font, stroke, lines
+
+    # Fallback to min_size
+    font = find_font(min_size)
+    stroke = max(3, int(min_size * 0.12))
+    return font, stroke, [text]
+
 def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
     with Image.open(in_path) as orig:
         img = orig.convert("RGBA")
-    
-    w, h = img.size
-    draw = ImageDraw.Draw(img)
-    
-    # Adaptive font size
-    font_size = max(22, int(min(w, h) * 0.085))
-    font = find_font(font_size)
-    stroke_w = max(2, int(font_size * 0.1))
 
-    if top_text:
-        top_str = top_text.upper().strip()
-        tb = draw.textbbox((0, 0), top_str, font=font, stroke_width=stroke_w)
-        tw = tb[2] - tb[0]
-        tx = max(4, (w - tw) // 2)
-        ty = int(h * 0.04)
-        draw.text((tx, ty), top_str, font=font, fill=(255, 255, 255, 255), stroke_width=stroke_w, stroke_fill=(0, 0, 0, 255))
-
-    if bottom_text:
-        bottom_str = bottom_text.upper().strip()
-        bb = draw.textbbox((0, 0), bottom_str, font=font, stroke_width=stroke_w)
-        bw = bb[2] - bb[0]
-        bx = max(4, (w - bw) // 2)
-        by = max(ty + 20, h - int(h * 0.04) - (bb[3] - bb[1]))
-        draw.text((bx, by), bottom_str, font=font, fill=(255, 255, 255, 255), stroke_width=stroke_w, stroke_fill=(0, 0, 0, 255))
-
+    # 1. Scale down to fit 512x512 while keeping original aspect ratio
     img.thumbnail((512, 512), Image.Resampling.LANCZOS)
     nw, nh = img.size
+
+    # 2. Paste centered onto 512x512 transparent canvas
     canvas = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
-    canvas.paste(img, ((512 - nw) // 2, (512 - nh) // 2))
+    offset_x = (512 - nw) // 2
+    offset_y = (512 - nh) // 2
+    canvas.paste(img, (offset_x, offset_y))
+
+    draw = ImageDraw.Draw(canvas)
+    top_end_y = 0
+
+    # 3. Draw Top Text
+    if top_text and top_text.strip():
+        font, stroke, lines = fit_text_lines(draw, top_text, max_w=480, max_h=130, start_size=52, min_size=24)
+        curr_y = max(8, offset_y + 4)
+        for line in lines:
+            bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke)
+            lw = bbox[2] - bbox[0]
+            lh = bbox[3] - bbox[1]
+            x = (512 - lw) // 2
+            draw.text((x, curr_y), line, font=font, fill=(255, 255, 255, 255), stroke_width=stroke, stroke_fill=(0, 0, 0, 255))
+            curr_y += lh + 4
+        top_end_y = curr_y
+
+    # 4. Draw Bottom Text
+    if bottom_text and bottom_text.strip():
+        font, stroke, lines = fit_text_lines(draw, bottom_text, max_w=480, max_h=130, start_size=52, min_size=24)
+        total_h = 0
+        line_metrics = []
+        for line in lines:
+            bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke)
+            lw = bbox[2] - bbox[0]
+            lh = bbox[3] - bbox[1]
+            line_metrics.append((lw, lh))
+            total_h += lh + 4
+
+        # Position upwards from bottom of image or canvas
+        bottom_limit = min(504, offset_y + nh - 4)
+        start_y = max(top_end_y + 12, bottom_limit - total_h)
+
+        curr_y = start_y
+        for idx, line in enumerate(lines):
+            lw, lh = line_metrics[idx]
+            x = (512 - lw) // 2
+            draw.text((x, curr_y), line, font=font, fill=(255, 255, 255, 255), stroke_width=stroke, stroke_fill=(0, 0, 0, 255))
+            curr_y += lh + 4
+
     canvas.save(out_path, format="WEBP", quality=85)
 
 if __name__ == "__main__":
