@@ -8,6 +8,12 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 CACHE_DIR = os.environ.get("TWEMOJI_CACHE_DIR", "/tmp/twemoji_cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
+THEMES = {
+    "white": {"bg": (255, 255, 255, 255), "fg": (0, 0, 0, 255)},
+    "green": {"bg": (138, 206, 0, 255), "fg": (0, 0, 0, 255)},
+    "black": {"bg": (0, 0, 0, 255), "fg": (255, 255, 255, 255)},
+}
+
 def get_twemoji(char):
     cps = [f"{ord(c):x}" for c in char if ord(c) != 0xfe0f]
     fname = "-".join(cps) + ".png"
@@ -27,6 +33,7 @@ def get_twemoji(char):
 
 def find_font(size):
     candidates = [
+        os.path.join(os.path.dirname(__file__), "..", "assets", "fonts", "Inter.ttf"),
         "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
@@ -40,7 +47,11 @@ def find_font(size):
                 continue
     return ImageFont.load_default()
 
-def render_brat(text: str, out_path: str):
+def render_brat_image(text: str, theme: str = "white") -> Image.Image:
+    theme_cfg = THEMES.get(theme.lower(), THEMES["white"])
+    bg_color = theme_cfg["bg"]
+    fg_color = theme_cfg["fg"]
+
     words = text.strip().split()
     if not words:
         words = ["brat"]
@@ -57,11 +68,11 @@ def render_brat(text: str, out_path: str):
     if curr:
         lines.append(" ".join(curr))
 
-    font_size = 32 if len(lines) > 5 else 40 if len(lines) > 3 else 48 if len(lines) > 1 else 56
+    font_size = 28 if len(lines) > 6 else 32 if len(lines) > 4 else 42 if len(lines) > 2 else 52
     font = find_font(font_size)
     line_spacing = int(font_size * 0.25)
 
-    img = Image.new("RGBA", (512, 512), (255, 255, 255, 255))
+    img = Image.new("RGBA", (512, 512), bg_color)
     draw = ImageDraw.Draw(img)
 
     # Standard unicode regex for emoji matching
@@ -101,7 +112,7 @@ def render_brat(text: str, out_path: str):
         curr_x = (512 - line_w) // 2
         for kind, val in tokens:
             if kind == "text":
-                draw.text((curr_x, curr_y), val, font=font, fill=(0, 0, 0, 255))
+                draw.text((curr_x, curr_y), val, font=font, fill=fg_color)
                 bbox = font.getbbox(val)
                 curr_x += (bbox[2] - bbox[0])
             else:
@@ -115,7 +126,10 @@ def render_brat(text: str, out_path: str):
     # Authentic brat aesthetic: slight blur / fuzzy compression texture
     img_rgb = img.convert("RGB")
     blurred = img_rgb.filter(ImageFilter.GaussianBlur(radius=1.3))
+    return blurred
 
+def render_brat(text: str, out_path: str, theme: str = "white"):
+    blurred = render_brat_image(text, theme)
     blurred.save(out_path, "WEBP", quality=85)
 
 if __name__ == "__main__":
@@ -124,9 +138,25 @@ if __name__ == "__main__":
         sys.exit(1)
 
     out_file = sys.argv[1]
-    if len(sys.argv) > 2:
-        input_text = " ".join(sys.argv[2:])
+    theme = "white"
+
+    raw_args = sys.argv[2:]
+    filtered_words = []
+    for a in raw_args:
+        if a.startswith("--theme="):
+            theme = a.split("=")[1].strip()
+        elif a in ("--green", "-g"):
+            theme = "green"
+        elif a in ("--black", "-b"):
+            theme = "black"
+        elif a in ("--white", "-w"):
+            theme = "white"
+        else:
+            filtered_words.append(a)
+
+    if filtered_words:
+        input_text = " ".join(filtered_words)
     else:
         input_text = sys.stdin.read().strip()
 
-    render_brat(input_text, out_file)
+    render_brat(input_text, out_file, theme)

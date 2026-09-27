@@ -3,6 +3,7 @@ import type { CommandContext, CoreMediaDescriptor, Plugin, WhatsAppMediaSource }
 import { randomInt } from 'node:crypto'
 import { resolveTikWm, resolveMedia, fetchMediaBuffer, extractMediaUrl } from '../../services/multidl.js'
 import { upscaleImage } from '../../services/upscaler.js'
+import { findEmojiMix, fetchEmojiMixBuffer } from '../../services/emojimix.js'
 
 const MEDIA_INPUT_MAX_BYTES = 3 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
@@ -286,13 +287,12 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
 
             const scriptPath = join(process.cwd(), 'scripts', 'generate-brat.py')
             await new Promise<void>((resolve, reject) => {
-              const py = spawn('python3', [scriptPath, webpPath])
+              const py = spawn('python3', [scriptPath, webpPath, ...commandContext.args])
               py.on('error', reject)
               py.on('close', (code) => {
                 if (code === 0) resolve()
                 else reject(new Error(`Python brat generator exited with code ${code}`))
               })
-              py.stdin.write(text)
               py.stdin.end()
             })
 
@@ -312,6 +312,71 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
             await commandContext.reply(safeMediaFailure(error))
+          }
+        },
+      })
+
+      // bratvid - animated word-by-word kinetic typography video
+      context.commands.register({
+        name: 'bratvid',
+        aliases: ['bvid', 'bratvideo'],
+        description: 'Buat video animasi teks brat kata demi kata',
+        category: 'tools',
+        menuOrder: 17,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const text = commandContext.args.join(' ').trim()
+          if (!text) {
+            await commandContext.reply(`Format: ${commandContext.prefix}bratvid <teks>\nContoh: ${commandContext.prefix}bratvid i am so brat`)
+            return
+          }
+          if (text.length > 150) {
+            await commandContext.reply('Teksnya kepanjangan nih, maksimal 150 karakter ya~ ✍️')
+            return
+          }
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          await commandContext.reply('⏳ Lagi ngerender video brat nih... Sabar ya~ ✨')
+
+          try {
+            const tmpId = `bvid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+            const mp4Path = `/tmp/${tmpId}.mp4`
+
+            const { spawn } = await import('node:child_process')
+            const { readFile, unlink } = await import('node:fs/promises')
+            const { join } = await import('node:path')
+
+            const scriptPath = join(process.cwd(), 'scripts', 'generate-bratvid.py')
+            await new Promise<void>((resolve, reject) => {
+              const py = spawn('python3', [scriptPath, mp4Path, ...commandContext.args])
+              py.on('error', reject)
+              py.on('close', (code) => {
+                if (code === 0) resolve()
+                else reject(new Error(`Python bratvid generator exited with code ${code}`))
+              })
+              py.stdin.end()
+            })
+
+            const data = await readFile(mp4Path)
+            await unlink(mp4Path).catch(() => {})
+
+            if (data.byteLength === 0 || data.byteLength > 15 * 1024 * 1024) {
+              await commandContext.reply('Hasil video terlalu besar atau gagal dibuat.')
+              return
+            }
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'video',
+              data: new Uint8Array(data),
+              mimeType: 'video/mp4',
+              gifPlayback: true,
+            })
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'bratvid command failed')
+            await commandContext.reply('Waduh, gagal ngerender video brat nih. Coba lagi nanti ya~ 🙏')
           }
         },
       })
@@ -406,15 +471,55 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         menuOrder: 20,
         cooldownMs: 3_000,
         handler: async (commandContext) => {
-          const text = commandContext.args.join('').trim()
-          const parts = text.includes('+') ? text.split('+') : Array.from(text)
-          const emoji1 = parts[0]?.trim()
-          const emoji2 = parts[1]?.trim()
+          const raw = commandContext.args.join('').trim()
+          let emoji1 = ''
+          let emoji2 = ''
+
+          if (raw.includes('+')) {
+            const parts = raw.split('+')
+            emoji1 = parts[0]?.trim() || ''
+            emoji2 = parts[1]?.trim() || ''
+          } else {
+            const matches = Array.from(raw.matchAll(/(?:\p{Extended_Pictographic}|\p{Emoji_Presentation})/gu)).map((m) => m[0])
+            if (matches.length >= 2) {
+              emoji1 = matches[0]
+              emoji2 = matches[1]
+            }
+          }
+
           if (!emoji1 || !emoji2) {
             await commandContext.reply(`Format: ${commandContext.prefix}emojimix <emoji1>+<emoji2>\nContoh: ${commandContext.prefix}emojimix 😂+😎`)
             return
           }
-          await commandContext.reply(`Kombinasi ${emoji1} + ${emoji2} lagi disiapin nih... Kalau stikernya nggak muncul, berarti belum bisa digabung ya 🙏`)
+
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          try {
+            const url = await findEmojiMix(emoji1, emoji2)
+            if (!url) {
+              await commandContext.reply(`Kombinasi ${emoji1} + ${emoji2} belum ada di Google Emoji Kitchen nih~ 🍳`)
+              return
+            }
+
+            const pngBuf = await fetchEmojiMixBuffer(url)
+            if (!pngBuf) {
+              await commandContext.reply('Waduh, gagal mengunduh gambar kombinasi emoji nih~ 🙏')
+              return
+            }
+
+            const webpSticker = await transformer.transform(new Uint8Array(pngBuf), 'image/png', 'image', 'sticker')
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'sticker',
+              data: webpSticker,
+              mimeType: 'image/webp',
+            })
+          } catch (error) {
+            commandContext.logger.warn({ error }, 'emojimix command failed')
+            await commandContext.reply('Gagal menggabungkan emoji nih, coba kombinasi emoji yang lain ya~ 🙏')
+          }
         },
       })
 
