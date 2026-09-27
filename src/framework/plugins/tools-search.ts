@@ -294,31 +294,19 @@ export const toolsSearchPlugin: Plugin = {
     })
 
     // 6. Pinterest
+    const recentPinIdsByChat = new Map<string, Set<string>>()
+
     context.commands.register({
       name: 'pin',
       aliases: ['pinterest'],
-      description: 'Cari gambar di Pinterest',
+      description: 'Cari gambar acak di Pinterest',
       category: 'tools',
       menuOrder: 6,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
-        const rawArgs = commandContext.args
-        if (rawArgs.length === 0) {
-          await commandContext.reply(usage(commandContext, 'pin', '<kata kunci> [jumlah 1-5]') + '\nContoh: `!pin cute cats` atau `!pin miku 5`')
-          return
-        }
-
-        let limit = 3
-        const queryParts = [...rawArgs]
-        const lastArg = rawArgs[rawArgs.length - 1]
-        if (/^[1-5]$/.test(lastArg)) {
-          limit = parseInt(lastArg, 10)
-          queryParts.pop()
-        }
-
-        const query = boundText(queryParts.join(' '))
+        const query = boundText(commandContext.args.join(' '))
         if (!query) {
-          await commandContext.reply('Query pencarian tidak boleh kosong.')
+          await commandContext.reply(usage(commandContext, 'pin', '<kata kunci>') + '\nContoh: `!pin anime girl`')
           return
         }
 
@@ -326,14 +314,27 @@ export const toolsSearchPlugin: Plugin = {
         await commandContext.reply('⏳ Lagi nyari dan ngambil gambar dari Pinterest nih... Sabar ya~ 📌')
 
         try {
-          const results = await searchPinterest(query, limit)
+          const results = await searchPinterest(query, { randomize: true })
           if (!results || results.length === 0) {
             await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pinterest nih, coba kata kunci lain ya~ 🔍`)
             return
           }
 
-          let sent = 0
-          for (const pin of results) {
+          let recentIds = recentPinIdsByChat.get(chatJid)
+          if (!recentIds) {
+            recentIds = new Set<string>()
+            recentPinIdsByChat.set(chatJid, recentIds)
+          }
+
+          // Prioritaskan gambar yang belum pernah dikirim ke chat ini
+          let candidates = results.filter((pin) => !recentIds.has(pin.id))
+          if (candidates.length === 0) {
+            recentIds.clear()
+            candidates = [...results]
+          }
+
+          let sent = false
+          for (const pin of candidates) {
             if (pin.mediaType !== 'image') continue
 
             const buf = await fetchBuffer(pin.imageUrl, 15_000, {
@@ -359,12 +360,17 @@ export const toolsSearchPlugin: Plugin = {
               await commandContext.reply(`${caption}\n${pin.imageUrl}`)
             }
 
-            sent++
-            if (sent >= limit) break
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            recentIds.add(pin.id)
+            if (recentIds.size > 50) {
+              const firstVal = recentIds.values().next().value
+              if (firstVal) recentIds.delete(firstVal)
+            }
+
+            sent = true
+            break
           }
 
-          if (sent === 0) {
+          if (!sent) {
             await commandContext.reply(`Hasil ketemu tapi gambarnya gagal diunduh nih: ${query}`)
           }
         } catch (error) {

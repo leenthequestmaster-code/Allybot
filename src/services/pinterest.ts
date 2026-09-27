@@ -22,10 +22,21 @@ const FETCH_HEADERS = {
   'X-Pinterest-PWS-Handler': 'www/[username]/search/pins.js',
 }
 
-export async function searchPinterest(query: string, limit = 5): Promise<PinterestPin[]> {
-  const pageSize = Math.min(Math.max(1, limit), 10)
+export interface PinterestSearchOptions {
+  readonly limit?: number
+  readonly randomize?: boolean
+}
+
+export async function searchPinterest(
+  query: string,
+  options?: PinterestSearchOptions | number,
+): Promise<PinterestPin[]> {
+  const opts: PinterestSearchOptions = typeof options === 'number' ? { limit: options } : (options || {})
+  const limit = opts.limit || 5
+  const shouldRandomize = Boolean(opts.randomize)
+  const pageSize = shouldRandomize ? 25 : Math.min(Math.max(1, limit), 25)
   const sourceUrl = `/search/pins/?q=${encodeURIComponent(query)}`
-  const options = {
+  const searchOptions = {
     query,
     scope: 'pins',
     page_size: pageSize,
@@ -34,7 +45,7 @@ export async function searchPinterest(query: string, limit = 5): Promise<Pintere
 
   const params = new URLSearchParams({
     source_url: sourceUrl,
-    data: JSON.stringify({ options, context: {} }),
+    data: JSON.stringify({ options: searchOptions, context: {} }),
   })
 
   const url = `${RESOURCE_URL}?${params.toString()}`
@@ -56,7 +67,15 @@ export async function searchPinterest(query: string, limit = 5): Promise<Pintere
     throw new Error(`Pinterest search error: ${errorMsg}`)
   }
 
-  const results: any[] = resourceResponse?.data?.results || []
+  let results: any[] = Array.isArray(resourceResponse?.data?.results) ? resourceResponse.data.results : []
+
+  if (shouldRandomize && results.length > 1) {
+    for (let i = results.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[results[i], results[j]] = [results[j], results[i]]
+    }
+  }
+
   const out: PinterestPin[] = []
 
   for (const pin of results) {
