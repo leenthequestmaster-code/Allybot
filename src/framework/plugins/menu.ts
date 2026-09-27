@@ -231,54 +231,29 @@ function formatCommand(command: CommandDefinition, prefix: string, position: num
   return lines.join('\n')
 }
 
-function renderBotProfile(commandContext?: Pick<CommandContext, 'config'>): string {
-  const owner = commandContext?.config?.botOwnerJid ? formatOwner(commandContext.config.botOwnerJid) : 'Cyrus'
+function renderBotProfile(): string {
   return [
     '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
     '─֪──໋࣭─𝆭──꫶',
     '> ⟐┃ Nama : *Allybot*',
-    `> ⟐┃ Uptime : *${formatUptime(process.uptime())}*`,
-    `> ⟐┃ Owner : *${owner}*`,
+    '> ⟐┃ Uptime : *-*',
+    '> ⟐┃ Owner : *6283197859955*',
     '> ⟐┃ Versi : *v0.1.0*',
     '*─┼────────────────┼─*',
   ].join('\n')
 }
 
 function renderMainMenu(
-  categories: readonly MenuCategory[],
-  prefix: string,
-  commandContext: Pick<CommandContext, 'config'>,
+  _categories: readonly MenuCategory[],
+  _prefix: string,
+  _commandContext: Pick<CommandContext, 'config'>,
 ): string {
-  const profile = renderBotProfile(commandContext)
-  const lines = [
-    profile,
-    '',
-    '╭───〔 *DAFTAR KATEGORI* 〕───',
-  ]
-  if (categories.length === 0) {
-    lines.push('│ _Belum ada command yang tersedia._')
-  } else {
-    categories.forEach((cat, idx) => {
-      const { icon, label } = presentationFor(cat.name)
-      lines.push(`│ *[${idx + 1}]* ${icon} *${label}* — ${cat.commands.length} command`)
-    })
-  }
-  lines.push(
-    '╰────────────────────────',
-    '',
-    `Ketik *${prefix}menu <angka>* untuk membuka kategori (contoh: *${prefix}menu 1*).`,
-    `Atau ketik *${prefix}commands* untuk melihat semua command langsung.`,
-  )
-  return lines.join('\n')
+  return renderBotProfile()
 }
 
 function resolveCategory(categories: readonly MenuCategory[], identifier: string | undefined): MenuCategory | undefined {
-  if (!identifier) return undefined
-  if (/^\d+$/.test(identifier)) {
-    return categories[Number(identifier) - 1]
-  }
-  const cleanId = identifier.trim().toLowerCase()
-  return categories.find((cat) => cat.name.toLowerCase() === cleanId)
+  if (!identifier || !/^\d+$/.test(identifier)) return undefined
+  return categories[Number(identifier) - 1]
 }
 
 function renderCategoryMenu(category: MenuCategory, prefix: string): string {
