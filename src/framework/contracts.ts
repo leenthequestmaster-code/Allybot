@@ -32,6 +32,7 @@ export interface CoreMessage {
   readonly media?: CoreMediaDescriptor
   readonly quotedMedia?: CoreMediaDescriptor
   readonly groupName?: string
+  readonly pushName?: string
   /** Epoch timestamp in milliseconds from the message payload. */
   readonly timestamp: number
   /** Local adapter arrival time in milliseconds, when available. */

@@ -42,6 +42,10 @@ def build_wastickers(out_zip_path: str, pack_name: str, image_paths: list[str]):
     if not stickers_webp:
         raise ValueError("No valid stickers could be generated")
 
+    out_dir = os.path.dirname(out_zip_path)
+    if out_dir:
+        os.makedirs(out_dir, exist_ok=True)
+
     with zipfile.ZipFile(out_zip_path, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("manifest.json", json.dumps(manifest, indent=2))
 
@@ -55,6 +59,10 @@ def build_wastickers(out_zip_path: str, pack_name: str, image_paths: list[str]):
 
         for idx, webp_data in enumerate(stickers_webp):
             z.writestr(f"{idx:02d}.webp", webp_data)
+            # Also save loose webp in directory for direct chat sending
+            loose_path = os.path.join(out_dir, f"{idx:02d}.webp")
+            with open(loose_path, "wb") as wf:
+                wf.write(webp_data)
 
     print(f"Successfully generated {out_zip_path} with {len(stickers_webp)} stickers")
 

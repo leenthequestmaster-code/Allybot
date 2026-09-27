@@ -231,7 +231,24 @@ def render_qc(
     tm_y = by2 - PADDING_Y - time_h
     draw.text((tm_x, tm_y), time_str, font=font_time, fill=(134, 150, 160, 255))
 
-    img.save(out_path, format="WEBP", quality=90)
+    # Auto-scale content to fill sticker canvas for maximum readability
+    bbox = img.getbbox()
+    if bbox:
+        pad = 8
+        cbx1 = max(0, bbox[0] - pad)
+        cby1 = max(0, bbox[1] - pad)
+        cbx2 = min(CANVAS_W, bbox[2] + pad)
+        cby2 = min(CANVAS_H, bbox[3] + pad)
+        cropped = img.crop((cbx1, cby1, cbx2, cby2))
+        cw, ch = cropped.size
+        scale = min(512 / cw, 512 / ch)
+        nw, nh = max(1, int(cw * scale)), max(1, int(ch * scale))
+        resized = cropped.resize((nw, nh), Image.Resampling.LANCZOS)
+        final_img = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
+        final_img.paste(resized, ((512 - nw) // 2, (512 - nh) // 2))
+        final_img.save(out_path, format="WEBP", quality=90)
+    else:
+        img.save(out_path, format="WEBP", quality=90)
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:

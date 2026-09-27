@@ -139,13 +139,13 @@ function videoToGifArgs(): readonly string[] {
 function videoToStickerArgs(): readonly string[] {
   return [
     '-i', 'pipe:0',
-    '-t', '8',
-    '-vf', 'fps=12,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba',
+    '-t', '6',
+    '-vf', 'fps=10,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba',
     '-an',
     '-c:v', 'libwebp',
     '-lossless', '0',
     '-compression_level', '4',
-    '-q:v', '65',
+    '-q:v', '45',
     '-loop', '0',
     '-f', 'webp',
     'pipe:1',

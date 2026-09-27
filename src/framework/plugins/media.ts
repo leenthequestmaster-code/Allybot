@@ -14,8 +14,13 @@ import {
 } from '../../services/spack-session.js'
 
 const MEDIA_INPUT_MAX_BYTES = 3 * 1024 * 1024
+const MEDIA_VIDEO_INPUT_MAX_BYTES = 10 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
 const MEDIA_COMMAND_COOLDOWN_MS = 3_000
+
+function maxInputBytesFor(descriptor: CoreMediaDescriptor): number {
+  return descriptor.kind === 'video' ? MEDIA_VIDEO_INPUT_MAX_BYTES : MEDIA_INPUT_MAX_BYTES
+}
 
 export interface MediaPluginOptions {
   readonly transformer?: MediaTransformer
@@ -53,8 +58,10 @@ async function transformAndSend(
     await context.reply(usage)
     return
   }
-  if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > MEDIA_INPUT_MAX_BYTES) {
-    await context.reply('File terlalu besar nih, maksimal 3 MB ya~ 📁')
+  const limitBytes = maxInputBytesFor(selected.descriptor)
+  if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > limitBytes) {
+    const limitMb = Math.round(limitBytes / (1024 * 1024))
+    await context.reply(`File terlalu besar nih, maksimal ${limitMb} MB ya~ 📁`)
     return
   }
   if (target === 'gif' && selected.descriptor.durationSeconds !== undefined && selected.descriptor.durationSeconds > 15) {
@@ -72,7 +79,7 @@ async function transformAndSend(
 
   try {
     const downloaded = await context.whatsapp.downloadMedia(context.message, selected.source, {
-      maxBytes: MEDIA_INPUT_MAX_BYTES,
+      maxBytes: limitBytes,
       timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
     })
     const allowed = target === 'sticker'
@@ -216,11 +223,11 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         handler: async (commandContext) => transformAndSend(commandContext, transformer, 'audio'),
       })
 
-      // smeme - sticker meme generator with downscale filter
+      // smeme - sticker meme generator with top and bottom text
       context.commands.register({
         name: 'smeme',
         aliases: [],
-        description: 'Buat stiker meme dari gambar + teks (dengan filter downscale)',
+        description: 'Buat stiker meme dari gambar + teks atas dan bawah',
         category: 'tools',
         menuOrder: 15,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
@@ -231,7 +238,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
           if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > MEDIA_INPUT_MAX_BYTES) {
-            await commandContext.reply('File terlalu besar nih, maksimal 3 MB ya~ 📁')
+            await commandContext.reply('File terlalu besar nih, maksimal 15 MB ya~ 📁')
             return
           }
           if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
@@ -239,9 +246,21 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          const args = commandContext.args.join(' ').split('|').map(s => s.trim())
-          const topText = args[0] ?? ''
-          const bottomText = args[1] ?? ''
+          const rawText = commandContext.args.join(' ').trim()
+          let topText = ''
+          let bottomText = ''
+          if (rawText.includes('|')) {
+            const parts = rawText.split('|')
+            topText = parts[0]?.trim() ?? ''
+            bottomText = parts[1]?.trim() ?? ''
+          } else {
+            topText = rawText
+          }
+
+          if (!topText && !bottomText) {
+            await commandContext.reply(`Format: ${commandContext.prefix}smeme <teks atas> | <teks bawah>\nContoh: ${commandContext.prefix}smeme ketika bot | berhasil diperbaiki`)
+            return
+          }
 
           try {
             const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
@@ -249,16 +268,41 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
             })
 
-            const data = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, 'sticker')
-            const outputLimit = MEDIA_TRANSFORM_MAX_OUTPUT_BYTES
-            if (data.byteLength === 0 || data.byteLength > outputLimit) {
-              await commandContext.reply('Hasilnya terlalu besar atau kosong nih, coba file lain ya~ 📦')
-              return
+            const { writeFile, unlink, readFile } = await import('node:fs/promises')
+            const { spawn } = await import('node:child_process')
+            const { join } = await import('node:path')
+
+            const tmpId = `smeme_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+            const inPath = `/tmp/${tmpId}_in.png`
+            const outPath = `/tmp/${tmpId}_out.webp`
+
+            let dataWithExif: Buffer | null = null
+            try {
+              await writeFile(inPath, downloaded.data)
+              const scriptPath = join(process.cwd(), 'scripts', 'generate-smeme.py')
+              await new Promise<void>((resolve, reject) => {
+                const py = spawn('python3', [scriptPath, inPath, outPath, topText, bottomText])
+                let stderr = ''
+                py.stderr.on('data', (d) => { stderr += d.toString() })
+                py.on('error', reject)
+                py.on('close', (code) => {
+                  if (code === 0) resolve()
+                  else reject(new Error(`generate-smeme.py exited with ${code}: ${stderr}`))
+                })
+              })
+              const rawData = await readFile(outPath)
+              dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
+            } catch {
+              const rawData = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, 'sticker')
+              dataWithExif = setStickerExif(Buffer.from(rawData), 'Meme Stickers', 'Allybot')
+            } finally {
+              await unlink(inPath).catch(() => {})
+              await unlink(outPath).catch(() => {})
             }
 
             await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
               kind: 'sticker',
-              data,
+              data: new Uint8Array(dataWithExif),
               mimeType: 'image/webp',
             })
           } catch (error) {
@@ -448,38 +492,83 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-      // compress - compress image or video
+      // compress - compress image or video with customizable percentage (1-90%)
       context.commands.register({
         name: 'compress',
-        description: 'Perkecil ukuran file media',
+        aliases: ['kompres', 'kecilkan'],
+        description: 'Perkecil ukuran gambar atau video (opsional: !compress 1-90%)',
         category: 'tools',
         menuOrder: 19,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
           const selected = sourceFor(commandContext)
           if (!selected) {
-            await commandContext.reply(`Balas gambar atau video lalu ketik ${commandContext.prefix}compress.`)
+            await commandContext.reply(`Balas gambar atau video lalu ketik ${commandContext.prefix}compress (atau ${commandContext.prefix}compress 70 untuk kompresi 70%).`)
             return
           }
           if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
             await commandContext.reply('Fitur media belum bisa dipakai nih 😅')
             return
           }
+
+          let percent = 50
+          const argNum = parseInt(commandContext.args[0]?.replace('%', '') ?? '', 10)
+          if (!isNaN(argNum) && argNum >= 1 && argNum <= 90) {
+            percent = argNum
+          }
+
+          await commandContext.reply(`⏳ Lagi mengompres media sebesar ${percent}% nih... Sabar ya~ 📦`)
+
           try {
             const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
               maxBytes: MEDIA_INPUT_MAX_BYTES,
               timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
             })
-            const target = downloaded.kind === 'video' ? 'gif' : 'image'
-            const compressed = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, target)
-            if (compressed.byteLength >= downloaded.data.byteLength) {
-              await commandContext.reply('Ukuran file ini udah pas banget, nggak bisa dikecilin lagi~ 👌')
-              return
+
+            const { writeFile, unlink, readFile } = await import('node:fs/promises')
+            const { spawn } = await import('node:child_process')
+            const { join } = await import('node:path')
+
+            const isVid = downloaded.kind === 'video'
+            const inExt = isVid ? 'mp4' : 'png'
+            const outExt = isVid ? 'mp4' : 'jpg'
+            const tmpId = `comp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+            const inPath = `/tmp/${tmpId}_in.${inExt}`
+            const outPath = `/tmp/${tmpId}_out.${outExt}`
+
+            let compressed: Uint8Array | null = null
+            let savedPct = percent
+            try {
+              await writeFile(inPath, downloaded.data)
+              const scriptPath = join(process.cwd(), 'scripts', 'compress-media.py')
+              await new Promise<void>((resolve, reject) => {
+                const py = spawn('python3', [scriptPath, inPath, outPath, String(percent)])
+                let stderr = ''
+                py.stderr.on('data', (d) => { stderr += d.toString() })
+                py.on('error', reject)
+                py.on('close', (code) => {
+                  if (code === 0) resolve()
+                  else reject(new Error(`compress-media.py exited with ${code}: ${stderr}`))
+                })
+              })
+              const rawComp = await readFile(outPath)
+              compressed = new Uint8Array(rawComp)
+              savedPct = Math.max(0, Math.round((1 - compressed.byteLength / downloaded.data.byteLength) * 100))
+            } catch {
+              compressed = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, isVid ? 'gif' : 'image')
+            } finally {
+              await unlink(inPath).catch(() => {})
+              await unlink(outPath).catch(() => {})
             }
+
+            const origKb = (downloaded.data.byteLength / 1024).toFixed(1)
+            const compKb = (compressed.byteLength / 1024).toFixed(1)
+
             await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-              kind: downloaded.kind === 'video' ? 'video' : 'image',
+              kind: isVid ? 'video' : 'image',
               data: compressed,
-              mimeType: downloaded.kind === 'video' ? 'video/mp4' : 'image/png',
+              mimeType: isVid ? 'video/mp4' : 'image/jpeg',
+              caption: `📦 *Kompresi ${percent}% Berhasil!*\nUkuran: *${origKb} KB* ➔ *${compKb} KB* (Hemat ~${savedPct}%)`,
             })
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'compress command failed')
@@ -586,11 +675,27 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          // Format name
-          let senderName = 'User'
-          if (targetSenderJid) {
-            const num = targetSenderJid.split('@')[0].split(':')[0]
-            senderName = num ? `+${num}` : 'User'
+          // Format name and target text
+          let senderName = ''
+          if (quotedText && rawArgs) {
+            senderName = rawArgs
+          } else if (!quotedText && rawArgs.includes('|')) {
+            const split = rawArgs.split('|')
+            senderName = split[0].trim()
+            targetText = split.slice(1).join('|').trim()
+          }
+
+          if (!senderName) {
+            if (targetSenderJid === commandContext.message.senderJid && commandContext.message.pushName) {
+              senderName = commandContext.message.pushName
+            } else if (commandContext.message.pushName && !quotedText) {
+              senderName = commandContext.message.pushName
+            } else if (targetSenderJid) {
+              const num = targetSenderJid.split('@')[0].split(':')[0]
+              senderName = num ? `+${num}` : 'User'
+            } else {
+              senderName = 'User'
+            }
           }
 
           // Format time

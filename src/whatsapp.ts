@@ -940,6 +940,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       return {
         id,
         remoteJid,
+        ...(message.pushName ? { pushName: message.pushName } : {}),
         ...(senderJid ? { senderJid } : {}),
         ...(mentionedJids.length > 0 ? { mentionedJids } : {}),
         ...(text ? { text } : {}),
