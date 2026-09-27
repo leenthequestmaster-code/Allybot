@@ -4,6 +4,14 @@ import { randomInt } from 'node:crypto'
 import { resolveTikWm, resolveMedia, fetchMediaBuffer, extractMediaUrl } from '../../services/multidl.js'
 import { upscaleImage } from '../../services/upscaler.js'
 import { findEmojiMix, fetchEmojiMixBuffer } from '../../services/emojimix.js'
+import { setStickerExif } from '../../services/sticker-exif.js'
+import {
+  startSpackSession,
+  getSpackSession,
+  addImageToSpack,
+  finishSpackSession,
+  cancelSpackSession,
+} from '../../services/spack-session.js'
 
 const MEDIA_INPUT_MAX_BYTES = 3 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
@@ -31,15 +39,16 @@ async function transformAndSend(
   context: CommandContext,
   transformer: MediaTransformer,
   target: 'sticker' | 'image' | 'gif' | 'audio',
+  customAuthor?: string,
 ): Promise<void> {
   const selected = sourceFor(context)
   if (!selected) {
     const usage = target === 'sticker'
-      ? `Kirim gambar dengan caption ${context.prefix}sticker, atau balas gambar lalu ketik ${context.prefix}sticker.`
+      ? `Kirim gambar/video pendek dengan caption ${context.prefix}sticker, atau balas media lalu ketik ${context.prefix}sticker.`
       : target === 'image'
         ? `Balas sticker lalu ketik ${context.prefix}toimg.`
         : target === 'gif'
-          ? `Balas video pendek lalu ketik ${context.prefix}togif.`
+          ? `Balas video pendek atau stiker animasi lalu ketik ${context.prefix}togif.`
           : `Balas video atau audio lalu ketik ${context.prefix}toaudio.`
     await context.reply(usage)
     return
@@ -67,25 +76,28 @@ async function transformAndSend(
       timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
     })
     const allowed = target === 'sticker'
-      ? downloaded.kind === 'image' && downloaded.mimeType.startsWith('image/')
+      ? (downloaded.kind === 'image' && downloaded.mimeType.startsWith('image/')) || (downloaded.kind === 'video' && downloaded.mimeType.startsWith('video/'))
       : target === 'image'
         ? downloaded.kind === 'sticker' && downloaded.mimeType === 'image/webp'
         : target === 'gif'
-          ? downloaded.kind === 'video' && downloaded.mimeType.startsWith('video/')
+          ? (downloaded.kind === 'video' && downloaded.mimeType.startsWith('video/')) || (downloaded.kind === 'sticker' && downloaded.mimeType === 'image/webp')
           : (downloaded.kind === 'video' || downloaded.kind === 'audio') && (downloaded.mimeType.startsWith('video/') || downloaded.mimeType.startsWith('audio/'))
     if (!allowed) {
       const message = target === 'sticker'
-        ? 'Untuk sticker, kirim gambar biasa.'
+        ? 'Untuk sticker, kirim gambar atau video pendek.'
         : target === 'image'
           ? 'Untuk gambar, balas sticker WebP.'
           : target === 'gif'
-            ? 'Untuk GIF, balas video.'
+            ? 'Untuk GIF, balas video atau stiker animasi.'
             : 'Untuk audio, balas video atau audio.'
       await context.reply(message)
       return
     }
 
-    const data = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, target)
+    let data = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, target)
+    if (target === 'sticker') {
+      data = setStickerExif(Buffer.from(data), 'Allybot Stickers', customAuthor || 'Cyrus')
+    }
     const outputLimit = target === 'sticker' ? MEDIA_TRANSFORM_MAX_OUTPUT_BYTES : MEDIA_TRANSFORM_HARD_OUTPUT_MAX_BYTES
     if (data.byteLength === 0 || data.byteLength > outputLimit) {
       await context.reply('Hasil media terlalu besar atau kosong.')
@@ -96,6 +108,7 @@ async function transformAndSend(
       data,
       mimeType: target === 'sticker' ? 'image/webp' : target === 'image' ? 'image/png' : target === 'gif' ? 'video/mp4' : 'audio/ogg; codecs=opus',
       ...(target === 'gif' ? { gifPlayback: true } : {}),
+      ...(target === 'sticker' && downloaded.kind === 'video' ? { isAnimated: true } : {}),
     })
   } catch (error) {
     context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', target }, 'media command failed safely')
@@ -168,7 +181,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
     load(context) {
       context.commands.register({
         name: 'sticker',
-        aliases: ['stiker'],
+        aliases: ['stiker', 's'],
         description: 'Ubah gambar menjadi sticker',
         category: 'tools',
         menuOrder: 11,
@@ -413,7 +426,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}stickerwm <teks>, atau balas gambar.`)
             return
           }
-          await transformAndSend(commandContext, transformer, 'sticker')
+          await transformAndSend(commandContext, transformer, 'sticker', wm)
         },
       })
 
@@ -533,6 +546,260 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             commandContext.logger.warn({ error }, 'emojimix command failed')
             await commandContext.reply('Gagal menggabungkan emoji nih, coba kombinasi emoji yang lain ya~ 🙏')
           }
+        },
+      })
+
+      // qc - quote chat to sticker
+      context.commands.register({
+        name: 'qc',
+        aliases: ['quote', 'quotly'],
+        description: 'Ubah teks atau pesan yang dibalas menjadi stiker bubble chat',
+        category: 'tools',
+        menuOrder: 22,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          const rawArgs = commandContext.args.join(' ').trim()
+          const quotedText = commandContext.message.quotedText?.trim()
+          const quotedSenderJid = commandContext.message.quotedSenderJid
+
+          let targetText = ''
+          let targetSenderJid = ''
+
+          if (quotedText) {
+            targetText = quotedText
+            targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
+          } else if (rawArgs) {
+            targetText = rawArgs
+            targetSenderJid = commandContext.message.senderJid || ''
+          } else {
+            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}qc, atau ketik ${commandContext.prefix}qc <teks>`)
+            return
+          }
+
+          if (targetText.length > 250) {
+            await commandContext.reply('Teksnya kepanjangan nih, maksimal 250 karakter ya~ ✍️')
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          // Format name
+          let senderName = 'User'
+          if (targetSenderJid) {
+            const num = targetSenderJid.split('@')[0].split(':')[0]
+            senderName = num ? `+${num}` : 'User'
+          }
+
+          // Format time
+          const now = new Date()
+          const hours = String(now.getHours()).padStart(2, '0')
+          const minutes = String(now.getMinutes()).padStart(2, '0')
+          const timeStr = `${hours}:${minutes}`
+
+          // Fetch avatar if available
+          let avatarPath = 'none'
+          const { writeFile, unlink, readFile } = await import('node:fs/promises')
+          const { spawn } = await import('node:child_process')
+          const { join } = await import('node:path')
+
+          if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
+            try {
+              const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
+              if (ppUrl) {
+                const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
+                if (ppRes.ok) {
+                  const ppBuf = Buffer.from(await ppRes.arrayBuffer())
+                  const tmpAv = `/tmp/av_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`
+                  await writeFile(tmpAv, ppBuf)
+                  avatarPath = tmpAv
+                }
+              }
+            } catch {
+              // ignore avatar errors
+            }
+          }
+
+          const outPath = `/tmp/qc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`
+          const scriptPath = join(process.cwd(), 'scripts', 'generate-qc.py')
+
+          try {
+            await new Promise<void>((resolve, reject) => {
+              const py = spawn('python3', [scriptPath, outPath, senderName, timeStr, avatarPath, targetText])
+              let stderr = ''
+              py.stderr.on('data', (d) => {
+                stderr += d.toString()
+              })
+              py.on('error', reject)
+              py.on('close', (code) => {
+                if (code === 0) resolve()
+                else reject(new Error(`generate-qc.py exited with code ${code}: ${stderr}`))
+              })
+            })
+
+            const rawWebp = await readFile(outPath)
+            const finalWebp = setStickerExif(rawWebp, 'Quote Chat', senderName)
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'sticker',
+              data: new Uint8Array(finalWebp),
+              mimeType: 'image/webp',
+            })
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'qc command failed')
+            await commandContext.reply('Waduh, gagal bikin quote chat stiker nih. Coba lagi ya~ 🙏')
+          } finally {
+            if (avatarPath !== 'none') {
+              await unlink(avatarPath).catch(() => {})
+            }
+            await unlink(outPath).catch(() => {})
+          }
+        },
+      })
+
+      // spack - multi-image sticker pack maker
+      context.commands.register({
+        name: 'spack',
+        aliases: ['stickerpack', 'pack'],
+        description: 'Kumpulkan beberapa gambar menjadi paket stiker (.wastickers)',
+        category: 'tools',
+        menuOrder: 23,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          const sub = commandContext.args[0]?.toLowerCase()
+          const remoteJid = commandContext.message.remoteJid
+
+          if (sub === 'done') {
+            const active = getSpackSession(remoteJid)
+            if (!active) {
+              await commandContext.reply(`Nggak ada sesi pack yang aktif nih. Mulai dengan:\n${commandContext.prefix}spack <nama pack>`)
+              return
+            }
+            await commandContext.reply('⏳ Lagi meracik sticker pack kamu nih... Tunggu sebentar ya~ ✨')
+            const result = await finishSpackSession(remoteJid)
+            if ('error' in result) {
+              if (result.error.startsWith('too_few')) {
+                const parts = result.error.split(':')
+                await commandContext.reply(`Jumlah stiker kurang nih! Minimal butuh ${parts[2]} stiker, sekarang baru ada ${parts[1]}. Tambah gambar lagi ya~ 🖼️`)
+              } else {
+                await commandContext.reply('Gagal menyelesaikan sticker pack. Coba mulai sesi baru ya~ 🙏')
+              }
+              return
+            }
+
+            if (!commandContext.whatsapp.sendMedia) {
+              await commandContext.reply('Fitur media tidak tersedia.')
+              return
+            }
+
+            // 1. Send .wastickers document for import to Sticker Maker / WAStickerApps
+            const safeFileName = `${result.packName.replace(/[^a-zA-Z0-9_-]/g, '_')}.wastickers`
+            await commandContext.whatsapp.sendMedia(remoteJid, {
+              kind: 'document',
+              data: new Uint8Array(result.wastickersBuffer),
+              mimeType: 'application/octet-stream',
+              fileName: safeFileName,
+              caption: `📦 *${result.packName}* (${result.count} stiker)\nFile ini bisa kamu buka di app Sticker Maker / WAStickerApps untuk langsung di-import ke koleksi stiker WA!`,
+            })
+
+            // 2. Also send the stickers directly to the chat
+            for (let i = 0; i < result.stickerBuffers.length; i++) {
+              const stickerData = setStickerExif(result.stickerBuffers[i], result.packName, 'Allybot')
+              await commandContext.whatsapp.sendMedia(remoteJid, {
+                kind: 'sticker',
+                data: new Uint8Array(stickerData),
+                mimeType: 'image/webp',
+              })
+              if (i < result.stickerBuffers.length - 1) {
+                await new Promise((r) => setTimeout(r, 400))
+              }
+            }
+            return
+          }
+
+          if (sub === 'cancel' || sub === 'batal') {
+            const cancelled = await cancelSpackSession(remoteJid)
+            if (cancelled) {
+              await commandContext.reply('Sesi pembuatan sticker pack berhasil dibatalkan. 👍')
+            } else {
+              await commandContext.reply('Nggak ada sesi sticker pack yang aktif.')
+            }
+            return
+          }
+
+          if (sub === 'status') {
+            const active = getSpackSession(remoteJid)
+            if (!active) {
+              await commandContext.reply('Nggak ada sesi sticker pack yang aktif.')
+              return
+            }
+            const { readdir } = await import('node:fs/promises')
+            const { join } = await import('node:path')
+            const dir = join('/tmp', `spack_${remoteJid.replace(/[^a-zA-Z0-9_-]/g, '_')}`)
+            const files = (await readdir(dir).catch(() => [])).filter((f) => f.startsWith('img_'))
+            await commandContext.reply(`📦 Pack: *${active.packName}*\nTotal terkumpul: *${files.length}/30* stiker\n\nKirim atau balas gambar dengan *${commandContext.prefix}spack add* untuk menambah, atau *${commandContext.prefix}spack done* jika sudah selesai.`)
+            return
+          }
+
+          if (sub === 'add') {
+            const active = getSpackSession(remoteJid)
+            if (!active) {
+              await commandContext.reply(`Belum ada sesi pack nih. Buka sesi dulu dengan:\n${commandContext.prefix}spack <nama pack>`)
+              return
+            }
+            const selected = sourceFor(commandContext)
+            if (!selected || selected.descriptor.kind !== 'image') {
+              await commandContext.reply(`Balas gambar atau kirim gambar dengan caption *${commandContext.prefix}spack add* ya~ 🖼️`)
+              return
+            }
+            if (!commandContext.whatsapp.downloadMedia) {
+              await commandContext.reply('Fitur unduh media belum tersedia.')
+              return
+            }
+            try {
+              const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+                maxBytes: MEDIA_INPUT_MAX_BYTES,
+                timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
+              })
+              const addRes = await addImageToSpack(remoteJid, Buffer.from(downloaded.data))
+              if ('error' in addRes) {
+                if (addRes.error === 'full') {
+                  await commandContext.reply('Koleksi sudah penuh (maksimal 30 stiker). Ketik *!spack done* untuk memproses!')
+                } else {
+                  await commandContext.reply('Gagal menambahkan gambar. Coba lagi ya~')
+                }
+                return
+              }
+              await commandContext.reply(`✅ Gambar ke-${addRes.count}/${addRes.max} berhasil disimpan! Balas gambar berikutnya dengan *${commandContext.prefix}spack add*, atau ketik *${commandContext.prefix}spack done* kalau sudah cukup.`)
+            } catch {
+              await commandContext.reply('Gagal mengunduh gambar nih, coba lagi ya~ 🙏')
+            }
+            return
+          }
+
+          // Otherwise, start a new session
+          const packName = commandContext.args.join(' ').trim()
+          if (!packName) {
+            await commandContext.reply(
+              `Format pembuatan Sticker Pack:\n` +
+              `• *${commandContext.prefix}spack <nama pack>* : Buka sesi baru\n` +
+              `• Balas gambar + *${commandContext.prefix}spack add* : Tambah ke pack (min 3, maks 30)\n` +
+              `• *${commandContext.prefix}spack status* : Cek jumlah stiker\n` +
+              `• *${commandContext.prefix}spack done* : Selesai & kirim pack\n` +
+              `• *${commandContext.prefix}spack cancel* : Batalkan sesi`
+            )
+            return
+          }
+
+          startSpackSession(remoteJid, commandContext.message.senderJid || '', packName)
+          await commandContext.reply(
+            `📦 Sesi pembuatan pack *${packName}* dibuka!\n\n` +
+            `Silakan reply gambar satu per satu dengan *${commandContext.prefix}spack add*.\n` +
+            `Minimal 3 stiker, maksimal 30 stiker.\n` +
+            `Ketik *${commandContext.prefix}spack done* jika sudah selesai!`
+          )
         },
       })
 

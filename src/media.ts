@@ -120,6 +120,35 @@ function videoToGifArgs(): readonly string[] {
   ]
 }
 
+function videoToStickerArgs(): readonly string[] {
+  return [
+    '-i', 'pipe:0',
+    '-t', '8',
+    '-vf', 'fps=12,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba',
+    '-an',
+    '-c:v', 'libwebp',
+    '-lossless', '0',
+    '-compression_level', '4',
+    '-q:v', '65',
+    '-loop', '0',
+    '-f', 'webp',
+    'pipe:1',
+  ]
+}
+
+function stickerToGifArgs(): readonly string[] {
+  return [
+    '-f', 'webp',
+    '-i', 'pipe:0',
+    '-an',
+    '-c:v', 'libx264',
+    '-pix_fmt', 'yuv420p',
+    '-movflags', 'frag_keyframe+empty_moov',
+    '-f', 'mp4',
+    'pipe:1',
+  ]
+}
+
 function mediaToAudioArgs(outputFormat: 'ogg' | 'mp3' = 'ogg'): readonly string[] {
   if (outputFormat === 'mp3') {
     return [
@@ -156,11 +185,17 @@ export class FfmpegMediaTransformer implements MediaTransformer {
     if (target === 'sticker' && inputKind === 'image' && inputMimeType.startsWith('image/')) {
       return this.runner(imageToStickerArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
+    if (target === 'sticker' && inputKind === 'video' && inputMimeType.startsWith('video/')) {
+      return this.runner(videoToStickerArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
+    }
     if (target === 'image' && inputKind === 'sticker' && inputMimeType === 'image/webp') {
       return this.runner(stickerToImageArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
     if (target === 'gif' && inputKind === 'video' && inputMimeType.startsWith('video/')) {
       return this.runner(videoToGifArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
+    }
+    if (target === 'gif' && inputKind === 'sticker' && inputMimeType === 'image/webp') {
+      return this.runner(stickerToGifArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
     if (target === 'audio' && (inputKind === 'video' || inputKind === 'audio') && (inputMimeType.startsWith('video/') || inputMimeType.startsWith('audio/'))) {
       return this.runner(mediaToAudioArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)

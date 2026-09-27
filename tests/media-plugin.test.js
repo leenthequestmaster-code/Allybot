@@ -252,4 +252,12 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   // 9. bratvid validation
   await harness.commands.dispatch(message('!bratvid', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !bratvid/)
+
+  // 10. qc validation
+  await harness.commands.dispatch(message('!qc', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Balas pesan teks dengan !qc/)
+
+  // 11. spack validation
+  await harness.commands.dispatch(message('!spack', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Format pembuatan Sticker Pack/)
 })
