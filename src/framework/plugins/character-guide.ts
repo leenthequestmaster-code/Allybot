@@ -17,6 +17,7 @@ import {
   formatTimeRp,
 } from '../../services/character-guide-service.js'
 import { calculateCharacterStats, renderStatsCard } from '../../services/character-stats.js'
+import { renderStatusCardImage } from '../../services/status-card-renderer.js'
 import { executeHunt, renderHuntReport } from '../../services/character-hunting.js'
 import type { EconomyService } from '../../services/economy-service.js'
 import { extractCommandPayload, parseCharacterSheet } from '../../services/character-sheet-parser.js'
@@ -658,7 +659,52 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
           const record = group ? await service.getActive(group, actor) : await service.getActiveForOwner(actor)
-          await commandContext.reply(renderCharacter(record))
+          if (!record) {
+            await commandContext.reply(renderCharacter(record))
+            return
+          }
+
+          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
+          let mediaSent = false
+          if (commandContext.whatsapp.sendMedia) {
+            try {
+              const imgBuffer = await renderStatusCardImage('character', {
+                name: record.name,
+                gender: record.gender,
+                age: record.age,
+                birthday: record.birthday,
+                race: record.race,
+                className: record.className,
+                element: record.element,
+                rank: record.rank,
+                level: record.level,
+                willOfPath: record.willOfPath,
+                spirit: record.spirit,
+                crew: record.crew,
+                profession: record.profession,
+                origin: record.origin,
+                titles: record.titles,
+                motto: record.motto,
+                stats: stats as unknown as Record<string, unknown>,
+              }, commandContext.logger)
+              if (imgBuffer) {
+                await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                  kind: 'image',
+                  data: new Uint8Array(imgBuffer),
+                  mimeType: 'image/png',
+                  caption: `[ ALLYSSEA SYSTEM · CITIZEN DOSSIER ]\n*${record.name}* · ${record.race} ${record.className}\nRank ${record.rank} (Level ${record.level})\n\nKetik *!stats* untuk rincian matriks tempur.`,
+                })
+                mediaSent = true
+              }
+            } catch (err) {
+              commandContext.logger.warn({ err }, 'failed to send character card media, fallback to text')
+            }
+          }
+
+          if (!mediaSent) {
+            await commandContext.reply(renderCharacter(record))
+          }
+
           const pendingDelivery = await service.pendingDeliveryForOwner(actor)
           if (pendingDelivery) {
             try {
@@ -701,7 +747,46 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           const record = await service.getActiveForOwner(actor)
           if (!record) return void await commandContext.reply('Kamu belum memiliki Character aktif. Ketik !daftar untuk membuat karakter.')
           const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
-          await commandContext.reply(renderStatsCard(record.name, record.race, record.className, record.rank, record.level, stats))
+
+          let mediaSent = false
+          if (commandContext.whatsapp.sendMedia) {
+            try {
+              const imgBuffer = await renderStatusCardImage('stats', {
+                name: record.name,
+                gender: record.gender,
+                age: record.age,
+                birthday: record.birthday,
+                race: record.race,
+                className: record.className,
+                element: record.element,
+                rank: record.rank,
+                level: record.level,
+                willOfPath: record.willOfPath,
+                spirit: record.spirit,
+                crew: record.crew,
+                profession: record.profession,
+                origin: record.origin,
+                titles: record.titles,
+                motto: record.motto,
+                stats: stats as unknown as Record<string, unknown>,
+              }, commandContext.logger)
+              if (imgBuffer) {
+                await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                  kind: 'image',
+                  data: new Uint8Array(imgBuffer),
+                  mimeType: 'image/png',
+                  caption: `[ ALLYSSEA SYSTEM · TACTICAL MATRIX ]\n*${record.name}* · Rank ${record.rank} (Level ${record.level})\nHP: ${stats.hp}/${stats.maxHp} | SE: ${stats.se}/${stats.maxSe}\nSisa Stat Token: *${stats.statTokens} Token* ${stats.statTokens > 0 ? '(Gunakan !alokasi)' : ''}`,
+                })
+                mediaSent = true
+              }
+            } catch (err) {
+              commandContext.logger.warn({ err }, 'failed to send stats card media, fallback to text')
+            }
+          }
+
+          if (!mediaSent) {
+            await commandContext.reply(renderStatsCard(record.name, record.race, record.className, record.rank, record.level, stats))
+          }
         },
       })
 
