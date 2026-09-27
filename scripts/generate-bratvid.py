@@ -25,26 +25,42 @@ def make_bratvid(text: str, out_path: str, theme: str = "white"):
             frame_img.save(frame_path, "PNG")
             frame_idx += 1
 
-        # 2. Hold final frame (~1.2s at 2.8fps -> ~3 additional frames)
+        # 2. Hold final frame (~1.2s at 2.8fps -> ~3-4 additional frames)
         last_frame_path = os.path.join(td, f"f{frame_idx - 1:04d}.png")
-        for _ in range(3):
+        for _ in range(4):
             hold_path = os.path.join(td, f"f{frame_idx:04d}.png")
             with open(last_frame_path, "rb") as rf, open(hold_path, "wb") as wf:
                 wf.write(rf.read())
             frame_idx += 1
 
-        # 3. Compile with ffmpeg
-        cmd = [
-            "ffmpeg", "-y",
-            "-framerate", "2.8",
-            "-i", os.path.join(td, "f%04d.png"),
-            "-c:v", "libx264",
-            "-pix_fmt", "yuv420p",
-            "-crf", "23",
-            "-preset", "veryfast",
-            "-movflags", "+faststart",
-            out_path
-        ]
+        # 3. Compile with ffmpeg based on target extension
+        is_webp = out_path.lower().endswith(".webp")
+        if is_webp:
+            cmd = [
+                "ffmpeg", "-y",
+                "-framerate", "2.8",
+                "-i", os.path.join(td, "f%04d.png"),
+                "-vcodec", "libwebp",
+                "-lossless", "0",
+                "-compression_level", "4",
+                "-q:v", "70",
+                "-loop", "0",
+                "-an",
+                out_path
+            ]
+        else:
+            cmd = [
+                "ffmpeg", "-y",
+                "-framerate", "2.8",
+                "-i", os.path.join(td, "f%04d.png"),
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                "-crf", "23",
+                "-preset", "veryfast",
+                "-movflags", "+faststart",
+                out_path
+            ]
+
         subprocess.run(cmd, check=True, capture_output=True)
 
 if __name__ == "__main__":
@@ -66,6 +82,9 @@ if __name__ == "__main__":
             theme = "black"
         elif a in ("--white", "-w"):
             theme = "white"
+        elif a in ("--video", "--mp4", "-v"):
+            # Flag handled in wrapper or caller
+            pass
         else:
             filtered_words.append(a)
 

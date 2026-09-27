@@ -316,18 +316,21 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-      // bratvid - animated word-by-word kinetic typography video
+      // bratvid - animated word-by-word kinetic typography sticker / video
       context.commands.register({
         name: 'bratvid',
-        aliases: ['bvid', 'bratvideo'],
-        description: 'Buat video animasi teks brat kata demi kata',
+        aliases: ['bvid', 'bratvideo', 'bratanim'],
+        description: 'Buat stiker animasi atau video teks brat kata demi kata',
         category: 'tools',
         menuOrder: 17,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
-          const text = commandContext.args.join(' ').trim()
+          const rawArgs = commandContext.args
+          const wantsVideo = rawArgs.some((a) => a === '--video' || a === '--mp4' || a === '-v')
+          const text = rawArgs.filter((a) => !a.startsWith('--') && !a.startsWith('-')).join(' ').trim()
+
           if (!text) {
-            await commandContext.reply(`Format: ${commandContext.prefix}bratvid <teks>\nContoh: ${commandContext.prefix}bratvid i am so brat`)
+            await commandContext.reply(`Format: ${commandContext.prefix}bratvid <teks>\nContoh: ${commandContext.prefix}bratvid i am so brat\nOpsi: Tambahkan --green, --black, atau --video`)
             return
           }
           if (text.length > 150) {
@@ -339,11 +342,13 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          await commandContext.reply('⏳ Lagi ngerender video brat nih... Sabar ya~ ✨')
+          const mediaTypeLabel = wantsVideo ? 'video' : 'stiker animasi'
+          await commandContext.reply(`⏳ Lagi ngerender ${mediaTypeLabel} brat nih... Sabar ya~ ✨`)
 
           try {
+            const ext = wantsVideo ? 'mp4' : 'webp'
             const tmpId = `bvid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-            const mp4Path = `/tmp/${tmpId}.mp4`
+            const outPath = `/tmp/${tmpId}.${ext}`
 
             const { spawn } = await import('node:child_process')
             const { readFile, unlink } = await import('node:fs/promises')
@@ -351,7 +356,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
 
             const scriptPath = join(process.cwd(), 'scripts', 'generate-bratvid.py')
             await new Promise<void>((resolve, reject) => {
-              const py = spawn('python3', [scriptPath, mp4Path, ...commandContext.args])
+              const py = spawn('python3', [scriptPath, outPath, ...commandContext.args])
               py.on('error', reject)
               py.on('close', (code) => {
                 if (code === 0) resolve()
@@ -360,23 +365,31 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               py.stdin.end()
             })
 
-            const data = await readFile(mp4Path)
-            await unlink(mp4Path).catch(() => {})
+            const data = await readFile(outPath)
+            await unlink(outPath).catch(() => {})
 
             if (data.byteLength === 0 || data.byteLength > 15 * 1024 * 1024) {
-              await commandContext.reply('Hasil video terlalu besar atau gagal dibuat.')
+              await commandContext.reply('Hasil media terlalu besar atau gagal dibuat.')
               return
             }
 
-            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-              kind: 'video',
-              data: new Uint8Array(data),
-              mimeType: 'video/mp4',
-              gifPlayback: true,
-            })
+            if (wantsVideo) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'video',
+                data: new Uint8Array(data),
+                mimeType: 'video/mp4',
+                gifPlayback: true,
+              })
+            } else {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'sticker',
+                data: new Uint8Array(data),
+                mimeType: 'image/webp',
+              })
+            }
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'bratvid command failed')
-            await commandContext.reply('Waduh, gagal ngerender video brat nih. Coba lagi nanti ya~ 🙏')
+            await commandContext.reply('Waduh, gagal ngerender stiker brat nih. Coba lagi nanti ya~ 🙏')
           }
         },
       })

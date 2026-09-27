@@ -54,13 +54,20 @@ async function verifyAll() {
   console.log(`Brat green sticker size: ${greenData.length} bytes`)
   await unlink(bratGreenPath).catch(() => {})
 
-  console.log('--- 3. Testing Bratvid Video Generator ---')
-  const bvidPath = '/tmp/verify_bvid.mp4'
-  await runCommand('python3', [join(process.cwd(), 'scripts', 'generate-bratvid.py'), bvidPath, 'i', 'am', 'so', 'brat'])
-  const vidData = await readFile(bvidPath)
+  console.log('--- 3. Testing Bratvid Generator (Sticker WebP & MP4) ---')
+  const bvidStickerPath = '/tmp/verify_bvid.webp'
+  await runCommand('python3', [join(process.cwd(), 'scripts', 'generate-bratvid.py'), bvidStickerPath, 'i', 'am', 'so', 'brat'])
+  const stickerData = await readFile(bvidStickerPath)
+  assert.ok(stickerData.length > 1000, 'Bratvid animated sticker generated')
+  console.log(`Bratvid animated sticker size: ${stickerData.length} bytes`)
+  await unlink(bvidStickerPath).catch(() => {})
+
+  const bvidMp4Path = '/tmp/verify_bvid.mp4'
+  await runCommand('python3', [join(process.cwd(), 'scripts', 'generate-bratvid.py'), bvidMp4Path, 'i', 'am', 'so', 'brat'])
+  const vidData = await readFile(bvidMp4Path)
   assert.ok(vidData.length > 1000, 'Bratvid MP4 generated')
   console.log(`Bratvid MP4 size: ${vidData.length} bytes`)
-  await unlink(bvidPath).catch(() => {})
+  await unlink(bvidMp4Path).catch(() => {})
 
   console.log('All sticker generator verifications passed successfully! 🚀')
 }
