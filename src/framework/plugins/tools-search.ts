@@ -1,4 +1,5 @@
 import type { CommandContext, Plugin } from '../contracts.js'
+import { searchIllust, fetchImage } from '../../services/pixiv.js'
 
 const SEARCH_COOLDOWN_MS = 5_000
 const MAX_QUERY_LENGTH = 100
@@ -310,6 +311,8 @@ export const toolsSearchPlugin: Plugin = {
     })
 
     // 7. Pixiv
+    const lastPixivQueryByChat = new Map<string, string>()
+
     context.commands.register({
       name: 'pixiv',
       description: 'Cari ilustrasi di Pixiv',
@@ -317,12 +320,83 @@ export const toolsSearchPlugin: Plugin = {
       menuOrder: 7,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
-        const query = boundText(commandContext.args.join(' '))
-        if (!query) {
-          await commandContext.reply(usage(commandContext, 'pixiv', '<kata kunci>') + '\nContoh: `!pixiv fate saber`')
-          return
+        let page = 1
+        const rawArgs = commandContext.args
+        const queryTokens: string[] = []
+
+        for (let i = 0; i < rawArgs.length; i++) {
+          const arg = rawArgs[i]
+          if (arg === '--page' || arg === '-p') {
+            const nextArg = rawArgs[i + 1]
+            const parsed = parseInt(nextArg, 10)
+            if (!isNaN(parsed) && parsed > 0) {
+              page = parsed
+              i++
+            }
+          } else if (arg.startsWith('--page=')) {
+            const parsed = parseInt(arg.slice(7), 10)
+            if (!isNaN(parsed) && parsed > 0) {
+              page = parsed
+            }
+          } else {
+            queryTokens.push(arg)
+          }
         }
-        await commandContext.reply(`🎨 *Pixiv Search*\nQuery: ${query}\n\nhttps://www.pixiv.net/tags.php?tag=${encodeURIComponent(query)}`)
+
+        const chatJid = commandContext.message.remoteJid
+        let query = boundText(queryTokens.join(' '))
+
+        if (!query) {
+          const remembered = lastPixivQueryByChat.get(chatJid)
+          if (remembered) {
+            query = remembered
+          } else {
+            await commandContext.reply(usage(commandContext, 'pixiv', '<kata kunci> [--page N]') + '\nContoh: `!pixiv miku` atau `!pixiv miku --page 2`')
+            return
+          }
+        } else {
+          lastPixivQueryByChat.set(chatJid, query)
+        }
+
+        try {
+          const result = await searchIllust(query, page)
+          if (!result.items || result.items.length === 0) {
+            await commandContext.reply(`Tidak ada hasil ilustrasi yang ditemukan untuk "${query}".`)
+            return
+          }
+
+          for (const item of result.items) {
+            const tagsStr = item.tags.length > 0
+              ? item.tags.slice(0, 5).map((t) => `#${t.replace(/[\s#]+/g, '_')}`).join(' ')
+              : ''
+            const caption = `${item.title}\nby ${item.author}${tagsStr ? '\n' + tagsStr : ''}\n#${item.id}`
+
+            const firstImageUrl = item.imageUrls[0]
+            if (!firstImageUrl) continue
+
+            const imageBuffer = await fetchImage(firstImageUrl, {
+              logger: commandContext.logger,
+              illustId: item.id,
+            })
+
+            if (!imageBuffer) continue
+
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(chatJid, {
+                kind: 'image',
+                data: new Uint8Array(imageBuffer),
+                mimeType: 'image/jpeg',
+                caption,
+              })
+            } else {
+              await commandContext.reply(`${caption}\n${firstImageUrl}`)
+            }
+          }
+        } catch (error) {
+          commandContext.logger.warn({ error }, 'pixiv command failed')
+          const msg = error instanceof Error ? error.message : 'terjadi kesalahan saat mencari Pixiv.'
+          await commandContext.reply(`Pencarian Pixiv gagal: ${msg}`)
+        }
       },
     })
   },
