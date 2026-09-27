@@ -1,5 +1,6 @@
 import type { CommandContext, Plugin } from '../contracts.js'
 import { searchIllust, fetchImage } from '../../services/pixiv.js'
+import { searchPinterest, fetchBuffer } from '../../services/pinterest.js'
 
 const SEARCH_COOLDOWN_MS = 5_000
 const MAX_QUERY_LENGTH = 100
@@ -301,12 +302,75 @@ export const toolsSearchPlugin: Plugin = {
       menuOrder: 6,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
-        const query = boundText(commandContext.args.join(' '))
-        if (!query) {
-          await commandContext.reply(usage(commandContext, 'pin', '<kata kunci>') + '\nContoh: `!pin anime girl`')
+        const rawArgs = commandContext.args
+        if (rawArgs.length === 0) {
+          await commandContext.reply(usage(commandContext, 'pin', '<kata kunci> [jumlah 1-5]') + '\nContoh: `!pin cute cats` atau `!pin miku 5`')
           return
         }
-        await commandContext.reply(`🔍 *Pinterest Search*\nQuery: ${query}\n\nhttps://www.pinterest.com/search/pins/?q=${encodeURIComponent(query)}`)
+
+        let limit = 3
+        const queryParts = [...rawArgs]
+        const lastArg = rawArgs[rawArgs.length - 1]
+        if (/^[1-5]$/.test(lastArg)) {
+          limit = parseInt(lastArg, 10)
+          queryParts.pop()
+        }
+
+        const query = boundText(queryParts.join(' '))
+        if (!query) {
+          await commandContext.reply('Query pencarian tidak boleh kosong.')
+          return
+        }
+
+        const chatJid = commandContext.message.remoteJid
+        await commandContext.reply('⏳ Lagi nyari dan ngambil gambar dari Pinterest nih... Sabar ya~ 📌')
+
+        try {
+          const results = await searchPinterest(query, limit)
+          if (!results || results.length === 0) {
+            await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pinterest nih, coba kata kunci lain ya~ 🔍`)
+            return
+          }
+
+          let sent = 0
+          for (const pin of results) {
+            if (pin.mediaType !== 'image') continue
+
+            const buf = await fetchBuffer(pin.imageUrl, 15_000, {
+              logger: commandContext.logger,
+              pinId: pin.id,
+            })
+            if (!buf) continue
+
+            const captionLines: string[] = []
+            if (pin.title) captionLines.push(pin.title.slice(0, 120))
+            if (pin.author) captionLines.push(`by @${pin.author}`)
+            captionLines.push(`pinterest.com/pin/${pin.id}`)
+            const caption = captionLines.join('\n')
+
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(chatJid, {
+                kind: 'image',
+                data: new Uint8Array(buf),
+                mimeType: 'image/jpeg',
+                caption,
+              })
+            } else {
+              await commandContext.reply(`${caption}\n${pin.imageUrl}`)
+            }
+
+            sent++
+            if (sent >= limit) break
+            await new Promise((resolve) => setTimeout(resolve, 1000))
+          }
+
+          if (sent === 0) {
+            await commandContext.reply(`Hasil ketemu tapi gambarnya gagal diunduh nih: ${query}`)
+          }
+        } catch (error) {
+          commandContext.logger.warn({ error }, 'pinterest command failed')
+          await commandContext.reply('Waduh, gagal ngambil gambar dari Pinterest nih. Coba sebentar lagi ya~ 🙏')
+        }
       },
     })
 
