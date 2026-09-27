@@ -1,6 +1,8 @@
 import { FfmpegMediaTransformer, MEDIA_TRANSFORM_HARD_OUTPUT_MAX_BYTES, MEDIA_TRANSFORM_MAX_OUTPUT_BYTES, MediaTransformError, type MediaTransformer } from '../../media.js'
 import type { CommandContext, CoreMediaDescriptor, Plugin, WhatsAppMediaSource } from '../contracts.js'
 import { randomInt } from 'node:crypto'
+import { resolveTikWm, resolveMedia, fetchMediaBuffer, extractMediaUrl } from '../../services/multidl.js'
+import { upscaleImage } from '../../services/upscaler.js'
 
 const MEDIA_INPUT_MAX_BYTES = 3 * 1024 * 1024
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 20_000
@@ -672,6 +674,214 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'yt2 download failed')
             await commandContext.reply(`Waduh, ${kind === 'audio' ? 'audio' : 'video'}-nya gagal diambil nih. Coba link yang lain ya~ 🙏`)
+          }
+        },
+      })
+
+      // 29. !tik / !tt / !tiktok
+      context.commands.register({
+        name: 'tik',
+        aliases: ['tt', 'tiktok'],
+        description: 'Unduh video TikTok tanpa watermark',
+        category: 'tools',
+        menuOrder: 29,
+        cooldownMs: 15_000,
+        handler: async (commandContext) => {
+          const rawText = commandContext.args.join(' ')
+          const detected = extractMediaUrl(rawText)
+          const targetUrl = detected?.url || commandContext.args[0]?.trim()
+
+          if (!targetUrl || !/tiktok\.com/i.test(targetUrl)) {
+            await commandContext.reply(`Format: ${commandContext.prefix}tik <url tiktok>\nContoh: ${commandContext.prefix}tik https://vt.tiktok.com/xxxx/`)
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) return
+          await commandContext.reply('⏳ Lagi ngunduh video TikTok nih... Sabar ya~ 🎬')
+
+          try {
+            const info = await resolveTikWm(targetUrl)
+            if (!info || !info.playUrl) {
+              await commandContext.reply('Waduh, video TikTok ini nggak bisa diambil nih. Pastikan linknya publik ya~ 🙏')
+              return
+            }
+
+            const buf = await fetchMediaBuffer(info.playUrl, 25 * 1024 * 1024)
+            if (!buf) {
+              await commandContext.reply('Waduh, ukuran video TikTok terlalu besar (maksimal 25 MB) atau gagal diunduh ya~ 🙏')
+              return
+            }
+
+            const captionParts: string[] = []
+            if (info.title) captionParts.push(info.title.slice(0, 100))
+            if (info.author) captionParts.push(`@${info.author}`)
+            if (info.id) captionParts.push(`tiktok.com/video/${info.id}`)
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'video',
+              data: new Uint8Array(buf),
+              mimeType: 'video/mp4',
+              caption: captionParts.join('\n'),
+            })
+          } catch (error) {
+            commandContext.logger.warn({ error }, 'tiktok video download failed')
+            await commandContext.reply('Waduh, gagal ngambil video TikTok nih. Coba sebentar lagi ya~ 🙏')
+          }
+        },
+      })
+
+      // 30. !tik2mp3 / !ttmp3 / !tiktokaudio
+      context.commands.register({
+        name: 'tik2mp3',
+        aliases: ['ttmp3', 'tiktokaudio', 'tikmp3'],
+        description: 'Unduh audio/musik dari TikTok',
+        category: 'tools',
+        menuOrder: 30,
+        cooldownMs: 15_000,
+        handler: async (commandContext) => {
+          const rawText = commandContext.args.join(' ')
+          const detected = extractMediaUrl(rawText)
+          const targetUrl = detected?.url || commandContext.args[0]?.trim()
+
+          if (!targetUrl || !/tiktok\.com/i.test(targetUrl)) {
+            await commandContext.reply(`Format: ${commandContext.prefix}tik2mp3 <url tiktok>\nContoh: ${commandContext.prefix}tik2mp3 https://vt.tiktok.com/xxxx/`)
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) return
+          await commandContext.reply('⏳ Lagi ngunduh audio TikTok nih... Sabar ya~ 🎵')
+
+          try {
+            const info = await resolveTikWm(targetUrl)
+            if (!info || !info.musicUrl) {
+              await commandContext.reply('Waduh, audio TikTok ini nggak tersedia atau linknya tidak valid ya~ 🙏')
+              return
+            }
+
+            const buf = await fetchMediaBuffer(info.musicUrl, 10 * 1024 * 1024)
+            if (!buf) {
+              await commandContext.reply('Waduh, audio TikTok gagal diunduh atau ukurannya terlalu besar ya~ 🙏')
+              return
+            }
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'audio',
+              data: new Uint8Array(buf),
+              mimeType: 'audio/mp4',
+              fileName: `${info.id || 'tiktok_audio'}.mp3`,
+            })
+          } catch (error) {
+            commandContext.logger.warn({ error }, 'tiktok audio download failed')
+            await commandContext.reply('Waduh, gagal ngambil audio TikTok nih. Coba sebentar lagi ya~ 🙏')
+          }
+        },
+      })
+
+      // 31. !dl / !download / !viddl (Universal Downloader)
+      context.commands.register({
+        name: 'dl',
+        aliases: ['download', 'viddl'],
+        description: 'Unduh video dari TikTok, YouTube, Instagram, X/Twitter, FB, Reddit',
+        category: 'tools',
+        menuOrder: 31,
+        cooldownMs: 20_000,
+        handler: async (commandContext) => {
+          const rawText = commandContext.args.join(' ')
+          const detected = extractMediaUrl(rawText)
+
+          if (!detected) {
+            await commandContext.reply(`Format: ${commandContext.prefix}dl <url>\n\nPlatform yang didukung:\n• TikTok\n• YouTube / Shorts\n• Instagram Reels\n• Twitter / X\n• Facebook & Reddit`)
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) return
+          const { url, platform } = detected
+          await commandContext.reply(`⏳ Lagi mendeteksi dan ngunduh video [${platform.toUpperCase()}] nih... Sabar ya~ 📥`)
+
+          try {
+            if (platform === 'youtube') {
+              const result = await ytDownloader(url, 'video')
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'video',
+                data: result.data,
+                mimeType: result.mimeType,
+                fileName: 'video.mp4',
+              })
+              return
+            }
+
+            const info = await resolveMedia(url, platform)
+            if (!info || !info.playUrl) {
+              await commandContext.reply(`Waduh, video [${platform}] ini nggak bisa diambil nih. Pastikan kontennya bersifat publik dan tidak diprivat ya~ 🙏`)
+              return
+            }
+
+            const buf = await fetchMediaBuffer(info.playUrl, 25 * 1024 * 1024)
+            if (!buf) {
+              await commandContext.reply(`Waduh, video [${platform}] terlalu besar (maksimal 25 MB) atau gagal diunduh ya~ 🙏`)
+              return
+            }
+
+            const captionParts: string[] = [`[${platform.toUpperCase()}]`]
+            if (info.title) captionParts.push(info.title.slice(0, 100))
+            if (info.author) captionParts.push(`@${info.author}`)
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'video',
+              data: new Uint8Array(buf),
+              mimeType: 'video/mp4',
+              caption: captionParts.join('\n'),
+            })
+          } catch (error) {
+            commandContext.logger.warn({ error, platform }, 'universal dl failed')
+            await commandContext.reply(`Waduh, gagal ngambil video [${platform}] nih. Coba sebentar lagi ya~ 🙏`)
+          }
+        },
+      })
+
+      // 32. !hd / !remini / !upscale
+      context.commands.register({
+        name: 'hd',
+        aliases: ['remini', 'upscale'],
+        description: 'Tingkatkan kualitas gambar menjadi HD / jernih',
+        category: 'tools',
+        menuOrder: 32,
+        cooldownMs: 15_000,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected || (selected.descriptor.kind !== 'image' && selected.descriptor.kind !== 'sticker')) {
+            await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}hd, atau balas gambar lalu ketik ${commandContext.prefix}hd ya~ ✨`)
+            return
+          }
+
+          if (selected.descriptor.sizeBytes && selected.descriptor.sizeBytes > 5 * 1024 * 1024) {
+            await commandContext.reply('Ukuran gambar terlalu besar nih, maksimal 5 MB ya~ 📁')
+            return
+          }
+
+          if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) return
+          await commandContext.reply('⏳ Lagi memproses HD nih, tunggu sebentar ya~ ✨')
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 5 * 1024 * 1024,
+              timeoutMs: 25_000,
+            })
+
+            const upscaled = await upscaleImage(Buffer.from(downloaded.data), {
+              mimeType: downloaded.mimeType,
+            })
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'image',
+              data: new Uint8Array(upscaled.buffer),
+              mimeType: 'image/jpeg',
+              caption: `HD • ${(upscaled.latencyMs / 1000).toFixed(1)}s`,
+            })
+          } catch (error) {
+            commandContext.logger.warn({ error }, 'hd upscale failed')
+            const msg = error instanceof Error ? error.message : 'Gagal memproses gambar.'
+            await commandContext.reply(`Waduh, proses HD belum berhasil nih: ${msg} 🙏`)
           }
         },
       })

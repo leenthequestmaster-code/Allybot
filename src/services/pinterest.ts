@@ -27,6 +27,28 @@ export interface PinterestSearchOptions {
   readonly randomize?: boolean
 }
 
+const PIN_CACHE_TTL_MS = 600_000 // 10 minutes
+const PIN_CACHE_MAX_ENTRIES = 500
+const _pinCache = new Map<string, { ts: number; data: PinterestPin[] }>()
+
+function getCachedPins(key: string): PinterestPin[] | null {
+  const entry = _pinCache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.ts > PIN_CACHE_TTL_MS) {
+    _pinCache.delete(key)
+    return null
+  }
+  return entry.data
+}
+
+function putCachedPins(key: string, data: PinterestPin[]): void {
+  if (_pinCache.size >= PIN_CACHE_MAX_ENTRIES) {
+    const oldestKey = _pinCache.keys().next().value
+    if (oldestKey) _pinCache.delete(oldestKey)
+  }
+  _pinCache.set(key, { ts: Date.now(), data })
+}
+
 export async function searchPinterest(
   query: string,
   options?: PinterestSearchOptions | number,
@@ -35,6 +57,20 @@ export async function searchPinterest(
   const limit = opts.limit || 5
   const shouldRandomize = Boolean(opts.randomize)
   const pageSize = shouldRandomize ? 25 : Math.min(Math.max(1, limit), 25)
+
+  const cacheKey = `${query.trim().toLowerCase()}::${pageSize}`
+  const cached = getCachedPins(cacheKey)
+  if (cached) {
+    const pool = [...cached]
+    if (shouldRandomize && pool.length > 1) {
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[pool[i], pool[j]] = [pool[j], pool[i]]
+      }
+    }
+    return pool
+  }
+
   const sourceUrl = `/search/pins/?q=${encodeURIComponent(query)}`
   const searchOptions = {
     query,
@@ -109,6 +145,10 @@ export async function searchPinterest(
       imageUrl: orig,
       mediaType,
     })
+  }
+
+  if (out.length > 0) {
+    putCachedPins(cacheKey, out)
   }
 
   return out
