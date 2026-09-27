@@ -117,6 +117,9 @@ test('AFK plugin persists state, forwards every mention privately, and auto-unse
   assert.deepEqual(core.sent.at(-1)?.options?.mentions, [bobJid])
   assert.doesNotMatch(core.sent.at(-1)?.text ?? '', /aku balas pesanmu/)
 
+  // Wait for 3000ms command cooldown to expire before requesting status
+  await new Promise((resolve) => setTimeout(resolve, 3100))
+
   await core.emitMessage(message('private-status', aliceJid, groupJid, '!afk status'))
   assert.equal(core.sent.at(-1)?.remoteJid, aliceJid)
   assert.match(core.sent.at(-1)?.text ?? '', /makan malam/)

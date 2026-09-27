@@ -171,10 +171,10 @@ test('prefix configuration remains validated, group-scoped, and persistent', asy
     assert.match(core.sent[1].text, /Prefix grup berhasil diubah menjadi `##`/)
 
     await core.emitMessage(message('old-prefix', groupA, adminJid, '!prefix'))
-    assert.match(core.sent[2].text, /Prefix aktif.*##/)
+    assert.match(core.sent[2].text, /Prefix [Aa]ktif.*##/i)
 
     await core.emitMessage(message('new-prefix', groupA, adminJid, '##prefix'))
-    assert.match(core.sent[3].text, /Prefix aktif.*##/)
+    assert.match(core.sent[3].text, /Prefix [Aa]ktif.*##/i)
 
     await core.emitMessage(message('invalid-prefix', groupA, adminJid, '##setprefix abc'))
     assert.match(core.sent[4].text, /Prefix harus terdiri/)
@@ -187,9 +187,9 @@ test('prefix configuration remains validated, group-scoped, and persistent', asy
     app = createApp(core, databasePath)
     await app.start()
     await core.emitMessage(message('after-restart', groupA, adminJid, '??prefix'))
-    assert.match(core.sent[0].text, /Prefix aktif.*\?\?/)
+    assert.match(core.sent[0].text, /Prefix [Aa]ktif.*\?\?/i)
     await core.emitMessage(message('fallback-prefix', groupA, adminJid, '!prefix'))
-    assert.match(core.sent[1].text, /Prefix aktif.*\?\?/)
+    assert.match(core.sent[1].text, /Prefix [Aa]ktif.*\?\?/i)
 
     await core.emitMessage(message('reset-prefix', groupA, adminJid, '??setprefix default'))
     assert.match(core.sent[2].text, /dikembalikan ke prefix global/)

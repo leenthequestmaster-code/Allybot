@@ -16,6 +16,9 @@ import { loadConfig } from '../dist/config.js'
 
 const logger = pino({ level: 'silent' })
 
+delete process.env.AI_MODEL
+delete process.env.AI_FALLBACK_MODEL
+
 class FakeCore {
   isConnected = false
   userJid = 'bot@s.whatsapp.net'

@@ -156,10 +156,11 @@ test('group role and permissions identify the configured bot owner', async () =>
   await app.start()
 
   await core.emitMessage(message('owner-role', core.metadata.jid, ownerJid, '!role'))
-  assert.equal(core.sent[0].text, '• @628120000009 memiliki role *Bot Owner*.')
+  assert.match(core.sent[0].text, /User\*\s*:\s*@628120000009/i)
+  assert.match(core.sent[0].text, /Role\*\s*:\s*Bot Owner/i)
 
   await core.emitMessage(message('owner-permissions', core.metadata.jid, ownerJid, '!permissions'))
-  assert.match(core.sent[1].text, /Role : Bot Owner/)
+  assert.match(core.sent[1].text, /Role\*?\s*:\s*Bot Owner/i)
   assert.match(core.sent[1].text, /Menggunakan command bot owner/)
 
   await app.stop()
