@@ -1,5 +1,5 @@
 import { jidNormalizedUser } from '@whiskeysockets/baileys'
-import { permissionNames } from '../../permissions.js'
+import { permissionNames, isSameJid } from '../../permissions.js'
 import type {
   CommandContext,
   CoreMessage,
@@ -64,6 +64,29 @@ function isGroupOwner(metadata: WhatsAppGroupMetadata, jid: string | undefined):
   return p?.role === 'superadmin'
 }
 
+function checkActionGuards(
+  metadata: WhatsAppGroupMetadata,
+  target: string,
+  actor: string,
+  botJid?: string,
+  botOwnerJid?: string,
+): { allowed: boolean; reason?: string } {
+  if (botJid && isSameJid(target, botJid)) {
+    return { allowed: false, reason: 'Aksi ini tidak bisa dilakukan terhadap bot sendiri! 🤖' }
+  }
+  if (botOwnerJid && isSameJid(target, botOwnerJid)) {
+    return { allowed: false, reason: 'Bot Owner tidak dapat ditindak! 👑🛡️' }
+  }
+  if (isGroupOwner(metadata, target)) {
+    return { allowed: false, reason: 'Owner grup tidak dapat ditindak nih~ 👑😅' }
+  }
+  const isActorOwner = isGroupOwner(metadata, actor) || (botOwnerJid && isSameJid(actor, botOwnerJid))
+  if (isAdmin(metadata, target) && !isActorOwner && !isSameJid(target, actor)) {
+    return { allowed: false, reason: 'Sesama admin grup tidak dapat saling menindak via bot! 🛡️' }
+  }
+  return { allowed: true }
+}
+
 function parseDuration(input: string): { ms: number; text: string } | undefined {
   const match = input.trim().match(/^(\d+)\s*(s|m|h|d|detik|menit|jam|hari)?$/i)
   if (!match) return undefined
@@ -126,8 +149,9 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
 
-          if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat dikeluarkan nih~ 👑😅')
+          const guard = checkActionGuards(metadata, target, actor ?? 'unknown', botJid, commandContext.config.botOwnerJid)
+          if (!guard.allowed) {
+            await commandContext.reply(guard.reason!)
             return
           }
 
@@ -139,6 +163,8 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
 
           try {
             await commandContext.whatsapp.groupParticipantsUpdate!(group, [target], 'remove')
+            const suite = getSuiteService(commandContext.services)
+            suite.recordAudit(group, actor ?? 'unknown', 'kick', target)
             await commandContext.reply(`👋 @${normalizePhone(target)} telah dikeluarkan dari grup.`, { mentions: [target] })
           } catch (error) {
             commandContext.logger.warn({ error }, 'failed to kick member')
@@ -178,16 +204,18 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
 
-          if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat di-ban nih~ 👑😅')
+          const actor = commandContext.message.senderJid ?? botJid ?? 'system'
+          const guard = checkActionGuards(metadata, target, actor, botJid, commandContext.config.botOwnerJid)
+          if (!guard.allowed) {
+            await commandContext.reply(guard.reason!)
             return
           }
 
           const reason = commandContext.args.slice(1).join(' ').trim() || 'Melanggar aturan grup'
           const suite = getSuiteService(commandContext.services)
-          const actor = commandContext.message.senderJid ?? botJid ?? 'system'
 
           suite.ban(group, target, actor, reason)
+          suite.recordAudit(group, actor, 'ban', target, reason)
 
           try {
             const p = getParticipant(metadata, target)
@@ -256,14 +284,16 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
 
-          if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat di-mute nih~ 👑😅')
+          const actor = commandContext.message.senderJid ?? commandContext.whatsapp.userJid ?? 'system'
+          const guard = checkActionGuards(metadata, target, actor, commandContext.whatsapp.userJid, commandContext.config.botOwnerJid)
+          if (!guard.allowed) {
+            await commandContext.reply(guard.reason!)
             return
           }
 
           const suite = getSuiteService(commandContext.services)
-          const actor = commandContext.message.senderJid ?? commandContext.whatsapp.userJid ?? 'system'
           suite.mute(group, target, actor, duration.ms)
+          suite.recordAudit(group, actor, 'mute', target, duration.text)
 
           await commandContext.reply(`🔇 @${normalizePhone(target)} berhasil di-mute selama ${duration.text}. Setiap pesannya akan dihapus otomatis.`, { mentions: [target] })
         },
@@ -373,8 +403,10 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
 
-          if (isGroupOwner(metadata, target)) {
-            await commandContext.reply('Owner grup tidak dapat di-demote nih~ 👑😅')
+          const actor = commandContext.message.senderJid ?? botJid ?? 'system'
+          const guard = checkActionGuards(metadata, target, actor, botJid, commandContext.config.botOwnerJid)
+          if (!guard.allowed) {
+            await commandContext.reply(guard.reason!)
             return
           }
 
@@ -385,6 +417,8 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
 
           try {
             await commandContext.whatsapp.groupParticipantsUpdate!(group, [target], 'demote')
+            const suite = getSuiteService(commandContext.services)
+            suite.recordAudit(group, actor, 'demote', target)
             await commandContext.reply(`🔻 Status admin @${normalizePhone(target)} telah dicabut.`, { mentions: [target] })
           } catch (error) {
             commandContext.logger.warn({ error }, 'failed to demote member')
@@ -729,10 +763,10 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         },
       })
 
-      // 18. /left on/off [pesan]
+      // 18. /setleave on/off [pesan]
       context.commands.register({
-        name: 'left',
-        aliases: ['leave'],
+        name: 'setleave',
+        aliases: ['left'],
         description: 'Aktif/nonaktifkan pesan perpisahan member keluar',
         category: 'moderation',
         menuOrder: 19,
@@ -743,7 +777,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
 
           const state = commandContext.args[0]?.toLowerCase()
           if (state !== 'on' && state !== 'off') {
-            await commandContext.reply(`Format: ${commandContext.prefix}left <on|off> [pesan kustom]`)
+            await commandContext.reply(`Format: ${commandContext.prefix}setleave <on|off> [pesan kustom]`)
             return
           }
 
@@ -757,6 +791,61 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           }
 
           await commandContext.reply(`🍂 Pesan leave grup sekarang: *${state.toUpperCase()}*${custom ? ' (template kustom tersimpan)' : ''}.`)
+        },
+      })
+
+      // 18a. /leave (Klarifikasi semantik)
+      context.commands.register({
+        name: 'leave',
+        description: 'Petunjuk command leave grup',
+        category: 'moderation',
+        menuOrder: 20,
+        handler: async (commandContext) => {
+          await commandContext.reply(
+            `ℹ️ *Petunjuk Perintah Leave:*\n• Ketik *${commandContext.prefix}setleave <on|off>* untuk mengatur pesan perpisahan member.\n• Ketik *${commandContext.prefix}botleave* (khusus Bot Owner) jika ingin mengeluarkan bot dari grup ini.`,
+          )
+        },
+      })
+
+      // 18b. /botleave (Khusus Bot Owner)
+      context.commands.register({
+        name: 'botleave',
+        description: 'Perintahkan bot untuk keluar dari grup ini (Owner only)',
+        category: 'moderation',
+        menuOrder: 21,
+        permission: permissionNames.botOwner,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext)
+          if (!group) return
+
+          await commandContext.reply('👋 Sampai jumpa semua! Bot berpamitan keluar dari grup atas instruksi Owner~ 🌸')
+          if (commandContext.whatsapp.groupLeave) {
+            try {
+              await commandContext.whatsapp.groupLeave(group)
+            } catch (err) {
+              commandContext.logger.error({ err }, 'failed to leave group')
+            }
+          }
+        },
+      })
+
+      // 18b. /auditverify
+      context.commands.register({
+        name: 'auditverify',
+        description: 'Verifikasi keutuhan cryptographic hash chain log audit moderasi',
+        category: 'moderation',
+        menuOrder: 24,
+        permission: permissionNames.groupAdmin,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext)
+          if (!group) return
+          const suite = getSuiteService(commandContext.services)
+          const result = suite.verifyAuditChain(group)
+          if (result.valid) {
+            await commandContext.reply(`🔒 [AUDIT CHAIN OK]\nTotal event terverifikasi: ${result.totalEvents} entri.\nStatus: Hash chain utuh, tidak ada rekaman yang diubah atau dihapus.`)
+          } else {
+            await commandContext.reply(`⚠️ [AUDIT CHAIN CORRUPT]\nIntegritas audit terputus pada event ID: ${result.brokenAt}!\nSegera periksa log database!`)
+          }
         },
       })
 

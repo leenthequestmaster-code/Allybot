@@ -289,6 +289,7 @@ export const groupPlugin: Plugin = {
 
     context.commands.register({
       name: 'link',
+      aliases: ['invite'],
       description: 'Show the group invite link for administrators',
       category: 'moderation',
       menuOrder: 7,

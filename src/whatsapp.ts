@@ -314,6 +314,11 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework text response')
   }
 
+  async groupLeave(groupJid: string): Promise<void> {
+    const socket = this.requireSocket()
+    await withTimeout(socket.groupLeave(groupJid), 20_000, 'group leave')
+  }
+
   async sendNativePoll(remoteJid: string, options: WhatsAppPollOptions): Promise<void> {
     const socket = this.requireSocket()
     const name = options.name.trim()

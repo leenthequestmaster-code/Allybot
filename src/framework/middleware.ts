@@ -106,3 +106,53 @@ export const validationMiddleware: CommandMiddleware = async ({ command, context
   }
   await next()
 }
+
+export function createUserRateLimitMiddleware(
+  maxCommands = 15,
+  windowMs = 60_000,
+  now: () => number = () => Date.now(),
+): CommandMiddleware {
+  const userTimestamps = new Map<string, number[]>()
+  const lastNotice = new Map<string, number>()
+
+  return async ({ command, context }, next) => {
+    const sender = context.message.senderJid
+    if (!sender) return next()
+
+    // Bot Owner or admin-permission commands bypass standard member rate limit
+    if (command.permission && command.permission.includes('admin') || command.permission?.includes('owner')) {
+      return next()
+    }
+
+    if (context.config.botOwnerJid) {
+      const bareSender = sender.split(':')[0]
+      const bareOwner = context.config.botOwnerJid.split(':')[0]
+      if (bareSender === bareOwner || `${bareSender}@s.whatsapp.net` === bareOwner) {
+        return next()
+      }
+    }
+
+    const current = now()
+    const history = (userTimestamps.get(sender) ?? []).filter((t) => current - t <= windowMs)
+    history.push(current)
+    userTimestamps.set(sender, history)
+
+    if (userTimestamps.size > 2000) {
+      for (const [key, tsList] of userTimestamps) {
+        if (tsList.every((t) => current - t > windowMs)) userTimestamps.delete(key)
+      }
+    }
+
+    if (history.length > maxCommands) {
+      context.logger.warn({ sender, command: command.name }, 'user rate limit exceeded')
+      const prevNotice = lastNotice.get(sender) ?? 0
+      if (current - prevNotice >= 15_000) {
+        lastNotice.set(sender, current)
+        await context.reply('⚠️ Kamu terlalu cepat mengetik perintah. Mohon istirahat sejenak 1 menit ya~ ⏳')
+      }
+      return
+    }
+
+    await next()
+  }
+}

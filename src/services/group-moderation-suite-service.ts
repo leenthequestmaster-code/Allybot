@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { initSqliteDatabase, type DatabaseInstance } from '../storage-helpers.js'
@@ -80,7 +81,167 @@ export class GroupModerationSuiteService implements Service {
         leave_enabled INTEGER NOT NULL DEFAULT 1,
         updated_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS user_identities (
+        phone_jid TEXT NOT NULL,
+        lid TEXT NOT NULL,
+        last_seen INTEGER NOT NULL,
+        PRIMARY KEY (phone_jid, lid)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_user_identities_phone ON user_identities (phone_jid);
+      CREATE INDEX IF NOT EXISTS idx_user_identities_lid ON user_identities (lid);
+
+      CREATE TABLE IF NOT EXISTS moderation_audit_chain (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_jid TEXT NOT NULL,
+        actor_jid TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target_jid TEXT,
+        payload TEXT,
+        created_at INTEGER NOT NULL,
+        prev_hash TEXT NOT NULL,
+        current_hash TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_audit_chain_group ON moderation_audit_chain (group_jid);
     `)
+  }
+
+  // --- User Identities (JID <-> LID Mapping) ---
+  recordIdentity(phoneJid: string, lid: string): void {
+    if (!phoneJid || !lid) return
+    const cleanPhone = phoneJid.split(':')[0]
+    const cleanLid = lid.split(':')[0]
+    const now = Date.now()
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO user_identities (phone_jid, lid, last_seen)
+           VALUES (@cleanPhone, @cleanLid, @now)
+           ON CONFLICT(phone_jid, lid) DO UPDATE SET last_seen = excluded.last_seen`,
+        )
+        .run({ cleanPhone, cleanLid, now })
+    } catch (err) {
+      this.logger.warn({ err, phoneJid, lid }, 'failed to record user identity')
+    }
+  }
+
+  resolveAliases(identifier: string): string[] {
+    const raw = identifier.trim()
+    const clean = raw.split(':')[0]
+    const aliases = new Set<string>([raw, clean])
+
+    try {
+      if (clean.endsWith('@lid')) {
+        const rows = this.db
+          .prepare('SELECT phone_jid FROM user_identities WHERE lid = ?')
+          .all(clean) as Array<{ phone_jid: string }>
+        for (const row of rows) {
+          aliases.add(row.phone_jid)
+          aliases.add(row.phone_jid.replace('@s.whatsapp.net', ''))
+        }
+      } else {
+        const phone = clean.includes('@') ? clean : `${clean}@s.whatsapp.net`
+        aliases.add(phone)
+        const rows = this.db
+          .prepare('SELECT lid FROM user_identities WHERE phone_jid = ?')
+          .all(phone) as Array<{ lid: string }>
+        for (const row of rows) {
+          aliases.add(row.lid)
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    return Array.from(aliases)
+  }
+
+  // --- Append-Only Audit Hash Chain ---
+  recordAudit(groupJid: string, actorJid: string, action: string, targetJid?: string, payload?: string): string {
+    const now = Date.now()
+    const lastRow = this.db
+      .prepare('SELECT current_hash FROM moderation_audit_chain ORDER BY id DESC LIMIT 1')
+      .get() as { current_hash: string } | undefined
+
+    const prevHash = lastRow?.current_hash ?? '0000000000000000000000000000000000000000000000000000000000000000'
+    const targetStr = targetJid ?? ''
+    const payloadStr = payload ?? ''
+
+    const currentHash = createHash('sha256')
+      .update(`${prevHash}:${groupJid}:${actorJid}:${action}:${targetStr}:${now}:${payloadStr}`)
+      .digest('hex')
+
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO moderation_audit_chain (group_jid, actor_jid, action, target_jid, payload, created_at, prev_hash, current_hash)
+           VALUES (@groupJid, @actorJid, @action, @targetJid, @payload, @now, @prevHash, @currentHash)`,
+        )
+        .run({
+          groupJid,
+          actorJid,
+          action,
+          targetJid: targetStr,
+          payload: payloadStr,
+          now,
+          prevHash,
+          currentHash,
+        })
+    } catch (err) {
+      this.logger.error({ err, action, groupJid }, 'failed to write audit chain record')
+    }
+
+    return currentHash
+  }
+
+  verifyAuditChain(groupJid?: string): { valid: boolean; totalEvents: number; brokenAt?: number } {
+    const rows = groupJid
+      ? (this.db
+          .prepare('SELECT id, group_jid, actor_jid, action, target_jid, payload, created_at, prev_hash, current_hash FROM moderation_audit_chain WHERE group_jid = ? ORDER BY id ASC')
+          .all(groupJid) as Array<{
+            id: number
+            group_jid: string
+            actor_jid: string
+            action: string
+            target_jid: string
+            payload: string
+            created_at: number
+            prev_hash: string
+            current_hash: string
+          }>)
+      : (this.db
+          .prepare('SELECT id, group_jid, actor_jid, action, target_jid, payload, created_at, prev_hash, current_hash FROM moderation_audit_chain ORDER BY id ASC')
+          .all() as Array<{
+            id: number
+            group_jid: string
+            actor_jid: string
+            action: string
+            target_jid: string
+            payload: string
+            created_at: number
+            prev_hash: string
+            current_hash: string
+          }>)
+
+    let expectedPrevHash = '0000000000000000000000000000000000000000000000000000000000000000'
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]
+      if (row.prev_hash !== expectedPrevHash) {
+        return { valid: false, totalEvents: rows.length, brokenAt: row.id }
+      }
+      const calculatedHash = createHash('sha256')
+        .update(`${row.prev_hash}:${row.group_jid}:${row.actor_jid}:${row.action}:${row.target_jid}:${row.created_at}:${row.payload}`)
+        .digest('hex')
+
+      if (row.current_hash !== calculatedHash) {
+        return { valid: false, totalEvents: rows.length, brokenAt: row.id }
+      }
+      expectedPrevHash = row.current_hash
+    }
+
+    return { valid: true, totalEvents: rows.length }
   }
 
   // --- Blacklist / Ban ---
@@ -105,10 +266,12 @@ export class GroupModerationSuiteService implements Service {
   }
 
   unban(groupJid: string, targetJidOrPhone: string): boolean {
+    const aliases = this.resolveAliases(targetJidOrPhone)
+    const placeholders = aliases.map(() => '?').join(',')
     const normalized = targetJidOrPhone.replace(/[^0-9]/g, '')
     const row = this.db
-      .prepare('SELECT target_jid FROM group_blacklist WHERE group_jid = ? AND (target_jid = ? OR target_jid LIKE ?)')
-      .get(groupJid, targetJidOrPhone, `%${normalized}%`) as { target_jid: string } | undefined
+      .prepare(`SELECT target_jid FROM group_blacklist WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
+      .get(groupJid, ...aliases, `%${normalized}%`) as { target_jid: string } | undefined
 
     if (!row) return false
     const result = this.db
@@ -118,10 +281,12 @@ export class GroupModerationSuiteService implements Service {
   }
 
   isBanned(groupJid: string, targetJid: string): boolean {
+    const aliases = this.resolveAliases(targetJid)
+    const placeholders = aliases.map(() => '?').join(',')
     const normalized = targetJid.split(':')[0]
     const row = this.db
-      .prepare('SELECT 1 FROM group_blacklist WHERE group_jid = ? AND (target_jid = ? OR target_jid LIKE ?)')
-      .get(groupJid, targetJid, `${normalized}%`)
+      .prepare(`SELECT 1 FROM group_blacklist WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
+      .get(groupJid, ...aliases, `${normalized}%`)
     return Boolean(row)
   }
 
@@ -168,10 +333,12 @@ export class GroupModerationSuiteService implements Service {
   }
 
   unmute(groupJid: string, targetJid: string): boolean {
+    const aliases = this.resolveAliases(targetJid)
+    const placeholders = aliases.map(() => '?').join(',')
     const normalized = targetJid.split(':')[0]
     const row = this.db
-      .prepare('SELECT target_jid FROM group_mutes WHERE group_jid = ? AND (target_jid = ? OR target_jid LIKE ?)')
-      .get(groupJid, targetJid, `${normalized}%`) as { target_jid: string } | undefined
+      .prepare(`SELECT target_jid FROM group_mutes WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
+      .get(groupJid, ...aliases, `${normalized}%`) as { target_jid: string } | undefined
 
     if (!row) return false
     const result = this.db
@@ -181,14 +348,16 @@ export class GroupModerationSuiteService implements Service {
   }
 
   isMuted(groupJid: string, targetJid: string, now = Date.now()): boolean {
+    const aliases = this.resolveAliases(targetJid)
+    const placeholders = aliases.map(() => '?').join(',')
     const normalized = targetJid.split(':')[0]
     const row = this.db
-      .prepare('SELECT expires_at FROM group_mutes WHERE group_jid = ? AND (target_jid = ? OR target_jid LIKE ?)')
-      .get(groupJid, targetJid, `${normalized}%`) as { expires_at: number } | undefined
+      .prepare(`SELECT target_jid, expires_at FROM group_mutes WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
+      .get(groupJid, ...aliases, `${normalized}%`) as { target_jid: string; expires_at: number } | undefined
 
     if (!row) return false
     if (now >= row.expires_at) {
-      this.unmute(groupJid, targetJid)
+      this.unmute(groupJid, row.target_jid)
       return false
     }
     return true

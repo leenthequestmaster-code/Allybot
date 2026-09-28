@@ -154,6 +154,7 @@ export interface WhatsAppPort {
   groupSettingUpdate?(groupJid: string, setting: GroupSettingValue): Promise<void>
   getGroupInviteLink(groupJid: string): Promise<string | undefined>
   groupRevokeInvite?(groupJid: string): Promise<string | undefined>
+  groupLeave?(groupJid: string): Promise<void>
   clearRuntimeCaches?(): RuntimeCacheClearResult
   getProfilePictureUrl?(jid: string, type?: 'preview' | 'image', timeoutMs?: number): Promise<string | undefined>
   sendImage?(remoteJid: string, imageUrl: string, caption?: string): Promise<void>

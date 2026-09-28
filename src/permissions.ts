@@ -11,16 +11,16 @@ export const permissionNames = {
   developerModeGroupObserver: 'developer.mode.group.observer',
 } as const
 
-function bareJid(jid: string): string {
+export function bareJid(jid: string): string {
   return jid.split(':')[0] ?? jid
 }
 
-function normalizePhoneJid(value?: string): string | undefined {
+export function normalizePhoneJid(value?: string): string | undefined {
   if (!value) return undefined
   return bareJid(value.includes('@') ? value : `${value}@s.whatsapp.net`)
 }
 
-function isSameJid(left?: string, right?: string): boolean {
+export function isSameJid(left?: string, right?: string): boolean {
   if (!left || !right) return false
   return bareJid(left) === bareJid(right)
 }

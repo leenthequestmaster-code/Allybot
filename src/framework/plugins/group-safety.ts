@@ -1,5 +1,5 @@
 import type { CoreMessage, Plugin, ServiceRegistryLike, WhatsAppGroupMetadata, WhatsAppPort } from '../contracts.js'
-import { permissionNames } from '../../permissions.js'
+import { permissionNames, isSameJid } from '../../permissions.js'
 import { isGroupJid } from '../validation.js'
 import { GroupSafetyService, type ModerationCaseRecord, type WarningRecord } from '../../services/group-safety-service.js'
 
@@ -126,6 +126,41 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}warn @member <alasan> atau reply pesan member.`)
             return
           }
+
+          const botJid = commandContext.whatsapp.userJid
+          const botOwnerJid = commandContext.config.botOwnerJid
+          if (botJid && isSameJid(target, botJid)) {
+            await commandContext.reply('Bot tidak dapat diberi peringatan! 🤖')
+            return
+          }
+          if (botOwnerJid && isSameJid(target, botOwnerJid)) {
+            await commandContext.reply('Bot Owner tidak dapat diberi peringatan! 👑🛡️')
+            return
+          }
+
+          try {
+            const metadata = await commandContext.whatsapp.getGroupMetadata(group)
+            const targetBare = target.split('@')[0].split(':')[0]
+            const isTargetOwner = metadata.ownerJid?.split('@')[0].split(':')[0] === targetBare ||
+              metadata.participants.find((p) => p.jid.split('@')[0].split(':')[0] === targetBare)?.role === 'superadmin'
+
+            if (isTargetOwner) {
+              await commandContext.reply('Owner grup tidak dapat diberi peringatan! 👑')
+              return
+            }
+
+            const targetParticipant = metadata.participants.find((p) => p.jid.split('@')[0].split(':')[0] === targetBare)
+            const isTargetAdmin = targetParticipant?.role === 'admin' || targetParticipant?.role === 'superadmin'
+
+            const actorBare = actor.split('@')[0].split(':')[0]
+            const isActorOwner = metadata.ownerJid?.split('@')[0].split(':')[0] === actorBare ||
+              (botOwnerJid && isSameJid(actor, botOwnerJid))
+
+            if (isTargetAdmin && !isActorOwner) {
+              await commandContext.reply('Sesama admin grup tidak dapat saling memberi peringatan via bot! 🛡️')
+              return
+            }
+          } catch {}
           const warning = safetyService(commandContext).issueWarning(group, target, actor, reason)
           const activeCount = safetyService(commandContext).countActiveWarnings(group, target)
 
@@ -208,7 +243,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'clearwarn',
-        description: 'Revoke a warning by id prefix',
+        description: 'Revoke warning by id prefix or clear all active warnings for a member',
         category: 'moderation',
         menuOrder: 5,
         permission: permissionNames.groupAdmin,
@@ -218,16 +253,34 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
             await commandContext.reply('Command ini hanya dapat digunakan di dalam grup WhatsApp.')
             return
           }
-          const idPrefix = commandContext.args[0]
+          const target = commandContext.message.mentionedJids?.[0] ?? commandContext.message.quotedSenderJid
+          const arg = commandContext.args[0]
           const actor = actorJid(commandContext.message, commandContext.whatsapp)
-          if (!idPrefix || !actor) {
-            await commandContext.reply(`Format: ${commandContext.prefix}clearwarn <id>`)
+          if (!actor) return
+
+          if (target) {
+            const warnings = safetyService(commandContext).listWarnings(group, target)
+            const activeWarnings = warnings.filter((w) => w.status === 'active')
+            if (activeWarnings.length === 0) {
+              await commandContext.reply(`@${target.split('@')[0]} tidak memiliki peringatan aktif.`, { mentions: [target] })
+              return
+            }
+            for (const w of activeWarnings) {
+              safetyService(commandContext).revokeWarning(group, w.id, actor)
+            }
+            await commandContext.reply(`✅ Seluruh peringatan (${activeWarnings.length}) untuk @${target.split('@')[0]} telah dibersihkan.`, { mentions: [target] })
             return
           }
-          const warning = safetyService(commandContext).listWarnings(group, undefined, 25).find((item) => item.id.startsWith(idPrefix))
-          const warningId = warning?.id.slice(0, 8)
-          const revoked = warning ? safetyService(commandContext).revokeWarning(group, warning.id, actor) : undefined
-          await commandContext.reply(revoked && warningId ? `✅ Warning ${warningId} dicabut.` : 'Warning tidak ditemukan, sudah expired, atau sudah dicabut.')
+
+          if (arg) {
+            const warning = safetyService(commandContext).listWarnings(group, undefined, 25).find((item) => item.id.startsWith(arg))
+            const warningId = warning?.id.slice(0, 8)
+            const revoked = warning ? safetyService(commandContext).revokeWarning(group, warning.id, actor) : undefined
+            await commandContext.reply(revoked && warningId ? `✅ Warning ${warningId} dicabut.` : 'Warning tidak ditemukan, sudah expired, atau sudah dicabut.')
+            return
+          }
+
+          await commandContext.reply(`Format: ${commandContext.prefix}clearwarn @member atau ${commandContext.prefix}clearwarn <id>`)
         },
       })
 

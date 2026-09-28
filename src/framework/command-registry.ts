@@ -16,6 +16,7 @@ import {
   composeMiddleware,
   createCooldownMiddleware,
   createPermissionMiddleware,
+  createUserRateLimitMiddleware,
   type PermissionResolver,
   validationMiddleware,
 } from './middleware.js'
@@ -40,6 +41,7 @@ export class CommandRegistry implements CommandRegistryLike {
   ) {
     this.middleware = composeMiddleware([
       createPermissionMiddleware(permissionResolver),
+      createUserRateLimitMiddleware(15, 60_000),
       validationMiddleware,
       createCooldownMiddleware(),
       ...extraMiddleware,
