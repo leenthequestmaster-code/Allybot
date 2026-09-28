@@ -214,7 +214,7 @@ def render_character_card(data, out_path):
     # Motto Panel
     motto = data.get("motto") or "Melangkah dalam bayang, mencari jalan terang di Allyssea."
     
-    mx1, my1, mx2, my2 = 60, 910, W - 60, 1050
+    mx1, my1, mx2, my2 = 60, 910, W - 60, 1065
     draw.rounded_rectangle([mx1, my1, mx2, my2], radius=10, fill=(11, 16, 28), outline=(30, 41, 59), width=1)
     draw_hud_corners(draw, (mx1, my1, mx2, my2), length=16, color=(56, 189, 248), width=2)
     
@@ -239,11 +239,15 @@ def render_character_card(data, out_path):
         draw.text((mx1 + 24, m_y), f"{prefix}{line}{suffix}", font=f_motto, fill=(226, 232, 240))
         m_y += 24
 
-    # Action / Instruction Pill Badge
-    ax1, ay1, ax2, ay2 = 60, 1070, W - 60, 1120
-    draw.rounded_rectangle([ax1, ay1, ax2, ay2], radius=6, fill=(13, 19, 33), outline=(30, 41, 59), width=1)
-    draw.text((ax1 + 20, ay1 + 16), "PANDUAN :", font=get_font(FONT_MONO, 12), fill=(0, 229, 255))
-    draw.text((ax1 + 110, ay1 + 16), "Ketik !stats untuk matriks tempur lengkap atau !timerp untuk waktu benua.", font=get_font(FONT_REGULAR, 13), fill=(203, 213, 225))
+    # In-Universe Condition & Vitality Status Box (No bot instructions)
+    sx1, sy1, sx2, sy2 = 60, 1085, W - 60, 1155
+    draw.rounded_rectangle([sx1, sy1, sx2, sy2], radius=8, fill=(11, 16, 28), outline=(30, 41, 59), width=1)
+    draw_hud_corners(draw, (sx1, sy1, sx2, sy2), length=14, color=(0, 229, 255), width=2)
+
+    draw.text((sx1 + 24, sy1 + 15), "KONDISI STATUS", font=get_font(FONT_MONO, 11), fill=(148, 163, 184))
+    draw.text((sx1 + 24, sy1 + 35), "NORMAL · BEBAS DEBUFF", font=get_font(FONT_BOLD, 15), fill=(16, 185, 129))
+    draw.text((sx2 - 24, sy1 + 15), "AFINITAS JIWA", font=get_font(FONT_MONO, 11), fill=(148, 163, 184), anchor="ra")
+    draw.text((sx2 - 24, sy1 + 35), "STABIL (100%)", font=get_font(FONT_BOLD, 15), fill=(0, 229, 255), anchor="ra")
 
     # Footer
     draw_footer(draw, "ALLYSSEA SYSTEM · PASPOR WARGA KANONIKAL")
@@ -365,21 +369,22 @@ def render_stats_card(data, out_path):
     draw.text((rx1 + 20, ry1 + 16), "KARAKTERISTIK RASIAL", font=get_font(FONT_MONO, 11), fill=(148, 163, 184))
     draw.text((rx1 + 20, ry1 + 36), f"Inherent Trait: {trait}", font=get_font(FONT_BOLD, 16), fill=(56, 189, 248))
 
-    # Stat Token Status Banner
+    # Stat Token Status Banner (Pure in-universe system notification)
     tokens = stats.get("statTokens", 0)
     tx1, ty1, tx2, ty2 = 60, 998, W - 60, 1115
     
     if tokens > 0:
         draw.rounded_rectangle([tx1, ty1, tx2, ty2], radius=8, fill=(20, 27, 45), outline=(234, 179, 8), width=2)
         draw_hud_corners(draw, (tx1, ty1, tx2, ty2), length=16, color=(251, 191, 36), width=2)
-        draw.text((tx1 + 24, ty1 + 18), f"⚡ TERSEDIA {tokens} STAT TOKEN YANG BELUM DIALOKASIKAN!", font=get_font(FONT_BOLD, 16), fill=(251, 191, 36))
-        draw.text((tx1 + 24, ty1 + 46), "Ketik !alokasi <stat> <jumlah> untuk meningkatkan atribut.", font=get_font(FONT_REGULAR, 14), fill=(241, 245, 249))
-        draw.text((tx1 + 24, ty1 + 72), "Contoh: !alokasi str 2 atau !alokasi hp 1 (+150 HP / +100 SE / +1 Stat per token)", font=get_font(FONT_MONO, 12), fill=(148, 163, 184))
+        draw.text((tx1 + 24, ty1 + 18), "POIN ATRIBUT TERSEDIA", font=get_font(FONT_MONO, 12), fill=(251, 191, 36))
+        draw.text((tx1 + 24, ty1 + 42), f"UNASSIGNED STAT POINTS: {tokens}", font=get_font(FONT_BOLD, 22), fill=(248, 250, 252))
+        draw.text((tx1 + 24, ty1 + 76), "Poin dapat didistribusikan untuk meningkatkan kapasitas tempur karakter.", font=get_font(FONT_REGULAR, 13), fill=(203, 213, 225))
     else:
         draw.rounded_rectangle([tx1, ty1, tx2, ty2], radius=8, fill=(11, 16, 28), outline=(30, 41, 59), width=1)
         draw_hud_corners(draw, (tx1, ty1, tx2, ty2), length=16, color=(16, 185, 129), width=2)
-        draw.text((tx1 + 24, ty1 + 24), "✔ SEMUA STAT TOKEN TELAH DIALOKASIKAN", font=get_font(FONT_BOLD, 15), fill=(16, 185, 129))
-        draw.text((tx1 + 24, ty1 + 54), "Status atribut karakter berada pada performa optimal saat ini.", font=get_font(FONT_REGULAR, 13), fill=(148, 163, 184))
+        draw.text((tx1 + 24, ty1 + 18), "STATUS ALOKASI SISTEM", font=get_font(FONT_MONO, 12), fill=(16, 185, 129))
+        draw.text((tx1 + 24, ty1 + 42), "DISTRIBUSI ATRIBUT OPTIMAL", font=get_font(FONT_BOLD, 20), fill=(248, 250, 252))
+        draw.text((tx1 + 24, ty1 + 76), "Seluruh poin atribut telah teralokasikan secara seimbang pada matriks tempur.", font=get_font(FONT_REGULAR, 13), fill=(148, 163, 184))
 
     draw_footer(draw, "ALLYSSEA SYSTEM · TACTICAL MATRIX VERIFIED")
 
