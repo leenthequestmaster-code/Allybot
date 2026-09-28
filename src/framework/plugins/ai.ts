@@ -10,7 +10,22 @@ import {
 const AI_COMMAND_COOLDOWN_MS = 3_000
 
 function usage(context: CommandContext): string {
-  return `Format: ${context.prefix}ai <pertanyaan atau instruksi>\nAtau reply pesan teks / foto lalu ketik ${context.prefix}ai`
+  return [
+    "𓏼 *`𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐀𝐈 (𝐎𝗺𝗻𝗶)`*",
+    "─꯭──꯭──    .  .  .    ▭▬▭▬▭",
+    `Format: ${context.prefix}ai <pertanyaan atau instruksi>`,
+    `Atau reply pesan teks / foto lalu ketik ${context.prefix}ai`,
+    "─͜──͜──͜─  · • ·  ─͜──͜──͜─",
+    "Semua fungsi AI sudah disatukan di sini:",
+    "• Tanya Jawab : `!ai apa itu black hole?`",
+    "• Terjemahan  : `!ai terjemahkan ke Jepang: Halo`",
+    "• Ringkas     : reply pesan + `!ai ringkas intinya`",
+    "• Ekstrak Teks: reply foto dokumen + `!ai salin teks ini`",
+    "• Analisis    : kirim foto + `!ai foto ini tentang apa?`",
+    "• Deteksi AI  : reply teks + `!ai apakah ini buatan AI?`",
+    "━━━━━━━━━━━━━━━━━━━━",
+    "*© Allyssea Roleplay Community*",
+  ].join("\n")
 }
 
 function pipeInput(context: CommandContext): { target: string; text: string } | undefined {
