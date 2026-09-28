@@ -92,6 +92,45 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
   // Pre-initialize schema in background
   ensureSchema().catch(() => {})
 
+  function mapCharacterRow(row: Record<string, any>) {
+    let titles: string[] = ['Allyssea Citizens']
+    if (Array.isArray(row.titles)) {
+      titles = row.titles
+    } else if (typeof row.titles === 'string') {
+      try { titles = JSON.parse(row.titles) } catch {}
+    }
+
+    return {
+      ok: true,
+      code: 'found',
+      character_id: String(row.character_id),
+      owner_key: String(row.owner_key),
+      name: String(row.name),
+      gender: String(row.gender),
+      age: Number(row.age),
+      birthday_day: Number(row.birthday_day),
+      birthday_month: String(row.birthday_month),
+      birthday_year: Number(row.birthday_year),
+      race: String(row.race),
+      class_name: String(row.class_name),
+      element: String(row.element),
+      spirit: row.spirit ? String(row.spirit) : undefined,
+      crew: row.crew ? String(row.crew) : undefined,
+      rank: String(row.rank ?? 'F-'),
+      level: Number(row.level ?? 1),
+      will_of_path: String(row.will_of_path),
+      profession: row.profession ? String(row.profession) : undefined,
+      titles,
+      motto: row.motto ? String(row.motto) : undefined,
+      visual: row.visual ? String(row.visual) : undefined,
+      origin: row.origin ? String(row.origin) : undefined,
+      allocated_stats: parseAllocatedStats(row.allocated_stats),
+      bonus_tokens: Math.max(0, Number(row.bonus_tokens ?? 0)),
+      status: 'active',
+      revision: Number(row.revision ?? 1),
+    }
+  }
+
   return {
     async rpc(functionName: string, args: Record<string, string | number | boolean | null | object>) {
       await ensureSchema()
@@ -266,42 +305,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           return { data: { ok: true, code: 'not_found' }, error: null }
         }
 
-        const row = rows[0]
-        let titles: string[] = ['Allyssea Citizens']
-        if (Array.isArray(row.titles)) {
-          titles = row.titles
-        } else if (typeof row.titles === 'string') {
-          try { titles = JSON.parse(row.titles) } catch {}
-        }
-
-        const resultData = {
-          ok: true,
-          code: 'found',
-          character_id: String(row.character_id),
-          name: String(row.name),
-          gender: String(row.gender),
-          age: Number(row.age),
-          birthday_day: Number(row.birthday_day),
-          birthday_month: String(row.birthday_month),
-          birthday_year: Number(row.birthday_year),
-          race: String(row.race),
-          class_name: String(row.class_name),
-          element: String(row.element),
-          spirit: row.spirit ? String(row.spirit) : undefined,
-          crew: row.crew ? String(row.crew) : undefined,
-          rank: String(row.rank ?? 'F-'),
-          level: Number(row.level ?? 1),
-          will_of_path: String(row.will_of_path),
-          profession: row.profession ? String(row.profession) : undefined,
-          titles,
-          motto: row.motto ? String(row.motto) : undefined,
-          visual: row.visual ? String(row.visual) : undefined,
-          origin: row.origin ? String(row.origin) : undefined,
-          allocated_stats: parseAllocatedStats(row.allocated_stats),
-          bonus_tokens: Math.max(0, Number(row.bonus_tokens ?? 0)),
-          status: 'active',
-          revision: Number(row.revision ?? 1),
-        }
+        const resultData = mapCharacterRow(rows[0])
 
         // Cache in Redis for 60 seconds
         if (redis) {
@@ -309,6 +313,173 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         }
 
         return { data: resultData, error: null }
+      }
+
+      if (functionName === 'character_find_by_name') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const query = String(args.p_name_query ?? '').trim().toLowerCase()
+        if (!query) return { data: { ok: true, code: 'not_found' }, error: null }
+
+        const rows = await sql`
+          SELECT * FROM character_profiles
+          WHERE guide_key = ${guideKey}
+            AND status = 'active'
+            AND (
+              LOWER(name) = ${query}
+              OR (LENGTH(${query}) >= 3 AND LOWER(name) LIKE ${'%' + query + '%'})
+            )
+          ORDER BY (CASE WHEN LOWER(name) = ${query} THEN 0 ELSE 1 END), created_at DESC
+          LIMIT 1
+        `
+        if (rows.length === 0) return { data: { ok: true, code: 'not_found' }, error: null }
+        return { data: mapCharacterRow(rows[0]), error: null }
+      }
+
+      if (functionName === 'character_set_level') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const targetOwnerKey = String(args.p_target_owner_key ?? '')
+        const level = Number(args.p_level ?? 1)
+        if (!Number.isInteger(level) || level < 1 || level > 100) {
+          return { data: { ok: false, error: 'Level harus berupa bilangan bulat antara 1 sampai 100.' }, error: null }
+        }
+
+        const rows = await sql`
+          SELECT character_id, name, level, allocated_stats, bonus_tokens FROM character_profiles
+          WHERE guide_key = ${guideKey} AND owner_key = ${targetOwnerKey} AND status = 'active'
+          LIMIT 1
+        `
+        if (rows.length === 0) return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
+        const row = rows[0]
+
+        await sql`
+          UPDATE character_profiles
+          SET level = ${level}, updated_at = now()
+          WHERE character_id = ${row.character_id}
+        `
+
+        if (redis) {
+          try { await redis.cacheDelete('character:active', targetOwnerKey) } catch {}
+        }
+
+        return {
+          data: {
+            ok: true,
+            character_id: row.character_id,
+            character_name: row.name,
+            level,
+            message: `Level karakter *${row.name}* berhasil diubah dari Level ${row.level} ke Level ${level}.`,
+          },
+          error: null,
+        }
+      }
+
+      if (functionName === 'character_reset_stats') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const targetOwnerKey = String(args.p_target_owner_key ?? '')
+
+        const rows = await sql`
+          SELECT character_id, name, level, allocated_stats, bonus_tokens FROM character_profiles
+          WHERE guide_key = ${guideKey} AND owner_key = ${targetOwnerKey} AND status = 'active'
+          LIMIT 1
+        `
+        if (rows.length === 0) return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
+        const row = rows[0]
+        const cleanAlloc = parseAllocatedStats(row.allocated_stats)
+        const refunded = Object.values(cleanAlloc).reduce((sum, v) => sum + (Number(v) || 0), 0)
+
+        await sql`
+          UPDATE character_profiles
+          SET allocated_stats = '{}'::jsonb, updated_at = now()
+          WHERE character_id = ${row.character_id}
+        `
+
+        if (redis) {
+          try { await redis.cacheDelete('character:active', targetOwnerKey) } catch {}
+        }
+
+        return {
+          data: {
+            ok: true,
+            character_id: row.character_id,
+            character_name: row.name,
+            refunded_tokens: refunded,
+            message: `Seluruh atribut karakter *${row.name}* berhasil direset. ${refunded} token dikembalikan ke pool.`,
+          },
+          error: null,
+        }
+      }
+
+      if (functionName === 'character_set_rank') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const targetOwnerKey = String(args.p_target_owner_key ?? '')
+        const rawRank = String(args.p_rank ?? '').trim().toUpperCase()
+
+        const VALID_RANKS = ['F-', 'F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
+        if (!VALID_RANKS.includes(rawRank)) {
+          return { data: { ok: false, error: `Rank tidak valid. Pilihan: ${VALID_RANKS.join(', ')}.` }, error: null }
+        }
+
+        const rows = await sql`
+          SELECT character_id, name, rank FROM character_profiles
+          WHERE guide_key = ${guideKey} AND owner_key = ${targetOwnerKey} AND status = 'active'
+          LIMIT 1
+        `
+        if (rows.length === 0) return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
+        const row = rows[0]
+
+        await sql`
+          UPDATE character_profiles
+          SET rank = ${rawRank}, updated_at = now()
+          WHERE character_id = ${row.character_id}
+        `
+
+        if (redis) {
+          try { await redis.cacheDelete('character:active', targetOwnerKey) } catch {}
+        }
+
+        return {
+          data: {
+            ok: true,
+            character_id: row.character_id,
+            character_name: row.name,
+            rank: rawRank,
+            message: `Peringkat karakter *${row.name}* berhasil diubah dari Rank ${row.rank} ke Rank ${rawRank}.`,
+          },
+          error: null,
+        }
+      }
+
+      if (functionName === 'character_force_retire') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const targetOwnerKey = String(args.p_target_owner_key ?? '')
+
+        const rows = await sql`
+          SELECT character_id, name FROM character_profiles
+          WHERE guide_key = ${guideKey} AND owner_key = ${targetOwnerKey} AND status = 'active'
+          LIMIT 1
+        `
+        if (rows.length === 0) return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
+        const row = rows[0]
+
+        await sql`
+          UPDATE character_profiles
+          SET status = 'off', updated_at = now()
+          WHERE character_id = ${row.character_id}
+        `
+
+        if (redis) {
+          try { await redis.cacheDelete('character:active', targetOwnerKey) } catch {}
+        }
+
+        return {
+          data: {
+            ok: true,
+            character_id: row.character_id,
+            character_name: row.name,
+            message: `Karakter *${row.name}* berhasil dinonaktifkan secara paksa oleh admin.`,
+          },
+          error: null,
+        }
       }
 
       if (functionName === 'character_allocate_stats') {

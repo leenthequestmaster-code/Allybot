@@ -54,6 +54,7 @@ export interface CharacterActiveRecord {
   readonly origin?: string
   readonly allocatedStats?: Readonly<Record<string, number>>
   readonly bonusTokens: number
+  readonly ownerKey?: string
   readonly status: 'active'
   readonly revision: number
 }
@@ -500,9 +501,24 @@ export class CharacterGuideService implements Service {
     })
     const raw = asRecord(result)
     if (raw?.ok !== true || raw.code === 'not_found') return undefined
+    return this.mapRawToActiveRecord(raw)
+  }
+
+  async findActiveByName(nameQuery: string): Promise<CharacterActiveRecord | undefined> {
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_find_by_name', {
+      p_guide_key: worldScopeKey(),
+      p_name_query: nameQuery.trim(),
+    })
+    const raw = asRecord(result)
+    if (raw?.ok !== true || raw.code === 'not_found') return undefined
+    return this.mapRawToActiveRecord(raw)
+  }
+
+  private mapRawToActiveRecord(raw: Record<string, unknown>): CharacterActiveRecord {
     const id = typeof raw.character_id === 'string' ? raw.character_id : undefined
-    const titles = Array.isArray(raw.titles) ? raw.titles.filter((value): value is string => typeof value === 'string') : []
     if (!id) throw new CharacterGuideUnavailableError()
+    const titles = Array.isArray(raw.titles) ? raw.titles.filter((value): value is string => typeof value === 'string') : []
     return {
       characterId: id,
       name: String(raw.name ?? ''),
@@ -522,6 +538,7 @@ export class CharacterGuideService implements Service {
       ...(typeof raw.motto === 'string' ? { motto: raw.motto } : {}),
       ...(typeof raw.visual === 'string' ? { visual: raw.visual } : {}),
       ...(typeof raw.origin === 'string' ? { origin: raw.origin } : {}),
+      ...(typeof raw.owner_key === 'string' ? { ownerKey: raw.owner_key } : {}),
       allocatedStats: parseAllocatedStats(raw.allocated_stats),
       bonusTokens: Math.max(0, Number(raw.bonus_tokens ?? 0)),
       status: 'active',
@@ -529,15 +546,20 @@ export class CharacterGuideService implements Service {
     }
   }
 
+  private resolveTargetOwnerKey(target: string): string {
+    const trimmed = target.trim()
+    if (/^[0-9a-f]{64}$/i.test(trimmed)) return trimmed.toLowerCase()
+    return hashIdentity(trimmed)
+  }
+
   async grantTokens(
-    targetOwnerJid: string,
+    target: string,
     amount: number,
   ): Promise<{ ok: boolean; message: string; newTotal?: number }> {
-    this.assertJid(targetOwnerJid, 'target')
     if (!this.client) throw new CharacterGuideUnavailableError()
     const result = await this.call('character_grant_tokens', {
       p_guide_key: worldScopeKey(),
-      p_target_owner_key: hashIdentity(targetOwnerJid),
+      p_target_owner_key: this.resolveTargetOwnerKey(target),
       p_amount: amount,
     })
     const raw = asRecord(result)
@@ -549,6 +571,74 @@ export class CharacterGuideService implements Service {
       message: String(raw.message ?? 'Token berhasil diberikan.'),
       newTotal: typeof raw.bonus_tokens === 'number' ? raw.bonus_tokens : undefined,
     }
+  }
+
+  async setLevel(
+    target: string,
+    level: number,
+  ): Promise<{ ok: boolean; message: string }> {
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_set_level', {
+      p_guide_key: worldScopeKey(),
+      p_target_owner_key: this.resolveTargetOwnerKey(target),
+      p_level: level,
+    })
+    const raw = asRecord(result)
+    if (!raw || raw.ok !== true) {
+      return { ok: false, message: typeof raw?.error === 'string' ? raw.error : 'Gagal mengubah level karakter.' }
+    }
+    return { ok: true, message: String(raw.message ?? 'Level karakter berhasil diubah.') }
+  }
+
+  async resetStats(
+    target: string,
+  ): Promise<{ ok: boolean; message: string; refundedTokens?: number }> {
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_reset_stats', {
+      p_guide_key: worldScopeKey(),
+      p_target_owner_key: this.resolveTargetOwnerKey(target),
+    })
+    const raw = asRecord(result)
+    if (!raw || raw.ok !== true) {
+      return { ok: false, message: typeof raw?.error === 'string' ? raw.error : 'Gagal mereset stat karakter.' }
+    }
+    return {
+      ok: true,
+      message: String(raw.message ?? 'Stat karakter berhasil direset.'),
+      refundedTokens: typeof raw.refunded_tokens === 'number' ? raw.refunded_tokens : undefined,
+    }
+  }
+
+  async setRank(
+    target: string,
+    rank: string,
+  ): Promise<{ ok: boolean; message: string }> {
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_set_rank', {
+      p_guide_key: worldScopeKey(),
+      p_target_owner_key: this.resolveTargetOwnerKey(target),
+      p_rank: rank,
+    })
+    const raw = asRecord(result)
+    if (!raw || raw.ok !== true) {
+      return { ok: false, message: typeof raw?.error === 'string' ? raw.error : 'Gagal mengubah rank karakter.' }
+    }
+    return { ok: true, message: String(raw.message ?? 'Rank karakter berhasil diubah.') }
+  }
+
+  async forceRetire(
+    target: string,
+  ): Promise<{ ok: boolean; message: string }> {
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_force_retire', {
+      p_guide_key: worldScopeKey(),
+      p_target_owner_key: this.resolveTargetOwnerKey(target),
+    })
+    const raw = asRecord(result)
+    if (!raw || raw.ok !== true) {
+      return { ok: false, message: typeof raw?.error === 'string' ? raw.error : 'Gagal menonaktifkan karakter.' }
+    }
+    return { ok: true, message: String(raw.message ?? 'Karakter berhasil dinonaktifkan.') }
   }
 
   async allocateStats(

@@ -13,6 +13,7 @@ import {
   CharacterGuideService,
   CharacterGuideValidationError,
   type CharacterRegistrationSession,
+  type CharacterActiveRecord,
   calculateTimeRp,
   formatTimeRp,
 } from '../../services/character-guide-service.js'
@@ -247,6 +248,71 @@ function choiceFromMessage(message: CoreMessage): string | undefined {
   if (text === 'sudah paham') return 'guide-understood'
   if (text === 'belum mengerti') return 'guide-confused'
   return undefined
+}
+
+async function resolveAdminTarget(
+  commandContext: CommandContext,
+  service: CharacterGuideService,
+  actor: string,
+): Promise<{ targetKey: string; character?: CharacterActiveRecord; remainingArgs: string[] }> {
+  const mentioned = commandContext.message.mentionedJids?.filter(isJid) ?? []
+  if (mentioned.length > 0) {
+    return {
+      targetKey: mentioned[0],
+      remainingArgs: commandContext.args.filter((a) => !a.startsWith('@')),
+    }
+  }
+
+  if (commandContext.message.quotedSenderJid && isJid(commandContext.message.quotedSenderJid)) {
+    return {
+      targetKey: commandContext.message.quotedSenderJid,
+      remainingArgs: [...commandContext.args],
+    }
+  }
+
+  const args = [...commandContext.args]
+
+  // Check if any arg is a phone number
+  for (let i = 0; i < args.length; i++) {
+    const raw = args[i]
+    const digits = raw.replace(/[^0-9]/g, '')
+    if (digits.length >= 10 && digits.length <= 15 && (/^(\+?62|08)/.test(raw) || digits.startsWith('628') || digits.startsWith('08'))) {
+      const normalized = (digits.startsWith('0') ? '62' + digits.slice(1) : digits) + '@s.whatsapp.net'
+      const rem = [...args]
+      rem.splice(i, 1)
+      return { targetKey: normalized, remainingArgs: rem }
+    }
+  }
+
+  // Check if non-numeric args match a character name in DB
+  const skipWords = new Set(['char', 'dossier', 'paspor', 'stats', 'profile', 'f-', 'f', 'e', 'd', 'c', 'b', 'a', 's', 'ss', 'sss'])
+  const nonNumericParts = args.filter((a) => !/^-?\d+$/.test(a) && !skipWords.has(a.toLowerCase()))
+  if (nonNumericParts.length > 0) {
+    const potentialName = nonNumericParts.join(' ').trim()
+    try {
+      const found = await service.findActiveByName(potentialName)
+      if (found) {
+        const rem = args.filter((a) => !nonNumericParts.includes(a))
+        return { targetKey: found.ownerKey ?? found.characterId, character: found, remainingArgs: rem }
+      }
+    } catch {}
+  }
+
+  for (let i = 0; i < args.length; i++) {
+    const raw = args[i]
+    if (!/^-?\d+$/.test(raw) && !skipWords.has(raw.toLowerCase())) {
+      try {
+        const found = await service.findActiveByName(raw)
+        if (found) {
+          const rem = [...args]
+          rem.splice(i, 1)
+          return { targetKey: found.ownerKey ?? found.characterId, character: found, remainingArgs: rem }
+        }
+      } catch {}
+    }
+  }
+
+  return { targetKey: actor, remainingArgs: args }
 }
 
 async function sendQuickReplies(
@@ -834,17 +900,9 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
 
-          let target = actor
+          const { targetKey, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
           let amount: number | undefined
-
-          const mentioned = commandContext.message.mentionedJids?.filter(isJid) ?? []
-          if (mentioned.length > 0) {
-            target = mentioned[0]
-          } else if (commandContext.message.quotedSenderJid && isJid(commandContext.message.quotedSenderJid)) {
-            target = commandContext.message.quotedSenderJid
-          }
-
-          for (const arg of commandContext.args) {
+          for (const arg of remainingArgs) {
             if (/^-?\d+$/.test(arg)) {
               amount = parseInt(arg, 10)
               break
@@ -854,14 +912,210 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (amount === undefined || isNaN(amount) || amount === 0) {
             return void await commandContext.reply([
               '*Format Give Token:*',
-              `• \`${commandContext.prefix}givetoken <jumlah>\` (untuk karakter sendiri)`,
-              `• \`${commandContext.prefix}givetoken @target <jumlah>\` (untuk member lain)`,
+              `• \`${commandContext.prefix}givetoken <jumlah>\` (untuk diri sendiri)`,
+              `• \`${commandContext.prefix}givetoken <@target / nomor / nama> <jumlah>\``,
               '',
-              `Contoh: \`${commandContext.prefix}givetoken 10\` atau \`${commandContext.prefix}givetoken @user 5\``,
+              `Contoh: \`${commandContext.prefix}givetoken 10\` atau \`${commandContext.prefix}givetoken Cheryl 5\``,
             ].join('\n'))
           }
 
-          const result = await service.grantTokens(target, amount)
+          const result = await service.grantTokens(targetKey, amount)
+          await commandContext.reply(result.message)
+        },
+      })
+
+      context.commands.register({
+        name: 'setlevel',
+        aliases: ['chlevel', 'lvl'],
+        description: 'Ubah level karakter target (khusus admin/owner)',
+        category: 'moderation',
+        permission: permissionNames.groupAdminOrBotOwner,
+        menuOrder: 36,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+
+          const { targetKey, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
+          let level: number | undefined
+          for (const arg of remainingArgs) {
+            if (/^\d+$/.test(arg)) {
+              level = parseInt(arg, 10)
+              break
+            }
+          }
+
+          if (level === undefined || isNaN(level) || level < 1 || level > 100) {
+            return void await commandContext.reply([
+              '*Format Set Level:*',
+              `• \`${commandContext.prefix}setlevel <1-100>\` (untuk diri sendiri)`,
+              `• \`${commandContext.prefix}setlevel <@target / nomor / nama> <1-100>\``,
+              '',
+              `Contoh: \`${commandContext.prefix}setlevel 25\` atau \`${commandContext.prefix}setlevel Cheryl 50\``,
+            ].join('\n'))
+          }
+
+          const result = await service.setLevel(targetKey, level)
+          await commandContext.reply(result.message)
+        },
+      })
+
+      context.commands.register({
+        name: 'resetstats',
+        aliases: ['resetsheet', 'statreset'],
+        description: 'Refund & reset seluruh alokasi stat karakter (khusus admin/owner)',
+        category: 'moderation',
+        permission: permissionNames.groupAdminOrBotOwner,
+        menuOrder: 37,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+
+          const { targetKey } = await resolveAdminTarget(commandContext, service, actor)
+          const result = await service.resetStats(targetKey)
+          await commandContext.reply(result.message)
+        },
+      })
+
+      context.commands.register({
+        name: 'setrank',
+        aliases: ['chrank', 'rankset'],
+        description: 'Ubah rank lisensi karakter target (khusus admin/owner)',
+        category: 'moderation',
+        permission: permissionNames.groupAdminOrBotOwner,
+        menuOrder: 38,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+
+          const { targetKey, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
+          const validRanks = ['F-', 'F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS']
+          let chosenRank: string | undefined
+          for (const arg of remainingArgs) {
+            const up = arg.toUpperCase()
+            if (validRanks.includes(up)) {
+              chosenRank = up
+              break
+            }
+          }
+
+          if (!chosenRank) {
+            return void await commandContext.reply([
+              '*Format Set Rank:*',
+              `• \`${commandContext.prefix}setrank <rank>\` (untuk diri sendiri)`,
+              `• \`${commandContext.prefix}setrank <@target / nomor / nama> <rank>\``,
+              '',
+              `Pilihan Rank: ${validRanks.join(', ')}`,
+              `Contoh: \`${commandContext.prefix}setrank S\` atau \`${commandContext.prefix}setrank Cheryl SS\``,
+            ].join('\n'))
+          }
+
+          const result = await service.setRank(targetKey, chosenRank)
+          await commandContext.reply(result.message)
+        },
+      })
+
+      context.commands.register({
+        name: 'inspectchar',
+        aliases: ['charinfo', 'chardebug', 'inspect'],
+        description: 'Intip visual Status Window karakter target (khusus admin/owner)',
+        category: 'moderation',
+        permission: permissionNames.groupAdminOrBotOwner,
+        menuOrder: 39,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+
+          const { targetKey, character, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
+          const record = character ?? await service.getActiveForOwner(targetKey)
+          if (!record) {
+            return void await commandContext.reply('Karakter aktif tidak ditemukan untuk target tersebut.')
+          }
+
+          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {}, record.bonusTokens ?? 0)
+          const mode = remainingArgs.some((a) => ['char', 'dossier', 'paspor', 'profile'].includes(a.toLowerCase())) ? 'character' : 'stats'
+
+          let mediaSent = false
+          if (commandContext.whatsapp.sendMedia) {
+            try {
+              const imgBuffer = await renderStatusCardImage(mode, {
+                name: record.name,
+                gender: record.gender,
+                age: record.age,
+                birthday: record.birthday,
+                race: record.race,
+                className: record.className,
+                element: record.element,
+                rank: record.rank,
+                level: record.level,
+                willOfPath: record.willOfPath,
+                spirit: record.spirit,
+                crew: record.crew,
+                profession: record.profession,
+                origin: record.origin,
+                titles: record.titles,
+                motto: record.motto,
+                stats: stats as unknown as Record<string, unknown>,
+              }, commandContext.logger)
+              if (imgBuffer) {
+                await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                  kind: 'image',
+                  data: new Uint8Array(imgBuffer),
+                  mimeType: 'image/png',
+                })
+                mediaSent = true
+              }
+            } catch (err) {
+              commandContext.logger.warn({ err }, 'failed to send inspected character card media')
+            }
+          }
+
+          if (!mediaSent) {
+            await commandContext.reply(mode === 'character' ? renderCharacter(record) : renderStatsCard(record.name, record.race, record.className, record.rank, record.level, stats))
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'forceretire',
+        aliases: ['killchar', 'wipechar'],
+        description: 'Nonaktifkan paksa karakter target (khusus admin/owner)',
+        category: 'moderation',
+        permission: permissionNames.groupAdminOrBotOwner,
+        menuOrder: 40,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+
+          const hasMention = (commandContext.message.mentionedJids?.filter(isJid) ?? []).length > 0
+          const hasQuoted = Boolean(commandContext.message.quotedSenderJid && isJid(commandContext.message.quotedSenderJid))
+          const hasArgs = commandContext.args.length > 0
+
+          if (!hasMention && !hasQuoted && !hasArgs) {
+            return void await commandContext.reply([
+              '*Peringatan:* Command ini akan menonaktifkan karakter target secara paksa.',
+              `Format: \`${commandContext.prefix}forceretire <@target / nomor / nama>\``,
+              '',
+              `Contoh: \`${commandContext.prefix}forceretire Cheryl\` atau \`${commandContext.prefix}forceretire @user\``,
+            ].join('\n'))
+          }
+
+          const { targetKey } = await resolveAdminTarget(commandContext, service, actor)
+          const result = await service.forceRetire(targetKey)
           await commandContext.reply(result.message)
         },
       })

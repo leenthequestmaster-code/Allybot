@@ -156,8 +156,31 @@ test('End-to-end: Setgroup guide -> !daftar -> choice -> issue card -> savechara
   const charAfterGrant = await charService.getActive(groupJid, ownerJid)
   assert.equal(charAfterGrant.bonusTokens, 10, 'bonusTokens increased by 10')
 
-  // 7. Clean up / retire character
-  await charService.retire(groupJid, ownerJid, activeChar.characterId)
-  const afterRetire = await charService.getActive(groupJid, ownerJid)
-  assert.equal(afterRetire, undefined, 'Character successfully retired')
+  // 6d. Test !setlevel command (admin sets level)
+  await commands.get('setlevel').handler(cmdCtx('!setlevel 25'))
+  assert.ok(sent.some((item) => item.text.includes('Level 25')), '!setlevel succeeds')
+  const charAfterLevel = await charService.getActive(groupJid, ownerJid)
+  assert.equal(charAfterLevel.level, 25, 'level reflects update')
+
+  // 6e. Test !setrank command (admin sets rank)
+  await commands.get('setrank').handler(cmdCtx('!setrank S'))
+  assert.ok(sent.some((item) => item.text.includes('Rank S')), '!setrank succeeds')
+  const charAfterRank = await charService.getActive(groupJid, ownerJid)
+  assert.equal(charAfterRank.rank, 'S', 'rank reflects update')
+
+  // 6f. Test !resetstats command (admin refunds stat tokens)
+  await commands.get('resetstats').handler(cmdCtx('!resetstats'))
+  assert.ok(sent.some((item) => item.text.includes('berhasil direset')), '!resetstats succeeds')
+  const charAfterReset = await charService.getActive(groupJid, ownerJid)
+  assert.equal(Object.keys(charAfterReset.allocatedStats).length, 0, 'allocatedStats reset')
+
+  // 6g. Test !inspectchar command (admin inspects character by name)
+  await commands.get('inspectchar').handler(cmdCtx('!inspectchar Cheryl'))
+  assert.ok(sent.length > 0, '!inspectchar dispatched successfully')
+
+  // 6h. Test !forceretire command
+  await commands.get('forceretire').handler(cmdCtx('!forceretire Cheryl'))
+  assert.ok(sent.some((item) => item.text.includes('berhasil dinonaktifkan secara paksa')), '!forceretire succeeds')
+  const afterForceRetire = await charService.getActive(groupJid, ownerJid)
+  assert.equal(afterForceRetire, undefined, 'Character successfully force-retired')
 })
