@@ -317,7 +317,8 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
 
       if (functionName === 'character_find_by_name') {
         const guideKey = String(args.p_guide_key ?? '')
-        const query = String(args.p_name_query ?? '').trim().toLowerCase()
+        const rawQuery = String(args.p_name_query ?? '').trim().toLowerCase()
+        const query = rawQuery.replace(/\s+/g, ' ')
         if (!query) return { data: { ok: true, code: 'not_found' }, error: null }
 
         const rows = await sql`
@@ -325,10 +326,10 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           WHERE guide_key = ${guideKey}
             AND status = 'active'
             AND (
-              LOWER(name) = ${query}
-              OR (LENGTH(${query}) >= 3 AND LOWER(name) LIKE ${'%' + query + '%'})
+              regexp_replace(LOWER(name), '\\s+', ' ', 'g') = ${query}
+              OR (LENGTH(${query}) >= 3 AND regexp_replace(LOWER(name), '\\s+', ' ', 'g') LIKE ${'%' + query + '%'})
             )
-          ORDER BY (CASE WHEN LOWER(name) = ${query} THEN 0 ELSE 1 END), created_at DESC
+          ORDER BY (CASE WHEN regexp_replace(LOWER(name), '\\s+', ' ', 'g') = ${query} THEN 0 ELSE 1 END), created_at DESC
           LIMIT 1
         `
         if (rows.length === 0) return { data: { ok: true, code: 'not_found' }, error: null }
