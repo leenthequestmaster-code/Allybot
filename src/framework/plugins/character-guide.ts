@@ -692,7 +692,6 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
                   kind: 'image',
                   data: new Uint8Array(imgBuffer),
                   mimeType: 'image/png',
-                  caption: `[ ALLYSSEA SYSTEM · CITIZEN DOSSIER ]\n*${record.name}* · ${record.race} ${record.className}\nRank ${record.rank} (Level ${record.level})\n\nKetik *!stats* untuk rincian matriks tempur.`,
                 })
                 mediaSent = true
               }
@@ -775,7 +774,6 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
                   kind: 'image',
                   data: new Uint8Array(imgBuffer),
                   mimeType: 'image/png',
-                  caption: `[ ALLYSSEA SYSTEM · TACTICAL MATRIX ]\n*${record.name}* · Rank ${record.rank} (Level ${record.level})\nHP: ${stats.hp}/${stats.maxHp} | SE: ${stats.se}/${stats.maxSe}\nSisa Stat Token: *${stats.statTokens} Token* ${stats.statTokens > 0 ? '(Gunakan !alokasi)' : ''}`,
                 })
                 mediaSent = true
               }
