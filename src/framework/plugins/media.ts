@@ -1075,7 +1075,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
       // ytmp3 & ytmp4 - YouTube downloaders
       context.commands.register({
         name: 'ytmp3',
-        aliases: ['yta', 'ytaudio'],
+        aliases: ['yta', 'ytaudio', 'yt2mp3'],
         description: 'Unduh audio dari YouTube',
         category: 'tools',
         menuOrder: 26,
@@ -1138,6 +1138,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         aliases: ['youtube2', 'yt'],
         description: 'Unduh video atau audio dari YouTube via yt-dlp',
         category: 'tools',
+        hidden: true,
         menuOrder: 28,
         cooldownMs: 5_000,
         handler: async (commandContext) => {

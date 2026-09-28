@@ -258,6 +258,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'cases',
         description: 'List recent group safety cases',
         category: 'moderation',
+        hidden: true,
         menuOrder: 7,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -275,6 +276,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'case',
         description: 'Show one group safety case',
         category: 'moderation',
+        hidden: true,
         menuOrder: 8,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -311,6 +313,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
         aliases: ['takecase'],
         description: 'Claim an open safety case',
         category: 'moderation',
+        hidden: true,
         menuOrder: 9,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -337,6 +340,7 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
           name,
           description: `${label} a group safety case`,
           category: 'moderation',
+          hidden: true,
           menuOrder: name === 'resolvecase' ? 10 : 11,
           permission: permissionNames.groupAdmin,
           handler: async (commandContext) => {

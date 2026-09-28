@@ -43,10 +43,6 @@ const SERVICE_NAMES = [
   'character-guide',
   'platform-guardrails',
   'group-moderation',
-  'knowledge',
-  'scene',
-  'group-governance',
-  'suggestion-relay',
   'redis',
   'group-safety',
   'group-moderation-suite',
@@ -144,10 +140,6 @@ test('every production plugin reaches ready, except the documented pending colli
   framework.registerPlugin(createModerationSuitePlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
-  framework.registerPlugin(createGroupGovernancePlugin(whatsapp))
-  framework.registerPlugin(createScenePlugin(whatsapp))
-  framework.registerPlugin(createKnowledgePlugin(whatsapp))
-  framework.registerPlugin(suggestionRelayPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(toolsSearchPlugin)
