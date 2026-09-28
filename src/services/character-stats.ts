@@ -13,6 +13,7 @@ export interface CharacterAttributes {
   readonly int: number
   readonly lck: number
   readonly statTokens: number
+  readonly bonusTokens: number
   readonly allocatedTokens: Readonly<Record<string, number>>
   readonly trait: string
 }
@@ -92,9 +93,11 @@ export function calculateCharacterStats(
   race: string,
   level: number,
   allocated: unknown = {},
+  bonusTokens = 0,
 ): CharacterAttributes {
   const bonus = RACE_BONUSES[race] ?? { trait: 'Adaptability' }
-  const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 // Level 1 starts with 5 tokens
+  const safeBonus = Math.max(0, Number(bonusTokens) || 0)
+  const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 + safeBonus
   const cleanAlloc = parseAllocatedStats(allocated)
   
   const allocHp = Math.max(0, cleanAlloc.hp ?? 0)
@@ -133,6 +136,7 @@ export function calculateCharacterStats(
     int,
     lck,
     statTokens: remainingTokens,
+    bonusTokens: safeBonus,
     allocatedTokens: {
       hp: allocHp,
       se: allocSe,

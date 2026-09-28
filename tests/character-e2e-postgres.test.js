@@ -149,6 +149,13 @@ test('End-to-end: Setgroup guide -> !daftar -> choice -> issue card -> savechara
   const charAfterAlloc = await charService.getActive(groupJid, ownerJid)
   assert.equal(charAfterAlloc.allocatedStats.str, 2, 'allocatedStats reflects STR update')
 
+  // 6c. Test !givetoken command (admin grants tokens)
+  await commands.get('givetoken').handler(cmdCtx('!givetoken 10'))
+  assert.ok(sent.some((item) => item.text.includes('Berhasil memberikan 10 Stat Token')), '!givetoken succeeds')
+
+  const charAfterGrant = await charService.getActive(groupJid, ownerJid)
+  assert.equal(charAfterGrant.bonusTokens, 10, 'bonusTokens increased by 10')
+
   // 7. Clean up / retire character
   await charService.retire(groupJid, ownerJid, activeChar.characterId)
   const afterRetire = await charService.getActive(groupJid, ownerJid)

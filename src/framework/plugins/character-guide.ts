@@ -196,7 +196,7 @@ function renderParseIssues(issues: readonly { field?: string; message: string }[
 
 function renderCharacter(record: Awaited<ReturnType<CharacterGuideService['getActive']>>): string {
   if (!record) return 'Kamu belum memiliki Character aktif. Gunakan !daftar di Grup Guide.'
-  const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
+  const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {}, record.bonusTokens ?? 0)
   return [
     '╔═══════════════════════════════╗',
     '    ALLYSSEA · PASPOR WARGA RESMI',
@@ -664,7 +664,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
 
-          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
+          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {}, record.bonusTokens ?? 0)
           let mediaSent = false
           if (commandContext.whatsapp.sendMedia) {
             try {
@@ -746,7 +746,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
           const record = await service.getActiveForOwner(actor)
           if (!record) return void await commandContext.reply('Kamu belum memiliki Character aktif. Ketik !daftar untuk membuat karakter.')
-          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
+          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {}, record.bonusTokens ?? 0)
 
           let mediaSent = false
           if (commandContext.whatsapp.sendMedia) {
@@ -823,6 +823,52 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
       })
 
       context.commands.register({
+        name: 'givetoken',
+        aliases: ['addtoken', 'tokenreward'],
+        description: 'Berikan Stat Token kepada karakter (khusus admin/owner)',
+        category: 'moderation',
+        permission: permissionNames.groupAdminOrBotOwner,
+        menuOrder: 35,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+
+          let target = actor
+          let amount: number | undefined
+
+          const mentioned = commandContext.message.mentionedJids?.filter(isJid) ?? []
+          if (mentioned.length > 0) {
+            target = mentioned[0]
+          } else if (commandContext.message.quotedSenderJid && isJid(commandContext.message.quotedSenderJid)) {
+            target = commandContext.message.quotedSenderJid
+          }
+
+          for (const arg of commandContext.args) {
+            if (/^-?\d+$/.test(arg)) {
+              amount = parseInt(arg, 10)
+              break
+            }
+          }
+
+          if (amount === undefined || isNaN(amount) || amount === 0) {
+            return void await commandContext.reply([
+              '*Format Give Token:*',
+              `• \`${commandContext.prefix}givetoken <jumlah>\` (untuk karakter sendiri)`,
+              `• \`${commandContext.prefix}givetoken @target <jumlah>\` (untuk member lain)`,
+              '',
+              `Contoh: \`${commandContext.prefix}givetoken 10\` atau \`${commandContext.prefix}givetoken @user 5\``,
+            ].join('\n'))
+          }
+
+          const result = await service.grantTokens(target, amount)
+          await commandContext.reply(result.message)
+        },
+      })
+
+      context.commands.register({
         name: 'hunt',
         aliases: ['berburu', 'ekspedisi'],
         description: 'Jalankan ekspedisi perburuan monster alam liar untuk imbalan Vela',
@@ -837,7 +883,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           const record = await service.getActiveForOwner(actor)
           if (!record) return void await commandContext.reply('Kamu belum memiliki Character aktif. Ketik !daftar untuk membuat karakter.')
           
-          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {})
+          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {}, record.bonusTokens ?? 0)
           const result = executeHunt(record.name, record.className, stats)
 
           if (result.victory && result.velaEarned > 0 && commandContext.services.has('economy')) {

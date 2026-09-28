@@ -53,6 +53,7 @@ export interface CharacterActiveRecord {
   readonly visual?: string
   readonly origin?: string
   readonly allocatedStats?: Readonly<Record<string, number>>
+  readonly bonusTokens: number
   readonly status: 'active'
   readonly revision: number
 }
@@ -522,8 +523,31 @@ export class CharacterGuideService implements Service {
       ...(typeof raw.visual === 'string' ? { visual: raw.visual } : {}),
       ...(typeof raw.origin === 'string' ? { origin: raw.origin } : {}),
       allocatedStats: parseAllocatedStats(raw.allocated_stats),
+      bonusTokens: Math.max(0, Number(raw.bonus_tokens ?? 0)),
       status: 'active',
       revision: Number(raw.revision ?? 1),
+    }
+  }
+
+  async grantTokens(
+    targetOwnerJid: string,
+    amount: number,
+  ): Promise<{ ok: boolean; message: string; newTotal?: number }> {
+    this.assertJid(targetOwnerJid, 'target')
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_grant_tokens', {
+      p_guide_key: worldScopeKey(),
+      p_target_owner_key: hashIdentity(targetOwnerJid),
+      p_amount: amount,
+    })
+    const raw = asRecord(result)
+    if (!raw || raw.ok !== true) {
+      return { ok: false, message: typeof raw?.error === 'string' ? raw.error : 'Gagal memberikan token.' }
+    }
+    return {
+      ok: true,
+      message: String(raw.message ?? 'Token berhasil diberikan.'),
+      newTotal: typeof raw.bonus_tokens === 'number' ? raw.bonus_tokens : undefined,
     }
   }
 

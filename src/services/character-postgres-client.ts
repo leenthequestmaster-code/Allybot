@@ -64,6 +64,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         );
 
         ALTER TABLE character_profiles ADD COLUMN IF NOT EXISTS allocated_stats JSONB DEFAULT '{}'::jsonb;
+        ALTER TABLE character_profiles ADD COLUMN IF NOT EXISTS bonus_tokens INTEGER NOT NULL DEFAULT 0;
 
         UPDATE character_profiles
         SET allocated_stats = (allocated_stats #>> '{}')::jsonb
@@ -297,6 +298,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           visual: row.visual ? String(row.visual) : undefined,
           origin: row.origin ? String(row.origin) : undefined,
           allocated_stats: parseAllocatedStats(row.allocated_stats),
+          bonus_tokens: Math.max(0, Number(row.bonus_tokens ?? 0)),
           status: 'active',
           revision: Number(row.revision ?? 1),
         }
@@ -321,7 +323,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         }
 
         const rows = await sql`
-          SELECT character_id, race, level, allocated_stats FROM character_profiles
+          SELECT character_id, race, level, allocated_stats, bonus_tokens FROM character_profiles
           WHERE guide_key = ${guideKey} AND owner_key = ${ownerKey} AND status = 'active'
           LIMIT 1
         `
@@ -331,7 +333,8 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
 
         const row = rows[0]
         const level = Number(row.level ?? 1)
-        const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5
+        const bonusTokens = Math.max(0, Number(row.bonus_tokens ?? 0))
+        const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 + bonusTokens
         const currentAlloc: Record<string, number> = parseAllocatedStats(row.allocated_stats)
 
         const currentUsed = validKeys.reduce((sum, k) => sum + (Number(currentAlloc[k]) || 0), 0)
@@ -358,6 +361,54 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
             ok: true,
             allocated_stats: currentAlloc,
             message: `Berhasil mengalokasikan ${amount} token ke ${statKey.toUpperCase()}.`,
+          },
+          error: null,
+        }
+      }
+
+      if (functionName === 'character_grant_tokens') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const targetOwnerKey = String(args.p_target_owner_key ?? '')
+        const amount = Number(args.p_amount ?? 0)
+
+        if (!Number.isInteger(amount) || amount === 0) {
+          return { data: { ok: false, error: 'Jumlah token harus berupa bilangan bulat bukan nol.' }, error: null }
+        }
+
+        const rows = await sql`
+          SELECT character_id, name, bonus_tokens FROM character_profiles
+          WHERE guide_key = ${guideKey} AND owner_key = ${targetOwnerKey} AND status = 'active'
+          LIMIT 1
+        `
+        if (rows.length === 0) {
+          return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
+        }
+
+        const row = rows[0]
+        const currentBonus = Math.max(0, Number(row.bonus_tokens ?? 0))
+        const newBonus = Math.max(0, currentBonus + amount)
+
+        await sql`
+          UPDATE character_profiles
+          SET bonus_tokens = ${newBonus}, updated_at = now()
+          WHERE character_id = ${row.character_id}
+        `
+
+        if (redis) {
+          try {
+            await redis.cacheDelete('character:active', targetOwnerKey)
+          } catch {}
+        }
+
+        return {
+          data: {
+            ok: true,
+            character_id: row.character_id,
+            character_name: row.name,
+            bonus_tokens: newBonus,
+            message: amount > 0
+              ? `Berhasil memberikan ${amount} Stat Token kepada *${row.name}*. Total bonus token: ${newBonus}.`
+              : `Berhasil mengurangi ${Math.abs(amount)} Stat Token dari *${row.name}*. Total bonus token: ${newBonus}.`,
           },
           error: null,
         }
