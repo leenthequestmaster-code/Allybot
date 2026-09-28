@@ -45,57 +45,69 @@ export const toolsSearchPlugin: Plugin = {
   name: 'tools-search',
   version: '0.1.0',
   load(context) {
-    // 1. Google Web Search
+    // 1. Google Web Search (AI-Powered)
     context.commands.register({
       name: 'google',
       aliases: ['search'],
-      description: 'Cari informasi di web',
+      description: 'Cari informasi terkini di web dengan rangkuman AI',
       category: 'tools',
       menuOrder: 1,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
         const query = boundText(commandContext.args.join(' '))
         if (!query) {
-          await commandContext.reply(usage(commandContext, 'google', '<kata kunci>') + '\nContoh: `!google Nikola Tesla`')
+          await commandContext.reply(usage(commandContext, 'google', '<kata kunci>') + '\nContoh: `!google harga bitcoin hari ini`')
           return
         }
+
+        await commandContext.reply('⏳ Sedang mencari dan merangkum info dari web... Sabar ya~ 🔍')
+
         try {
-          const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`, {
+          const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`, {
             signal: AbortSignal.timeout(10_000),
           })
           const data = (await res.json()) as any
-          if (data?.AbstractText) {
-            await commandContext.reply([
-              '𓏼 *`𝐆𝗼𝗼𝗴𝗹𝗲 𝐒𝗲𝗮𝗿𝗰𝗵`*',
-              '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-              `⡇╌ *Query*  : ${query}`,
-              `⡇╌ *Sumber* : ${data.AbstractURL || data.AbstractSource || 'Web'}`,
-              '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
-              data.AbstractText,
-              '━━━━━━━━━━━━━━━━━━━━',
-              '*© Allyssea Roleplay Community*',
-            ].join('\n'))
-            return
+
+          let snippets = data?.AbstractText || ''
+          let sourceUrl = data?.AbstractURL || `https://www.google.com/search?q=${encodeURIComponent(query)}`
+
+          if (!snippets && data?.RelatedTopics && Array.isArray(data.RelatedTopics)) {
+            snippets = data.RelatedTopics
+              .slice(0, 5)
+              .map((t: any) => t.Text || (t.Topics && t.Topics[0]?.Text))
+              .filter(Boolean)
+              .join('\n')
           }
+
+          let aiAnswer: string
+          try {
+            const { chatCompletion } = await import('../../ai-handler.js')
+            const prompt = [
+              'Kamu adalah asisten mesin pencari cerdas untuk bot WhatsApp.',
+              'Tugasmu: Jawab dan rangkum pertanyaan/topik pencarian berikut secara akurat, padat, jelas, dan terkini dalam bahasa Indonesia.',
+              `Pertanyaan/Topik: ${query}`,
+              snippets ? `Konteks Rujukan Web:\n${snippets}` : 'Tidak ada rujukan web instan, jawab menggunakan pengetahuan terbaikmu.',
+              'Format jawaban langsung ke intinya (maksimal 2-3 paragraf atau beberapa poin penting).',
+            ].join('\n\n')
+            aiAnswer = await chatCompletion(prompt)
+          } catch {
+            aiAnswer = snippets || `Hasil pencarian dapat dibuka di:\n${sourceUrl}`
+          }
+
           await commandContext.reply([
-            '𓏼 *`𝐆𝗼𝗼𝗴𝗹𝗲 𝐒𝗲𝗮𝗿𝗰𝗵`*',
+            '𓏼 *`𝐆𝗼𝗼𝗴𝗹𝗲 𝐒𝗲𝗮𝗿𝗰𝗵 (𝐀𝐈 𝐀𝗻𝘀𝘄𝗲𝗿)`*',
             '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
             `⡇╌ *Query* : ${query}`,
             '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
-            `Buka pencarian lengkap di browser:\nhttps://www.google.com/search?q=${encodeURIComponent(query)}`,
-            '━━━━━━━━━━━━━━━━━━━━',
-            '*© Allyssea Roleplay Community*',
-          ].join('\n'))
-        } catch {
-          await commandContext.reply([
-            '𓏼 *`𝐆𝗼𝗼𝗴𝗹𝗲 𝐒𝗲𝗮𝗿𝗰𝗵`*',
-            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-            `⡇╌ *Query* : ${query}`,
+            aiAnswer,
             '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
-            `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+            `🔗 Sumber: ${sourceUrl}`,
             '━━━━━━━━━━━━━━━━━━━━',
             '*© Allyssea Roleplay Community*',
           ].join('\n'))
+        } catch (error) {
+          commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'google search failed')
+          await commandContext.reply(`Waduh, gagal mencari info untuk "${query}" nih. Coba lagi sebentar ya~ 🙏`)
         }
       },
     })

@@ -127,6 +127,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         aliases: ['terjemah', 'trans'],
         description: 'Terjemahkan teks yang kamu kirim secara langsung',
         category: 'tools',
+        hidden: true,
         menuOrder: 2,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -151,6 +152,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         aliases: ['ringkas'],
         description: 'Ringkas teks yang kamu kirim secara langsung',
         category: 'tools',
+        hidden: true,
         menuOrder: 3,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -175,6 +177,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         aliases: ['deteksiai', 'aidetect'],
         description: 'Deteksi teks AI via reply message atau teks input',
         category: 'tools',
+        hidden: true,
         menuOrder: 4,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -307,6 +310,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         aliases: ['deskripsigambar'],
         description: 'Deskripsikan isi gambar menggunakan AI',
         category: 'tools',
+        hidden: true,
         menuOrder: 7,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
@@ -346,6 +350,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         name: 'ocr',
         description: 'Ekstrak teks dari gambar secara presisi menggunakan AI Vision',
         category: 'tools',
+        hidden: true,
         menuOrder: 8,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
