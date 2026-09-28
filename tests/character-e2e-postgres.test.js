@@ -142,6 +142,13 @@ test('End-to-end: Setgroup guide -> !daftar -> choice -> issue card -> savechara
   await commands.get('character').handler(cmdCtx('!character'))
   assert.ok(sent.some((item) => item.text.includes('Cheryl') && item.text.includes('Knight')), '!character shows sheet')
 
+  // 6b. Test !alokasi command to allocate stat token
+  await commands.get('alokasi').handler(cmdCtx('!alokasi str 2'))
+  assert.ok(sent.some((item) => item.text.includes('Berhasil mengalokasikan 2 token ke STR')), '!alokasi succeeds')
+
+  const charAfterAlloc = await charService.getActive(groupJid, ownerJid)
+  assert.equal(charAfterAlloc.allocatedStats.str, 2, 'allocatedStats reflects STR update')
+
   // 7. Clean up / retire character
   await charService.retire(groupJid, ownerJid, activeChar.characterId)
   const afterRetire = await charService.getActive(groupJid, ownerJid)

@@ -3,6 +3,7 @@ import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { isGroupJid, isJid } from '../framework/validation.js'
 import type { CharacterSheetPayload } from './character-sheet-parser.js'
+import { parseAllocatedStats } from './character-stats.js'
 
 export interface CharacterRpcClient {
   rpc(functionName: string, args: Record<string, string | number | boolean | null | object>): PromiseLike<{
@@ -520,7 +521,7 @@ export class CharacterGuideService implements Service {
       ...(typeof raw.motto === 'string' ? { motto: raw.motto } : {}),
       ...(typeof raw.visual === 'string' ? { visual: raw.visual } : {}),
       ...(typeof raw.origin === 'string' ? { origin: raw.origin } : {}),
-      allocatedStats: typeof raw.allocated_stats === 'object' && raw.allocated_stats !== null ? raw.allocated_stats as Record<string, number> : {},
+      allocatedStats: parseAllocatedStats(raw.allocated_stats),
       status: 'active',
       revision: Number(raw.revision ?? 1),
     }

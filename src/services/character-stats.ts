@@ -62,23 +62,50 @@ const BASE_VITAL = {
   lck: 10,
 }
 
+export function parseAllocatedStats(raw: unknown): Record<string, number> {
+  if (!raw) return {}
+  let current: unknown = raw
+  if (typeof current === 'string') {
+    try {
+      current = JSON.parse(current)
+    } catch {}
+  }
+  if (typeof current === 'string') {
+    try {
+      current = JSON.parse(current)
+    } catch {}
+  }
+  if (typeof current === 'object' && current !== null && !Array.isArray(current)) {
+    const result: Record<string, number> = {}
+    for (const [k, v] of Object.entries(current as Record<string, unknown>)) {
+      const num = Number(v)
+      if (Number.isFinite(num) && num > 0) {
+        result[k.toLowerCase()] = Math.floor(num)
+      }
+    }
+    return result
+  }
+  return {}
+}
+
 export function calculateCharacterStats(
   race: string,
   level: number,
-  allocated: Record<string, number> = {},
+  allocated: unknown = {},
 ): CharacterAttributes {
   const bonus = RACE_BONUSES[race] ?? { trait: 'Adaptability' }
   const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 // Level 1 starts with 5 tokens
+  const cleanAlloc = parseAllocatedStats(allocated)
   
-  const allocHp = Math.max(0, allocated.hp ?? 0)
-  const allocSe = Math.max(0, allocated.se ?? 0)
-  const allocStr = Math.max(0, allocated.str ?? 0)
-  const allocDef = Math.max(0, allocated.def ?? 0)
-  const allocMp = Math.max(0, allocated.mp ?? 0)
-  const allocRes = Math.max(0, allocated.res ?? 0)
-  const allocSpd = Math.max(0, allocated.spd ?? 0)
-  const allocInt = Math.max(0, allocated.int ?? 0)
-  const allocLck = Math.max(0, allocated.lck ?? 0)
+  const allocHp = Math.max(0, cleanAlloc.hp ?? 0)
+  const allocSe = Math.max(0, cleanAlloc.se ?? 0)
+  const allocStr = Math.max(0, cleanAlloc.str ?? 0)
+  const allocDef = Math.max(0, cleanAlloc.def ?? 0)
+  const allocMp = Math.max(0, cleanAlloc.mp ?? 0)
+  const allocRes = Math.max(0, cleanAlloc.res ?? 0)
+  const allocSpd = Math.max(0, cleanAlloc.spd ?? 0)
+  const allocInt = Math.max(0, cleanAlloc.int ?? 0)
+  const allocLck = Math.max(0, cleanAlloc.lck ?? 0)
 
   const usedTokens = allocHp + allocSe + allocStr + allocDef + allocMp + allocRes + allocSpd + allocInt + allocLck
   const remainingTokens = Math.max(0, totalTokensEarned - usedTokens)

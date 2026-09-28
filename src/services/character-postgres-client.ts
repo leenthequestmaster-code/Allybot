@@ -2,6 +2,7 @@ import postgres, { type Sql } from 'postgres'
 import { randomUUID } from 'node:crypto'
 import type { CharacterRpcClient } from './character-guide-service.js'
 import type { RedisService } from '../redis.js'
+import { parseAllocatedStats } from './character-stats.js'
 
 export interface CharacterPostgresClientOptions {
   readonly postgresUrl: string
@@ -63,6 +64,10 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         );
 
         ALTER TABLE character_profiles ADD COLUMN IF NOT EXISTS allocated_stats JSONB DEFAULT '{}'::jsonb;
+
+        UPDATE character_profiles
+        SET allocated_stats = (allocated_stats #>> '{}')::jsonb
+        WHERE jsonb_typeof(allocated_stats) = 'string';
 
         CREATE TABLE IF NOT EXISTS character_delivery_outbox (
           delivery_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -291,7 +296,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           motto: row.motto ? String(row.motto) : undefined,
           visual: row.visual ? String(row.visual) : undefined,
           origin: row.origin ? String(row.origin) : undefined,
-          allocated_stats: typeof row.allocated_stats === 'object' && row.allocated_stats !== null ? row.allocated_stats : {},
+          allocated_stats: parseAllocatedStats(row.allocated_stats),
           status: 'active',
           revision: Number(row.revision ?? 1),
         }
@@ -327,7 +332,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         const row = rows[0]
         const level = Number(row.level ?? 1)
         const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5
-        const currentAlloc: Record<string, number> = typeof row.allocated_stats === 'object' && row.allocated_stats !== null ? { ...row.allocated_stats } : {}
+        const currentAlloc: Record<string, number> = parseAllocatedStats(row.allocated_stats)
 
         const currentUsed = validKeys.reduce((sum, k) => sum + (Number(currentAlloc[k]) || 0), 0)
         if (currentUsed + amount > totalTokensEarned) {
@@ -338,7 +343,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
 
         await sql`
           UPDATE character_profiles
-          SET allocated_stats = ${JSON.stringify(currentAlloc)}::jsonb, updated_at = now()
+          SET allocated_stats = ${sql.json(currentAlloc)}, updated_at = now()
           WHERE character_id = ${row.character_id}
         `
 
