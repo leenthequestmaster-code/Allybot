@@ -70,6 +70,7 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
         aliases: ['moderate'],
         description: 'Run a guarded participant moderation action',
         category: 'moderation',
+        hidden: true,
         menuOrder: 20,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {
@@ -170,6 +171,7 @@ export function createGroupModerationPlugin(_whatsapp: WhatsAppPort): Plugin {
         name: 'modstatus',
         description: 'Show guarded moderation action status',
         category: 'moderation',
+        hidden: true,
         menuOrder: 22,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {

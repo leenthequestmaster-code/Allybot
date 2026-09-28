@@ -204,7 +204,7 @@ test('!menu utilizes MsgBuilder interactive buttons when socket is available', a
   assert.ok(im)
   assert.match(im.body?.text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
   const buttons = im.nativeFlowMessage?.buttons
-  assert.ok(buttons && buttons.length >= 2)
+  assert.ok(buttons && buttons.length >= 1)
   assert.equal(buttons[0]?.name, 'quick_reply')
 })
 

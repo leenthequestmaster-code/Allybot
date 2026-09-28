@@ -398,6 +398,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'tagall',
         description: 'Sebut semua member grup dalam satu pesan',
         category: 'moderation',
+        hidden: true,
         menuOrder: 8,
         permission: permissionNames.groupAdmin,
         handler: async (commandContext) => {

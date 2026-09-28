@@ -790,6 +790,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         aliases: ['rpwaktu'],
         description: 'Lihat waktu RP Allyssea saat ini',
         category: 'your-character',
+        hidden: true,
         menuOrder: 8,
         handler: async (commandContext) => {
           const result = calculateTimeRp()
@@ -1125,6 +1126,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         aliases: ['berburu', 'ekspedisi'],
         description: 'Jalankan ekspedisi perburuan monster alam liar untuk imbalan Vela',
         category: 'roleplay',
+        hidden: true,
         menuOrder: 8,
         cooldownMs: 30_000,
         handler: async (commandContext) => {
@@ -1160,6 +1162,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         aliases: ['pasar', 'shop'],
         description: 'Lihat daftar perbekalan resmi Benua Allyssea',
         category: 'your-character',
+        hidden: true,
         menuOrder: 9,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
@@ -1221,6 +1224,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         name: 'guider',
         description: 'Lihat admin yang menjadi kontak Guide grup',
         category: 'your-character',
+        hidden: true,
         menuOrder: 7,
         handler: async (commandContext) => {
           const group = groupJid(commandContext)

@@ -87,19 +87,23 @@ function ownerProfileText(photoStatus: string): string {
 }
 
 function profileText(context: CommandContext): string {
+  const ownerJid = context.config.botOwnerJid
+  const ownerDisplay = ownerJid ? ownerJid.split('@')[0] : 'Vallen'
   return [
     '🤖 *Allybot Profile*',
-    '',
-    '↳ Name: Allybot',
-    '↳ Role: WhatsApp automation assistant',
-    `↳ Runtime: Node.js ${process.versions.node}`,
-    `↳ Mode: ${chatMode(context)}`,
-    `↳ Prefix: ${context.prefix}`,
-    `↳ Connection: ${connectionStatus(context)}`,
-    `↳ Uptime: ${formatUptime(process.uptime())}`,
-    `↳ Native menu buttons: ${typeof context.whatsapp.sendNativeQuickReplies === 'function' ? 'available' : 'text fallback'}`,
-    '',
-    'Sensitive credentials, owner identity, database path, and session data are not exposed.',
+    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+    `⡇╌ Nama     : Allybot`,
+    `⡇╌ Owner    : ${ownerDisplay}`,
+    `⡇╌ Role     : WhatsApp Automation & AI Assistant`,
+    `⡇╌ Runtime  : Node.js ${process.versions.node}`,
+    `⡇╌ Mode     : ${chatMode(context)}`,
+    `⡇╌ Prefix   : ${context.prefix}`,
+    `⡇╌ Koneksi  : ${connectionStatus(context)}`,
+    `⡇╌ Uptime   : ${formatUptime(process.uptime())}`,
+    '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+    'Credential, database, dan session tersimpan aman.',
+    '━━━━━━━━━━━━━━━━━━━━',
+    '*© Allyssea Roleplay Community*',
   ].join('\n')
 }
 
@@ -131,6 +135,7 @@ export const technicalPlugin: Plugin = {
       name: 'owner',
       description: 'Show the safe public Owner profile and control-plane status',
       category: 'tools',
+      hidden: true,
       menuOrder: 5,
       cooldownMs: 3000,
       handler: async (commandContext) => {

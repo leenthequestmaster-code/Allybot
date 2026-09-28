@@ -473,6 +473,7 @@ export const groupPlugin: Plugin = {
       name: 'prefix',
       description: 'Show the active command prefix for the current group',
       category: 'group',
+      hidden: true,
       menuOrder: 18,
       handler: async (commandContext) => {
         if (!(await requireGroup(commandContext))) return

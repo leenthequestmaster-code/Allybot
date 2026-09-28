@@ -304,6 +304,7 @@ export const utilityPlugin: Plugin = {
       aliases: ['cmds'],
       description: 'Lihat daftar command yang aktif',
       category: 'tools',
+      hidden: true,
       menuOrder: 10,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {
@@ -320,6 +321,7 @@ export const utilityPlugin: Plugin = {
       name: 'searchcmd',
       description: 'Cari command berdasarkan kata kunci',
       category: 'tools',
+      hidden: true,
       menuOrder: 11,
       cooldownMs: UTILITY_COOLDOWN_MS,
       handler: async (commandContext) => {

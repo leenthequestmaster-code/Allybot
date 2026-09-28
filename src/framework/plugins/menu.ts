@@ -315,14 +315,6 @@ async function sendMenu(
       })
     }
 
-    if (buttonLimit < 10) {
-      builder.button({
-        type: 'reply',
-        id: `${prefix}commands`,
-        text: '📚 Semua Command',
-      })
-    }
-
     await builder.send(commandContext.whatsapp as any)
     return
   }
