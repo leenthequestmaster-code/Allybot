@@ -374,55 +374,6 @@ export const utilityPlugin: Plugin = {
     })
 
     context.commands.register({
-      name: 'calc',
-      description: 'Hitung operasi matematika sederhana',
-      category: 'tools',
-      menuOrder: 20,
-      cooldownMs: UTILITY_COOLDOWN_MS,
-      handler: async (commandContext) => {
-        const input = commandContext.args.join('').trim()
-        const result = parseExpression(input)
-        if (result === undefined) {
-          await commandContext.reply(usage(commandContext, 'calc', '<angka dan operator>') + '\nContoh: `!calc (12 + 8) / 2`')
-          return
-        }
-        await commandContext.reply([
-          '𓏼 *`𝐂𝐚𝐥𝐜𝘂𝐥𝐚𝘁𝗼𝗿`*',
-          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-          `⡇╌ *Hitungan* : \`${input}\``,
-          `⡇╌ *Hasil*    : *${formatNumber(result)}*`,
-          '━━━━━━━━━━━━━━━━━━━━',
-          '*© Allyssea Roleplay Community*',
-        ].join('\n'))
-      },
-    })
-
-    context.commands.register({
-      name: 'convert',
-      description: 'Konversi satuan dasar',
-      category: 'tools',
-      menuOrder: 21,
-      cooldownMs: UTILITY_COOLDOWN_MS,
-      handler: async (commandContext) => {
-        const [valueText, from, to] = commandContext.args.map((value) => value.toLowerCase())
-        const value = valueText ? parseNumber(valueText) : undefined
-        const result = value !== undefined && from && to ? convertUnit(value, from, to) : undefined
-        if (result === undefined) {
-          await commandContext.reply(usage(commandContext, 'convert', '<angka> <dari> <ke>') + '\nContoh: `!convert 10 km m`, `!convert 32 f c`')
-          return
-        }
-        await commandContext.reply([
-          '𓏼 *`𝐔𝗻𝗶𝘁 𝐂𝗼𝗻𝘃𝗲𝗿𝘁𝗲𝗿`*',
-          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-          `⡇╌ *Input* : ${formatNumber(value as number)} ${from}`,
-          `⡇╌ *Hasil* : *${formatNumber(result)} ${to}*`,
-          '━━━━━━━━━━━━━━━━━━━━',
-          '*© Allyssea Roleplay Community*',
-        ].join('\n'))
-      },
-    })
-
-    context.commands.register({
       name: 'time',
       description: 'Lihat waktu pada zona tertentu',
       category: 'tools',

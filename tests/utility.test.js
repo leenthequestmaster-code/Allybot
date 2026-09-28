@@ -47,7 +47,7 @@ test('utility module split preserves canonical command registration parity', () 
   const registry = createRegistry(fakeWhatsapp())
   assert.deepEqual(registry.list().map((command) => command.name), [
     'status', 'uptime', 'features', 'commands', 'searchcmd', 'about', 'version', 'privacy', 'support',
-    'calc', 'convert', 'time', 'date', 'random', 'choose', 'flip', 'roll', 'truth', 'dare', 'rps', '8ball',
+    'time', 'date', 'random', 'choose', 'flip', 'roll', 'truth', 'dare', 'rps', '8ball',
   ])
   assert.deepEqual(registry.get('dice')?.aliases, ['dice'])
   assert.deepEqual(registry.get('suit')?.aliases, ['suit'])
@@ -80,35 +80,17 @@ test('utility command index and search expose registered commands without hidden
   assert.match(whatsapp.sent[0].text, /Command Allybot yang tersedia/)
   assert.match(whatsapp.sent[0].text, /!searchcmd/)
 
-  await registry.dispatch(message(5, '!searchcmd matematika'))
-  assert.match(whatsapp.sent[1].text, /!calc/)
+  await registry.dispatch(message(5, '!searchcmd uptime'))
+  assert.match(whatsapp.sent[1].text, /!uptime/)
   assert.doesNotMatch(whatsapp.sent[1].text, /menu-reply/)
 })
 
-test('calculator accepts bounded arithmetic and rejects executable syntax', async () => {
+test('timezone utility validates input and returns bounded output', async () => {
   const whatsapp = fakeWhatsapp()
   const registry = createRegistry(whatsapp)
-
-  await registry.dispatch(message(3, '!calc (12 + 8) / 2'))
-  assert.match(whatsapp.sent[0].text, /10/)
-
-  await registry.dispatch(message(4, '!calc process.exit()'))
-  assert.match(whatsapp.sent[1].text, /Format:/)
-})
-
-test('unit and timezone utilities validate input and return bounded output', async () => {
-  const whatsapp = fakeWhatsapp()
-  const registry = createRegistry(whatsapp)
-
-  await registry.dispatch(message(5, '!convert 10 km m'))
-  assert.match(whatsapp.sent[0].text, /10 km/)
-  assert.match(whatsapp.sent[0].text, /10\.000 m/)
-
-  await registry.dispatch(message(6, '!convert 10 km kg'))
-  assert.match(whatsapp.sent[1].text, /Format:/)
 
   await registry.dispatch(message(7, '!time Not/AZone'))
-  assert.match(whatsapp.sent[2].text, /tidak dikenali/)
+  assert.match(whatsapp.sent[0].text, /tidak dikenali/)
 })
 
 test('fun commands stay within bounded ranges and reject malformed dice', async () => {
