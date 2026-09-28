@@ -1,3 +1,4 @@
+import QRCode from 'qrcode'
 import { FfmpegMediaTransformer, MEDIA_TRANSFORM_HARD_OUTPUT_MAX_BYTES, MEDIA_TRANSFORM_MAX_OUTPUT_BYTES, MediaTransformError, type MediaTransformer } from '../../media.js'
 import type { CommandContext, CoreMediaDescriptor, Plugin, WhatsAppMediaSource } from '../contracts.js'
 import { randomInt } from 'node:crypto'
@@ -988,23 +989,6 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-      // ocr - extract text from image
-      context.commands.register({
-        name: 'ocr',
-        description: 'Ekstrak teks dari gambar',
-        category: 'tools',
-        menuOrder: 23,
-        cooldownMs: 3_000,
-        handler: async (commandContext) => {
-          const selected = sourceFor(commandContext)
-          if (!selected) {
-            await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}ocr.`)
-            return
-          }
-          await commandContext.reply('🔍 *Hasil Baca Teks:*\n\nNggak ada tulisan yang kebaca di gambar nih, coba foto yang lebih jelas ya~ 📝')
-        },
-      })
-
       // qr - generate QR code from text
       context.commands.register({
         name: 'qr',
@@ -1023,22 +1007,24 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
           try {
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=512x512&data=${encodeURIComponent(text)}`
-            const res = await fetch(qrUrl, { signal: AbortSignal.timeout(10_000) })
-            if (!res.ok) throw new Error(`HTTP ${res.status}`)
-            const buffer = new Uint8Array(await res.arrayBuffer())
+            const pngBuffer = await QRCode.toBuffer(text, {
+              width: 512,
+              margin: 2,
+              errorCorrectionLevel: "M",
+            })
+            const buffer = new Uint8Array(pngBuffer)
             if (commandContext.whatsapp.sendMedia) {
               await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
+                kind: "image",
                 data: buffer,
-                mimeType: 'image/png',
+                mimeType: "image/png",
               })
             } else {
-              await commandContext.reply(`Kode QR: ${qrUrl}`)
+              await commandContext.reply("Kode QR berhasil dibuat.")
             }
           } catch (error) {
-            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'qr generation failed')
-            await commandContext.reply('Gagal bikin kode QR nih, coba teks yang lebih pendek ya~ 😅')
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : "UnknownError" }, "qr generation failed")
+            await commandContext.reply("Gagal bikin kode QR nih, coba teks yang lebih pendek ya~ 😅")
           }
         },
       })

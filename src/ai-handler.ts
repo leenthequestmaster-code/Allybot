@@ -13,13 +13,13 @@ import OpenAI from 'openai'
  *   AI_FALLBACK_MODEL=optional-model-id   (needs AI_FALLBACK_ENABLED=true)
  */
 export const AI_BASE_URL = 'https://api.openai.com/v1'
-export const PRIMARY_MODEL = 'gpt-4o-mini'
-export const FALLBACK_MODEL = 'gpt-4o'
+export const PRIMARY_MODEL = 'gemini-3.5-flash-lite'
+export const FALLBACK_MODEL = 'gemini-3.8-flash'
 export const MAX_AI_INPUT_LENGTH = 1_200
 export const MAX_AI_OUTPUT_LENGTH = 2_000
 export const MAX_AI_CONTEXT_TOKENS = 120_000
 export const DEFAULT_MAX_OUTPUT_TOKENS = 1_000
-export const AI_REQUEST_TIMEOUT_MS = 15_000
+export const AI_REQUEST_TIMEOUT_MS = 25_000
 
 export const AI_SYSTEM_PROMPT = [
   'Kamu adalah Allybot AI, asisten pintar dan teman nongkrong WhatsApp yang ramah, santai, komunikatif, dan membantu.',
@@ -161,14 +161,14 @@ export const chatCompletion = createAiHandler()
 export async function describeImageWithAi(
   dataUrl: string,
   prompt?: string,
-  options: { apiKey?: string; baseUrl?: string; model?: string } = {},
+  options: { apiKey?: string; baseUrl?: string; model?: string; maxTokens?: number } = {},
 ): Promise<string> {
   const configuredKey = options.apiKey ?? process.env.AI_API_KEY
   const apiKey = configuredKey?.trim()
   if (!apiKey) throw new AiHandlerError('missing_api_key', 'AI provider belum dikonfigurasi.')
 
   const baseUrl = options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL
-  const model = options.model ?? process.env.AI_VISION_MODEL ?? 'ag/gemini-3.8-flash-low'
+  const model = options.model ?? process.env.AI_VISION_MODEL ?? 'gemini-3.5-flash-lite'
 
   const client = new OpenAI({
     apiKey,
@@ -190,7 +190,7 @@ export async function describeImageWithAi(
         ],
       },
     ],
-    max_tokens: 600,
+    max_tokens: options.maxTokens ?? 1_200,
   })
 
   return boundedOutput(response.choices[0]?.message?.content ?? 'Tidak ada deskripsi yang dihasilkan.')

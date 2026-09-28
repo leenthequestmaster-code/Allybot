@@ -3,13 +3,14 @@ import {
   AiHandlerError,
   MAX_AI_INPUT_LENGTH,
   createAiHandler,
+  describeImageWithAi,
   type AiTransport,
 } from '../../ai-handler.js'
 
 const AI_COMMAND_COOLDOWN_MS = 3_000
 
 function usage(context: CommandContext): string {
-  return `Format: ${context.prefix}ai <pertanyaan>\nAlias: ${context.prefix}ally <pertanyaan>`
+  return `Format: ${context.prefix}ai <pertanyaan atau instruksi>\nAtau reply pesan teks / foto lalu ketik ${context.prefix}ai`
 }
 
 function pipeInput(context: CommandContext): { target: string; text: string } | undefined {
@@ -24,6 +25,16 @@ function safeFailureMessage(error: unknown): string {
   if (error instanceof AiHandlerError && error.code === 'invalid_input') return error.message
   if (error instanceof AiHandlerError && error.code === 'missing_api_key') return 'Fitur AI belum siap dipakai nih, colek owner ya~ 🙏'
   return 'Lagi pusing nih, coba tanya lagi beberapa saat ya~ 🤖🙏'
+}
+
+function extractImageSource(context: CommandContext): { descriptor: any; source: 'direct' | 'quoted' } | undefined {
+  if (context.message.media?.kind === 'image') {
+    return { descriptor: context.message.media, source: 'direct' }
+  }
+  if (context.message.quotedMedia?.kind === 'image') {
+    return { descriptor: context.message.quotedMedia, source: 'quoted' }
+  }
+  return undefined
 }
 
 export interface AiPluginOptions {
@@ -42,6 +53,75 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         fallbackEnabled: options.fallbackEnabled,
       })
 
+      // 1. Omni-AI: Single entry point for general chat, contextual reply, and vision
+      context.commands.register({
+        name: 'ai',
+        aliases: ['ally', 'tanya'],
+        description: 'Tanya atau perintahkan AI secara serbaguna',
+        category: 'tools',
+        menuOrder: 1,
+        cooldownMs: AI_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const rawPrompt = commandContext.args.join(' ').trim()
+          const quotedText = commandContext.message.quotedText?.trim()
+          const imageSource = extractImageSource(commandContext)
+
+          // 1A. Multimodal Vision Handling (Direct Image or Quoted Image)
+          if (imageSource) {
+            if (!commandContext.whatsapp.downloadMedia) {
+              await commandContext.reply('Waduh, belum bisa ambil gambarnya nih. Coba kirim ulang ya~ 📥')
+              return
+            }
+            try {
+              const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, imageSource.source, {
+                maxBytes: 10 * 1024 * 1024,
+                timeoutMs: 25_000,
+              })
+              const base64 = Buffer.from(downloaded.data).toString('base64')
+              const mime = downloaded.mimeType || 'image/jpeg'
+              const dataUrl = `data:${mime};base64,${base64}`
+
+              const prompt = rawPrompt || (quotedText ? `Perhatikan gambar ini berdasarkan konteks berikut:\n"${quotedText}"` : undefined)
+              const result = await describeImageWithAi(dataUrl, prompt)
+              await commandContext.reply(`🤖 *Allybot AI:*\n\n${result}`)
+            } catch (error) {
+              commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'ai vision failed')
+              await commandContext.reply('Gambarnya kurang jelas atau lagi gagal diproses nih, coba foto yang lebih terang ya~ 🔍📷')
+            }
+            return
+          }
+
+          // 1B. Text Handling (Standalone or Quoted Message Context)
+          let finalPrompt = rawPrompt
+          if (quotedText) {
+            if (rawPrompt) {
+              finalPrompt = `Rujukan pesan yang dibalas:\n"${quotedText}"\n\nInstruksi pengguna:\n${rawPrompt}`
+            } else {
+              finalPrompt = `Ringkas dan jelaskan inti dari pesan berikut secara singkat dalam bahasa Indonesia:\n"${quotedText}"`
+            }
+          }
+
+          if (!finalPrompt) {
+            await commandContext.reply(usage(commandContext))
+            return
+          }
+
+          if (finalPrompt.length > MAX_AI_INPUT_LENGTH) {
+            await commandContext.reply(`Pertanyaannya kepanjangan nih, maksimal ${MAX_AI_INPUT_LENGTH} karakter ya~ ✍️`)
+            return
+          }
+
+          try {
+            const response = await handler(finalPrompt)
+            await commandContext.reply(`🤖 *Allybot AI*\n\n${response}`)
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI command failed safely')
+            await commandContext.reply(safeFailureMessage(error))
+          }
+        },
+      })
+
+      // 2. Shortcut: Translate
       context.commands.register({
         name: 'translate',
         aliases: ['terjemah', 'trans'],
@@ -65,6 +145,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         },
       })
 
+      // 3. Shortcut: Summarize
       context.commands.register({
         name: 'summarize',
         aliases: ['ringkas'],
@@ -73,7 +154,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         menuOrder: 3,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
-          const text = commandContext.args.join(' ').trim()
+          const text = commandContext.message.quotedText?.trim() || commandContext.args.join(' ').trim()
           if (!text || text.length > MAX_AI_INPUT_LENGTH) {
             await commandContext.reply(`Format: ${commandContext.prefix}summarize <teks>\nContoh: ${commandContext.prefix}summarize [tempel teks di sini]`)
             return
@@ -88,34 +169,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         },
       })
 
-      context.commands.register({
-        name: 'ai',
-        aliases: ['ally', 'tanya'],
-        description: 'Ask Allybot AI without conversation memory',
-        category: 'tools',
-        menuOrder: 1,
-        cooldownMs: AI_COMMAND_COOLDOWN_MS,
-        handler: async (commandContext) => {
-          const prompt = commandContext.args.join(' ').trim()
-          if (!prompt) {
-            await commandContext.reply(usage(commandContext))
-            return
-          }
-          if (prompt.length > MAX_AI_INPUT_LENGTH) {
-            await commandContext.reply(`Pertanyaannya kepanjangan nih, maksimal ${MAX_AI_INPUT_LENGTH} karakter ya~ ✍️`)
-            return
-          }
-
-          try {
-            const response = await handler(prompt)
-            await commandContext.reply(`🤖 *Allybot AI*\n\n${response}`)
-          } catch (error) {
-            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI command failed safely')
-            await commandContext.reply(safeFailureMessage(error))
-          }
-        },
-      })
-
+      // 4. AI Detection
       context.commands.register({
         name: 'aidetection',
         aliases: ['deteksiai', 'aidetect'],
@@ -143,7 +197,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         },
       })
 
-      // tts - text to speech
+      // 5. Text-to-Speech (Google TTS + FFmpeg OGG Opus PTT)
       context.commands.register({
         name: 'tts',
         aliases: ['suara'],
@@ -208,7 +262,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         },
       })
 
-      // text2img - generate image from text prompt
+      // 6. Text-to-Image (Pollinations AI)
       context.commands.register({
         name: 'text2img',
         aliases: ['buatgambar', 't2i'],
@@ -247,7 +301,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         },
       })
 
-      // img2text - describe image
+      // 7. Vision Description: img2text
       context.commands.register({
         name: 'img2text',
         aliases: ['deskripsigambar'],
@@ -256,13 +310,9 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         menuOrder: 7,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
-          const selected = commandContext.message.media
-            ? { descriptor: commandContext.message.media, source: 'direct' as const }
-            : commandContext.message.quotedMedia
-              ? { descriptor: commandContext.message.quotedMedia, source: 'quoted' as const }
-              : undefined
+          const selected = extractImageSource(commandContext)
 
-          if (!selected || selected.descriptor.kind !== 'image') {
+          if (!selected) {
             await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}img2text [opsional: instruksi], atau balas gambar lalu ketik ${commandContext.prefix}img2text.`)
             return
           }
@@ -274,20 +324,61 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
           try {
             const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
-              maxBytes: 5 * 1024 * 1024,
-              timeoutMs: 20_000,
+              maxBytes: 10 * 1024 * 1024,
+              timeoutMs: 25_000,
             })
             const base64 = Buffer.from(downloaded.data).toString('base64')
             const mime = downloaded.mimeType || 'image/jpeg'
             const dataUrl = `data:${mime};base64,${base64}`
 
             const prompt = commandContext.args.join(' ').trim() || undefined
-            const { describeImageWithAi } = await import('../../ai-handler.js')
             const result = await describeImageWithAi(dataUrl, prompt)
             await commandContext.reply(`🤖 *Analisis Gambar (AI Vision):*\n\n${result}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'img2text command failed')
             await commandContext.reply('Gambarnya kurang jelas nih, coba kirim foto yang lebih terang ya~ 🔍📷')
+          }
+        },
+      })
+
+      // 8. OCR: Extract text from image via Multimodal AI
+      context.commands.register({
+        name: 'ocr',
+        description: 'Ekstrak teks dari gambar secara presisi menggunakan AI Vision',
+        category: 'tools',
+        menuOrder: 8,
+        cooldownMs: AI_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const selected = extractImageSource(commandContext)
+
+          if (!selected) {
+            await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}ocr, atau kirim gambar dengan caption ${commandContext.prefix}ocr.`)
+            return
+          }
+
+          if (!commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply('Waduh, belum bisa ambil gambarnya nih. Coba kirim ulang ya~ 📥')
+            return
+          }
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 10 * 1024 * 1024,
+              timeoutMs: 25_000,
+            })
+            const base64 = Buffer.from(downloaded.data).toString('base64')
+            const mime = downloaded.mimeType || 'image/jpeg'
+            const dataUrl = `data:${mime};base64,${base64}`
+
+            const result = await describeImageWithAi(
+              dataUrl,
+              'Ekstrak dan salin seluruh teks yang tertulis di dalam gambar ini secara presisi dan lengkap. Tuliskan ulang teksnya saja tanpa basa-basi atau analisis visual.',
+              { maxTokens: 1_200 },
+            )
+            await commandContext.reply(`🔍 *Hasil Ekstraksi Teks (OCR):*\n\n${result}`)
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'ocr command failed')
+            await commandContext.reply('Gagal membaca tulisan di gambar nih, coba foto yang lebih terang dan jelas ya~ 📝📷')
           }
         },
       })
