@@ -763,10 +763,10 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         },
       })
 
-      // 18. /setleave on/off [pesan]
+      // 18. /left on/off [pesan]
       context.commands.register({
-        name: 'setleave',
-        aliases: ['left'],
+        name: 'left',
+        aliases: ['leavetoggle'],
         description: 'Aktif/nonaktifkan pesan perpisahan member keluar',
         category: 'moderation',
         menuOrder: 19,
@@ -777,7 +777,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
 
           const state = commandContext.args[0]?.toLowerCase()
           if (state !== 'on' && state !== 'off') {
-            await commandContext.reply(`Format: ${commandContext.prefix}setleave <on|off> [pesan kustom]`)
+            await commandContext.reply(`Format: ${commandContext.prefix}left <on|off> [pesan kustom]`)
             return
           }
 
