@@ -363,6 +363,15 @@ export class SqliteStorage {
     return parseValue<proto.IMessage>(row.data)
   }
 
+  deleteStoredMessage(key: WAMessageKey): boolean {
+    const normalized = getMessageKey(key)
+    if (!normalized) return false
+    const res = this.db
+      .prepare('DELETE FROM messages WHERE account_id = ? AND remote_jid = ? AND message_id = ?')
+      .run(this.accountId, normalized.jid, normalized.id)
+    return res.changes > 0
+  }
+
   close(): void {
     clearInterval(this.messagePruneTimer)
     if (this.db.open) this.db.close()

@@ -285,29 +285,6 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
       })
 
       context.commands.register({
-        name: 'report',
-        description: 'Report a group safety case',
-        category: 'moderation',
-        menuOrder: 6,
-        handler: async (commandContext) => {
-          const group = requireGroup(commandContext.message)
-          if (!group) {
-            await commandContext.reply('Command ini hanya dapat digunakan di dalam grup WhatsApp.')
-            return
-          }
-          const reporter = actorJid(commandContext.message, commandContext.whatsapp)
-          const target = targetJid(commandContext.message, commandContext.whatsapp)
-          const reason = normalizeReason(commandContext.args)
-          if (!reporter || !target || !reason) {
-            await commandContext.reply(`Format: ${commandContext.prefix}report @member <alasan> atau reply pesan.`)
-            return
-          }
-          const result = safetyService(commandContext).reportCase(group, reporter, target, 'member.report', reason, commandContext.message.id, commandContext.message.text)
-          await commandContext.reply(result.created ? `✅ Laporan dibuat. Case ID: ${result.record.id.slice(0, 8)}\nModerator dapat meninjau melalui ${commandContext.prefix}cases.` : `Laporan ini sudah memiliki case ${result.record.id.slice(0, 8)}.`)
-        },
-      })
-
-      context.commands.register({
         name: 'cases',
         description: 'List recent group safety cases',
         category: 'moderation',

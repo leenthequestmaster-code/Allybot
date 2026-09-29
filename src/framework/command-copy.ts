@@ -60,12 +60,15 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   botleave: 'Perintahkan bot untuk keluar dari grup ini (Khusus Owner).',
   modaction: 'Jalankan tindakan pengamanan grup.',
   modstatus: 'Lihat riwayat tindakan admin terakhir.',
-  report: 'Laporkan masalah atau pelanggaran ke pengurus grup.',
+  report: 'Laporkan masalah atau pelanggaran ke pengurus secara aman.',
   cases: 'Lihat daftar laporan member di grup.',
   case: 'Lihat rincian laporan tertentu berdasarkan ID.',
   setkotaksaran: 'Atur grup ini sebagai kotak penampung saran (Owner).',
+  setreportbox: 'Atur grup ini sebagai kotak penampung laporan (Owner).',
   replysaran: 'Balas saran masuk berdasarkan nomor tiket pengirim.',
+  replyreport: 'Balas laporan masuk berdasarkan nomor tiket pelapor.',
   blocksaran: 'Blokir tiket saran pengirim yang menyalahgunakan kotak saran.',
+  blockreport: 'Blokir tiket pengirim yang menyalahgunakan kotak laporan.',
 
   // --- YOUR CHARACTER ---
   character: 'Buka jendela kartu profil karakter roleplay-mu.',

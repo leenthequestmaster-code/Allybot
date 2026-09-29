@@ -7,7 +7,9 @@ import pino from 'pino'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { createPermissionResolver } from '../dist/permissions.js'
 import { createGroupSafetyPlugin } from '../dist/framework/plugins/group-safety.js'
+import { createSuggestPlugin } from '../dist/framework/plugins/suggest.js'
 import { GroupSafetyService } from '../dist/services/group-safety-service.js'
+import { SuggestionService } from '../dist/services/suggestion-service.js'
 import { PlatformGuardrailService } from '../dist/services/platform-guardrail-service.js'
 
 const logger = pino({ level: 'silent' })
@@ -150,10 +152,14 @@ test('R1 plugin keeps admin boundary and creates dry-run cases without destructi
   const guardrails = new PlatformGuardrailService(databasePath, logger)
   const safety = new GroupSafetyService(databasePath, logger)
   const app = new ApplicationFramework({ commandPrefix: '!', defaultCooldownMs: 0, databasePath }, logger, core, { permissionResolver: createPermissionResolver(core) })
+  const suggestion = new SuggestionService(databasePath, logger)
   app.registerService(guardrails)
   app.registerService(safety)
+  app.registerService(suggestion)
   app.registerPlugin(createGroupSafetyPlugin(core))
+  app.registerPlugin(createSuggestPlugin(core))
   await app.start()
+  suggestion.setBoxGroup('report', 'primary', groupA)
 
   try {
     await core.emitMessage(groupMessage('member-enable', memberJid, '!setsafety dry-run'))

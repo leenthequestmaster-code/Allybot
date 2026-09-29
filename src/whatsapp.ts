@@ -681,6 +681,10 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     }
   }
 
+  deleteStoredMessage(remoteJid: string, id: string): boolean {
+    return this.storage.deleteStoredMessage({ remoteJid, id })
+  }
+
   private async resolveGroupName(remoteJid: string): Promise<string | undefined> {
     if (!isGroupJid(remoteJid)) return undefined
 
@@ -911,8 +915,17 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const messagesToSave = upsert.messages.filter((msg) => {
       const text = extractText(msg)?.trim()
       if (!text) return true
-      if (/^[!/.#](?:suggest|saran)(?:\s|$)/i.test(text)) {
-        return false
+      const isFeedbackCmd = /^[!/.#](?:suggest|saran|report|lapor)(?:\s|$)/i.test(text)
+      if (isFeedbackCmd) {
+        // If it's pure text without direct media, skip persisting in message cache
+        const hasMedia = Boolean(
+          msg.message?.imageMessage ||
+          msg.message?.videoMessage ||
+          msg.message?.documentMessage,
+        )
+        if (!hasMedia) {
+          return false
+        }
       }
       return true
     })
