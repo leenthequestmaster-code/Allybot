@@ -344,34 +344,53 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           return { data: { ok: false, error: 'Level harus berupa bilangan bulat antara 1 sampai 100.' }, error: null }
         }
 
-        const rows = await sql`
-          SELECT character_id, name, level, allocated_stats, bonus_tokens FROM character_profiles
-          WHERE guide_key = ${guideKey} AND owner_key = ${targetOwnerKey} AND status = 'active'
-          LIMIT 1
-        `
-        if (rows.length === 0) return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
-        const row = rows[0]
+        return await sql.begin(async (tx) => {
+          const rows = await tx`
+            SELECT character_id, name, level, allocated_stats, bonus_tokens FROM character_profiles
+            WHERE guide_key = ${guideKey} AND owner_key = ${targetOwnerKey} AND status = 'active'
+            LIMIT 1
+            FOR UPDATE
+          `
+          if (rows.length === 0) return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
+          const row = rows[0]
 
-        await sql`
-          UPDATE character_profiles
-          SET level = ${level}, updated_at = now()
-          WHERE character_id = ${row.character_id}
-        `
+          const bonusTokens = Math.max(0, Number(row.bonus_tokens ?? 0))
+          const newTotalTokens = (Math.max(1, level) - 1) * 5 + 5 + bonusTokens
+          const currentAlloc = parseAllocatedStats(row.allocated_stats)
+          const currentUsedTokens = Object.values(currentAlloc).reduce((sum, v) => sum + (Number(v) || 0), 0)
 
-        if (redis) {
-          try { await redis.cacheDelete('character:active', targetOwnerKey) } catch {}
-        }
+          if (newTotalTokens < currentUsedTokens) {
+            return {
+              data: {
+                ok: false,
+                error: `Penurunan level ditolak: Token yang sudah dialokasikan (${currentUsedTokens}) melebihi total token pada Level ${level} (${newTotalTokens}). Harap lakukan !resetstats terlebih dahulu.`,
+              },
+              error: null,
+            }
+          }
 
-        return {
-          data: {
-            ok: true,
-            character_id: row.character_id,
-            character_name: row.name,
-            level,
-            message: `Level karakter *${row.name}* berhasil diubah dari Level ${row.level} ke Level ${level}.`,
-          },
-          error: null,
-        }
+          await tx`
+            UPDATE character_profiles
+            SET level = ${level}, updated_at = now()
+            WHERE character_id = ${row.character_id}
+          `
+
+          return {
+            data: {
+              ok: true,
+              character_id: row.character_id,
+              character_name: row.name,
+              level,
+              message: `Level karakter *${row.name}* berhasil diubah dari Level ${row.level} ke Level ${level}.`,
+            },
+            error: null,
+          }
+        }).then(async (res) => {
+          if (res.data?.ok && redis) {
+            try { await redis.cacheDelete('character:active', targetOwnerKey) } catch {}
+          }
+          return res
+        })
       }
 
       if (functionName === 'character_reset_stats') {
@@ -490,52 +509,54 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         const amount = Number(args.p_amount ?? 1)
 
         const validKeys = ['hp', 'se', 'str', 'def', 'mp', 'res', 'spd', 'int', 'lck']
-        if (!validKeys.includes(statKey) || amount <= 0 || !Number.isInteger(amount)) {
-          return { data: { ok: false, error: 'Kunci stat atau jumlah alokasi tidak valid.' }, error: null }
+        if (!validKeys.includes(statKey) || amount <= 0 || !Number.isInteger(amount) || amount > 100) {
+          return { data: { ok: false, error: 'Kunci stat atau jumlah alokasi tidak valid (1-100).' }, error: null }
         }
 
-        const rows = await sql`
-          SELECT character_id, race, level, allocated_stats, bonus_tokens FROM character_profiles
-          WHERE guide_key = ${guideKey} AND owner_key = ${ownerKey} AND status = 'active'
-          LIMIT 1
-        `
-        if (rows.length === 0) {
-          return { data: { ok: false, error: 'Karakter aktif tidak ditemukan.' }, error: null }
-        }
+        return await sql.begin(async (tx) => {
+          const rows = await tx`
+            SELECT character_id, race, level, allocated_stats, bonus_tokens FROM character_profiles
+            WHERE guide_key = ${guideKey} AND owner_key = ${ownerKey} AND status = 'active'
+            LIMIT 1
+            FOR UPDATE
+          `
+          if (rows.length === 0) {
+            return { data: { ok: false, error: 'Karakter aktif tidak ditemukan.' }, error: null }
+          }
 
-        const row = rows[0]
-        const level = Number(row.level ?? 1)
-        const bonusTokens = Math.max(0, Number(row.bonus_tokens ?? 0))
-        const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 + bonusTokens
-        const currentAlloc: Record<string, number> = parseAllocatedStats(row.allocated_stats)
+          const row = rows[0]
+          const level = Number(row.level ?? 1)
+          const bonusTokens = Math.max(0, Number(row.bonus_tokens ?? 0))
+          const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 + bonusTokens
+          const currentAlloc: Record<string, number> = parseAllocatedStats(row.allocated_stats)
 
-        const currentUsed = validKeys.reduce((sum, k) => sum + (Number(currentAlloc[k]) || 0), 0)
-        if (currentUsed + amount > totalTokensEarned) {
-          return { data: { ok: false, error: `Stat Token tidak mencukupi. Sisa token: ${totalTokensEarned - currentUsed}.` }, error: null }
-        }
+          const currentUsed = validKeys.reduce((sum, k) => sum + (Number(currentAlloc[k]) || 0), 0)
+          if (currentUsed + amount > totalTokensEarned) {
+            return { data: { ok: false, error: `Stat Token tidak mencukupi. Sisa token: ${totalTokensEarned - currentUsed}.` }, error: null }
+          }
 
-        currentAlloc[statKey] = (Number(currentAlloc[statKey]) || 0) + amount
+          currentAlloc[statKey] = (Number(currentAlloc[statKey]) || 0) + amount
 
-        await sql`
-          UPDATE character_profiles
-          SET allocated_stats = ${sql.json(currentAlloc)}, updated_at = now()
-          WHERE character_id = ${row.character_id}
-        `
+          await tx`
+            UPDATE character_profiles
+            SET allocated_stats = ${tx.json(currentAlloc)}, updated_at = now()
+            WHERE character_id = ${row.character_id}
+          `
 
-        if (redis) {
-          try {
-            await redis.cacheDelete('character:active', ownerKey)
-          } catch {}
-        }
-
-        return {
-          data: {
-            ok: true,
-            allocated_stats: currentAlloc,
-            message: `Berhasil mengalokasikan ${amount} token ke ${statKey.toUpperCase()}.`,
-          },
-          error: null,
-        }
+          return {
+            data: {
+              ok: true,
+              allocated_stats: currentAlloc,
+              message: `Berhasil mengalokasikan ${amount} token ke ${statKey.toUpperCase()}.`,
+            },
+            error: null,
+          }
+        }).then(async (res) => {
+          if (res.data?.ok && redis) {
+            try { await redis.cacheDelete('character:active', ownerKey) } catch {}
+          }
+          return res
+        })
       }
 
       if (functionName === 'character_grant_tokens') {

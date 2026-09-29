@@ -1,3 +1,13 @@
+export function parseStrictPositiveInt(raw: string, maxLimit = 100): { ok: true; value: number } | { ok: false; error: string } {
+  if (!raw || typeof raw !== 'string') return { ok: false, error: 'Input tidak boleh kosong' }
+  const trimmed = raw.trim()
+  if (!/^[0-9]+$/.test(trimmed)) return { ok: false, error: 'Harus berupa bilangan bulat positif' }
+  const val = Number(trimmed)
+  if (!Number.isSafeInteger(val) || val <= 0) return { ok: false, error: 'Nilai harus lebih besar dari 0' }
+  if (val > maxLimit) return { ok: false, error: `Nilai maksimal adalah ${maxLimit}` }
+  return { ok: true, value: val }
+}
+
 import { createHash } from 'node:crypto'
 import type {
   CommandContext,
@@ -868,7 +878,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
           const statKey = commandContext.args[0]?.toLowerCase()
-          const amount = parseInt(commandContext.args[1] ?? '1', 10)
+          const parseRes = parseStrictPositiveInt(commandContext.args[1] ?? '1', 100)
           if (!statKey) {
             return void await commandContext.reply([
               '*Format Alokasi Stat Token:*',
@@ -882,7 +892,10 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
               'Contoh: `!alokasi str 2` atau `!alokasi hp 1`',
             ].join('\n'))
           }
-          const result = await service.allocateStats(groupJid(commandContext) || 'global', actor, statKey, isNaN(amount) ? 1 : amount)
+          if (!parseRes.ok) {
+            return void await commandContext.reply(`Jumlah alokasi tidak valid: ${parseRes.error}. (Maksimal 100 per perintah)`)
+          }
+          const result = await service.allocateStats(groupJid(commandContext) || 'global', actor, statKey, parseRes.value)
           await commandContext.reply(result.message)
         },
       })
@@ -902,15 +915,10 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
 
           const { targetKey, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
-          let amount: number | undefined
-          for (const arg of remainingArgs) {
-            if (/^-?\d+$/.test(arg)) {
-              amount = parseInt(arg, 10)
-              break
-            }
-          }
+          const rawAmount = remainingArgs[0]
+          const parseRes = parseStrictPositiveInt(rawAmount ?? '', 1000)
 
-          if (amount === undefined || isNaN(amount) || amount === 0) {
+          if (!parseRes.ok) {
             return void await commandContext.reply([
               '*Format Give Token:*',
               `• \`${commandContext.prefix}givetoken <jumlah>\` (untuk diri sendiri)`,
@@ -920,7 +928,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             ].join('\n'))
           }
 
-          const result = await service.grantTokens(targetKey, amount)
+          const result = await service.grantTokens(targetKey, parseRes.value)
           await commandContext.reply(result.message)
         },
       })
@@ -940,15 +948,10 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
 
           const { targetKey, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
-          let level: number | undefined
-          for (const arg of remainingArgs) {
-            if (/^\d+$/.test(arg)) {
-              level = parseInt(arg, 10)
-              break
-            }
-          }
+          const rawLevel = remainingArgs[0]
+          const parseRes = parseStrictPositiveInt(rawLevel ?? '', 100)
 
-          if (level === undefined || isNaN(level) || level < 1 || level > 100) {
+          if (!parseRes.ok) {
             return void await commandContext.reply([
               '*Format Set Level:*',
               `• \`${commandContext.prefix}setlevel <1-100>\` (untuk diri sendiri)`,
@@ -958,7 +961,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             ].join('\n'))
           }
 
-          const result = await service.setLevel(targetKey, level)
+          const result = await service.setLevel(targetKey, parseRes.value)
           await commandContext.reply(result.message)
         },
       })
