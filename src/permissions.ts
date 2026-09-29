@@ -1,3 +1,4 @@
+import { jidNormalizedUser } from '@whiskeysockets/baileys'
 import type { CommandContext, WhatsAppPort } from './framework/contracts.js'
 import { isGroupJid } from './framework/validation.js'
 import type { DeveloperModeService } from './services/developer-mode-service.js'
@@ -12,7 +13,9 @@ export const permissionNames = {
 } as const
 
 export function bareJid(jid: string): string {
-  return jid.split(':')[0] ?? jid
+  if (!jid) return ''
+  const withDomain = jid.includes('@') ? jid : `${jid}@s.whatsapp.net`
+  return jidNormalizedUser(withDomain)
 }
 
 export function normalizePhoneJid(value?: string): string | undefined {

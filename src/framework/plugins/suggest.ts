@@ -163,7 +163,9 @@ export function createSuggestPlugin(
             let botIsAdmin = false
             try {
               const metadata = await whatsapp.getGroupMetadata(commandContext.message.remoteJid)
-              const botMember = metadata.participants.find((p) => isSameJid(p.jid, whatsapp.userJid))
+              const botMember = metadata.participants.find((p) => {
+                return isSameJid(p.jid, whatsapp.userJid) || Boolean(whatsapp.userLid && isSameJid(p.jid, whatsapp.userLid))
+              })
               botIsAdmin = botMember?.role === 'admin' || botMember?.role === 'superadmin'
             } catch (err) {
               commandContext.logger.warn({ err }, 'failed to check bot admin status in group for suggest')
@@ -338,7 +340,9 @@ export function createSuggestPlugin(
             try {
               const metadata = await whatsapp.getGroupMetadata(commandContext.message.remoteJid)
               originGroupName = metadata.subject || originGroupName
-              const botMember = metadata.participants.find((p) => isSameJid(p.jid, whatsapp.userJid))
+              const botMember = metadata.participants.find((p) => {
+                return isSameJid(p.jid, whatsapp.userJid) || Boolean(whatsapp.userLid && isSameJid(p.jid, whatsapp.userLid))
+              })
               botIsAdmin = botMember?.role === 'admin' || botMember?.role === 'superadmin'
             } catch (err) {
               commandContext.logger.warn({ err }, 'failed to check bot admin status in group for report')

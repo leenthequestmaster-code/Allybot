@@ -1009,9 +1009,23 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         try {
           const metadata = await whatsapp.getGroupMetadata(group)
           senderIsAdmin = isAdmin(metadata, sender)
-        } catch {}
+          context.logger.info(
+            {
+              groupJid: group,
+              senderJid: sender,
+              senderIsAdmin,
+              participants: metadata.participants.map((p) => ({ jid: p.jid, role: p.role })),
+            },
+            'automod evaluation check',
+          )
+        } catch (err) {
+          context.logger.warn({ err, groupJid: group }, 'failed to fetch group metadata during automod')
+        }
 
-        if (senderIsAdmin) return
+        if (senderIsAdmin) {
+          context.logger.info({ groupJid: group, senderJid: sender }, 'automod skipped: sender is admin')
+          return
+        }
 
         // Dry-run gate: jika group safety mode adalah dry-run, serahkan ke logger case dan jangan lakukan aksi destruktif automod
         if (isSafetyDryRun(context.services, group)) {
@@ -1028,7 +1042,9 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           if (whatsapp.deleteMessage) {
             try {
               await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
-            } catch {}
+            } catch (err) {
+              context.logger.warn({ err, groupJid: group }, 'failed to delete spam message')
+            }
           }
           const phone = normalizePhone(sender)
           await whatsapp.sendText(
@@ -1044,7 +1060,9 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           if (whatsapp.deleteMessage) {
             try {
               await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
-            } catch {}
+            } catch (err) {
+              context.logger.warn({ err, groupJid: group }, 'failed to delete link message')
+            }
           }
           const phone = normalizePhone(sender)
           await whatsapp.sendText(
@@ -1062,7 +1080,9 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             if (whatsapp.deleteMessage) {
               await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
             }
-          } catch {}
+          } catch (err) {
+            context.logger.warn({ err, groupJid: group }, 'failed to delete toxic message')
+          }
           return
         }
       })

@@ -4,7 +4,7 @@ import type {
   WhatsAppGroupMetadata,
   WhatsAppGroupParticipant,
 } from '../contracts.js'
-import { permissionNames } from '../../permissions.js'
+import { permissionNames, isSameJid } from '../../permissions.js'
 import { isGroupJid } from '../validation.js'
 import {
   GroupConfigurationService,
@@ -43,13 +43,9 @@ function participantRoleLabel(role: WhatsAppGroupParticipant['role']): string {
   return 'Member'
 }
 
-function bareJid(jid: string): string {
-  return jid.split(':')[0] ?? jid
-}
-
 function isBotOwner(context: CommandContext, jid: string | undefined): boolean {
   if (!context.config.botOwnerJid || !jid) return false
-  return bareJid(context.config.botOwnerJid) === bareJid(jid)
+  return isSameJid(context.config.botOwnerJid, jid)
 }
 
 function roleLabel(context: CommandContext, participant: WhatsAppGroupParticipant): string {

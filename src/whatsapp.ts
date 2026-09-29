@@ -273,7 +273,13 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   }
 
   get userJid(): string | undefined {
-    return this.socket?.user?.id
+    const raw = this.socket?.user?.id
+    return raw ? jidNormalizedUser(raw) : undefined
+  }
+
+  get userLid(): string | undefined {
+    const raw = (this.socket?.user as { lid?: string } | undefined)?.lid
+    return raw ? jidNormalizedUser(raw) : undefined
   }
 
   clearRuntimeCaches(): RuntimeCacheClearResult {
@@ -575,9 +581,17 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     if (cached && cached.expiresAt > Date.now()) return cached.metadata
 
     const socket = this.requireSocket()
+    const ownLid = (socket.user as { lid?: string } | undefined)?.lid
+    const ownPn = socket.user?.id
 
     const metadata = await withTimeout(socket.groupMetadata(groupJid), 10_000, 'group metadata lookup')
-    const resolvePnForLid = (lid: string) => socket.signalRepository.lidMapping.getPNForLID(lid)
+    const resolvePnForLid = async (lid: string) => {
+      const normLid = jidNormalizedUser(lid)
+      if (ownLid && ownPn && (normLid === jidNormalizedUser(ownLid) || normLid.split(':')[0] === ownLid.split(':')[0])) {
+        return ownPn
+      }
+      return socket.signalRepository.lidMapping.getPNForLID(lid)
+    }
     const participants = await Promise.all(metadata.participants.map(async (participant) => {
       const jid = await normalizeContactJid(participant.phoneNumber ?? participant.id, resolvePnForLid)
       const role: GroupParticipantRole = participant.admin === 'superadmin'
