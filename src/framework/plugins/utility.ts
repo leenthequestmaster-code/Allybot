@@ -236,15 +236,6 @@ function renderAbout(): string {
   ].join('\n')
 }
 
-function renderPrivacy(): string {
-  return [
-    '🔐 *Privasi singkat*',
-    '',
-    'Allybot tidak menggunakan passive full-chat memory. Data hanya diproses ketika fitur yang relevan dipanggil atau ketika grup sudah mengaktifkan workflow yang memerlukannya.',
-    'Chat-log Neon bersifat consent-aware dan dapat dimatikan per grup oleh admin atau Owner dengan `!chatlog off`.',
-    'Jangan kirim password, token, QR, atau data pribadi yang tidak diperlukan ke bot.',
-  ].join('\n')
-}
 
 function renderSupport(context: CommandContext): string {
   return [
@@ -354,14 +345,6 @@ export const utilityPlugin: Plugin = {
       handler: async (commandContext) => commandContext.reply(`Allybot berjalan pada Node.js ${process.versions.node}. Gunakan ${commandContext.prefix}about untuk ringkasan fitur.`),
     })
 
-    context.commands.register({
-      name: 'privacy',
-      description: 'Baca ringkasan cara Allybot menjaga data',
-      category: 'tools',
-      menuOrder: 14,
-      cooldownMs: UTILITY_COOLDOWN_MS,
-      handler: async (commandContext) => commandContext.reply(renderPrivacy()),
-    })
 
     context.commands.register({
       name: 'support',

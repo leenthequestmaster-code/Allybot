@@ -256,6 +256,85 @@ function resolveCategory(categories: readonly MenuCategory[], identifier: string
   return categories[Number(identifier) - 1]
 }
 
+type SubCategoryDef = {
+  readonly title: string
+  readonly commands: readonly string[]
+}
+
+const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
+  group: [
+    {
+      title: 'Member & Info',
+      commands: ['groupinfo', 'membercount', 'admins', 'members', 'memberinfo'],
+    },
+    {
+      title: 'Rules & Welcome',
+      commands: ['rules', 'ruleshistory', 'setrules', 'clearrules', 'welcome', 'setwelcome', 'clearwelcome', 'left', 'setleave', 'clearleave'],
+    },
+    {
+      title: 'Interaction & Settings',
+      commands: ['afk', 'tagme', 'prefix', 'setprefix', 'groupsettings', 'link', 'invite', 'setlanguage', 'settimezone', 'role', 'permissions'],
+    },
+  ],
+  moderation: [
+    {
+      title: 'Quick Action',
+      commands: ['kick', 'ban', 'unban', 'mute', 'unmute', 'modaction', 'moderate'],
+    },
+    {
+      title: 'Warning System',
+      commands: ['warn', 'warnings', 'warns', 'unwarn', 'clearwarn', 'setlimit'],
+    },
+    {
+      title: 'Automod Protection',
+      commands: ['antilink', 'antispam', 'antitoxic', 'safety', 'setsafety', 'auditverify'],
+    },
+    {
+      title: 'Chat Access',
+      commands: ['lock', 'unlock', 'groupmode', 'promote', 'demote', 'tagall', 'hidetag', 'del', 'clear', 'leave', 'botleave', 'modstatus', 'cases', 'case', 'report'],
+    },
+  ],
+  'your-character': [
+    {
+      title: 'Status & Profile',
+      commands: ['character', 'char', 'stats', 'inspectchar'],
+    },
+    {
+      title: 'Progression',
+      commands: ['daftar', 'alokasi', 'pensiun', 'savecharacter', 'savechar', 'timerp', 'setlevel', 'setrank', 'resetstats', 'forceretire', 'givetoken', 'deletecharacter', 'cancel', 'retry'],
+    },
+    {
+      title: 'Economy & Vela',
+      commands: ['bank', 'wallet', 'vela', 'pay', 'bankreward', 'bankpolicy', 'tax', 'taxbayar', 'banksweep'],
+    },
+  ],
+  tools: [
+    {
+      title: 'Artificial Intelligence',
+      commands: ['ai', 'ally', 'translate', 'summarize', 'tts', 'text2img', 'img2text'],
+    },
+    {
+      title: 'Media & Sticker',
+      commands: ['sticker', 's', 'stickerwm', 'swm', 'brat', 'bratvid', 'smeme', 'emojimix', 'qc', 'toimg', 'togif', 'toaudio', 'tovideo', 'compress', 'hd', 'spack', 'removebg'],
+    },
+    {
+      title: 'Search & Download',
+      commands: ['google', 'image', 'wiki', 'cuaca', 'lirik', 'pin', 'pixiv', 'tik', 'tik2mp3', 'dl', 'multidl', 'tourl', 'ytmp3', 'ytmp4', 'yt2', 'ss', 'qr'],
+    },
+    {
+      title: 'System & Info',
+      commands: ['ping', 'uptime', 'health', 'diag', 'diagnostics', 'about', 'version', 'support', 'status', 'features', 'commands', 'cmds', 'searchcmd', 'calc', 'convert', 'time', 'date'],
+    },
+  ],
+}
+
+function renderSubCategoryHeader(title: string): string {
+  return [
+    `𓏼 *\`${title}\`*`,
+    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+  ].join('\n')
+}
+
 function renderCategoryMenu(category: MenuCategory, prefix: string): string {
   const { icon, label } = presentationFor(category.name)
   const categoryTitle = label.replace(/^(TOOLS:\s*|TOOLS\s+)/i, '').trim()
@@ -266,15 +345,55 @@ function renderCategoryMenu(category: MenuCategory, prefix: string): string {
     '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
     '',
   ]
-  const commandBlocks = category.commands.map((command, index) =>
-    formatCommand(command, prefix, index + 1)
-  )
+
+  const subDefs = CATEGORY_SUB_GROUPS[category.name]
+  let content: string
+
+  if (subDefs && subDefs.length > 0) {
+    const assigned = new Set<string>()
+    const groups: Array<{ title: string; commands: CommandDefinition[] }> = []
+
+    for (const subDef of subDefs) {
+      const matchSet = new Set(subDef.commands.map((c) => c.toLowerCase()))
+      const matched = category.commands.filter((cmd) => matchSet.has(cmd.name.toLowerCase()))
+      matched.forEach((cmd) => assigned.add(cmd.name.toLowerCase()))
+      if (matched.length > 0) {
+        groups.push({ title: subDef.title, commands: matched })
+      }
+    }
+
+    const remainder = category.commands.filter((cmd) => !assigned.has(cmd.name.toLowerCase()))
+    if (remainder.length > 0) {
+      if (groups.length > 0) {
+        groups[groups.length - 1].commands.push(...remainder)
+      } else {
+        groups.push({ title: 'Other Commands', commands: remainder })
+      }
+    }
+
+    let globalIndex = 0
+    const renderedGroups = groups.map((g) => {
+      const subHeader = renderSubCategoryHeader(g.title)
+      const cmdList = g.commands.map((cmd) => {
+        globalIndex += 1
+        return formatCommand(cmd, prefix, globalIndex)
+      }).join('\n\n')
+      return `${subHeader}\n${cmdList}`
+    })
+
+    content = renderedGroups.join('\n\n')
+  } else {
+    content = category.commands
+      .map((command, index) => formatCommand(command, prefix, index + 1))
+      .join('\n\n')
+  }
+
   const footer = [
     '',
     '° ° ──────────── · · ·',
     `*© ${BOT_NAME}*`,
   ]
-  return [...header, commandBlocks.join('\n\n'), ...footer].join('\n')
+  return [...header, content, ...footer].join('\n')
 }
 
 async function sendMenu(
