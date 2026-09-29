@@ -14,8 +14,41 @@ import { GroupModerationSuiteService } from '../../services/group-moderation-sui
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
 import { initSqliteDatabase } from '../../storage-helpers.js'
 
-const LINK_PATTERN = /(?:https?:\/\/|www\.)[^\s<>]+/i
-const TOXIC_PATTERN = /(?:kontol|memek|jembut|anjing|bangsat|babi|pantek|itil|ngentot|bajingan|pepek|tolol|goblok|fuck|bitch|asshole|pussy)/i
+import { normalizeForToxicDetection } from '../../utils/text-normalizer.js'
+import { evaluateMessageLinks } from '../../utils/link-matcher.js'
+
+const TOXIC_PATTERN = /\b(?:kontol|memek|jembut|anjing|bangsat|babi|pantek|itil|ngentot|bajingan|pepek|tolol|goblok|fuck|bitch|asshole|pussy)\b/i
+
+const SAFE_PHRASES: readonly RegExp[] = [
+  /\banjing\s+laut\b/gi,
+  /\bbabi\s+hutan\b/gi,
+  /\bbabi\s+panggang\b/gi,
+  /\bbabi\s+guling\b/gi,
+  /\bpussycat\b/gi,
+  /\bbitchin\b/gi,
+]
+
+function isToxic(text: string): boolean {
+  if (!text) return false
+  const normalized = normalizeForToxicDetection(text)
+  if (!normalized) return false
+
+  let filtered = normalized
+  for (const safe of SAFE_PHRASES) {
+    filtered = filtered.replace(safe, ' ')
+  }
+
+  return TOXIC_PATTERN.test(filtered)
+}
+
+function isSafetyDryRun(services: ServiceRegistryLike, groupJid: string): boolean {
+  try {
+    const safety = services.get<{ readonly name: string; isDryRun(group: string): boolean }>('group-safety')
+    return Boolean(safety?.isDryRun(groupJid))
+  } catch {
+    return false
+  }
+}
 
 function requireGroup(context: CommandContext): string | undefined {
   if (!isGroupJid(context.message.remoteJid)) {
@@ -954,10 +987,22 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         if (!automod.antispam && !automod.antilink && !automod.antitoxic) return
 
         const isSpam = automod.antispam ? suite.checkAndRecordSpam(group, sender, 5, 5000) : false
-        const isLink = automod.antilink && text ? LINK_PATTERN.test(text) : false
-        const isToxic = automod.antitoxic && text ? TOXIC_PATTERN.test(text) : false
 
-        if (!isSpam && !isLink && !isToxic) return
+        let linkEval: ReturnType<typeof evaluateMessageLinks> | undefined
+        if (automod.antilink && text) {
+          const inviteLink = await suite.getCachedGroupInviteLink(group, async () => {
+            if (whatsapp.getGroupInviteLink) {
+              return await whatsapp.getGroupInviteLink(group)
+            }
+            return undefined
+          })
+          linkEval = evaluateMessageLinks(text, inviteLink)
+        }
+
+        const isLinkForbidden = Boolean(linkEval?.hasForbiddenLinks)
+        const isToxicContent = automod.antitoxic && text ? isToxic(text) : false
+
+        if (!isSpam && !isLinkForbidden && !isToxicContent) return
 
         // Jika ada potensi pelanggaran, baru periksa apakah sender adalah admin
         let senderIsAdmin = false
@@ -967,6 +1012,15 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         } catch {}
 
         if (senderIsAdmin) return
+
+        // Dry-run gate: jika group safety mode adalah dry-run, serahkan ke logger case dan jangan lakukan aksi destruktif automod
+        if (isSafetyDryRun(context.services, group)) {
+          context.logger.info(
+            { groupJid: group, senderJid: sender, isSpam, isLinkForbidden, isToxicContent },
+            'automod action suppressed by active safety dry-run',
+          )
+          return
+        }
 
         // Cek Antispam
         if (isSpam) {
@@ -986,31 +1040,24 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         }
 
         // Cek Antilink
-        if (isLink) {
-          let isWhitelisted = false
-          try {
-            const inviteLink = await whatsapp.getGroupInviteLink(group)
-            if (inviteLink && text && text.includes(inviteLink)) isWhitelisted = true
-          } catch {}
-
-          if (!isWhitelisted) {
-            if (whatsapp.deleteMessage) {
-              try {
-                await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
-              } catch {}
-            }
-            const phone = normalizePhone(sender)
-            await whatsapp.sendText(
-              group,
-              `⚠️ Dilarang mengirim tautan/link di grup ini, @${phone}. Pesanmu telah dihapus.`,
-              { mentions: [sender] },
-            )
-            return
+        if (isLinkForbidden) {
+          if (whatsapp.deleteMessage) {
+            try {
+              await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
+            } catch {}
           }
+          const phone = normalizePhone(sender)
+          await whatsapp.sendText(
+            group,
+            `⚠️ Dilarang mengirim tautan/link di grup ini, @${phone}. Pesanmu telah dihapus.`,
+            { mentions: [sender] },
+          )
+          return
         }
 
         // Cek Antitoxic
-        if (isToxic) {
+        if (isToxicContent) {
+          context.logger.info({ groupJid: group, senderJid: sender }, 'toxic message deleted silently by automod')
           try {
             if (whatsapp.deleteMessage) {
               await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })

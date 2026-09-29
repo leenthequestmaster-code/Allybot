@@ -30,6 +30,7 @@ export class GroupModerationSuiteService implements Service {
   private readonly db: DatabaseInstance
   private readonly logger: Logger
   private readonly spamHistory = new Map<string, number[]>()
+  private readonly inviteLinkCache = new Map<string, { link: string; expiresAt: number }>()
 
   constructor(databasePath: string, logger: Logger) {
     this.db = initSqliteDatabase(databasePath)
@@ -488,6 +489,41 @@ export class GroupModerationSuiteService implements Service {
     const timestamps = (this.spamHistory.get(key) ?? []).filter((t) => now - t <= windowMs)
     timestamps.push(now)
     this.spamHistory.set(key, timestamps)
+
+    // Memory protection: prune stale users if map exceeds 1000 items
+    if (this.spamHistory.size > 1000) {
+      for (const [k, ts] of this.spamHistory.entries()) {
+        if (ts.every((t) => now - t > windowMs)) {
+          this.spamHistory.delete(k)
+        }
+      }
+    }
+
     return timestamps.length > maxMessages
+  }
+
+  // --- Invite Link In-Memory Cache (TTL 30 min) ---
+  async getCachedGroupInviteLink(
+    groupJid: string,
+    fetcher: () => Promise<string | undefined>,
+    ttlMs = 30 * 60 * 1000,
+  ): Promise<string | undefined> {
+    const cached = this.inviteLinkCache.get(groupJid)
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.link
+    }
+    try {
+      const link = await fetcher()
+      if (link) {
+        this.inviteLinkCache.set(groupJid, { link, expiresAt: Date.now() + ttlMs })
+      }
+      return link
+    } catch {
+      return undefined
+    }
+  }
+
+  invalidateGroupInviteLink(groupJid: string): void {
+    this.inviteLinkCache.delete(groupJid)
   }
 }
