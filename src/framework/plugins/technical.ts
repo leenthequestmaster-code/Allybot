@@ -88,20 +88,17 @@ function ownerProfileText(photoStatus: string): string {
 
 function profileText(context: CommandContext): string {
   const ownerJid = context.config.botOwnerJid
-  const ownerDisplay = ownerJid ? ownerJid.split('@')[0] : 'Vallen'
+  const ownerDisplay = ownerJid ? ownerJid.split('@')[0] : '6283197859955'
   return [
-    '🤖 *Allybot Profile*',
+    '𓏼 *Allybot Profile*',
     '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-    `⡇╌ Nama     : Allybot`,
-    `⡇╌ Owner    : ${ownerDisplay}`,
-    `⡇╌ Role     : WhatsApp Automation & AI Assistant`,
-    `⡇╌ Runtime  : Node.js ${process.versions.node}`,
-    `⡇╌ Mode     : ${chatMode(context)}`,
-    `⡇╌ Prefix   : ${context.prefix}`,
-    `⡇╌ Koneksi  : ${connectionStatus(context)}`,
-    `⡇╌ Uptime   : ${formatUptime(process.uptime())}`,
-    '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
-    'Credential, database, dan session tersimpan aman.',
+    'Allybot adalah sebuah entitas asisten digital cerdas dan pendamping interaktif serbabisa yang dikembangkan dengan penuh dedikasi oleh Cyrus. Diciptakan khusus untuk memenuhi kebutuhan tata kelola komunitas, petualangan dunia roleplay fantasi Allyssea, eksplorasi kecerdasan buatan, hingga studio media dan stiker kreatif tanpa batas.',
+    '─͜──͜──͜─  · ✦ ·  ─͜──͜──͜─',
+    `⡇╌ *Nama*    : Allybot`,
+    `⡇╌ *Creator* : Cyrus (+${ownerDisplay})`,
+    `⡇╌ *Runtime* : Node.js ${process.versions.node}`,
+    `⡇╌ *Versi*   : v0.1.0`,
+    `⡇╌ *Prefix*  : ${context.prefix}`,
     '━━━━━━━━━━━━━━━━━━━━',
     '*© Allyssea Roleplay Community*',
   ].join('\n')

@@ -46,30 +46,11 @@ function createRegistry(whatsapp) {
 test('utility module split preserves canonical command registration parity', () => {
   const registry = createRegistry(fakeWhatsapp())
   assert.deepEqual(registry.list().map((command) => command.name), [
-    'status', 'uptime', 'features', 'commands', 'searchcmd', 'about', 'version', 'support',
+    'commands', 'searchcmd', 'about', 'version', 'support',
     'time', 'date', 'random', 'choose', 'flip', 'roll', 'truth', 'dare', 'rps', '8ball',
   ])
   assert.deepEqual(registry.get('dice')?.aliases, ['dice'])
   assert.deepEqual(registry.get('suit')?.aliases, ['suit'])
-})
-
-test('status, uptime, and features expose bounded non-sensitive runtime summaries', async () => {
-  const whatsapp = fakeWhatsapp()
-  const registry = createRegistry(whatsapp)
-
-  await registry.dispatch(message(1, '!status'))
-  assert.match(whatsapp.sent[0].text, /Status Allybot/)
-  assert.match(whatsapp.sent[0].text, /Sambungan: connected/)
-  assert.match(whatsapp.sent[0].text, /Data rahasia/)
-
-  await registry.dispatch(message(2, '!uptime'))
-  assert.match(whatsapp.sent[1].text, /sudah berjalan selama/)
-  assert.match(whatsapp.sent[1].text, /detik/)
-
-  await registry.dispatch(message(3, '!features'))
-  assert.match(whatsapp.sent[2].text, /Ringkasan fitur Allybot/)
-  assert.match(whatsapp.sent[2].text, /TOOLS:/)
-  assert.doesNotMatch(whatsapp.sent[2].text, /clearcache/)
 })
 
 test('utility command index and search expose registered commands without hidden entries', async () => {
@@ -80,8 +61,8 @@ test('utility command index and search expose registered commands without hidden
   assert.match(whatsapp.sent[0].text, /Command Allybot yang tersedia/)
   assert.match(whatsapp.sent[0].text, /!searchcmd/)
 
-  await registry.dispatch(message(5, '!searchcmd uptime'))
-  assert.match(whatsapp.sent[1].text, /!uptime/)
+  await registry.dispatch(message(5, '!searchcmd random'))
+  assert.match(whatsapp.sent[1].text, /!random/)
   assert.doesNotMatch(whatsapp.sent[1].text, /menu-reply/)
 })
 

@@ -323,7 +323,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
     },
     {
       title: 'System & Info',
-      commands: ['ping', 'uptime', 'health', 'diag', 'diagnostics', 'about', 'version', 'support', 'status', 'features', 'commands', 'cmds', 'searchcmd', 'calc', 'convert', 'time', 'date'],
+      commands: ['botprofile', 'bprofile', 'ping', 'health', 'diag', 'diagnostics', 'about', 'version', 'support', 'commands', 'cmds', 'searchcmd', 'calc', 'convert', 'time', 'date'],
     },
   ],
 }
