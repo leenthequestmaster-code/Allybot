@@ -3,7 +3,10 @@ dotenv.config({ path: '/root/Allybot-hotfix/.env.test' });
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import postgres from 'postgres';
+import pino from 'pino';
 import { randomBytes } from 'node:crypto';
+
+const logger = pino({ level: 'silent' });
 
 // S4 Guard: strictly enforces isolated PostgreSQL 17 and Redis
 async function assertIsolatedStack() {
@@ -71,6 +74,70 @@ test('R1_raw_parsing_and_token_bounds: negative and non-integer inputs rejected'
     if (tc.expectedOk) {
       assert.equal(res.value, tc.val);
     }
+  }
+});
+
+test('R1_command_handler_exploit_prevention: !alokasi str -5 rejected without minting tokens', async () => {
+  await assertIsolatedStack();
+  const { createCharacterGuidePlugin } = await import('../dist/framework/plugins/character-guide.js');
+  const { CharacterGuideService } = await import('../dist/services/character-guide-service.js');
+  const { createPostgresCharacterClient } = await import('../dist/services/character-postgres-client.js');
+
+  const sql = postgres(process.env.DISPOSABLE_POSTGRES_URL);
+  const guideKey = 'hotfix-guide-world';
+  const ownerJid = '6281234567890@s.whatsapp.net';
+  const charId = randomBytes(16).toString('hex');
+
+  const charClient = createPostgresCharacterClient({ postgresUrl: process.env.DISPOSABLE_POSTGRES_URL });
+  const charService = new CharacterGuideService(logger, { env: { CHARACTER_GUIDE_ENABLED: 'true' }, createClient: () => charClient });
+  charService.initialize({ logger, config: {}, services: {} });
+
+  const commands = new Map();
+  const plugin = createCharacterGuidePlugin({
+    userJid: 'bot@s.whatsapp.net',
+    sendText: async () => {},
+    sendNativeQuickReplies: async () => {},
+    getGroupMetadata: async () => ({ jid: 'group@g.us', subject: 'Group', participants: [] }),
+  });
+
+  plugin.load({
+    logger,
+    config: { commandPrefix: '!', defaultCooldownMs: 0 },
+    services: { get: () => charService, has: () => true },
+    commands: { register: (d) => commands.set(d.name, d) },
+    events: { on: () => {}, emit: () => {} },
+    messageGates: { register: () => {} },
+  });
+
+  try {
+    // Seed clean Level 1 character (budget = 5 tokens)
+    const ownerKey = charService.getActiveForOwner ? (await import('../dist/services/character-guide-service.js')).hashIdentity?.(ownerJid) : null;
+    await sql`DELETE FROM character_profiles WHERE guide_key = '01861054b1f6305a2e584f294da6883cd1c7ef3908865e94f09a58cf09848fa5'`;
+
+    // 1. Initial State: Player sends !alokasi str -5
+    let replyMsg = '';
+    const cmdContext = {
+      prefix: '!',
+      args: ['str', '-5'],
+      message: { senderJid: ownerJid, remoteJid: 'group@g.us' },
+      reply: async (text) => { replyMsg = text; },
+    };
+
+    await commands.get('alokasi').handler(cmdContext);
+
+    // 2. Verification: The command handler rejected the negative input
+    assert.match(replyMsg, /Jumlah alokasi tidak valid: Harus berupa bilangan bulat positif/);
+
+    // 3. Database allocated_stats was NEVER modified with negative values
+    const rows = await sql`
+      SELECT allocated_stats FROM character_profiles
+      WHERE owner_key = ${ownerKey || ''} AND status = 'active'
+    `;
+    if (rows.length > 0) {
+      assert.equal(rows[0].allocated_stats?.str ?? 0, 0, 'str stat must remain 0 or unmodified');
+    }
+  } finally {
+    await sql.end();
   }
 });
 

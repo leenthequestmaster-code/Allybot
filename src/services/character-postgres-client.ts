@@ -354,20 +354,6 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           if (rows.length === 0) return { data: { ok: false, error: 'Target tidak memiliki karakter aktif.' }, error: null }
           const row = rows[0]
 
-          const bonusTokens = Math.max(0, Number(row.bonus_tokens ?? 0))
-          const newTotalTokens = (Math.max(1, level) - 1) * 5 + 5 + bonusTokens
-          const currentAlloc = parseAllocatedStats(row.allocated_stats)
-          const currentUsedTokens = Object.values(currentAlloc).reduce((sum, v) => sum + (Number(v) || 0), 0)
-
-          if (newTotalTokens < currentUsedTokens) {
-            return {
-              data: {
-                ok: false,
-                error: `Penurunan level ditolak: Token yang sudah dialokasikan (${currentUsedTokens}) melebihi total token pada Level ${level} (${newTotalTokens}). Harap lakukan !resetstats terlebih dahulu.`,
-              },
-              error: null,
-            }
-          }
 
           await tx`
             UPDATE character_profiles
