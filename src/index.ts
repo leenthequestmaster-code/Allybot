@@ -9,6 +9,7 @@ import { developerModePlugin } from './framework/plugins/developer-mode.js'
 import { codebasePlugin } from './framework/plugins/codebase.js'
 import { technicalPlugin } from './framework/plugins/technical.js'
 import { createAfkPlugin } from './framework/plugins/afk.js'
+import { createSuggestPlugin } from './framework/plugins/suggest.js'
 import { menuPlugin } from './framework/plugins/menu.js'
 import { createWelcomeLeavePlugin } from './framework/plugins/welcome-leave.js'
 import { groupPlugin } from './framework/plugins/group.js'
@@ -28,6 +29,7 @@ import { createPermissionResolver } from './permissions.js'
 import { isGroupJid } from './framework/validation.js'
 import { SqliteStorage } from './storage.js'
 import { AfkService } from './services/afk-service.js'
+import { SuggestionService } from './services/suggestion-service.js'
 import { GroupConfigurationService } from './services/group-configuration-service.js'
 import { DeveloperModeService } from './services/developer-mode-service.js'
 import { PlatformGuardrailService } from './services/platform-guardrail-service.js'
@@ -89,6 +91,7 @@ async function main(): Promise<void> {
     },
   )
   framework.registerService(new AfkService(config.DATABASE_PATH, logger))
+  framework.registerService(new SuggestionService(config.DATABASE_PATH, logger, { secret: config.SUGGEST_SECRET }))
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
   const economyClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
@@ -143,6 +146,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(toolsSearchPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
+  if (config.SUGGEST_ENABLED) framework.registerPlugin(createSuggestPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework, sentry)
   try {
     await lifecycle.start()

@@ -29,6 +29,7 @@ import { utilityPlugin } from '../dist/framework/plugins/utility.js'
 import { mediaPlugin } from '../dist/framework/plugins/media.js'
 import { toolsSearchPlugin } from '../dist/framework/plugins/tools-search.js'
 import { createAfkPlugin } from '../dist/framework/plugins/afk.js'
+import { createSuggestPlugin } from '../dist/framework/plugins/suggest.js'
 
 const logger = pino({ level: 'silent' })
 
@@ -36,6 +37,7 @@ const logger = pino({ level: 'silent' })
 // this test stays about plugin wiring, not storage behaviour.
 const SERVICE_NAMES = [
   'afk',
+  'suggestion',
   'group-configuration',
   'developer-mode',
   'economy',
@@ -144,6 +146,7 @@ test('every production plugin reaches ready, except the documented pending colli
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(toolsSearchPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
+  framework.registerPlugin(createSuggestPlugin(whatsapp))
 
   try {
     await framework.start()

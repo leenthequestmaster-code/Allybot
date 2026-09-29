@@ -908,7 +908,17 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     }
 
     if (upsert.type !== 'notify') return
-    this.storage.saveMessages(upsert.messages)
+    const messagesToSave = upsert.messages.filter((msg) => {
+      const text = extractText(msg)?.trim()
+      if (!text) return true
+      if (/^[!/.#](?:suggest|saran)(?:\s|$)/i.test(text)) {
+        return false
+      }
+      return true
+    })
+    if (messagesToSave.length > 0) {
+      this.storage.saveMessages(messagesToSave)
+    }
   }
 
   private async emitMessages(messages: readonly WAMessage[]): Promise<void> {

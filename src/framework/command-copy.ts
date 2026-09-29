@@ -28,6 +28,7 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   groupsettings: 'Lihat setelan grup yang sedang aktif.',
   setlanguage: 'Atur bahasa balasan bot di grup.',
   settimezone: 'Atur zona waktu grup.',
+  suggest: 'Kirim kritik atau saran secara anonim ke pengurus bot.',
 
   // --- ADMIN TOOLS ---
   kick: 'Keluarkan member dari grup.',
@@ -62,6 +63,9 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   report: 'Laporkan masalah atau pelanggaran ke pengurus grup.',
   cases: 'Lihat daftar laporan member di grup.',
   case: 'Lihat rincian laporan tertentu berdasarkan ID.',
+  setkotaksaran: 'Atur grup ini sebagai kotak penampung saran (Owner).',
+  replysaran: 'Balas saran masuk berdasarkan nomor tiket pengirim.',
+  blocksaran: 'Blokir tiket saran pengirim yang menyalahgunakan kotak saran.',
 
   // --- YOUR CHARACTER ---
   character: 'Buka jendela kartu profil karakter roleplay-mu.',

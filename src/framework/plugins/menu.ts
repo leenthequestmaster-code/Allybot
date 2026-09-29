@@ -273,7 +273,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
     },
     {
       title: 'Interaction & Settings',
-      commands: ['afk', 'tagme', 'prefix', 'setprefix', 'groupsettings', 'link', 'invite', 'setlanguage', 'settimezone', 'role', 'permissions'],
+      commands: ['afk', 'tagme', 'suggest', 'prefix', 'setprefix', 'groupsettings', 'link', 'invite', 'setlanguage', 'settimezone', 'role', 'permissions'],
     },
   ],
   moderation: [
@@ -291,7 +291,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
     },
     {
       title: 'Chat Access',
-      commands: ['lock', 'unlock', 'groupmode', 'promote', 'demote', 'tagall', 'hidetag', 'del', 'clear', 'leave', 'botleave', 'modstatus', 'cases', 'case', 'report'],
+      commands: ['lock', 'unlock', 'groupmode', 'promote', 'demote', 'tagall', 'hidetag', 'del', 'clear', 'leave', 'botleave', 'setkotaksaran', 'replysaran', 'blocksaran', 'modstatus', 'cases', 'case', 'report'],
     },
   ],
   'your-character': [
