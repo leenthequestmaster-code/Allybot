@@ -948,10 +948,15 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
 
           const { targetKey, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
-          const rawLevel = remainingArgs[0]
-          const parseRes = parseStrictPositiveInt(rawLevel ?? '', 100)
+          let level: number | undefined
+          for (const arg of remainingArgs) {
+            if (/^\d+$/.test(arg)) {
+              level = parseInt(arg, 10)
+              break
+            }
+          }
 
-          if (!parseRes.ok) {
+          if (level === undefined || isNaN(level) || level < 1 || level > 100) {
             return void await commandContext.reply([
               '*Format Set Level:*',
               `• \`${commandContext.prefix}setlevel <1-100>\` (untuk diri sendiri)`,
@@ -961,7 +966,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             ].join('\n'))
           }
 
-          const result = await service.setLevel(targetKey, parseRes.value)
+          const result = await service.setLevel(targetKey, level)
           await commandContext.reply(result.message)
         },
       })
