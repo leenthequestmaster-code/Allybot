@@ -147,7 +147,7 @@ export class CharacterRegistrationWizardService {
     userJid: string,
     rawText: string,
     nameAvailabilityChecker?: (name: string) => Promise<boolean>,
-  ): Promise<{ reply: string; isComplete?: boolean; data?: CharacterSheetPayload }> {
+  ): Promise<{ reply: string; isComplete?: boolean; data?: CharacterSheetPayload; originGroupJid?: string }> {
     const session = this.getSession(userJid)
     if (!session) {
       return { reply: 'Tidak ada sesi pendaftaran aktif. Ketik *!daftar* untuk memulai petualanganmu!' }
@@ -417,11 +417,13 @@ export class CharacterRegistrationWizardService {
           }
 
           // Complete session
+          const originGroupJid = session.originGroupJid
           this.sessions.delete(this.normalizeKey(userJid))
           return {
             reply: '🎉 *Pendaftaran Sukses!* Menghubungkan ke registri Benua Allyssea...',
             isComplete: true,
             data: payload,
+            originGroupJid,
           }
         }
 

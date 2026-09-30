@@ -498,46 +498,133 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             )
 
             if (activeRecord) {
-              const stats = calculateCharacterStats(activeRecord.race, activeRecord.level, activeRecord.allocatedStats ?? {}, activeRecord.bonusTokens ?? 0)
-              let mediaSent = false
+              const stats = calculateCharacterStats(
+                activeRecord.race,
+                activeRecord.level,
+                activeRecord.allocatedStats ?? {},
+                activeRecord.bonusTokens ?? 0,
+              )
+
+              const cardPayload = {
+                name: activeRecord.name,
+                gender: activeRecord.gender,
+                age: activeRecord.age,
+                birthday: activeRecord.birthday,
+                race: activeRecord.race,
+                className: activeRecord.className,
+                element: activeRecord.element,
+                rank: activeRecord.rank,
+                level: activeRecord.level,
+                willOfPath: activeRecord.willOfPath,
+                spirit: activeRecord.spirit,
+                crew: activeRecord.crew,
+                profession: activeRecord.profession,
+                origin: activeRecord.origin,
+                titles: activeRecord.titles,
+                motto: activeRecord.motto,
+                stats: stats as unknown as Record<string, unknown>,
+              }
+
+              // 1. Kirim Status Window Character (!char)
+              let charMediaSent = false
               if (whatsapp.sendMedia) {
                 try {
-                  const imgBuffer = await renderStatusCardImage('character', {
-                    name: activeRecord.name,
-                    gender: activeRecord.gender,
-                    age: activeRecord.age,
-                    birthday: activeRecord.birthday,
-                    race: activeRecord.race,
-                    className: activeRecord.className,
-                    element: activeRecord.element,
-                    rank: activeRecord.rank,
-                    level: activeRecord.level,
-                    willOfPath: activeRecord.willOfPath,
-                    spirit: activeRecord.spirit,
-                    crew: activeRecord.crew,
-                    profession: activeRecord.profession,
-                    origin: activeRecord.origin,
-                    titles: activeRecord.titles,
-                    motto: activeRecord.motto,
-                    stats: stats as unknown as Record<string, unknown>,
-                  }, context.logger)
-
-                  if (imgBuffer) {
+                  const charImg = await renderStatusCardImage('character', cardPayload, context.logger)
+                  if (charImg) {
                     await whatsapp.sendMedia(actor, {
                       kind: 'image',
-                      data: new Uint8Array(imgBuffer),
+                      data: new Uint8Array(charImg),
                       mimeType: 'image/png',
                     })
-                    mediaSent = true
+                    charMediaSent = true
                   }
                 } catch {
-                  // Fallback to text below
+                  // Fallback to text
                 }
               }
-              if (!mediaSent) {
+              if (!charMediaSent) {
                 await whatsapp.sendText(actor, renderCharacter(activeRecord))
               }
+
+              // 2. Kirim Status Window Stats (!stats)
+              let statsMediaSent = false
+              if (whatsapp.sendMedia) {
+                try {
+                  const statsImg = await renderStatusCardImage('stats', cardPayload, context.logger)
+                  if (statsImg) {
+                    await whatsapp.sendMedia(actor, {
+                      kind: 'image',
+                      data: new Uint8Array(statsImg),
+                      mimeType: 'image/png',
+                    })
+                    statsMediaSent = true
+                  }
+                } catch {
+                  // Fallback to text
+                }
+              }
+              if (!statsMediaSent) {
+                await whatsapp.sendText(actor, renderStatsCard(activeRecord.name, activeRecord.race, activeRecord.className, activeRecord.rank, activeRecord.level, stats))
+              }
             }
+
+            // 3. Informasi Saldo Ekonomi Vela
+            let walletBalance = 1000
+            let safeBalance = 0
+            let safeLimitText = '50.000 Vela (Basic Tier)'
+
+            if (res.originGroupJid && context.services.has('economy')) {
+              try {
+                const econ = context.services.get<EconomyService>('economy')
+                const snapResult = await econ.getAccountSnapshot(res.originGroupJid, actor)
+                walletBalance = snapResult.snapshot.walletBalance
+                safeBalance = snapResult.snapshot.safeBalance
+                safeLimitText = `${snapResult.snapshot.safeLimit.toLocaleString('id-ID')} Vela (${snapResult.snapshot.membershipTier.toUpperCase()} Tier)`
+              } catch {
+                // Keep standard starter balance
+              }
+            }
+
+            const velaInfoText = [
+              '🪙 *INFORMASI EKONOMI VELA*',
+              '───────────────────────────────',
+              `• Saldo Dompet (Wallet) : *${walletBalance.toLocaleString('id-ID')} Vela*`,
+              `• Saldo Brankas (Safe)  : *${safeBalance.toLocaleString('id-ID')} Vela*`,
+              `• Kapasitas Brankas     : ${safeLimitText}`,
+              '',
+              '_Setiap petualang baru otomatis dibekali 1.000 koin Vela sebagai modal awal bertualang di Benua Allyssea._',
+            ].join('\n')
+
+            await whatsapp.sendText(actor, velaInfoText)
+
+            // 4. Panduan Singkat Command Your Character
+            const guideText = [
+              '📜 *PANDUAN PETUALANG: FITUR YOUR CHARACTER*',
+              '───────────────────────────────',
+              'Karaktermu kini telah siap bertualang! Berikut perintah-perintah penting yang bisa kamu gunakan:',
+              '',
+              '• *!character* (alias: *!char*)',
+              '  Melihat Visual Status Window dan berkas dossier karaktermu.',
+              '',
+              '• *!stats*',
+              '  Melihat rincian 8 Atribut (HP, MP, STR, AGI, INT, DEF, DEX, LCK) serta sisa Stat Points.',
+              '',
+              '• *!alokasi <stat> <jumlah>*',
+              '  Membagikan Stat Points ke atribut pilihanmu.',
+              '  Contoh: `!alokasi str 2` atau `!alokasi hp 3`',
+              '',
+              '• *!vela*',
+              '  Memeriksa status keuangan, dompet, dan brankas bankmu.',
+              '',
+              '• *!retire*',
+              '  Memensiunkan karakter jika kelak ingin memulai petualangan baru.',
+              '',
+              '───────────────────────────────',
+              '💡 *Tips:* Kamu memiliki *5 Stat Points* pertama yang belum dialokasikan!',
+              'Ketik *!stats* lalu gunakan *!alokasi* untuk memperkuat karaktermu sekarang.',
+            ].join('\n')
+
+            await whatsapp.sendText(actor, guideText)
           } catch (err: any) {
             context.logger.error({ err, actor }, 'failed to save character from wizard')
             await whatsapp.sendText(
