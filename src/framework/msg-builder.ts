@@ -110,7 +110,11 @@ export type BuiltMessagePayload =
     }
   | {
       readonly kind: 'airich'
-      readonly payload: { readonly botInvokeMessage: proto.Message.IFutureProofMessage }
+      readonly payload: {
+        readonly botInvokeMessage: proto.Message.IFutureProofMessage
+        readonly botForwardedMessage?: proto.Message.IFutureProofMessage
+        readonly messageContextInfo?: proto.IMessageContextInfo
+      }
       readonly fallbackText: string
     }
 
@@ -431,52 +435,175 @@ export class MsgBuilder {
         throw new Error('AIRich message content must not be empty')
       }
 
-      const submessages: proto.AIRichResponseSubMessage[] = parts.map((part) => {
+      const sections: Array<Record<string, unknown>> = []
+      const submessages: proto.AIRichResponseSubMessage[] = []
+
+      for (const part of parts) {
         if (part.type === 'code') {
-          return proto.AIRichResponseSubMessage.create({
-            messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_CODE,
-            codeMetadata: proto.AIRichResponseCodeMetadata.create({
-              codeLanguage: part.language ?? 'plaintext',
-              codeBlocks: [
-                proto.AIRichResponseCodeMetadata.AIRichResponseCodeBlock.create({
-                  codeContent: part.content,
-                  highlightType: proto.AIRichResponseCodeMetadata.AIRichResponseCodeHighlightType.AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT,
-                }),
-              ],
+          submessages.push(
+            proto.AIRichResponseSubMessage.create({
+              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_CODE,
+              codeMetadata: proto.AIRichResponseCodeMetadata.create({
+                codeLanguage: part.language ?? 'plaintext',
+                codeBlocks: [
+                  proto.AIRichResponseCodeMetadata.AIRichResponseCodeBlock.create({
+                    codeContent: part.content,
+                    highlightType: proto.AIRichResponseCodeMetadata.AIRichResponseCodeHighlightType.AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT,
+                  }),
+                ],
+              }),
             }),
+          )
+          sections.push({
+            view_model: {
+              primitive: {
+                language: part.language ?? 'plaintext',
+                code_blocks: [
+                  {
+                    code: part.content,
+                    highlight_type: 'DEFAULT',
+                  },
+                ],
+                __typename: 'GenAICodeUXPrimitive',
+              },
+              __typename: 'GenAISingleLayoutViewModel',
+            },
+          })
+        } else if (part.type === 'table') {
+          submessages.push(
+            proto.AIRichResponseSubMessage.create({
+              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TABLE,
+              tableMetadata: proto.AIRichResponseTableMetadata.create({
+                title: 'Data Table',
+                rows: (part.rows ?? []).map((row) =>
+                  proto.AIRichResponseTableMetadata.AIRichResponseTableRow.create({
+                    items: [...row],
+                  }),
+                ),
+              }),
+            }),
+          )
+          const rows = (part.rows ?? []).map((row, idx) => ({
+            row_type: idx === 0 ? 'HEADER' : 'DATA',
+            cells: row.map((cell) => ({
+              cell_type: 'TEXT',
+              cell_text: cell,
+            })),
+          }))
+          sections.push({
+            view_model: {
+              primitive: {
+                rows,
+                __typename: 'GenATableUXPrimitive',
+              },
+              __typename: 'GenAISingleLayoutViewModel',
+            },
+          })
+        } else if (part.type === 'suggest') {
+          const suggestions = (part.content ?? '')
+            .split('|')
+            .map((s) => s.trim())
+            .filter(Boolean)
+          if (suggestions.length > 0) {
+            sections.push({
+              view_model: {
+                primitives: suggestions.map((text) => ({
+                  prompt_text: text,
+                  prompt_type: 'SUGGESTED_PROMPT',
+                  __typename: 'GenAIFollowUpSuggestionPillPrimitive',
+                })),
+                __typename: suggestions.length === 1 ? 'GenAISingleLayoutViewModel' : 'GenAIActionRowLayoutViewModel',
+              },
+              __typename: 'GenAIUnifiedResponseSection',
+            })
+          }
+        } else if (part.type === 'tip') {
+          submessages.push(
+            proto.AIRichResponseSubMessage.create({
+              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TEXT,
+              messageText: part.content,
+            }),
+          )
+          sections.push({
+            view_model: {
+              primitive: {
+                text: part.content,
+                __typename: 'GenAIMetadataTextPrimitive',
+              },
+              __typename: 'GenAISingleLayoutViewModel',
+            },
+          })
+        } else {
+          submessages.push(
+            proto.AIRichResponseSubMessage.create({
+              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TEXT,
+              messageText: part.content,
+            }),
+          )
+          sections.push({
+            view_model: {
+              primitive: {
+                text: part.content,
+                __typename: 'GenAIMarkdownTextUXPrimitive',
+              },
+              __typename: 'GenAISingleLayoutViewModel',
+            },
           })
         }
-        if (part.type === 'table') {
-          return proto.AIRichResponseSubMessage.create({
-            messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TABLE,
-            tableMetadata: proto.AIRichResponseTableMetadata.create({
-              title: 'Data Table',
-              rows: (part.rows ?? []).map((row) =>
-                proto.AIRichResponseTableMetadata.AIRichResponseTableRow.create({
-                  items: [...row],
-                }),
-              ),
-            }),
-          })
-        }
-        return proto.AIRichResponseSubMessage.create({
-          messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TEXT,
-          messageText: part.content,
+      }
+
+      if (this._footerText) {
+        sections.push({
+          view_model: {
+            primitive: {
+              text: this._footerText,
+              __typename: 'GenAIMetadataTextPrimitive',
+            },
+            __typename: 'GenAISingleLayoutViewModel',
+          },
         })
-      })
+      }
+
+      const unifiedData = Buffer.from(
+        JSON.stringify({
+          response_id: randomUUID(),
+          sections,
+        }),
+      )
 
       const richMsg = proto.AIRichResponseMessage.create({
         messageType: proto.AIRichResponseMessageType.AI_RICH_RESPONSE_TYPE_STANDARD,
         submessages,
+        unifiedResponse: {
+          data: unifiedData,
+        },
+        contextInfo: {
+          isForwarded: true,
+          forwardingScore: 1,
+          forwardedAiBotMessageInfo: { botJid: '0@bot' },
+          forwardOrigin: 4,
+        },
       })
 
       const fallbackText = this._text.trim()
       return {
         kind: 'airich',
         payload: {
+          botForwardedMessage: {
+            message: {
+              richResponseMessage: richMsg,
+            },
+          },
           botInvokeMessage: {
             message: {
               richResponseMessage: richMsg,
+            },
+          },
+          messageContextInfo: {
+            deviceListMetadata: {},
+            deviceListMetadataVersion: 2,
+            botMetadata: {
+              messageDisclaimerText: this._headerTitle ?? 'Allybot AI',
             },
           },
         },
@@ -595,20 +722,22 @@ export class MsgBuilder {
 
     if (socket.ev?.on) socket.ev.on('messages.update', onUpdate as any)
     // Auto-cleanup listener after window
-    setTimeout(() => { socket.ev?.off?.('messages.update', onUpdate as any) }, ACK_WINDOW_MS)
+    const ackTimer = setTimeout(() => { socket.ev?.off?.('messages.update', onUpdate as any) }, ACK_WINDOW_MS)
+    ackTimer.unref?.()
 
     try {
       await socket.relayMessage(jid, msg, { messageId, additionalNodes })
       return true
     } catch (relayError) {
+      clearTimeout(ackTimer)
       socket.ev?.off?.('messages.update', onUpdate as any)
-      socket.logger?.warn?.({ err: relayError, jid }, 'interactive relay threw, sending fallback text')
+      socket.logger?.warn?.({ err: relayError, jid }, 'interactive relay failed, sending fallback text')
       await transport.sendText(jid, fallbackText)
       return true
     }
   }
 
-  async send(transport: WhatsAppPort & { socket?: WASocket }): Promise<void> {
+  async send(transport: WhatsAppPort): Promise<void> {
     const built = this.build()
     const jid = this._remoteJid
 
@@ -617,7 +746,7 @@ export class MsgBuilder {
       return
     }
 
-    const socket = transport.socket
+    const socket = transport.socket as WASocket | undefined
     if (!socket || !transport.isConnected) {
       if (this._mediaData && transport.sendMedia) {
         try {
