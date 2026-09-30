@@ -1,0 +1,25 @@
+================================================================================
+EVIDENCE ARTIFACT: K4 - Raw Text Parsing Comparison (cc8c7d8 vs Hotfix)
+Branch: hotfix/character-token-guard
+Commit: b2ed97831a3ab7b8945280d491af6418d8ea8a4f
+UTC Timestamp: 2026-09-30T01:18:33.339Z
+Target Database: 127.0.0.1:5433 (allybot_isolated_test)
+Target Redis: 127.0.0.1:6380
+Preload Guard: scripts/test-preflight-guard.mjs (enforced)
+================================================================================
+
+INPUT TABLE: ["1e3", "5abc", "1.5", "+5"]
+
+1. UNMODIFIED cc8c7d8 (loose parseInt in character-guide.ts:871):
+- "!alokasi str 1e3" -> parseInt stops at 'e' -> evaluates to 1 -> allocated: {"str": 1}
+- "!alokasi str 5abc" -> parseInt stops at 'a' -> evaluates to 5 -> allocated: {"str": 5}
+- "!alokasi str 1.5" -> parseInt stops at '.' -> evaluates to 1 -> allocated: {"str": 1}
+- "!alokasi str +5" -> parseInt accepts unary plus -> evaluates to 5 -> allocated: {"str": 5}
+
+2. HOTFIX (strict parseStrictPositiveInt with regex ^[0-9]+$):
+- "!alokasi str 1e3" -> REJECTED: "Harus berupa bilangan bulat positif"
+- "!alokasi str 5abc" -> REJECTED: "Harus berupa bilangan bulat positif"
+- "!alokasi str 1.5" -> REJECTED: "Harus berupa bilangan bulat positif"
+- "!alokasi str +5" -> REJECTED: "Harus berupa bilangan bulat positif"
+
+VERDICT: PASS - Malformed numbers, floats, and scientific notation rejected cleanly at transport layer.

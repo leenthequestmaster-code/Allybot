@@ -1,0 +1,19 @@
+================================================================================
+EVIDENCE ARTIFACT: R3 - 20-Parallel Token Allocation Concurrency Race
+Branch: hotfix/character-token-guard
+Commit: b2ed97831a3ab7b8945280d491af6418d8ea8a4f
+UTC Timestamp: 2026-09-30T01:18:33.131Z
+Target Database: 127.0.0.1:5433 (allybot_isolated_test)
+Target Redis: 127.0.0.1:6380
+Preload Guard: scripts/test-preflight-guard.mjs (enforced)
+================================================================================
+
+COMMAND: 20 parallel client.rpc("character_allocate_stats", { p_stat_key: "str", p_amount: 1 })
+OUTPUT:
+- Initial budget: 5 tokens
+- Parallel allocation requests sent: 20 (requesting 1 token each)
+- Successful transactions committed: 5 (Expected: 5)
+- Rejected transactions (budget exceeded): 15 (Expected: 15)
+- Final DB allocated_stats.str: 5 (Expected: 5)
+
+VERDICT: PASS - Double-spending eliminated via row-level locks (SELECT ... FOR UPDATE).
