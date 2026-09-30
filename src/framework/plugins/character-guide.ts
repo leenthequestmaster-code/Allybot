@@ -1,3 +1,4 @@
+import { CharacterRegistrationWizardService } from '../../services/character-registration-wizard.js'
 export function parseStrictSignedInt(raw: string, maxAbsLimit = 1000): { ok: true; value: number } | { ok: false; error: string } {
   if (!raw || typeof raw !== 'string') return { ok: false, error: 'Input tidak boleh kosong' }
   const trimmed = raw.trim()
@@ -105,7 +106,7 @@ function groupJid(context: CommandContext): string | undefined {
 }
 
 function actorJid(context: CommandContext): string | undefined {
-  return context.message.senderJid
+  return context.message.senderJid ?? context.message.remoteJid
 }
 
 function canonicalJid(value: string): string {
@@ -383,6 +384,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
       }
       const onboardingTtlMs = Math.max(60_000, (context.config.characterGuideSessionTtlSeconds ?? DEFAULT_SESSION_TTL_SECONDS) * 1_000)
       const cardLocks = new Map<string, Promise<PendingOnboarding | undefined>>()
+      const wizard = new CharacterRegistrationWizardService()
       const cardMessageLocks = new Map<string, Promise<void>>()
 
       const pruneTransientState = (): void => {
@@ -465,9 +467,97 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
         }
       }
 
+      async function handleWizardMessage(message: CoreMessage): Promise<void> {
+        if (!service.isEnabled || isGroupJid(message.remoteJid)) return
+        const actor = message.senderJid ?? message.remoteJid
+        if (!actor || !wizard.hasActiveSession(actor)) return
+
+        const text = message.text?.trim()
+        if (!text) return
+
+        if (text.startsWith('!') && !['!confirm', '!prev', '!next', '!batal', '!cancel'].includes(text.toLowerCase())) {
+          return
+        }
+
+        const nameChecker = async (name: string) => {
+          const found = await service.findActiveByName(name)
+          return found === undefined
+        }
+
+        const res = await wizard.handleInput(actor, text, nameChecker)
+
+        if (res.isComplete && res.data) {
+          try {
+            const saved = await service.saveFromWizard(actor, res.data, message.id)
+            const activeRecord = await service.getActiveForOwner(actor)
+
+            await whatsapp.sendText(
+              actor,
+              `🎉 *Pendaftaran Sukses!*\nSelamat datang di Benua Allyssea, *${saved.name}*!\n` +
+                `Berikut adalah Kartu Status resmi karaktermu:`,
+            )
+
+            if (activeRecord) {
+              const stats = calculateCharacterStats(activeRecord.race, activeRecord.level, activeRecord.allocatedStats ?? {}, activeRecord.bonusTokens ?? 0)
+              let mediaSent = false
+              if (whatsapp.sendMedia) {
+                try {
+                  const imgBuffer = await renderStatusCardImage('character', {
+                    name: activeRecord.name,
+                    gender: activeRecord.gender,
+                    age: activeRecord.age,
+                    birthday: activeRecord.birthday,
+                    race: activeRecord.race,
+                    className: activeRecord.className,
+                    element: activeRecord.element,
+                    rank: activeRecord.rank,
+                    level: activeRecord.level,
+                    willOfPath: activeRecord.willOfPath,
+                    spirit: activeRecord.spirit,
+                    crew: activeRecord.crew,
+                    profession: activeRecord.profession,
+                    origin: activeRecord.origin,
+                    titles: activeRecord.titles,
+                    motto: activeRecord.motto,
+                    stats: stats as unknown as Record<string, unknown>,
+                  }, context.logger)
+
+                  if (imgBuffer) {
+                    await whatsapp.sendMedia(actor, {
+                      kind: 'image',
+                      data: new Uint8Array(imgBuffer),
+                      mimeType: 'image/png',
+                    })
+                    mediaSent = true
+                  }
+                } catch {
+                  // Fallback to text below
+                }
+              }
+              if (!mediaSent) {
+                await whatsapp.sendText(actor, renderCharacter(activeRecord))
+              }
+            }
+          } catch (err: any) {
+            context.logger.error({ err, actor }, 'failed to save character from wizard')
+            await whatsapp.sendText(
+              actor,
+              `⚠️ Gagal menyimpan karakter: ${err?.message || 'Terjadi kesalahan sistem'}. Ketik *!daftar* untuk mencoba lagi.`,
+            )
+          }
+        } else if (res.reply) {
+          await whatsapp.sendText(actor, res.reply)
+        }
+      }
+
       context.events.on('message.received', async (message) => {
         pruneTransientState()
-        if (!service.isEnabled || !isGroupJid(message.remoteJid) || !message.senderJid) return
+        if (!service.isEnabled) return
+        if (!isGroupJid(message.remoteJid)) {
+          await handleWizardMessage(message)
+          return
+        }
+        if (!message.senderJid) return
         if (context.services.has('web-companion')) return
         const selection = choiceFromMessage(message)
         if (!selection || isCommand(message.text, context.config.commandPrefix)) return
@@ -555,10 +645,23 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           pruneTransientState()
           const group = groupJid(commandContext)
           const actor = actorJid(commandContext)
-          if (!group || !actor) {
-            await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
+          if (!actor) return
+
+          // Private chat: start interactive wizard directly
+          if (!group) {
+            const active = await service.getActiveForOwner(actor)
+            if (active) {
+              await commandContext.reply(
+                `Kamu sudah memiliki Character aktif: *${active.name}* (Lv. ${active.level})!\n` +
+                  `Gunakan *!character* untuk melihat status atau *!retire* jika ingin memensiunkan karakter.`,
+              )
+              return
+            }
+            const { prompt } = wizard.startSession(actor)
+            await commandContext.reply(prompt)
             return
           }
+
           if (!service.isEnabled) {
             await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
             return
@@ -612,6 +715,47 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
             { id: 'guide-experience-other-platform', title: 'Pernah dari platform lain' },
             { id: 'guide-experience-beginner', title: 'Ini pertama kali' },
           ], 'Balas dengan 1, 2, atau 3.')
+        },
+      })
+
+      context.commands.register({
+        name: 'confirm',
+        description: 'Konfirmasi dan resmikan pendaftaran karakter di Private Chat',
+        category: 'your-character',
+        cooldownMs: 2_000,
+        handler: async (commandContext) => {
+          if (isGroupJid(commandContext.message.remoteJid)) return
+          await handleWizardMessage(commandContext.message)
+        },
+      })
+
+      context.commands.register({
+        name: 'prev',
+        aliases: ['kembali'],
+        description: 'Kembali ke langkah pendaftaran sebelumnya di Private Chat',
+        category: 'your-character',
+        cooldownMs: 1_000,
+        handler: async (commandContext) => {
+          if (isGroupJid(commandContext.message.remoteJid)) return
+          const actor = actorJid(commandContext)
+          if (!actor || !wizard.hasActiveSession(actor)) return
+          const res = wizard.previousStep(actor)
+          await commandContext.reply(res.prompt)
+        },
+      })
+
+      context.commands.register({
+        name: 'next',
+        aliases: ['skip', 'lewati'],
+        description: 'Lewati langkah pendaftaran opsional di Private Chat',
+        category: 'your-character',
+        cooldownMs: 1_000,
+        handler: async (commandContext) => {
+          if (isGroupJid(commandContext.message.remoteJid)) return
+          const actor = actorJid(commandContext)
+          if (!actor || !wizard.hasActiveSession(actor)) return
+          const res = wizard.skipStep(actor)
+          await commandContext.reply(res.prompt)
         },
       })
 
@@ -723,6 +867,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           const actor = actorJid(commandContext)
           if (!group || !actor) return void await commandContext.reply('Command ini hanya bisa digunakan di dalam grup Guide.')
           if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+          if (wizard.hasActiveSession(actor)) wizard.cancelSession(actor)
           const registration = await service.getRegistration(group, actor)
           if (!registration) return void await commandContext.reply('Tidak ada pendaftaran Character yang sedang berjalan.')
           await service.cancelRegistration(group, actor, registration.sessionId)

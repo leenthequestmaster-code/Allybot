@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { isGroupJid, isJid } from '../framework/validation.js'
@@ -477,6 +477,56 @@ export class CharacterGuideService implements Service {
     })
     const raw = asRecord(result)
     if (raw?.ok !== true || raw.code !== 'saved') responseError(result, 'Character Sheet belum dapat disimpan.')
+    const characterId = typeof raw.character_id === 'string' ? raw.character_id : undefined
+    if (!characterId) throw new CharacterGuideUnavailableError()
+    return {
+      characterId,
+      ...(typeof raw.delivery_id === 'string' ? { deliveryId: raw.delivery_id } : {}),
+      name: payload.name,
+      status: 'saved',
+    }
+  }
+
+  async saveFromWizard(
+    ownerJid: string,
+    payload: CharacterSheetPayload,
+    sourceMessageId = '',
+  ): Promise<CharacterSaveResult> {
+    this.assertJid(ownerJid, 'owner')
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const operationKey = safeOperationKey('character-wizard-save', sourceMessageId || `${ownerJid}:${Date.now()}`)
+    const sessionId = randomUUID()
+    const referenceKey = hashReference([hashIdentity(ownerJid), sessionId])
+    const requestPayload = {
+      name: payload.name,
+      gender: payload.gender,
+      age: String(payload.age),
+      birthday_day: String(payload.birthdayDay),
+      birthday_month: payload.birthdayMonth,
+      birthday_year: String(payload.birthdayYear),
+      race: payload.race,
+      class_name: payload.className,
+      element: payload.element,
+      will_of_path: payload.willOfPath,
+      ...(payload.spirit ? { spirit: payload.spirit } : {}),
+      ...(payload.crew ? { crew: payload.crew } : {}),
+      ...(payload.profession ? { profession: payload.profession } : {}),
+      ...(payload.motto ? { motto: payload.motto } : {}),
+      ...(payload.visual ? { visual: payload.visual } : {}),
+      ...(payload.origin ? { origin: payload.origin } : {}),
+    }
+    const requestHash = hashReference([operationKey, JSON.stringify(requestPayload), referenceKey])
+    const result = await this.call('character_save', {
+      p_session_id: sessionId,
+      p_guide_key: worldScopeKey(),
+      p_owner_key: hashIdentity(ownerJid),
+      p_quoted_reference_key: referenceKey,
+      p_operation_key: operationKey,
+      p_request_hash: requestHash,
+      p_payload: requestPayload,
+    })
+    const raw = asRecord(result)
+    if (raw?.ok !== true || raw.code !== 'saved') responseError(result, 'Karakter belum dapat disimpan ke database.')
     const characterId = typeof raw.character_id === 'string' ? raw.character_id : undefined
     if (!characterId) throw new CharacterGuideUnavailableError()
     return {
