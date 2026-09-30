@@ -10,7 +10,7 @@ import { createPostgresCharacterClient } from '../dist/services/character-postgr
 import { createPostgresGroupContextClient } from '../dist/services/group-context-postgres-client.js'
 
 const logger = pino({ level: 'silent' })
-const POSTGRES_URL = 'postgres://allybot:allybot_secret_pass@127.0.0.1:5432/allybot'
+const POSTGRES_URL = process.env.DISPOSABLE_POSTGRES_URL || 'postgres://allybot_test_runner:test_runner_pass_isolated@127.0.0.1:5433/allybot_isolated_test'
 const groupJid = '120363000000000099@g.us'
 const ownerJid = '6281299999999@s.whatsapp.net'
 const botJid = '6285181696890@s.whatsapp.net'
