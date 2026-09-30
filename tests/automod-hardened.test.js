@@ -184,6 +184,17 @@ test('Automod Hardened: Antilink channel exemption, anti-smuggling, caching, and
   })
   assert.ok(!whatsapp.deletedMessages.some((d) => d.key.id === 'msg-own-group-link'))
 
+  // 7b. Inverse substring evasion attempt (chat.whatsapp.com without code or different code) -> DELETED!
+  await whatsapp.emitMessage({
+    id: 'msg-evasion-bare-domain',
+    remoteJid: groupJid,
+    senderJid: memberJid,
+    text: 'Cek tautan grup ini https://chat.whatsapp.com/OTHERGROUP999',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.ok(whatsapp.deletedMessages.some((d) => d.key.id === 'msg-evasion-bare-domain'))
+
   // 8. Anti-Smuggling: Channel link + Forbidden external link in same message -> DELETED!
   await whatsapp.emitMessage({
     id: 'msg-smuggled-link',

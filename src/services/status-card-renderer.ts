@@ -53,14 +53,31 @@ export async function renderStatusCardImage(
     await new Promise<void>((resolve, reject) => {
       const py = spawn('python3', [scriptPath, '--mode', mode, '--input', inPath, '--output', outPath])
       let stderr = ''
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        py.kill('SIGKILL')
+        reject(new Error('Status card generator timed out after 25000ms'))
+      }, 25_000)
+
       py.stderr.on('data', (chunk) => {
-        stderr += chunk.toString()
+        stderr = (stderr + chunk.toString()).slice(-4096)
       })
-      py.on('error', reject)
-      py.on('close', (code) => {
+      py.once('error', (err) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        reject(err)
+      })
+      py.once('close', (code) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
         if (code === 0) resolve()
         else reject(new Error(`Status card generator exited with code ${code}: ${stderr}`))
       })
+      py.stdin?.end()
     })
 
     const buf = await readFile(outPath)

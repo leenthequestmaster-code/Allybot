@@ -102,14 +102,31 @@ export async function finishSpackSession(
   await new Promise<void>((resolve, reject) => {
     const py = spawn('python3', [scriptPath, outZipPath, session.packName, ...filePaths])
     let stderr = ''
+    let settled = false
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      py.kill('SIGKILL')
+      reject(new Error('generate-spack.py timed out after 30000ms'))
+    }, 30_000)
+
     py.stderr.on('data', (d) => {
-      stderr += d.toString()
+      stderr = (stderr + d.toString()).slice(-4096)
     })
-    py.on('error', reject)
-    py.on('close', (code) => {
+    py.once('error', (err) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject(err)
+    })
+    py.once('close', (code) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
       if (code === 0) resolve()
       else reject(new Error(`generate-spack.py exited with code ${code}: ${stderr}`))
     })
+    py.stdin?.end()
   })
 
   const wastickersBuffer = await readFile(outZipPath)

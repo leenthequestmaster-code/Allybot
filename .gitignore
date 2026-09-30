@@ -10,3 +10,4 @@ data/
 npm-debug.log*
 .ci-artifact/
 .serena/
+.hermes/

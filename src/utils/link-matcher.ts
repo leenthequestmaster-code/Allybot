@@ -77,11 +77,21 @@ export function isWhatsAppChannelLink(url: string): boolean {
   return WA_CHANNEL_REGEX.test(url)
 }
 
+export function extractGroupInviteCode(url: string): string | undefined {
+  if (!url) return undefined
+  const match = /(?:chat\.whatsapp\.com\/(?:invite\/)?)([a-zA-Z0-9_-]+)/i.exec(url)
+  if (match) return match[1]
+  const trimmed = url.trim()
+  if (/^[a-zA-Z0-9_-]{10,40}$/.test(trimmed)) return trimmed
+  return undefined
+}
+
 export function isCurrentGroupInviteLink(url: string, currentInviteLink?: string): boolean {
   if (!url || !currentInviteLink) return false
-  const cleanUrl = url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
-  const cleanInvite = currentInviteLink.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
-  return cleanUrl.includes(cleanInvite) || cleanInvite.includes(cleanUrl)
+  const targetCode = extractGroupInviteCode(url)
+  const currentCode = extractGroupInviteCode(currentInviteLink)
+  if (!targetCode || !currentCode) return false
+  return targetCode.toLowerCase() === currentCode.toLowerCase()
 }
 
 export function evaluateMessageLinks(text: string, currentGroupInviteLink?: string): LinkEvaluationResult {

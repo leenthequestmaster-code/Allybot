@@ -41,6 +41,56 @@ function safeMediaFailure(error: unknown): string {
   return 'Gagal diproses nih, coba lagi pakai file lain ya~ 🙏'
 }
 
+function runPythonScript(
+  scriptPath: string,
+  args: readonly string[],
+  options: { timeoutMs?: number } = {},
+): Promise<void> {
+  const timeoutMs = options.timeoutMs ?? 25_000
+  return new Promise<void>((resolve, reject) => {
+    import('node:child_process').then(({ spawn }) => {
+      const py = spawn('python3', [scriptPath, ...args])
+      let stderr = ''
+      let settled = false
+      let timer: NodeJS.Timeout | undefined
+
+      const cleanup = () => {
+        if (timer) clearTimeout(timer)
+        py.stderr?.removeAllListeners()
+        py.removeAllListeners('error')
+        py.removeAllListeners('close')
+      }
+
+      const fail = (err: Error) => {
+        if (settled) return
+        settled = true
+        cleanup()
+        py.kill('SIGKILL')
+        reject(err)
+      }
+
+      timer = setTimeout(() => {
+        fail(new Error(`Python script execution timed out after ${timeoutMs}ms: ${scriptPath}`))
+      }, timeoutMs)
+
+      py.stderr?.on('data', (d) => {
+        stderr = (stderr + d.toString()).slice(-4096)
+      })
+      py.once('error', (err) => {
+        fail(err)
+      })
+      py.once('close', (code) => {
+        if (settled) return
+        settled = true
+        cleanup()
+        if (code === 0) resolve()
+        else reject(new Error(`Python script exited with code ${code}: ${stderr}`))
+      })
+      py.stdin?.end()
+    }).catch(reject)
+  })
+}
+
 async function transformAndSend(
   context: CommandContext,
   transformer: MediaTransformer,
@@ -284,16 +334,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             try {
               await writeFile(inPath, downloaded.data)
               const scriptPath = join(process.cwd(), 'scripts', 'generate-smeme.py')
-              await new Promise<void>((resolve, reject) => {
-                const py = spawn('python3', [scriptPath, inPath, outPath, topText, bottomText])
-                let stderr = ''
-                py.stderr.on('data', (d) => { stderr += d.toString() })
-                py.on('error', reject)
-                py.on('close', (code) => {
-                  if (code === 0) resolve()
-                  else reject(new Error(`generate-smeme.py exited with ${code}: ${stderr}`))
-                })
-              })
+              await runPythonScript(scriptPath, [inPath, outPath, topText, bottomText], { timeoutMs: 25_000 })
               const rawData = await readFile(outPath)
               dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
             } catch {
@@ -347,15 +388,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             const { join } = await import('node:path')
 
             const scriptPath = join(process.cwd(), 'scripts', 'generate-brat.py')
-            await new Promise<void>((resolve, reject) => {
-              const py = spawn('python3', [scriptPath, webpPath, ...commandContext.args])
-              py.on('error', reject)
-              py.on('close', (code) => {
-                if (code === 0) resolve()
-                else reject(new Error(`Python brat generator exited with code ${code}`))
-              })
-              py.stdin.end()
-            })
+            await runPythonScript(scriptPath, [webpPath, ...commandContext.args], { timeoutMs: 20_000 })
 
             const data = await readFile(webpPath)
             await unlink(webpPath).catch(() => {})
@@ -416,15 +449,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             const { join } = await import('node:path')
 
             const scriptPath = join(process.cwd(), 'scripts', 'generate-bratvid.py')
-            await new Promise<void>((resolve, reject) => {
-              const py = spawn('python3', [scriptPath, outPath, ...commandContext.args])
-              py.on('error', reject)
-              py.on('close', (code) => {
-                if (code === 0) resolve()
-                else reject(new Error(`Python bratvid generator exited with code ${code}`))
-              })
-              py.stdin.end()
-            })
+            await runPythonScript(scriptPath, [outPath, ...commandContext.args], { timeoutMs: 45_000 })
 
             const data = await readFile(outPath)
             await unlink(outPath).catch(() => {})
@@ -748,18 +773,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           const scriptPath = join(process.cwd(), 'scripts', 'generate-qc.py')
 
           try {
-            await new Promise<void>((resolve, reject) => {
-              const py = spawn('python3', [scriptPath, outPath, senderName, timeStr, avatarPath, targetText])
-              let stderr = ''
-              py.stderr.on('data', (d) => {
-                stderr += d.toString()
-              })
-              py.on('error', reject)
-              py.on('close', (code) => {
-                if (code === 0) resolve()
-                else reject(new Error(`generate-qc.py exited with code ${code}: ${stderr}`))
-              })
-            })
+            await runPythonScript(scriptPath, [outPath, senderName, timeStr, avatarPath, targetText], { timeoutMs: 25_000 })
 
             const rawWebp = await readFile(outPath)
             const finalWebp = setStickerExif(rawWebp, 'Quote Chat', senderName)
