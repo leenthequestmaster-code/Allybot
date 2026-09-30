@@ -1,5 +1,4 @@
 import type { CommandContext, Plugin } from '../contracts.js'
-import { MsgBuilder } from '../msg-builder.js'
 import {
   AiHandlerError,
   MAX_AI_INPUT_LENGTH,
@@ -99,10 +98,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
               const prompt = rawPrompt || (quotedText ? `Perhatikan gambar ini berdasarkan konteks berikut:\n"${quotedText}"` : undefined)
               const result = await describeImageWithAi(dataUrl, prompt)
-              await MsgBuilder.to(commandContext.message.remoteJid)
-                .header('Allybot AI')
-                .text(`🤖 *Allybot AI:*\n\n${result}`, { rich: true })
-                .send(commandContext.whatsapp)
+              await commandContext.reply(`🤖 *Allybot AI:*\n\n${result}`)
             } catch (error) {
               commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'ai vision failed')
               await commandContext.reply('Gambarnya kurang jelas atau lagi gagal diproses nih, coba foto yang lebih terang ya~ 🔍📷')
@@ -132,10 +128,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
           try {
             const response = await handler(finalPrompt)
-            await MsgBuilder.to(commandContext.message.remoteJid)
-              .header('Allybot AI')
-              .text(`🤖 *Allybot AI*\n\n${response}`, { rich: true })
-              .send(commandContext.whatsapp)
+            await commandContext.reply(`🤖 *Allybot AI*\n\n${response}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI command failed safely')
             await commandContext.reply(safeFailureMessage(error))
