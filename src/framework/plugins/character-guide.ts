@@ -1,3 +1,13 @@
+export function parseStrictSignedInt(raw: string, maxAbsLimit = 1000): { ok: true; value: number } | { ok: false; error: string } {
+  if (!raw || typeof raw !== 'string') return { ok: false, error: 'Input tidak boleh kosong' }
+  const trimmed = raw.trim()
+  if (!/^-?[0-9]+$/.test(trimmed)) return { ok: false, error: 'Harus berupa bilangan bulat' }
+  const val = Number(trimmed)
+  if (!Number.isSafeInteger(val) || val === 0) return { ok: false, error: 'Nilai tidak boleh 0' }
+  if (Math.abs(val) > maxAbsLimit) return { ok: false, error: `Nilai absolut maksimal adalah ${maxAbsLimit}` }
+  return { ok: true, value: val }
+}
+
 export function parseStrictPositiveInt(raw: string, maxLimit = 100): { ok: true; value: number } | { ok: false; error: string } {
   if (!raw || typeof raw !== 'string') return { ok: false, error: 'Input tidak boleh kosong' }
   const trimmed = raw.trim()
@@ -916,7 +926,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
 
           const { targetKey, remainingArgs } = await resolveAdminTarget(commandContext, service, actor)
           const rawAmount = remainingArgs[0]
-          const parseRes = parseStrictPositiveInt(rawAmount ?? '', 1000)
+          const parseRes = parseStrictSignedInt(rawAmount ?? '', 1000)
 
           if (!parseRes.ok) {
             return void await commandContext.reply([
