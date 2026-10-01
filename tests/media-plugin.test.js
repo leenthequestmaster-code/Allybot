@@ -257,7 +257,26 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   await harness.commands.dispatch(message('!qc', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Balas pesan teks dengan !qc/)
 
-  // 11. spack validation
+  // 11. iqc & iqcs validation and execution
+  await harness.commands.dispatch(message('!iqc', 'iqc-empty@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Balas pesan teks dengan !iqc/)
+
+  await harness.commands.dispatch(message('!iqcs', 'iqcs-empty@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Balas pesan teks dengan !iqcs/)
+
+  await harness.commands.dispatch(message('!iqc Tes chat iOS', 'iqc-run@s.whatsapp.net'))
+  const iqcSent = harness.sent.at(-1)
+  assert.equal(iqcSent?.type, 'media')
+  assert.equal(iqcSent?.payload?.kind, 'image')
+  assert.equal(iqcSent?.payload?.mimeType, 'image/png')
+
+  await harness.commands.dispatch(message('!iqcs Tes stiker chat iOS', 'iqcs-run@s.whatsapp.net'))
+  const iqcsSent = harness.sent.at(-1)
+  assert.equal(iqcsSent?.type, 'media')
+  assert.equal(iqcsSent?.payload?.kind, 'sticker')
+  assert.equal(iqcsSent?.payload?.mimeType, 'image/webp')
+
+  // 12. spack validation
   await harness.commands.dispatch(message('!spack', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format pembuatan Sticker Pack/)
 })

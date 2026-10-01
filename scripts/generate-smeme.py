@@ -35,6 +35,7 @@ def find_font(size: int):
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        os.path.join(os.path.dirname(__file__), "..", "assets", "fonts", "Inter-Bold.ttf"),
         os.path.join(os.path.dirname(__file__), "..", "assets", "fonts", "Inter.ttf"),
     ]
     for p in candidates:
@@ -72,11 +73,14 @@ def measure_tokens(draw, tokens, font, font_size, stroke):
             total_w += font_size + 4
     return total_w, max_h
 
-def fit_text_lines(draw, text: str, max_w=480, max_h=130, start_size=52, min_size=24):
+def fit_text_lines(draw, text: str, max_w=480, max_h=180, target_size=50):
     text = text.strip()
     words = text.split()
 
-    for size in range(start_size, min_size - 1, -2):
+    target_size = max(16, min(92, int(target_size)))
+    min_size = max(14, int(target_size * 0.45))
+
+    for size in range(target_size, min_size - 1, -2):
         font = find_font(size)
         stroke = max(3, int(size * 0.12))
         lines = []
@@ -104,7 +108,7 @@ def fit_text_lines(draw, text: str, max_w=480, max_h=130, start_size=52, min_siz
         if curr:
             lines.append(curr)
 
-        if len(lines) > 2:
+        if len(lines) > 2 and size > min_size:
             continue
 
         total_h = 0
@@ -113,7 +117,7 @@ def fit_text_lines(draw, text: str, max_w=480, max_h=130, start_size=52, min_siz
             _, lh = measure_tokens(draw, tokens, font, size, stroke)
             total_h += lh + 6
 
-        if total_h <= max_h:
+        if total_h <= max_h or size <= min_size:
             return font, size, stroke, lines
 
     font = find_font(min_size)
@@ -155,7 +159,9 @@ def draw_line_with_emoji(canvas, draw, line_str, font, font_size, stroke, y):
 
     return line_h
 
-def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
+def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str, size_pct: int = 50):
+    target_size = max(16, min(92, int(size_pct)))
+
     with Image.open(in_path) as orig:
         img = orig.convert("RGBA")
 
@@ -171,7 +177,7 @@ def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
     top_end_y = 0
 
     if top_text and top_text.strip():
-        font, font_size, stroke, lines = fit_text_lines(draw, top_text, max_w=480, max_h=130, start_size=52, min_size=24)
+        font, font_size, stroke, lines = fit_text_lines(draw, top_text, max_w=480, max_h=180, target_size=target_size)
         curr_y = max(8, offset_y + 4)
         for line in lines:
             line_h = draw_line_with_emoji(canvas, draw, line, font, font_size, stroke, curr_y)
@@ -179,7 +185,7 @@ def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
         top_end_y = curr_y
 
     if bottom_text and bottom_text.strip():
-        font, font_size, stroke, lines = fit_text_lines(draw, bottom_text, max_w=480, max_h=130, start_size=52, min_size=24)
+        font, font_size, stroke, lines = fit_text_lines(draw, bottom_text, max_w=480, max_h=180, target_size=target_size)
         total_h = 0
         line_heights = []
         for line in lines:
@@ -189,7 +195,7 @@ def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
             total_h += lh + 6
 
         bottom_limit = min(504, offset_y + nh - 4)
-        start_y = max(top_end_y + 12, bottom_limit - total_h)
+        start_y = max(top_end_y + 8, bottom_limit - total_h)
 
         curr_y = start_y
         for idx, line in enumerate(lines):
@@ -200,12 +206,17 @@ def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python3 generate-smeme.py <in_image> <out_webp> [top_text] [bottom_text]", file=sys.stderr)
+        print("Usage: python3 generate-smeme.py <in_image> <out_webp> [top_text] [bottom_text] [size_pct]", file=sys.stderr)
         sys.exit(1)
 
     in_f = sys.argv[1]
     out_f = sys.argv[2]
     top = sys.argv[3] if len(sys.argv) > 3 else ""
     bottom = sys.argv[4] if len(sys.argv) > 4 else ""
+    raw_size = sys.argv[5] if len(sys.argv) > 5 else "50"
+    try:
+        size_pct = int(raw_size.replace("%", "").strip())
+    except ValueError:
+        size_pct = 50
 
-    make_smeme(in_f, out_f, top, bottom)
+    make_smeme(in_f, out_f, top, bottom, size_pct)

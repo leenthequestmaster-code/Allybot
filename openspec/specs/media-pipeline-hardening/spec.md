@@ -20,11 +20,11 @@ The Quote Chat generator SHALL unlink both temporary avatar input files and temp
 - **THEN** all associated `/tmp` files (`av_*` and `qc_*`) are deleted from the filesystem
 
 ### Requirement: Full-Color Twemoji Rendering in Meme Stickers
-The meme sticker generator SHALL tokenize unicode emojis in input text and render them as full-color raster Twemoji assets instead of monochrome font outlines.
+The meme sticker generator SHALL tokenize unicode emojis in input text and render them as full-color raster Twemoji assets, accepting an optional user-defined font size percentage from 10% to 90% (default 50%).
 
 #### Scenario: User provides text with emoji to !smeme
-- **WHEN** a user generates a meme sticker containing emojis (e.g. `!smeme TOP | BOTTOM 😂🔥`)
-- **THEN** the output sticker renders the emojis in full color matching the Twemoji specification
+- **WHEN** a user generates a meme sticker containing emojis (e.g. `!smeme TOP | BOTTOM 😂🔥` or with custom sizing `!smeme TOP | BOTTOM | 70%`)
+- **THEN** the output sticker renders the emojis in full color matching the Twemoji specification, scaled proportionally to the chosen text size.
 
 ### Requirement: Lean MsgBuilder Without Deprecated AIRich Protobufs
 The message builder SHALL omit unsupported WhatsApp AIRich protobuf payloads and focus exclusively on standard text, native flow buttons, carousels, and list menus.

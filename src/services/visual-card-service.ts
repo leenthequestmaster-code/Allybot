@@ -95,11 +95,17 @@ function loadFonts(): { name: string; data: Buffer; weight: 400 | 700; style: 'n
   return cachedFonts
 }
 
-function detectMimeType(buf: Buffer): string {
-  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xd8) return 'image/jpeg'
-  if (buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'image/png'
-  if (buf.length >= 12 && buf.toString('utf8', 0, 4) === 'RIFF' && buf.toString('utf8', 8, 12) === 'WEBP') return 'image/webp'
-  return 'image/jpeg'
+async function prepareAvatarDataUrl(buf?: Buffer, maxSize = 120): Promise<string | null> {
+  if (!buf || buf.length === 0) return null
+  try {
+    const resized = await sharp(buf)
+      .resize(maxSize, maxSize, { fit: 'cover' })
+      .jpeg({ quality: 85 })
+      .toBuffer()
+    return `data:image/jpeg;base64,${resized.toString('base64')}`
+  } catch {
+    return null
+  }
 }
 
 async function loadEmojiAsset(code: string, segment: string): Promise<string> {
@@ -166,9 +172,21 @@ export class VisualCardService {
     const text = options.text.trim().slice(0, 500)
     if (!text) throw new Error('IQC text must not be empty')
 
-    const W = 736
+    const W = 920
     const senderName = options.senderName?.trim().slice(0, 50)
     const nameColor = senderName ? getAccentColor(senderName) : '#53bdeb'
+
+    const bgSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 1200" preserveAspectRatio="none">
+<defs><filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="35"/></filter></defs>
+<rect width="920" height="1200" fill="#0b0f0e"/>
+<g filter="url(#b)">
+  <rect x="300" y="-50" width="650" height="220" rx="50" fill="#1b4d38"/>
+  <rect x="50" y="280" width="650" height="110" rx="40" fill="#2b302f"/>
+  <rect x="50" y="410" width="600" height="110" rx="40" fill="#2b302f"/>
+  <rect x="50" y="520" width="700" height="100" rx="40" fill="#252a29"/>
+</g>
+</svg>`
+    const bgDataUrl = 'data:image/svg+xml;base64,' + b64(bgSvg)
 
     const menuItems: [string, string][] = [
       ['Balas', '<path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>'],
@@ -187,9 +205,9 @@ export class VisualCardService {
             props: {
               style: {
                 fontWeight: 700,
-                fontSize: 18,
+                fontSize: 22,
                 color: nameColor,
-                marginBottom: 6,
+                marginBottom: 8,
               },
               children: senderName,
             },
@@ -199,7 +217,7 @@ export class VisualCardService {
         type: 'div',
         props: {
           style: {
-            fontSize: 28,
+            fontSize: 34,
             lineHeight: 1.35,
             color: '#fff',
             whiteSpace: 'pre-wrap',
@@ -216,14 +234,14 @@ export class VisualCardService {
             justifyContent: 'flex-end',
             alignItems: 'center',
             gap: 6,
-            marginTop: 8,
+            marginTop: 10,
           },
           children: [
             {
               type: 'span',
-              props: { style: { fontSize: 18, color: '#888' }, children: time },
+              props: { style: { fontSize: 22, color: '#888' }, children: time },
             },
-            svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 18, '0 0 24 24', 2.5),
+            svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 22, '0 0 24 24', 2.5),
           ],
         },
       },
@@ -236,8 +254,10 @@ export class VisualCardService {
           display: 'flex',
           flexDirection: 'column',
           width: W,
-          backgroundColor: '#0b0f0e',
-          padding: '40px 36px',
+          position: 'relative',
+          backgroundImage: `url('${bgDataUrl}')`,
+          backgroundSize: '100% 100%',
+          padding: '50px 45px',
           alignItems: 'flex-start',
         },
         children: [
@@ -248,31 +268,31 @@ export class VisualCardService {
               style: {
                 display: 'flex',
                 alignItems: 'center',
-                gap: 20,
-                height: 84,
-                padding: '0 20px',
-                borderRadius: 42,
+                gap: 24,
+                height: 104,
+                padding: '0 26px',
+                borderRadius: 52,
                 backgroundColor: '#222726',
-                marginBottom: 20,
+                marginBottom: 25,
               },
               children: [
                 ...['👍', '❤️', '😂', '😮', '😢', '🙏'].map((e) => ({
                   type: 'span',
-                  props: { style: { fontSize: 44 }, children: e },
+                  props: { style: { fontSize: 54 }, children: e },
                 })),
                 {
                   type: 'div',
                   props: {
                     style: {
                       display: 'flex',
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
+                      width: 58,
+                      height: 58,
+                      borderRadius: 29,
                       backgroundColor: '#3a3f3e',
                       alignItems: 'center',
                       justifyContent: 'center',
                     },
-                    children: [svgIcon('<path d="M12 5v14M5 12h14"/>', '#d5dad8', 26)],
+                    children: [svgIcon('<path d="M12 5v14M5 12h14"/>', '#d5dad8', 30)],
                   },
                 },
               ],
@@ -286,12 +306,12 @@ export class VisualCardService {
               style: {
                 display: 'flex',
                 flexDirection: 'column',
-                minWidth: 220,
-                maxWidth: 580,
-                padding: '16px 24px 12px',
-                borderRadius: 24,
+                minWidth: 280,
+                maxWidth: 720,
+                padding: '20px 30px 16px',
+                borderRadius: 30,
                 backgroundColor: '#1f2826',
-                marginBottom: 30,
+                marginBottom: 35,
               },
               children: bubbleChildren,
             },
@@ -304,8 +324,8 @@ export class VisualCardService {
               style: {
                 display: 'flex',
                 flexDirection: 'column',
-                width: 420,
-                borderRadius: 22,
+                width: 520,
+                borderRadius: 28,
                 backgroundColor: '#222726',
                 overflow: 'hidden',
               },
@@ -318,7 +338,7 @@ export class VisualCardService {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '16px 22px',
+                      padding: '20px 28px',
                       borderBottom: idx < menuItems.length - 1 ? '1px solid #2e3433' : 'none',
                     },
                     children: [
@@ -326,14 +346,14 @@ export class VisualCardService {
                         type: 'span',
                         props: {
                           style: {
-                            fontSize: 22,
+                            fontSize: 26,
                             color: isDelete ? '#ff453a' : '#fff',
                             fontWeight: isDelete ? 700 : 400,
                           },
                           children: label,
                         },
                       },
-                      svgIcon(iconD, isDelete ? '#ff453a' : '#d5dad8', 22),
+                      svgIcon(iconD, isDelete ? '#ff453a' : '#d5dad8', 26),
                     ],
                   },
                 }
@@ -365,9 +385,7 @@ export class VisualCardService {
     const senderName = options.senderName.trim().slice(0, 50) || 'User'
     const nameColor = getAccentColor(senderName)
 
-    const avatarBase64 = options.avatarBuffer
-      ? `data:${detectMimeType(options.avatarBuffer)};base64,${options.avatarBuffer.toString('base64')}`
-      : null
+    const avatarBase64 = await prepareAvatarDataUrl(options.avatarBuffer, 80)
 
     const avatarNode = avatarBase64
       ? {
@@ -516,9 +534,7 @@ export class VisualCardService {
     const text = options.text.trim().slice(0, 500)
     if (!text) throw new Error('Tweet text must not be empty')
 
-    const avatarBase64 = options.avatarBuffer
-      ? `data:${detectMimeType(options.avatarBuffer)};base64,${options.avatarBuffer.toString('base64')}`
-      : null
+    const avatarBase64 = await prepareAvatarDataUrl(options.avatarBuffer, 80)
 
     const avatarNode = avatarBase64
       ? {
@@ -752,9 +768,7 @@ export class VisualCardService {
     const nickname = options.nickname.trim().slice(0, 60) || username
     const bio = options.bio?.trim().slice(0, 250)
 
-    const avatarBase64 = options.avatarBuffer
-      ? `data:${detectMimeType(options.avatarBuffer)};base64,${options.avatarBuffer.toString('base64')}`
-      : null
+    const avatarBase64 = await prepareAvatarDataUrl(options.avatarBuffer, 120)
 
     const avatarNode = avatarBase64
       ? {

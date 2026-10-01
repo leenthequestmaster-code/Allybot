@@ -1,9 +1,10 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import sharp from 'sharp'
 import { VisualCardService } from '../dist/services/visual-card-service.js'
 
 describe('VisualCardService Suite (Satori + Resvg)', () => {
-  it('renders WhatsApp iOS context-menu fake chat (!iqc) as PNG', async () => {
+  it('renders WhatsApp iOS context-menu fake chat (!iqc) as PNG with blurred background and 920px width', async () => {
     const png = await VisualCardService.renderIqc({
       text: 'Halo Cyrus! Ini testing IQC via Satori flexbox.',
       time: '10:45 AM',
@@ -17,6 +18,9 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
     assert.equal(png[1], 0x50)
     assert.equal(png[2], 0x4e)
     assert.equal(png[3], 0x47)
+
+    const meta = await sharp(png).metadata()
+    assert.equal(meta.width, 920)
   })
 
   it('renders WhatsApp dark-mode quote chat (!qc) as PNG with speech tail and auto-width', async () => {

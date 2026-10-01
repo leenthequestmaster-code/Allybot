@@ -302,18 +302,42 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
 
           const rawText = commandContext.args.join(' ').trim()
+          let text = rawText
+          let sizePercent = 50
+
+          // Check if trailing size is specified: e.g. | 70% or "70%" or 70% or | 70
+          const pipeParts = text.split('|').map((s) => s.trim())
+          if (pipeParts.length >= 3) {
+            const last = pipeParts[pipeParts.length - 1]?.replace(/["']/g, '').trim() ?? ''
+            const match = last.match(/^(\d{1,2})%?$/)
+            if (match) {
+              sizePercent = Math.max(10, Math.min(90, parseInt(match[1], 10)))
+              pipeParts.pop()
+              text = pipeParts.join(' | ')
+            }
+          } else {
+            const endMatch =
+              text.match(/(?:[\s|]+)["']?(\d{1,2})%["']?\s*$/i) || text.match(/(?:[\s|]+)["'](\d{1,2})["']\s*$/)
+            if (endMatch) {
+              sizePercent = Math.max(10, Math.min(90, parseInt(endMatch[1], 10)))
+              text = text.slice(0, endMatch.index).trim()
+            }
+          }
+
           let topText = ''
           let bottomText = ''
-          if (rawText.includes('|')) {
-            const parts = rawText.split('|')
+          if (text.includes('|')) {
+            const parts = text.split('|')
             topText = parts[0]?.trim() ?? ''
-            bottomText = parts[1]?.trim() ?? ''
+            bottomText = parts.slice(1).join('|').trim()
           } else {
-            topText = rawText
+            topText = text
           }
 
           if (!topText && !bottomText) {
-            await commandContext.reply(`Format: ${commandContext.prefix}smeme <teks atas> | <teks bawah>\nContoh: ${commandContext.prefix}smeme ketika bot | berhasil diperbaiki`)
+            await commandContext.reply(
+              `Format: ${commandContext.prefix}smeme <teks atas> | <teks bawah> [ukuran%]\nContoh: ${commandContext.prefix}smeme ketika bot | berhasil diperbaiki | 70%\n(Ukuran default 50%, rentang 10-90%)`,
+            )
             return
           }
 
@@ -335,7 +359,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             try {
               await writeFile(inPath, downloaded.data)
               const scriptPath = join(process.cwd(), 'scripts', 'generate-smeme.py')
-              await runPythonScript(scriptPath, [inPath, outPath, topText, bottomText], { timeoutMs: 25_000 })
+              await runPythonScript(scriptPath, [inPath, outPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
               const rawData = await readFile(outPath)
               dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
             } catch {
@@ -873,6 +897,117 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               avatarBuffer,
             })
 
+            const asSticker = commandContext.args.includes('--sticker') || commandContext.args.includes('-s')
+            if (asSticker) {
+              const webp = await VisualCardService.pngToWebpSticker(png, 512)
+              const finalWebp = setStickerExif(webp, 'iOS Quote Chat', senderName)
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'sticker',
+                data: new Uint8Array(finalWebp),
+                mimeType: 'image/webp',
+              })
+            } else {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(png),
+                mimeType: 'image/png',
+                caption: `*iOS Quote Chat* — ${senderName}`,
+              })
+            }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'iqc command failed')
+            await commandContext.reply('Waduh, gagal bikin iOS quote chat nih. Coba lagi ya~ 🙏')
+          }
+        },
+      })
+
+      // iqcs - iPhone style context-menu quote chat STICKER
+      context.commands.register({
+        name: 'iqcs',
+        aliases: ['iosqcs', 'iqcsticker', 'fakechatsticker'],
+        description: 'Buat stiker fake chat aesthetic bergaya WhatsApp iOS context menu',
+        category: 'tools',
+        menuOrder: 24,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          const rawArgs = commandContext.args.join(' ').trim()
+          const quotedText = commandContext.message.quotedText?.trim()
+          const quotedSenderJid = commandContext.message.quotedSenderJid
+
+          let targetText = ''
+          let targetSenderJid = ''
+
+          if (quotedText) {
+            targetText = quotedText
+            targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
+          } else if (rawArgs) {
+            targetText = rawArgs
+            targetSenderJid = commandContext.message.senderJid || ''
+          } else {
+            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}iqcs, atau ketik ${commandContext.prefix}iqcs <teks>`)
+            return
+          }
+
+          if (targetText.length > 250) {
+            await commandContext.reply('Teksnya kepanjangan nih, maksimal 250 karakter ya~ ✍️')
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          let senderName = ''
+          if (quotedText && rawArgs && !rawArgs.startsWith('--')) {
+            senderName = rawArgs
+          } else if (!quotedText && rawArgs.includes('|')) {
+            const split = rawArgs.split('|')
+            senderName = split[0].trim()
+            targetText = split.slice(1).join('|').trim()
+          }
+
+          if (!senderName) {
+            if (targetSenderJid === commandContext.message.senderJid && commandContext.message.pushName) {
+              senderName = commandContext.message.pushName
+            } else if (commandContext.message.pushName && !quotedText) {
+              senderName = commandContext.message.pushName
+            } else if (targetSenderJid) {
+              const num = targetSenderJid.split('@')[0].split(':')[0]
+              senderName = num ? `+${num}` : 'User'
+            } else {
+              senderName = 'User'
+            }
+          }
+
+          const now = new Date()
+          const hours = String(now.getHours()).padStart(2, '0')
+          const minutes = String(now.getMinutes()).padStart(2, '0')
+          const timeStr = `${hours}:${minutes}`
+
+          let avatarBuffer: Buffer | undefined
+          if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
+            try {
+              const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
+              if (ppUrl) {
+                const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
+                if (ppRes.ok) {
+                  avatarBuffer = Buffer.from(await ppRes.arrayBuffer())
+                }
+              }
+            } catch {
+              // ignore avatar errors
+            }
+          }
+
+          try {
+            const png = await VisualCardService.renderIqc({
+              text: targetText,
+              senderName,
+              time: timeStr,
+              avatarBuffer,
+            })
+
             const asImage = commandContext.args.includes('--img') || commandContext.args.includes('-i')
             if (asImage) {
               await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
@@ -891,8 +1026,8 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               })
             }
           } catch (error) {
-            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'iqc command failed')
-            await commandContext.reply('Waduh, gagal bikin iOS quote chat nih. Coba lagi ya~ 🙏')
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'iqcs command failed')
+            await commandContext.reply('Waduh, gagal bikin stiker iOS quote chat nih. Coba lagi ya~ 🙏')
           }
         },
       })
@@ -903,7 +1038,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         aliases: ['faketweet', 'xpost'],
         description: 'Buat kartu postingan Twitter/X mockup yang elegan',
         category: 'tools',
-        menuOrder: 24,
+        menuOrder: 25,
         cooldownMs: 4_000,
         handler: async (commandContext) => {
           const rawArgs = commandContext.args.join(' ').trim()

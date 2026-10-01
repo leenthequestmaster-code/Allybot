@@ -6,11 +6,11 @@ Provides a lightweight, non-Chromium flexbox visual card rendering engine using 
 ## Requirements
 
 ### Requirement: iOS Context Menu Fake Chat Generation
-The visual engine SHALL render a high-fidelity iPhone WhatsApp long-press message mockup (`!iqc`) featuring a reaction pill bar, speech bubble, and iOS action sheet menu.
+The visual engine SHALL render a high-fidelity iPhone WhatsApp long-press message mockup (`!iqc`) with a 920px wide layout and blurred wallpaper background filter, with image delivery by default and sticker delivery via `!iqcs`.
 
 #### Scenario: User requests iPhone chat mockup
 - **WHEN** a user invokes `!iqc <text>` or replies to a message with `!iqc`
-- **THEN** the engine renders a dark-mode iOS fake chat image/sticker with reactions, bubble text, timestamp, and action buttons
+- **THEN** the engine renders a dark-mode iOS fake chat image with reactions, bubble text, timestamp, action buttons, and a gaussian blurred wallpaper background.
 
 ### Requirement: Enhanced WhatsApp Quote Chat Bubble
 The visual engine SHALL render an authentic WhatsApp dark-mode chat bubble (`!qc`) with an attached SVG speech tail, circular avatar, auto-fitting width, and timestamp.
