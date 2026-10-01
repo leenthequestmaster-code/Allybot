@@ -112,6 +112,7 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   qc: 'Ubah pesan chat menjadi stiker kutipan dengan foto profil.',
   iqc: 'Buat fake chat aesthetic bergaya WhatsApp iOS context menu (gambar).',
   iqcs: 'Buat stiker fake chat aesthetic bergaya WhatsApp iOS context menu.',
+  x: 'Buat kartu postingan Twitter/X mockup yang elegan.',
   tweet: 'Buat kartu postingan Twitter/X mockup yang elegan.',
   ttstalk: 'Lihat profil dan statistik akun TikTok secara visual.',
   igstalk: 'Lihat profil dan statistik akun Instagram secara visual.',

@@ -276,7 +276,17 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   assert.equal(iqcsSent?.payload?.kind, 'sticker')
   assert.equal(iqcsSent?.payload?.mimeType, 'image/webp')
 
-  // 12. spack validation
+  // 12. x and tweet alias validation
+  await harness.commands.dispatch(message('!x', 'x-empty@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Balas pesan teks dengan !x/)
+
+  await harness.commands.dispatch(message('!tweet Halo dunia X', 'x-run@s.whatsapp.net'))
+  const xSent = harness.sent.at(-1)
+  assert.equal(xSent?.type, 'media')
+  assert.equal(xSent?.payload?.kind, 'image')
+  assert.equal(xSent?.payload?.mimeType, 'image/png')
+
+  // 13. spack validation
   await harness.commands.dispatch(message('!spack', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format pembuatan Sticker Pack/)
 })

@@ -1032,10 +1032,10 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-      // tweet - Twitter/X Mockup Card
+      // x - Twitter/X Mockup Card
       context.commands.register({
-        name: 'tweet',
-        aliases: ['faketweet', 'xpost'],
+        name: 'x',
+        aliases: ['tweet', 'faketweet', 'xpost'],
         description: 'Buat kartu postingan Twitter/X mockup yang elegan',
         category: 'tools',
         menuOrder: 25,
@@ -1055,12 +1055,12 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             tweetText = rawArgs
             targetSenderJid = commandContext.message.senderJid || ''
           } else {
-            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}tweet, atau ketik ${commandContext.prefix}tweet <teks>`)
+            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}x, atau ketik ${commandContext.prefix}x <teks>`)
             return
           }
 
           if (tweetText.length > 280) {
-            await commandContext.reply('Teks tweet maksimal 280 karakter ya~ ✍️')
+            await commandContext.reply('Teks postingan X maksimal 280 karakter ya~ ✍️')
             return
           }
 
