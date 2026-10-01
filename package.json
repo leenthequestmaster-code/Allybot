@@ -25,14 +25,14 @@
     "better-sqlite3": "12.4.1",
     "dotenv": "17.2.1",
     "ioredis": "^6.0.0",
-    "openai": "7.5.0",
+    "openai": "^7.25.0",
     "pino": "9.9.0",
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "0.12.0",
     "satori": "^0.33.5",
-    "sharp": "0.35.4",
-    "zod": "4.0.17"
+    "sharp": "^0.35.5",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13",
