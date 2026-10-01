@@ -1179,7 +1179,7 @@ export class VisualCardService {
     const resvg = new Resvg(svg, { fitTo: { mode: 'zoom', value: 2 } })
     const sharpPng = resvg.render().asPng()
 
-    return sharp(sharpPng).blur(2.5).png().toBuffer()
+    return sharp(sharpPng).blur(3).png().toBuffer()
   }
 
   /**
