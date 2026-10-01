@@ -12,10 +12,12 @@ const config = { commandPrefix: '!', defaultCooldownMs: 0 }
 function createHarness({ media = {}, transformer } = {}) {
   const sent = []
   const downloads = []
+  const reactions = []
   const whatsapp = {
     isConnected: true,
     userJid: 'bot@s.whatsapp.net',
     sent,
+    reactions,
     onMessage() { return () => {} },
     onGroupParticipantUpdate() { return () => {} },
     onConnectionState() { return () => {} },
@@ -25,6 +27,7 @@ function createHarness({ media = {}, transformer } = {}) {
       return media
     },
     async sendMedia(remoteJid, payload) { sent.push({ type: 'media', remoteJid, payload }) },
+    async sendReaction(remoteJid, key, emoji) { reactions.push({ remoteJid, key, emoji }) },
     async start() {},
     async close() {},
   }
@@ -40,7 +43,7 @@ function createHarness({ media = {}, transformer } = {}) {
     commands,
     services: { get() { throw new Error('service unavailable') } },
   })
-  return { commands, whatsapp, sent, downloads }
+  return { commands, whatsapp, sent, downloads, reactions }
 }
 
 function message(text, senderJid, extra = {}) {
@@ -232,21 +235,21 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   await harness.commands.dispatch(message('!qr', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !qr <teks>/)
 
-  // 7. ytmp3 & ytmp4 validation
+  // 7. ytmp3 & ytmp4 validation (uses reaction ⏳)
   await harness.commands.dispatch(message('!ytmp3 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
-  assert.match(harness.sent.at(-2)?.text ?? '', /tergantung video-nya/i)
+  assert.equal(harness.reactions.at(-1)?.emoji, '⏳')
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
   await harness.commands.dispatch(message('!ytmp4 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
-  assert.match(harness.sent.at(-2)?.text ?? '', /tergantung video-nya/i)
+  assert.equal(harness.reactions.at(-1)?.emoji, '⏳')
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
-  // 8. yt2 downloader
+  // 8. yt2 downloader (uses reaction ⏳)
   await harness.commands.dispatch(message('!yt2', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !yt2/)
 
   await harness.commands.dispatch(message('!yt2 https://youtu.be/dQw4w9WgXcQ', 'bob@s.whatsapp.net'))
-  assert.match(harness.sent.at(-2)?.text ?? '', /Lagi ngambil/i)
+  assert.equal(harness.reactions.at(-1)?.emoji, '⏳')
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
   // 9. bratvid validation

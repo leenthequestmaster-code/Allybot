@@ -557,8 +557,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          const mediaTypeLabel = wantsVideo ? 'video' : 'stiker animasi'
-          await commandContext.reply(`⏳ Lagi ngerender ${mediaTypeLabel} brat nih... Sabar ya~ ✨`)
+          await commandContext.react('⏳')
 
           try {
             const ext = wantsVideo ? 'mp4' : 'webp'
@@ -680,7 +679,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             percent = argNum
           }
 
-          await commandContext.reply(`⏳ Lagi mengompres media sebesar ${percent}% nih... Sabar ya~ 📦`)
+          await commandContext.react('⏳')
 
           try {
             const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
@@ -1244,7 +1243,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          await commandContext.reply(`⏳ Sedang mencari profil TikTok @${username}... Tunggu sebentar ya~ 🔍`)
+          await commandContext.react('⏳')
 
           try {
             const res = await fetch(`https://www.tiktok.com/@${encodeURIComponent(username)}`, {
@@ -1362,7 +1361,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          await commandContext.reply(`⏳ Sedang mencari profil Instagram @${username}... Tunggu sebentar ya~ 🔍`)
+          await commandContext.react('⏳')
 
           try {
             let profileData: {
@@ -1508,7 +1507,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               await commandContext.reply(`Nggak ada sesi pack yang aktif nih. Mulai dengan:\n${commandContext.prefix}spack <nama pack>`)
               return
             }
-            await commandContext.reply('⏳ Lagi meracik sticker pack kamu nih... Tunggu sebentar ya~ ✨')
+            await commandContext.react('⏳')
             const result = await finishSpackSession(remoteJid)
             if ('error' in result) {
               if (result.error.startsWith('too_few')) {
@@ -1654,7 +1653,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply('Fitur hapus background belum disetel nih, colek owner ya~ 🙏')
             return
           }
-          await commandContext.reply('Lagi hapus background gambar nih, tunggu bentar ya~ ⏳')
+          await commandContext.react('⏳')
         },
       })
 
@@ -1795,7 +1794,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}ytmp3 <url youtube>\nContoh: ${commandContext.prefix}ytmp3 https://youtu.be/dQw4w9WgXcQ`)
             return
           }
-          await commandContext.reply('⏳ Lagi ngambil audio YouTube nih... Kadang bisa gagal/lambat tergantung video-nya, sabar ya 🙏')
+          await commandContext.react('⏳')
           if (!commandContext.whatsapp.sendMedia) return
           try {
             const result = await ytDownloader(url, 'audio')
@@ -1825,7 +1824,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}ytmp4 <url youtube>\nContoh: ${commandContext.prefix}ytmp4 https://youtu.be/dQw4w9WgXcQ`)
             return
           }
-          await commandContext.reply('⏳ Lagi ngambil video YouTube nih... Kadang bisa gagal/lambat tergantung video-nya, sabar ya 🙏')
+          await commandContext.react('⏳')
           if (!commandContext.whatsapp.sendMedia) return
           try {
             const result = await ytDownloader(url, 'video')
@@ -1864,7 +1863,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}yt2 [mp3|mp4] <url youtube>\nContoh:\n• ${commandContext.prefix}yt2 https://youtu.be/dQw4w9WgXcQ (video)\n• ${commandContext.prefix}yt2 mp3 https://youtu.be/dQw4w9WgXcQ (audio)`)
             return
           }
-          await commandContext.reply(`⏳ Lagi ngambil ${kind === 'audio' ? 'audio' : 'video'} YouTube nih... Sabar ya 🙏`)
+          await commandContext.react('⏳')
           if (!commandContext.whatsapp.sendMedia) return
           try {
             const result = await ytDownloader(url, kind)
@@ -1900,7 +1899,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
 
           if (!commandContext.whatsapp.sendMedia) return
-          await commandContext.reply('⏳ Lagi ngunduh video TikTok nih... Sabar ya~ 🎬')
+          await commandContext.react('⏳')
 
           try {
             const info = await resolveTikWm(targetUrl)
@@ -1952,7 +1951,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
 
           if (!commandContext.whatsapp.sendMedia) return
-          await commandContext.reply('⏳ Lagi ngunduh audio TikTok nih... Sabar ya~ 🎵')
+          await commandContext.react('⏳')
 
           try {
             const info = await resolveTikWm(targetUrl)
@@ -1999,7 +1998,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
 
           if (!commandContext.whatsapp.sendMedia) return
           const { url, platform } = detected
-          await commandContext.reply(`⏳ Lagi mendeteksi dan ngunduh video [${platform.toUpperCase()}] nih... Sabar ya~ 📥`)
+          await commandContext.react('⏳')
 
           try {
             if (platform === 'youtube') {
@@ -2063,7 +2062,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           }
 
           if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) return
-          await commandContext.reply('⏳ Lagi memproses HD nih, tunggu sebentar ya~ ✨')
+          await commandContext.react('⏳')
 
           try {
             const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {

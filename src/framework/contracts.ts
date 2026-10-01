@@ -163,6 +163,11 @@ export interface WhatsAppPort {
   sendMedia?(remoteJid: string, payload: WhatsAppMediaPayload): Promise<void>
   deleteMessage?(remoteJid: string, key: { readonly id: string; readonly remoteJid?: string; readonly fromMe?: boolean; readonly participant?: string }): Promise<void>
   deleteStoredMessage?(remoteJid: string, id: string): boolean
+  sendReaction?(
+    remoteJid: string,
+    key: { readonly id: string; readonly remoteJid?: string; readonly fromMe?: boolean; readonly participant?: string },
+    emoji: string,
+  ): Promise<void>
   start(): Promise<void>
   close(): Promise<void>
 }
@@ -191,6 +196,7 @@ export interface CommandContext {
   readonly services: ServiceRegistryLike
   readonly whatsapp: WhatsAppPort
   reply(text: string, options?: WhatsAppSendOptions): Promise<void>
+  react(emoji: string): Promise<void>
 }
 
 export interface CommandDefinition {

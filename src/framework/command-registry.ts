@@ -105,6 +105,20 @@ export class CommandRegistry implements CommandRegistryLike {
         await this.whatsapp.sendText(message.remoteJid, replyText, options)
         replyDelivered = true
       },
+      react: async (emoji: string) => {
+        if (this.whatsapp.sendReaction) {
+          await this.whatsapp.sendReaction(
+            message.remoteJid,
+            {
+              id: message.id,
+              remoteJid: message.remoteJid,
+              fromMe: message.fromMe,
+              ...(message.senderJid ? { participant: message.senderJid } : {}),
+            },
+            emoji,
+          )
+        }
+      },
     }
 
     await this.events.emit('command.before', { command: command.name, context })

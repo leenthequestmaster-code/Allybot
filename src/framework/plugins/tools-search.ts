@@ -60,7 +60,7 @@ export const toolsSearchPlugin: Plugin = {
           return
         }
 
-        await commandContext.reply('⏳ Sedang mencari dan merangkum info dari web... Sabar ya~ 🔍')
+        await commandContext.react('⏳')
 
         try {
           const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`, {
@@ -323,7 +323,7 @@ export const toolsSearchPlugin: Plugin = {
         }
 
         const chatJid = commandContext.message.remoteJid
-        await commandContext.reply('⏳ Lagi nyari dan ngambil gambar dari Pinterest nih... Sabar ya~ 📌')
+        await commandContext.react('⏳')
 
         try {
           const results = await searchPinterest(query, { randomize: true })
@@ -409,9 +409,7 @@ export const toolsSearchPlugin: Plugin = {
         }
 
         const chatJid = commandContext.message.remoteJid
-
-        // Progression log agar pengguna tahu bot sedang bekerja
-        await commandContext.reply('⏳ Lagi nyari dan ngambil gambar dari Pixiv nih... Sabar ya~ 🎨')
+        await commandContext.react('⏳')
 
         try {
           const result = await searchIllust(query, { randomize: true })
