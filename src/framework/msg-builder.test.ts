@@ -2,54 +2,10 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   MsgBuilder,
-  parseRichMarkdown,
   nativeFlowAdditionalNodes,
 } from './msg-builder.js'
 
-describe('MsgBuilder & Rich Message Protocols', () => {
-  it('parses markdown into AIRich structured parts (code, table, suggest, tip, text)', () => {
-    const md = `
-Halo semuanya! Ini teks pengantar.
-
-\`\`\`typescript
-const greeting = "Hello World";
-console.log(greeting);
-\`\`\`
-
-:::tip
-Pastikan Node.js minimal versi 20.
-:::
-
-| Fitur | Status |
-|---|---|
-| AIRich | Aktif |
-| NativeFlow | Aktif |
-
-:::suggest
-Menu Utama | Dokumentasi | Bantuan
-:::
-`
-    const parts = parseRichMarkdown(md)
-    assert.ok(parts.length >= 5)
-
-    const codePart = parts.find((p) => p.type === 'code')
-    assert.ok(codePart)
-    assert.equal(codePart?.language, 'typescript')
-    assert.ok(codePart?.content.includes('Hello World'))
-
-    const tipPart = parts.find((p) => p.type === 'tip')
-    assert.ok(tipPart)
-    assert.equal(tipPart?.content, 'Pastikan Node.js minimal versi 20.')
-
-    const tablePart = parts.find((p) => p.type === 'table')
-    assert.ok(tablePart)
-    assert.equal(tablePart?.rows?.length, 3)
-
-    const suggestPart = parts.find((p) => p.type === 'suggest')
-    assert.ok(suggestPart)
-    assert.equal(suggestPart?.content, 'Menu Utama | Dokumentasi | Bantuan')
-  })
-
+describe('MsgBuilder Native Flow & Interactive Protocols', () => {
   it('builds standard text payload when no rich or buttons specified', () => {
     const built = MsgBuilder.to('628123456789@s.whatsapp.net')
       .text('Pesan biasa sederhana')
@@ -59,28 +15,6 @@ Menu Utama | Dokumentasi | Bantuan
     if (built.kind === 'text') {
       assert.equal(built.text, 'Pesan biasa sederhana')
       assert.equal(built.mentions, undefined)
-    }
-  })
-
-  it('builds AIRich payload with submessages conforming to proto.AIRichResponseMessage', () => {
-    const md = `
-Laporan Audit:
-\`\`\`bash
-pnpm test
-\`\`\`
-`
-    const built = MsgBuilder.to('628123456789@s.whatsapp.net')
-      .text(md, { rich: true })
-      .build()
-
-    assert.equal(built.kind, 'airich')
-    if (built.kind === 'airich') {
-      const invoke = built.payload.botInvokeMessage
-      assert.ok(invoke.message?.richResponseMessage)
-      const submsgs = invoke.message?.richResponseMessage?.submessages
-      assert.ok(Array.isArray(submsgs))
-      assert.ok(submsgs.length >= 2)
-      assert.ok(built.fallbackText.includes('pnpm test'))
     }
   })
 
@@ -338,17 +272,6 @@ describe('MsgBuilder regression guards', () => {
     assert.ok(fallback.includes('_Stok 3_'))
   })
 
-  it('rejects AIRich combined with interactive components instead of dropping them silently', () => {
-    assert.throws(
-      () =>
-        MsgBuilder.to('628123456789@s.whatsapp.net')
-          .text('Laporan siap.', { rich: true })
-          .button({ type: 'reply', id: 'confirm', text: 'Konfirmasi' })
-          .build(),
-      /AIRich mode cannot be combined/,
-    )
-  })
-
   it('maps every carousel card button type to its own native flow name', () => {
     const built = MsgBuilder.to('628123456789@s.whatsapp.net')
       .text('Katalog')
@@ -373,18 +296,6 @@ describe('MsgBuilder regression guards', () => {
     assert.equal(JSON.parse(cardButtons[0]?.buttonParamsJson ?? '{}').copy_code, 'PROMO100')
     assert.equal(JSON.parse(cardButtons[1]?.buttonParamsJson ?? '{}').phone_number, '628999')
     assert.equal(JSON.parse(cardButtons[2]?.buttonParamsJson ?? '{}').url, 'https://example.com')
-  })
-
-  it('omits the bot node for AIRich relays in group chats and keeps it in private chats', async () => {
-    const group = stubTransport('relay')
-    await MsgBuilder.to('1203630123456789@g.us').text('Isi laporan', { rich: true }).send(group.transport)
-    assert.equal(group.relayCalls.length, 1)
-    assert.deepEqual(group.relayCalls[0]?.messageKeys, ['botInvokeMessage'])
-    assert.deepEqual(group.relayCalls[0]?.nodeTags, ['biz'])
-
-    const direct = stubTransport('relay')
-    await MsgBuilder.to('628123456789@s.whatsapp.net').text('Isi laporan', { rich: true }).send(direct.transport)
-    assert.deepEqual(direct.relayCalls[0]?.nodeTags, ['biz', 'bot'])
   })
 
   it('logs a warning before falling back to text when relay throws', async () => {
@@ -414,12 +325,5 @@ describe('MsgBuilder regression guards', () => {
           .build(),
       /Duplicate reply button ID: same/,
     )
-  })
-
-  it('tags AIRich payloads with the standard response type from the protobuf enum', () => {
-    const built = MsgBuilder.to('628123456789@s.whatsapp.net').text('Ringkasan singkat.', { rich: true }).build()
-    assert.equal(built.kind, 'airich')
-    if (built.kind !== 'airich') return
-    assert.equal(built.payload.botInvokeMessage.message?.richResponseMessage?.messageType, 1)
   })
 })

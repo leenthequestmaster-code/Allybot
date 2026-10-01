@@ -6,6 +6,7 @@ import { resolveTikWm, resolveMedia, fetchMediaBuffer, extractMediaUrl } from '.
 import { upscaleImage } from '../../services/upscaler.js'
 import { findEmojiMix, fetchEmojiMixBuffer } from '../../services/emojimix.js'
 import { setStickerExif } from '../../services/sticker-exif.js'
+import { VisualCardService } from '../../services/visual-card-service.js'
 import {
   startSpackSession,
   getSpackSession,
@@ -680,7 +681,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-      // qc - quote chat to sticker
+      // qc - quote chat to sticker (Satori + Resvg Powered)
       context.commands.register({
         name: 'qc',
         aliases: ['quotly', 'qchat'],
@@ -746,22 +747,15 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           const minutes = String(now.getMinutes()).padStart(2, '0')
           const timeStr = `${hours}:${minutes}`
 
-          // Fetch avatar if available
-          let avatarPath = 'none'
-          const { writeFile, unlink, readFile } = await import('node:fs/promises')
-          const { spawn } = await import('node:child_process')
-          const { join } = await import('node:path')
-
+          // Fetch avatar in-memory
+          let avatarBuffer: Buffer | undefined
           if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
             try {
               const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
               if (ppUrl) {
                 const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
                 if (ppRes.ok) {
-                  const ppBuf = Buffer.from(await ppRes.arrayBuffer())
-                  const tmpAv = `/tmp/av_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.jpg`
-                  await writeFile(tmpAv, ppBuf)
-                  avatarPath = tmpAv
+                  avatarBuffer = Buffer.from(await ppRes.arrayBuffer())
                 }
               }
             } catch {
@@ -769,13 +763,15 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             }
           }
 
-          const outPath = `/tmp/qc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`
-          const scriptPath = join(process.cwd(), 'scripts', 'generate-qc.py')
-
           try {
-            await runPythonScript(scriptPath, [outPath, senderName, timeStr, avatarPath, targetText], { timeoutMs: 25_000 })
+            const png = await VisualCardService.renderQc({
+              text: targetText,
+              senderName,
+              time: timeStr,
+              avatarBuffer,
+            })
 
-            const rawWebp = await readFile(outPath)
+            const rawWebp = await VisualCardService.pngToWebpSticker(png, 512)
             const finalWebp = setStickerExif(rawWebp, 'Quote Chat', senderName)
 
             await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
@@ -786,11 +782,479 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'qc command failed')
             await commandContext.reply('Waduh, gagal bikin quote chat stiker nih. Coba lagi ya~ 🙏')
-          } finally {
-            if (avatarPath !== 'none') {
-              await unlink(avatarPath).catch(() => {})
+          }
+        },
+      })
+
+      // iqc - iPhone style context-menu quote chat
+      context.commands.register({
+        name: 'iqc',
+        aliases: ['iosqc', 'fakechat'],
+        description: 'Buat fake chat aesthetic bergaya WhatsApp iOS context menu',
+        category: 'tools',
+        menuOrder: 23,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          const rawArgs = commandContext.args.join(' ').trim()
+          const quotedText = commandContext.message.quotedText?.trim()
+          const quotedSenderJid = commandContext.message.quotedSenderJid
+
+          let targetText = ''
+          let targetSenderJid = ''
+
+          if (quotedText) {
+            targetText = quotedText
+            targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
+          } else if (rawArgs) {
+            targetText = rawArgs
+            targetSenderJid = commandContext.message.senderJid || ''
+          } else {
+            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}iqc, atau ketik ${commandContext.prefix}iqc <teks>`)
+            return
+          }
+
+          if (targetText.length > 250) {
+            await commandContext.reply('Teksnya kepanjangan nih, maksimal 250 karakter ya~ ✍️')
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          let senderName = ''
+          if (quotedText && rawArgs && !rawArgs.startsWith('--')) {
+            senderName = rawArgs
+          } else if (!quotedText && rawArgs.includes('|')) {
+            const split = rawArgs.split('|')
+            senderName = split[0].trim()
+            targetText = split.slice(1).join('|').trim()
+          }
+
+          if (!senderName) {
+            if (targetSenderJid === commandContext.message.senderJid && commandContext.message.pushName) {
+              senderName = commandContext.message.pushName
+            } else if (commandContext.message.pushName && !quotedText) {
+              senderName = commandContext.message.pushName
+            } else if (targetSenderJid) {
+              const num = targetSenderJid.split('@')[0].split(':')[0]
+              senderName = num ? `+${num}` : 'User'
+            } else {
+              senderName = 'User'
             }
-            await unlink(outPath).catch(() => {})
+          }
+
+          const now = new Date()
+          const hours = String(now.getHours()).padStart(2, '0')
+          const minutes = String(now.getMinutes()).padStart(2, '0')
+          const timeStr = `${hours}:${minutes}`
+
+          let avatarBuffer: Buffer | undefined
+          if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
+            try {
+              const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
+              if (ppUrl) {
+                const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
+                if (ppRes.ok) {
+                  avatarBuffer = Buffer.from(await ppRes.arrayBuffer())
+                }
+              }
+            } catch {
+              // ignore avatar errors
+            }
+          }
+
+          try {
+            const png = await VisualCardService.renderIqc({
+              text: targetText,
+              senderName,
+              time: timeStr,
+              avatarBuffer,
+            })
+
+            const asImage = commandContext.args.includes('--img') || commandContext.args.includes('-i')
+            if (asImage) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(png),
+                mimeType: 'image/png',
+                caption: `*iOS Quote Chat* — ${senderName}`,
+              })
+            } else {
+              const webp = await VisualCardService.pngToWebpSticker(png, 512)
+              const finalWebp = setStickerExif(webp, 'iOS Quote Chat', senderName)
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'sticker',
+                data: new Uint8Array(finalWebp),
+                mimeType: 'image/webp',
+              })
+            }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'iqc command failed')
+            await commandContext.reply('Waduh, gagal bikin iOS quote chat nih. Coba lagi ya~ 🙏')
+          }
+        },
+      })
+
+      // tweet - Twitter/X Mockup Card
+      context.commands.register({
+        name: 'tweet',
+        aliases: ['faketweet', 'xpost'],
+        description: 'Buat kartu postingan Twitter/X mockup yang elegan',
+        category: 'tools',
+        menuOrder: 24,
+        cooldownMs: 4_000,
+        handler: async (commandContext) => {
+          const rawArgs = commandContext.args.join(' ').trim()
+          const quotedText = commandContext.message.quotedText?.trim()
+          const quotedSenderJid = commandContext.message.quotedSenderJid
+
+          let tweetText = ''
+          let targetSenderJid = ''
+
+          if (quotedText) {
+            tweetText = quotedText
+            targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
+          } else if (rawArgs) {
+            tweetText = rawArgs
+            targetSenderJid = commandContext.message.senderJid || ''
+          } else {
+            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}tweet, atau ketik ${commandContext.prefix}tweet <teks>`)
+            return
+          }
+
+          if (tweetText.length > 280) {
+            await commandContext.reply('Teks tweet maksimal 280 karakter ya~ ✍️')
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          let name = ''
+          let handle = ''
+
+          if (rawArgs.includes('|')) {
+            const parts = rawArgs.split('|').map((s) => s.trim())
+            if (parts.length >= 3) {
+              name = parts[0]
+              handle = parts[1].replace(/^@/, '')
+              tweetText = parts.slice(2).join('|')
+            } else if (parts.length === 2) {
+              name = parts[0]
+              handle = name.toLowerCase().replace(/[^a-z0-9_]/g, '')
+              tweetText = parts[1]
+            }
+          }
+
+          if (!name) {
+            name = commandContext.message.pushName || 'User'
+          }
+          if (!handle) {
+            const rawNum = targetSenderJid.split('@')[0].split(':')[0]
+            handle = name.toLowerCase().replace(/[^a-z0-9_]/g, '') || rawNum || 'user'
+          }
+
+          let avatarBuffer: Buffer | undefined
+          if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
+            try {
+              const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
+              if (ppUrl) {
+                const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
+                if (ppRes.ok) {
+                  avatarBuffer = Buffer.from(await ppRes.arrayBuffer())
+                }
+              }
+            } catch {}
+          }
+
+          try {
+            const png = await VisualCardService.renderTweet({
+              name,
+              handle,
+              text: tweetText,
+              avatarBuffer,
+              verified: true,
+            })
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'image',
+              data: new Uint8Array(png),
+              mimeType: 'image/png',
+              caption: `*Postingan X* — @${handle}`,
+            })
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'tweet command failed')
+            await commandContext.reply('Waduh, gagal bikin tweet card nih. Coba lagi ya~ 🙏')
+          }
+        },
+      })
+
+      // ttstalk - TikTok Profile Card Stalker
+      context.commands.register({
+        name: 'ttstalk',
+        aliases: ['tiktokstalk'],
+        description: 'Lihat profil dan statistik akun TikTok secara visual',
+        category: 'tools',
+        menuOrder: 25,
+        cooldownMs: 6_000,
+        handler: async (commandContext) => {
+          const username = commandContext.args[0]?.trim().replace(/^@/, '')
+          if (!username) {
+            await commandContext.reply(`Format: ${commandContext.prefix}ttstalk <username>\nContoh: ${commandContext.prefix}ttstalk tiktok`)
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          await commandContext.reply(`⏳ Sedang mencari profil TikTok @${username}... Tunggu sebentar ya~ 🔍`)
+
+          try {
+            const res = await fetch(`https://www.tiktok.com/@${encodeURIComponent(username)}`, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+              },
+              signal: AbortSignal.timeout(10_000),
+            })
+
+            if (!res.ok) {
+              await commandContext.reply(`Profil TikTok @${username} tidak ditemukan atau privat nih 🥺`)
+              return
+            }
+
+            const html = await res.text()
+            const match = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([^<]+)<\/script>/)
+            if (!match || !match[1]) {
+              await commandContext.reply(`Gagal membaca profil TikTok @${username}. Coba beberapa saat lagi ya~`)
+              return
+            }
+
+            const data = JSON.parse(match[1])
+            const userDetail = data['__DEFAULT_SCOPE__']?.['webapp.user-detail']
+            const userInfo = userDetail?.userInfo?.user
+            const stats = userDetail?.userInfo?.stats
+
+            if (!userInfo) {
+              await commandContext.reply(`Akun TikTok @${username} tidak ditemukan nih 🥺`)
+              return
+            }
+
+            const formatNum = (num: number | undefined) => {
+              if (num === undefined || num === null) return '0'
+              if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M'
+              if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
+              return num.toLocaleString('id-ID')
+            }
+
+            let avatarBuffer: Buffer | undefined
+            const avatarUrl = userInfo.avatarLarger || userInfo.avatarMedium || userInfo.avatarThumb
+            if (avatarUrl) {
+              try {
+                const avRes = await fetch(avatarUrl, {
+                  headers: { 'User-Agent': 'Mozilla/5.0' },
+                  signal: AbortSignal.timeout(5_000),
+                })
+                if (avRes.ok) {
+                  avatarBuffer = Buffer.from(await avRes.arrayBuffer())
+                }
+              } catch {}
+            }
+
+            const png = await VisualCardService.renderProfileCard({
+              platform: 'tiktok',
+              username: userInfo.uniqueId || username,
+              nickname: userInfo.nickname || username,
+              bio: userInfo.signature || '',
+              avatarBuffer,
+              verified: Boolean(userInfo.verified),
+              stats: {
+                followers: formatNum(stats?.followerCount),
+                following: formatNum(stats?.followingCount),
+                thirdStat: formatNum(stats?.heartCount ?? stats?.heart),
+                thirdStatLabel: 'Total Likes',
+              },
+            })
+
+            const caption = [
+              '𓏼 *`𝐓𝐈𝐊𝐓𝐎𝐊 𝐏𝐑𝐎𝐅𝐈𝐋𝐄`*',
+              '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+              `⡇╌ *Nama* : ${userInfo.nickname || username}`,
+              `⡇╌ *Username* : @${userInfo.uniqueId || username} ${userInfo.verified ? '✓' : ''}`,
+              `⡇╌ *Followers* : ${formatNum(stats?.followerCount)}`,
+              `⡇╌ *Following* : ${formatNum(stats?.followingCount)}`,
+              `⡇╌ *Total Suka* : ${formatNum(stats?.heartCount ?? stats?.heart)}`,
+              `⡇╌ *Video* : ${formatNum(stats?.videoCount)}`,
+              '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+              userInfo.signature ? `📝 *Bio:*\n${userInfo.signature}\n─͜──͜──͜─  · • ·  ─͜──͜──͜─` : '',
+              `🔗 https://tiktok.com/@${userInfo.uniqueId || username}`,
+              '━━━━━━━━━━━━━━━━━━━━',
+              '*© Allyssea Stalker Suite*',
+            ].filter(Boolean).join('\n')
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'image',
+              data: new Uint8Array(png),
+              mimeType: 'image/png',
+              caption,
+            })
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'ttstalk command failed')
+            await commandContext.reply('Waduh, gagal mengambil profil TikTok. Coba lagi nanti ya~ 🙏')
+          }
+        },
+      })
+
+      // igstalk - Instagram Profile Card Stalker
+      context.commands.register({
+        name: 'igstalk',
+        aliases: ['instagramstalk'],
+        description: 'Lihat profil dan statistik akun Instagram secara visual',
+        category: 'tools',
+        menuOrder: 26,
+        cooldownMs: 6_000,
+        handler: async (commandContext) => {
+          const username = commandContext.args[0]?.trim().replace(/^@/, '')
+          if (!username) {
+            await commandContext.reply(`Format: ${commandContext.prefix}igstalk <username>\nContoh: ${commandContext.prefix}igstalk instagram`)
+            return
+          }
+
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          await commandContext.reply(`⏳ Sedang mencari profil Instagram @${username}... Tunggu sebentar ya~ 🔍`)
+
+          try {
+            let profileData: {
+              fullName: string
+              username: string
+              bio: string
+              followers: string
+              following: string
+              posts: string
+              avatarUrl?: string
+              verified?: boolean
+            } | null = null
+
+            // Try direct web_profile_info
+            try {
+              const res = await fetch(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`, {
+                headers: {
+                  'x-ig-app-id': '936619743392459',
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
+                },
+                signal: AbortSignal.timeout(6_000),
+              })
+              if (res.ok) {
+                const data = (await res.json()) as any
+                const user = data?.data?.user
+                if (user) {
+                  profileData = {
+                    fullName: user.full_name || username,
+                    username: user.username || username,
+                    bio: user.biography || '',
+                    followers: (user.edge_followed_by?.count ?? 0).toLocaleString('id-ID'),
+                    following: (user.edge_follow?.count ?? 0).toLocaleString('id-ID'),
+                    posts: (user.edge_owner_to_timeline_media?.count ?? 0).toLocaleString('id-ID'),
+                    avatarUrl: user.profile_pic_url_hd || user.profile_pic_url,
+                    verified: Boolean(user.is_verified),
+                  }
+                }
+              }
+            } catch {}
+
+            // Fallback: DuckDuckGo search query for site:instagram.com/${username}
+            if (!profileData) {
+              try {
+                const ddgRes = await fetch(`https://html.duckduckgo.com/html/?q=site:instagram.com/${encodeURIComponent(username)}`, {
+                  headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+                  signal: AbortSignal.timeout(6_000),
+                })
+                if (ddgRes.ok) {
+                  const html = await ddgRes.text()
+                  const descMatch = html.match(/([0-9,.]+[KMBkmb]?)\s+Followers,\s*([0-9,.]+[KMBkmb]?)\s+Following,\s*([0-9,.]+[KMBkmb]?)\s+Posts\s*-\s*([^(@]+)\s*\(@([^)]+)\)\s*(?:on Instagram)?(?::\s*\"?([^\"]*)\"?)?/i)
+                  if (descMatch) {
+                    profileData = {
+                      fullName: descMatch[4].trim(),
+                      username: descMatch[5].trim(),
+                      bio: descMatch[6]?.trim() || '',
+                      followers: descMatch[1].trim(),
+                      following: descMatch[2].trim(),
+                      posts: descMatch[3].trim(),
+                      verified: false,
+                    }
+                  }
+                }
+              } catch {}
+            }
+
+            if (!profileData) {
+              await commandContext.reply(`Profil Instagram @${username} tidak ditemukan atau privat nih 🥺`)
+              return
+            }
+
+            let avatarBuffer: Buffer | undefined
+            if (profileData.avatarUrl) {
+              try {
+                const avRes = await fetch(profileData.avatarUrl, {
+                  headers: { 'User-Agent': 'Mozilla/5.0' },
+                  signal: AbortSignal.timeout(4_000),
+                })
+                if (avRes.ok) {
+                  avatarBuffer = Buffer.from(await avRes.arrayBuffer())
+                }
+              } catch {}
+            }
+
+            const png = await VisualCardService.renderProfileCard({
+              platform: 'instagram',
+              username: profileData.username,
+              nickname: profileData.fullName,
+              bio: profileData.bio,
+              avatarBuffer,
+              verified: profileData.verified,
+              stats: {
+                followers: profileData.followers,
+                following: profileData.following,
+                thirdStat: profileData.posts,
+                thirdStatLabel: 'Posts',
+              },
+            })
+
+            const caption = [
+              '𓏼 *`𝐈𝐍𝐒𝐓𝐀𝐆𝐑𝐀𝐌 𝐏𝐑𝐎𝐅𝐈𝐋𝐄`*',
+              '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+              `⡇╌ *Nama* : ${profileData.fullName}`,
+              `⡇╌ *Username* : @${profileData.username} ${profileData.verified ? '✓' : ''}`,
+              `⡇╌ *Followers* : ${profileData.followers}`,
+              `⡇╌ *Following* : ${profileData.following}`,
+              `⡇╌ *Postingan* : ${profileData.posts}`,
+              '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+              profileData.bio ? `📝 *Bio:*\n${profileData.bio}\n─͜──͜──͜─  · • ·  ─͜──͜──͜─` : '',
+              `🔗 https://instagram.com/${profileData.username}`,
+              '━━━━━━━━━━━━━━━━━━━━',
+              '*© Allyssea Stalker Suite*',
+            ].filter(Boolean).join('\n')
+
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'image',
+              data: new Uint8Array(png),
+              mimeType: 'image/png',
+              caption,
+            })
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'igstalk command failed')
+            await commandContext.reply('Waduh, gagal mengambil profil Instagram. Coba lagi nanti ya~ 🙏')
           }
         },
       })

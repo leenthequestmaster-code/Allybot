@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@cacheable/node-cache": "1.7.5",
+    "@resvg/resvg-js": "^2.6.2",
     "@sentry/node": "10.71.0",
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "better-sqlite3": "12.4.1",
@@ -29,6 +30,7 @@
     "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "0.12.0",
+    "satori": "^0.33.5",
     "sharp": "0.35.4",
     "zod": "4.0.17"
   },

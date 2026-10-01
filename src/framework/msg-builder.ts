@@ -94,27 +94,11 @@ export interface CarouselCardDef {
   readonly buttons?: readonly InteractiveButtonDef[]
 }
 
-export interface AIRichPart {
-  readonly type: 'text' | 'code' | 'table' | 'suggest' | 'tip'
-  readonly content: string
-  readonly language?: string
-  readonly rows?: readonly (readonly string[])[]
-}
-
 export type BuiltMessagePayload =
   | { readonly kind: 'text'; readonly text: string; readonly mentions?: readonly string[] }
   | {
       readonly kind: 'interactive'
       readonly payload: { readonly interactiveMessage: proto.Message.InteractiveMessage }
-      readonly fallbackText: string
-    }
-  | {
-      readonly kind: 'airich'
-      readonly payload: {
-        readonly botInvokeMessage: proto.Message.IFutureProofMessage
-        readonly botForwardedMessage?: proto.Message.IFutureProofMessage
-        readonly messageContextInfo?: proto.IMessageContextInfo
-      }
       readonly fallbackText: string
     }
 
@@ -191,109 +175,10 @@ function renderFallbackButton(btn: InteractiveButtonDef, ordinal?: number): stri
   }
 }
 
-export function parseRichMarkdown(input: string): readonly AIRichPart[] {
-  const trimmed = input.trim()
-  if (!trimmed) return []
-
-  const lines = trimmed.split(/\r?\n/)
-  const parts: AIRichPart[] = []
-  let currentTextLines: string[] = []
-
-  const flushText = () => {
-    if (currentTextLines.length > 0) {
-      const content = currentTextLines.join('\n').trim()
-      if (content) parts.push({ type: 'text', content })
-      currentTextLines = []
-    }
-  }
-
-  let i = 0
-  while (i < lines.length) {
-    const rawLine = lines[i] ?? ''
-    const line = rawLine.trim()
-
-    if (line.startsWith('```')) {
-      flushText()
-      const lang = line.slice(3).trim() || 'plaintext'
-      const codeLines: string[] = []
-      i++
-      while (i < lines.length && !lines[i]?.trim().startsWith('```')) {
-        codeLines.push(lines[i] ?? '')
-        i++
-      }
-      parts.push({
-        type: 'code',
-        content: codeLines.join('\n'),
-        language: lang,
-      })
-      i++
-      continue
-    }
-
-    if (line.startsWith(':::')) {
-      flushText()
-      const directive = line.slice(3).trim().toLowerCase()
-      const directiveLines: string[] = []
-      i++
-      while (i < lines.length && !lines[i]?.trim().startsWith(':::')) {
-        const dLine = lines[i]?.trim()
-        if (dLine) directiveLines.push(dLine)
-        i++
-      }
-      if (directive === 'suggest') {
-        const suggestions = directiveLines
-          .flatMap((dl) => dl.split('|'))
-          .map((s) => s.trim().replace(/^[-*]\s*/, ''))
-          .filter(Boolean)
-        if (suggestions.length > 0) {
-          parts.push({ type: 'suggest', content: suggestions.join(' | ') })
-        }
-      } else if (directive === 'tip') {
-        const tipContent = directiveLines.join('\n').trim()
-        if (tipContent) parts.push({ type: 'tip', content: tipContent })
-      }
-      i++
-      continue
-    }
-
-    if (line.startsWith('|') && line.endsWith('|')) {
-      const nextLine = lines[i + 1]?.trim() ?? ''
-      if (nextLine.startsWith('|') && /^[|\s:-]+$/.test(nextLine)) {
-        flushText()
-        const tableLines: string[] = [line]
-        i += 2
-        while (i < lines.length && lines[i]?.trim().startsWith('|') && lines[i]?.trim().endsWith('|')) {
-          tableLines.push(lines[i]?.trim() ?? '')
-          i++
-        }
-        const parsedRows = tableLines.map((tl) =>
-          tl
-            .split('|')
-            .slice(1, -1)
-            .map((c) => c.trim()),
-        )
-        parts.push({
-          type: 'table',
-          content: tableLines.join('\n'),
-          rows: parsedRows,
-        })
-        continue
-      }
-    }
-
-    currentTextLines.push(rawLine)
-    i++
-  }
-
-  flushText()
-  return parts
-}
-
 export class MsgBuilder {
   private readonly _remoteJid: string
   private _text = ''
   private _mentions: string[] = []
-  private _rich = false
   private _buttons: InteractiveButtonDef[] = []
   private _headerTitle?: string
   private _headerSubtitle?: string
@@ -315,13 +200,11 @@ export class MsgBuilder {
   text(
     content: string,
     options?: {
-      readonly rich?: boolean
       readonly mentions?: readonly string[]
     },
   ): this {
     this._text = content
-    if (options?.rich !== undefined) this._rich = options.rich
-    if (options?.mentions !== undefined) this._mentions = [...options.mentions]
+    if (options?.mentions) this._mentions = [...options.mentions]
     return this
   }
 
@@ -425,191 +308,6 @@ export class MsgBuilder {
     const hasButtons = this._buttons.length > 0
     const hasList = Boolean(this._listOptions)
     const hasCarousel = Boolean(this._carouselCards?.length)
-
-    if (this._rich) {
-      if (hasButtons || hasList || hasCarousel) {
-        throw new Error('AIRich mode cannot be combined with buttons, list or carousel — send them as separate messages')
-      }
-      const parts = parseRichMarkdown(this._text)
-      if (parts.length === 0) {
-        throw new Error('AIRich message content must not be empty')
-      }
-
-      const sections: Array<Record<string, unknown>> = []
-      const submessages: proto.AIRichResponseSubMessage[] = []
-
-      for (const part of parts) {
-        if (part.type === 'code') {
-          submessages.push(
-            proto.AIRichResponseSubMessage.create({
-              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_CODE,
-              codeMetadata: proto.AIRichResponseCodeMetadata.create({
-                codeLanguage: part.language ?? 'plaintext',
-                codeBlocks: [
-                  proto.AIRichResponseCodeMetadata.AIRichResponseCodeBlock.create({
-                    codeContent: part.content,
-                    highlightType: proto.AIRichResponseCodeMetadata.AIRichResponseCodeHighlightType.AI_RICH_RESPONSE_CODE_HIGHLIGHT_DEFAULT,
-                  }),
-                ],
-              }),
-            }),
-          )
-          sections.push({
-            view_model: {
-              primitive: {
-                language: part.language ?? 'plaintext',
-                code_blocks: [
-                  {
-                    code: part.content,
-                    highlight_type: 'DEFAULT',
-                  },
-                ],
-                __typename: 'GenAICodeUXPrimitive',
-              },
-              __typename: 'GenAISingleLayoutViewModel',
-            },
-          })
-        } else if (part.type === 'table') {
-          submessages.push(
-            proto.AIRichResponseSubMessage.create({
-              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TABLE,
-              tableMetadata: proto.AIRichResponseTableMetadata.create({
-                title: 'Data Table',
-                rows: (part.rows ?? []).map((row) =>
-                  proto.AIRichResponseTableMetadata.AIRichResponseTableRow.create({
-                    items: [...row],
-                  }),
-                ),
-              }),
-            }),
-          )
-          const rows = (part.rows ?? []).map((row, idx) => ({
-            row_type: idx === 0 ? 'HEADER' : 'DATA',
-            cells: row.map((cell) => ({
-              cell_type: 'TEXT',
-              cell_text: cell,
-            })),
-          }))
-          sections.push({
-            view_model: {
-              primitive: {
-                rows,
-                __typename: 'GenATableUXPrimitive',
-              },
-              __typename: 'GenAISingleLayoutViewModel',
-            },
-          })
-        } else if (part.type === 'suggest') {
-          const suggestions = (part.content ?? '')
-            .split('|')
-            .map((s) => s.trim())
-            .filter(Boolean)
-          if (suggestions.length > 0) {
-            sections.push({
-              view_model: {
-                primitives: suggestions.map((text) => ({
-                  prompt_text: text,
-                  prompt_type: 'SUGGESTED_PROMPT',
-                  __typename: 'GenAIFollowUpSuggestionPillPrimitive',
-                })),
-                __typename: suggestions.length === 1 ? 'GenAISingleLayoutViewModel' : 'GenAIActionRowLayoutViewModel',
-              },
-              __typename: 'GenAIUnifiedResponseSection',
-            })
-          }
-        } else if (part.type === 'tip') {
-          submessages.push(
-            proto.AIRichResponseSubMessage.create({
-              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TEXT,
-              messageText: part.content,
-            }),
-          )
-          sections.push({
-            view_model: {
-              primitive: {
-                text: part.content,
-                __typename: 'GenAIMetadataTextPrimitive',
-              },
-              __typename: 'GenAISingleLayoutViewModel',
-            },
-          })
-        } else {
-          submessages.push(
-            proto.AIRichResponseSubMessage.create({
-              messageType: proto.AIRichResponseSubMessageType.AI_RICH_RESPONSE_TEXT,
-              messageText: part.content,
-            }),
-          )
-          sections.push({
-            view_model: {
-              primitive: {
-                text: part.content,
-                __typename: 'GenAIMarkdownTextUXPrimitive',
-              },
-              __typename: 'GenAISingleLayoutViewModel',
-            },
-          })
-        }
-      }
-
-      if (this._footerText) {
-        sections.push({
-          view_model: {
-            primitive: {
-              text: this._footerText,
-              __typename: 'GenAIMetadataTextPrimitive',
-            },
-            __typename: 'GenAISingleLayoutViewModel',
-          },
-        })
-      }
-
-      const unifiedData = Buffer.from(
-        JSON.stringify({
-          response_id: randomUUID(),
-          sections,
-        }),
-      )
-
-      const richMsg = proto.AIRichResponseMessage.create({
-        messageType: proto.AIRichResponseMessageType.AI_RICH_RESPONSE_TYPE_STANDARD,
-        submessages,
-        unifiedResponse: {
-          data: unifiedData,
-        },
-        contextInfo: {
-          isForwarded: true,
-          forwardingScore: 1,
-          forwardedAiBotMessageInfo: { botJid: '0@bot' },
-          forwardOrigin: 4,
-        },
-      })
-
-      const fallbackText = this._text.trim()
-      return {
-        kind: 'airich',
-        payload: {
-          botForwardedMessage: {
-            message: {
-              richResponseMessage: richMsg,
-            },
-          },
-          botInvokeMessage: {
-            message: {
-              richResponseMessage: richMsg,
-            },
-          },
-          messageContextInfo: {
-            deviceListMetadata: {},
-            deviceListMetadataVersion: 2,
-            botMetadata: {
-              messageDisclaimerText: this._headerTitle ?? 'Allybot AI',
-            },
-          },
-        },
-        fallbackText,
-      }
-    }
 
     if (hasButtons || hasList || hasCarousel) {
       const nativeButtons: NativeFlowButton[] = []
@@ -799,13 +497,6 @@ export class MsgBuilder {
           interactiveMessage: interactive,
         })
         await this._relayWithAckGuard(socket, transport, jid, msg, msgIdInteractive, nativeFlowAdditionalNodes(jid), built.fallbackText)
-        return
-      } else if (built.kind === 'airich') {
-        const msgIdRich = generateMessageIDV2(socket.user?.id)
-        const msg = proto.Message.create({
-          botInvokeMessage: built.payload.botInvokeMessage,
-        })
-        await this._relayWithAckGuard(socket, transport, jid, msg, msgIdRich, nativeFlowAdditionalNodes(jid, false), built.fallbackText)
         return
       }
     } catch (error) {

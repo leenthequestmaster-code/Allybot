@@ -1,7 +1,33 @@
 #!/usr/bin/env python3
 import sys
 import os
+import re
+import urllib.request
 from PIL import Image, ImageDraw, ImageFont
+
+CACHE_DIR = os.environ.get("TWEMOJI_CACHE_DIR", "/tmp/twemoji_cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+EMOJI_REGEX = re.compile(
+    r"(?:\ud83c[\udf00-\udfff]|\ud83d[\udc00-\ude4f\ude80-\udeff]|\ud83e[\udd00-\uddff]|[\u2600-\u27bf]|[\U00010000-\U0010ffff])"
+)
+
+def get_twemoji(char):
+    cps = [f"{ord(c):x}" for c in char if ord(c) != 0xfe0f]
+    fname = "-".join(cps) + ".png"
+    fpath = os.path.join(CACHE_DIR, fname)
+    if not os.path.exists(fpath):
+        url = f"https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/{fname}"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=4) as r, open(fpath, "wb") as f:
+                f.write(r.read())
+        except Exception:
+            return None
+    try:
+        return Image.open(fpath).convert("RGBA")
+    except Exception:
+        return None
 
 def find_font(size: int):
     candidates = [
@@ -19,12 +45,35 @@ def find_font(size: int):
                 continue
     return ImageFont.load_default()
 
+def tokenize_line(text_line: str):
+    tokens = []
+    last_idx = 0
+    for m in EMOJI_REGEX.finditer(text_line):
+        if m.start() > last_idx:
+            tokens.append(("text", text_line[last_idx:m.start()]))
+        tokens.append(("emoji", m.group()))
+        last_idx = m.end()
+    if last_idx < len(text_line):
+        tokens.append(("text", text_line[last_idx:]))
+    return tokens
+
+def measure_tokens(draw, tokens, font, font_size, stroke):
+    total_w = 0
+    max_h = font_size
+    for kind, val in tokens:
+        if kind == "text":
+            bbox = draw.textbbox((0, 0), val, font=font, stroke_width=stroke)
+            w = bbox[2] - bbox[0]
+            h = bbox[3] - bbox[1]
+            total_w += w
+            if h > max_h:
+                max_h = h
+        else:
+            total_w += font_size + 4
+    return total_w, max_h
+
 def fit_text_lines(draw, text: str, max_w=480, max_h=130, start_size=52, min_size=24):
-    """
-    Find best font size and word-wrapped lines fitting cleanly in max_w and max_h.
-    Adaptive scaling down from start_size (huge & bold) to min_size.
-    """
-    text = text.upper().strip()
+    text = text.strip()
     words = text.split()
 
     for size in range(start_size, min_size - 1, -2):
@@ -36,14 +85,16 @@ def fit_text_lines(draw, text: str, max_w=480, max_h=130, start_size=52, min_siz
 
         for w in words:
             test_line = f"{curr} {w}".strip()
-            bbox = draw.textbbox((0, 0), test_line, font=font, stroke_width=stroke)
-            if bbox[2] - bbox[0] <= max_w:
+            test_tokens = tokenize_line(test_line)
+            tw, _ = measure_tokens(draw, test_tokens, font, size, stroke)
+            if tw <= max_w:
                 curr = test_line
             else:
                 if curr:
                     lines.append(curr)
-                w_bbox = draw.textbbox((0, 0), w, font=font, stroke_width=stroke)
-                if w_bbox[2] - w_bbox[0] > max_w:
+                w_tokens = tokenize_line(w)
+                ww, _ = measure_tokens(draw, w_tokens, font, size, stroke)
+                if ww > max_w:
                     valid = False
                     break
                 curr = w
@@ -53,32 +104,64 @@ def fit_text_lines(draw, text: str, max_w=480, max_h=130, start_size=52, min_siz
         if curr:
             lines.append(curr)
 
-        # Max 2 lines per top / bottom section to preserve meme aesthetics
         if len(lines) > 2:
             continue
 
         total_h = 0
         for l in lines:
-            bbox = draw.textbbox((0, 0), l, font=font, stroke_width=stroke)
-            total_h += (bbox[3] - bbox[1]) + 4
+            tokens = tokenize_line(l)
+            _, lh = measure_tokens(draw, tokens, font, size, stroke)
+            total_h += lh + 6
 
         if total_h <= max_h:
-            return font, stroke, lines
+            return font, size, stroke, lines
 
-    # Fallback to min_size
     font = find_font(min_size)
     stroke = max(3, int(min_size * 0.12))
-    return font, stroke, [text]
+    return font, min_size, stroke, [text]
+
+def draw_line_with_emoji(canvas, draw, line_str, font, font_size, stroke, y):
+    tokens = tokenize_line(line_str)
+    total_w, line_h = measure_tokens(draw, tokens, font, font_size, stroke)
+    curr_x = (512 - total_w) // 2
+
+    for kind, val in tokens:
+        if kind == "text":
+            draw.text(
+                (curr_x, y),
+                val,
+                font=font,
+                fill=(255, 255, 255, 255),
+                stroke_width=stroke,
+                stroke_fill=(0, 0, 0, 255),
+            )
+            bbox = draw.textbbox((0, 0), val, font=font, stroke_width=stroke)
+            curr_x += (bbox[2] - bbox[0])
+        else:
+            emo = get_twemoji(val)
+            if emo:
+                emo_resized = emo.resize((font_size, font_size), Image.Resampling.LANCZOS)
+                canvas.paste(emo_resized, (curr_x, y + max(0, (line_h - font_size) // 2)), emo_resized)
+            else:
+                draw.text(
+                    (curr_x, y),
+                    val,
+                    font=font,
+                    fill=(255, 255, 255, 255),
+                    stroke_width=stroke,
+                    stroke_fill=(0, 0, 0, 255),
+                )
+            curr_x += font_size + 4
+
+    return line_h
 
 def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
     with Image.open(in_path) as orig:
         img = orig.convert("RGBA")
 
-    # 1. Scale down to fit 512x512 while keeping original aspect ratio
     img.thumbnail((512, 512), Image.Resampling.LANCZOS)
     nw, nh = img.size
 
-    # 2. Paste centered onto 512x512 transparent canvas
     canvas = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
     offset_x = (512 - nw) // 2
     offset_y = (512 - nh) // 2
@@ -87,41 +170,31 @@ def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str):
     draw = ImageDraw.Draw(canvas)
     top_end_y = 0
 
-    # 3. Draw Top Text
     if top_text and top_text.strip():
-        font, stroke, lines = fit_text_lines(draw, top_text, max_w=480, max_h=130, start_size=52, min_size=24)
+        font, font_size, stroke, lines = fit_text_lines(draw, top_text, max_w=480, max_h=130, start_size=52, min_size=24)
         curr_y = max(8, offset_y + 4)
         for line in lines:
-            bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke)
-            lw = bbox[2] - bbox[0]
-            lh = bbox[3] - bbox[1]
-            x = (512 - lw) // 2
-            draw.text((x, curr_y), line, font=font, fill=(255, 255, 255, 255), stroke_width=stroke, stroke_fill=(0, 0, 0, 255))
-            curr_y += lh + 4
+            line_h = draw_line_with_emoji(canvas, draw, line, font, font_size, stroke, curr_y)
+            curr_y += line_h + 6
         top_end_y = curr_y
 
-    # 4. Draw Bottom Text
     if bottom_text and bottom_text.strip():
-        font, stroke, lines = fit_text_lines(draw, bottom_text, max_w=480, max_h=130, start_size=52, min_size=24)
+        font, font_size, stroke, lines = fit_text_lines(draw, bottom_text, max_w=480, max_h=130, start_size=52, min_size=24)
         total_h = 0
-        line_metrics = []
+        line_heights = []
         for line in lines:
-            bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke)
-            lw = bbox[2] - bbox[0]
-            lh = bbox[3] - bbox[1]
-            line_metrics.append((lw, lh))
-            total_h += lh + 4
+            tokens = tokenize_line(line)
+            _, lh = measure_tokens(draw, tokens, font, font_size, stroke)
+            line_heights.append(lh)
+            total_h += lh + 6
 
-        # Position upwards from bottom of image or canvas
         bottom_limit = min(504, offset_y + nh - 4)
         start_y = max(top_end_y + 12, bottom_limit - total_h)
 
         curr_y = start_y
         for idx, line in enumerate(lines):
-            lw, lh = line_metrics[idx]
-            x = (512 - lw) // 2
-            draw.text((x, curr_y), line, font=font, fill=(255, 255, 255, 255), stroke_width=stroke, stroke_fill=(0, 0, 0, 255))
-            curr_y += lh + 4
+            line_h = draw_line_with_emoji(canvas, draw, line, font, font_size, stroke, curr_y)
+            curr_y += line_h + 6
 
     canvas.save(out_path, format="WEBP", quality=85)
 
