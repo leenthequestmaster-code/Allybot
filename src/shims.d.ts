@@ -4,3 +4,8 @@ declare module 'qrcode-terminal' {
   }
   export default qrcode
 }
+
+declare module '@shuding/opentype.js' {
+  const opentype: any
+  export default opentype
+}

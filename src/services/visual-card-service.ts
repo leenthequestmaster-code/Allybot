@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import satori from 'satori'
 import { Resvg } from '@resvg/resvg-js'
 import sharp from 'sharp'
+import opentype from '@shuding/opentype.js'
 
 export interface IqcOptions {
   readonly text: string
@@ -93,6 +94,24 @@ function loadFonts(): { name: string; data: Buffer; weight: 400 | 700; style: 'n
     { name: 'Inter', data: bold, weight: 700, style: 'normal' },
   ]
   return cachedFonts
+}
+
+let arimoFontBuffer: Buffer | null = null
+let arimoOtFont: any = null
+
+function loadArimoFont(): { data: Buffer; ot: any } {
+  if (arimoFontBuffer && arimoOtFont) {
+    return { data: arimoFontBuffer, ot: arimoOtFont }
+  }
+  const fontPath = join(process.cwd(), 'assets', 'fonts', 'Arimo-Regular.ttf')
+  if (!existsSync(fontPath)) {
+    throw new Error(`Font file not found: ${fontPath}`)
+  }
+  arimoFontBuffer = readFileSync(fontPath)
+  arimoOtFont = opentype.parse(
+    arimoFontBuffer.buffer.slice(arimoFontBuffer.byteOffset, arimoFontBuffer.byteOffset + arimoFontBuffer.byteLength),
+  )
+  return { data: arimoFontBuffer, ot: arimoOtFont }
 }
 
 async function prepareAvatarDataUrl(buf?: Buffer, maxSize = 120): Promise<string | null> {
@@ -1029,6 +1048,142 @@ export class VisualCardService {
   }
 
   /**
+   * Render Brat Album Cover Style Image
+   */
+  static async renderBrat(rawText: string): Promise<Buffer> {
+    const text = rawText.trim()
+    if (!text) {
+      throw new Error('Teks tidak boleh kosong')
+    }
+    if (text.length > 200) {
+      throw new Error('Teks terlalu panjang, maksimal 200 karakter')
+    }
+
+    const { data: fontData, ot: otFont } = loadArimoFont()
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean)
+
+    function measureWord(word: string, fontSize: number): number {
+      let width = 0
+      for (const ch of word) {
+        if ((ch.codePointAt(0) ?? 0) > 0x2000) {
+          width += fontSize
+        } else {
+          width += otFont.getAdvanceWidth(ch, fontSize) - 2
+        }
+      }
+      return width
+    }
+
+    function layoutLines(wordsList: readonly string[], fontSize: number, maxW: number): string[][] | null {
+      const lines: string[][] = []
+      let currentLine: string[] = []
+      let currentWidth = 0
+      const spaceW = otFont.getAdvanceWidth(' ', fontSize) - 2
+
+      for (const w of wordsList) {
+        const wWidth = measureWord(w, fontSize)
+        if (wWidth > maxW) return null
+
+        if (currentLine.length === 0) {
+          currentLine.push(w)
+          currentWidth = wWidth
+        } else if (currentWidth + spaceW + wWidth <= maxW) {
+          currentLine.push(w)
+          currentWidth += spaceW + wWidth
+        } else {
+          lines.push(currentLine)
+          currentLine = [w]
+          currentWidth = wWidth
+        }
+      }
+      if (currentLine.length > 0) lines.push(currentLine)
+      return lines
+    }
+
+    function findBestFontSize(wordsList: readonly string[], maxW = 660, maxH = 660): { fontSize: number; lines: string[][] } {
+      let low = 16
+      let high = 280
+      let bestSize = low
+      let bestLines: string[][] = [wordsList.slice()]
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2)
+        const lines = layoutLines(wordsList, mid, maxW)
+        if (lines) {
+          const totalH = lines.length * (mid * 0.95)
+          if (totalH <= maxH) {
+            bestSize = mid
+            bestLines = lines
+            low = mid + 1
+            continue
+          }
+        }
+        high = mid - 1
+      }
+      return { fontSize: bestSize, lines: bestLines }
+    }
+
+    const { fontSize, lines } = findBestFontSize(words, 660, 660)
+
+    const vdom = {
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          width: 720,
+          height: 720,
+          backgroundColor: '#ffffff',
+          padding: '30px',
+          justifyContent: 'center',
+        },
+        children: lines.map((lineWords, idx) => {
+          const isLast = idx === lines.length - 1
+          const isSingle = lineWords.length === 1
+          return {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                flexDirection: 'row',
+                width: '100%',
+                justifyContent: isLast || isSingle ? 'flex-start' : 'space-between',
+                gap: isLast && !isSingle ? `${Math.round(fontSize * 0.28)}px` : '0px',
+                lineHeight: 0.95,
+              },
+              children: lineWords.map((w) => ({
+                type: 'span',
+                props: {
+                  style: {
+                    fontSize: `${fontSize}px`,
+                    letterSpacing: '-2px',
+                    color: '#000000',
+                    lineHeight: 0.95,
+                  },
+                  children: w,
+                },
+              })),
+            },
+          }
+        }),
+      },
+    }
+
+    const svg = await satori(vdom as any, {
+      width: 720,
+      height: 720,
+      fonts: [{ name: 'Arimo', data: fontData, weight: 400, style: 'normal' }],
+      loadAdditionalAsset: loadEmojiAsset,
+    })
+
+    const filterDef = '<defs><filter id="brat-blur"><feGaussianBlur stdDeviation="3"/></filter></defs>'
+    const blurredSvg = svg.replace('>', '>' + filterDef).replace('<g>', '<g filter="url(#brat-blur)">')
+
+    const resvg = new Resvg(blurredSvg, { fitTo: { mode: 'zoom', value: 2 } })
+    return resvg.render().asPng()
+  }
+
+  /**
    * Helper: Convert any PNG Buffer into a 512x512 contained WebP sticker
    */
   static async pngToWebpSticker(pngBuffer: Buffer, size = 512): Promise<Buffer> {
@@ -1041,3 +1196,5 @@ export class VisualCardService {
       .toBuffer()
   }
 }
+
+export const brat = VisualCardService.renderBrat

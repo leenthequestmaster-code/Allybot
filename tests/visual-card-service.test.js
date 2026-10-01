@@ -105,4 +105,18 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
     assert.equal(riff, 'RIFF')
     assert.equal(format, 'WEBP')
   })
+
+  it('renders authentic Brat album cover (!brat) as 1440x1440 PNG 2x with blur and justification', async () => {
+    const png = await VisualCardService.renderBrat('it is so confusing sometimes to be a girl')
+    assert.ok(Buffer.isBuffer(png))
+    assert.ok(png.length > 5000)
+
+    const meta = await sharp(png).metadata()
+    assert.equal(meta.width, 1440)
+    assert.equal(meta.height, 1440)
+
+    // Verify rejection of empty text and text exceeding 200 chars
+    await assert.rejects(async () => VisualCardService.renderBrat('   '), /tidak boleh kosong/)
+    await assert.rejects(async () => VisualCardService.renderBrat('a'.repeat(201)), /terlalu panjang/)
+  })
 })

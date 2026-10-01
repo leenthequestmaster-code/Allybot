@@ -478,21 +478,25 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-      // brat - brat generator (authentic fuzzy white background with black text and color emoji)
+      // brat - Satori + Resvg powered Brat album cover generator
       context.commands.register({
         name: 'brat',
-        description: 'Buat stiker brat teks hitam background putih dengan efek buram khas',
+        description: 'Buat gambar cover album brat teks hitam background putih dengan efek buram khas',
         category: 'tools',
         menuOrder: 16,
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
-          const text = commandContext.args.join(' ').trim()
+          const rawArgs = commandContext.args
+          const wantsSticker = rawArgs.some((a) => a === '--sticker' || a === '-s')
+          const text = rawArgs.filter((a) => !a.startsWith('--') && !a.startsWith('-')).join(' ').trim() ||
+            commandContext.message.quotedText?.trim() || ''
+
           if (!text) {
             await commandContext.reply(`Format: ${commandContext.prefix}brat <teks>\nContoh: ${commandContext.prefix}brat i'm so brat`)
             return
           }
-          if (text.length > 100) {
-            await commandContext.reply('Teksnya kepanjangan nih, maksimal 100 karakter ya~ ✍️')
+          if (text.length > 200) {
+            await commandContext.reply('Teksnya kepanjangan nih, maksimal 200 karakter ya~ ✍️')
             return
           }
           if (!commandContext.whatsapp.sendMedia) {
@@ -500,32 +504,70 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
+          await commandContext.react('⏳')
+
           try {
-            const tmpId = `brat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-            const webpPath = `/tmp/${tmpId}.webp`
+            const png = await VisualCardService.renderBrat(text)
 
-            const { spawn } = await import('node:child_process')
-            const { readFile, unlink } = await import('node:fs/promises')
-            const { join } = await import('node:path')
-
-            const scriptPath = join(process.cwd(), 'scripts', 'generate-brat.py')
-            await runPythonScript(scriptPath, [webpPath, ...commandContext.args], { timeoutMs: 20_000 })
-
-            const data = await readFile(webpPath)
-            await unlink(webpPath).catch(() => {})
-
-            if (data.byteLength === 0 || data.byteLength > MEDIA_TRANSFORM_MAX_OUTPUT_BYTES) {
-              await commandContext.reply('Hasil media terlalu besar atau kosong.')
-              return
+            if (wantsSticker) {
+              const webp = await VisualCardService.pngToWebpSticker(png, 512)
+              const finalWebp = setStickerExif(webp, 'Brat', commandContext.message.pushName || 'Cyrus')
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'sticker',
+                data: new Uint8Array(finalWebp),
+                mimeType: 'image/webp',
+              })
+            } else {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(png),
+                mimeType: 'image/png',
+                caption: 'brat',
+              })
             }
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
+            await commandContext.reply(safeMediaFailure(error))
+          }
+        },
+      })
 
+      // brats - direct sticker version of brat
+      context.commands.register({
+        name: 'brats',
+        aliases: ['bratsticker'],
+        description: 'Buat stiker brat teks hitam background putih dengan efek buram khas',
+        category: 'tools',
+        menuOrder: 17,
+        cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
+        handler: async (commandContext) => {
+          const text = commandContext.args.join(' ').trim() || commandContext.message.quotedText?.trim() || ''
+          if (!text) {
+            await commandContext.reply(`Format: ${commandContext.prefix}brats <teks>\nContoh: ${commandContext.prefix}brats i'm so brat`)
+            return
+          }
+          if (text.length > 200) {
+            await commandContext.reply('Teksnya kepanjangan nih, maksimal 200 karakter ya~ ✍️')
+            return
+          }
+          if (!commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
+
+          await commandContext.react('⏳')
+
+          try {
+            const png = await VisualCardService.renderBrat(text)
+            const webp = await VisualCardService.pngToWebpSticker(png, 512)
+            const finalWebp = setStickerExif(webp, 'Brat', commandContext.message.pushName || 'Cyrus')
             await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
               kind: 'sticker',
-              data: new Uint8Array(data),
+              data: new Uint8Array(finalWebp),
               mimeType: 'image/webp',
             })
           } catch (error) {
-            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brat command failed')
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'brats command failed')
             await commandContext.reply(safeMediaFailure(error))
           }
         },

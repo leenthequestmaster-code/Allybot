@@ -252,7 +252,26 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   assert.equal(harness.reactions.at(-1)?.emoji, '⏳')
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
-  // 9. bratvid validation
+  // 9. brat & brats validation and execution
+  await harness.commands.dispatch(message('!brat', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Format: !brat/)
+
+  await harness.commands.dispatch(message('!brats', 'alice@s.whatsapp.net'))
+  assert.match(harness.sent.at(-1)?.text ?? '', /Format: !brats/)
+
+  await harness.commands.dispatch(message('!brat i am so brat', 'brat-run@s.whatsapp.net'))
+  const bratSent = harness.sent.at(-1)
+  assert.equal(bratSent?.type, 'media')
+  assert.equal(bratSent?.payload?.kind, 'image')
+  assert.equal(bratSent?.payload?.mimeType, 'image/png')
+
+  await harness.commands.dispatch(message('!brats i am so brat', 'brats-run@s.whatsapp.net'))
+  const bratsSent = harness.sent.at(-1)
+  assert.equal(bratsSent?.type, 'media')
+  assert.equal(bratsSent?.payload?.kind, 'sticker')
+  assert.equal(bratsSent?.payload?.mimeType, 'image/webp')
+
+  // 10. bratvid validation
   await harness.commands.dispatch(message('!bratvid', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !bratvid/)
 
