@@ -1078,7 +1078,7 @@ export class VisualCardService {
       const lines: string[][] = []
       let currentLine: string[] = []
       let currentWidth = 0
-      const spaceW = otFont.getAdvanceWidth(' ', fontSize) - 2
+      const minSpace = otFont.getAdvanceWidth(' ', fontSize) - 2
 
       for (const w of wordsList) {
         const wWidth = measureWord(w, fontSize)
@@ -1087,9 +1087,9 @@ export class VisualCardService {
         if (currentLine.length === 0) {
           currentLine.push(w)
           currentWidth = wWidth
-        } else if (currentWidth + spaceW + wWidth <= maxW) {
+        } else if (currentWidth + minSpace + wWidth <= maxW) {
           currentLine.push(w)
-          currentWidth += spaceW + wWidth
+          currentWidth += minSpace + wWidth
         } else {
           lines.push(currentLine)
           currentLine = [w]
@@ -1100,9 +1100,9 @@ export class VisualCardService {
       return lines
     }
 
-    function findBestFontSize(wordsList: readonly string[], maxW = 660, maxH = 660): { fontSize: number; lines: string[][] } {
-      let low = 16
-      let high = 280
+    function findBestFontSize(wordsList: readonly string[], maxW = 640, maxH = 640): { fontSize: number; lines: string[][] } {
+      let low = 20
+      let high = 400
       let bestSize = low
       let bestLines: string[][] = [wordsList.slice()]
 
@@ -1110,7 +1110,7 @@ export class VisualCardService {
         const mid = Math.floor((low + high) / 2)
         const lines = layoutLines(wordsList, mid, maxW)
         if (lines) {
-          const totalH = lines.length * (mid * 0.95)
+          const totalH = lines.length * mid * 0.95
           if (totalH <= maxH) {
             bestSize = mid
             bestLines = lines
@@ -1123,7 +1123,7 @@ export class VisualCardService {
       return { fontSize: bestSize, lines: bestLines }
     }
 
-    const { fontSize, lines } = findBestFontSize(words, 660, 660)
+    const { fontSize, lines } = findBestFontSize(words, 640, 640)
 
     const vdom = {
       type: 'div',
@@ -1134,7 +1134,7 @@ export class VisualCardService {
           width: 720,
           height: 720,
           backgroundColor: '#ffffff',
-          padding: '30px',
+          padding: '40px',
           justifyContent: 'center',
         },
         children: lines.map((lineWords, idx) => {
@@ -1148,7 +1148,7 @@ export class VisualCardService {
                 flexDirection: 'row',
                 width: '100%',
                 justifyContent: isLast || isSingle ? 'flex-start' : 'space-between',
-                gap: isLast && !isSingle ? `${Math.round(fontSize * 0.28)}px` : '0px',
+                gap: isLast && !isSingle ? `${Math.round(fontSize * 0.25)}px` : '0px',
                 lineHeight: 0.95,
               },
               children: lineWords.map((w) => ({
@@ -1176,11 +1176,10 @@ export class VisualCardService {
       loadAdditionalAsset: loadEmojiAsset,
     })
 
-    const filterDef = '<defs><filter id="brat-blur"><feGaussianBlur stdDeviation="3"/></filter></defs>'
-    const blurredSvg = svg.replace('>', '>' + filterDef).replace('<g>', '<g filter="url(#brat-blur)">')
+    const resvg = new Resvg(svg, { fitTo: { mode: 'zoom', value: 2 } })
+    const sharpPng = resvg.render().asPng()
 
-    const resvg = new Resvg(blurredSvg, { fitTo: { mode: 'zoom', value: 2 } })
-    return resvg.render().asPng()
+    return sharp(sharpPng).blur(2.5).png().toBuffer()
   }
 
   /**
