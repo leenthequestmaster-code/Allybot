@@ -289,4 +289,17 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   // 13. spack validation
   await harness.commands.dispatch(message('!spack', 'alice@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format pembuatan Sticker Pack/)
+
+  // 14. animated video to sticker with isAnimated flag
+  const videoHarness = createHarness({
+    media: { data: new Uint8Array([1, 2, 3]), mimeType: 'video/mp4', kind: 'video' },
+  })
+  await videoHarness.commands.dispatch(
+    message('!s', 'video-sender@s.whatsapp.net', {
+      media: { kind: 'video', mimeType: 'video/mp4' },
+    }),
+  )
+  const animStickerSent = videoHarness.sent.find((s) => s.type === 'media' && s.payload?.kind === 'sticker')
+  assert.ok(animStickerSent)
+  assert.equal(animStickerSent?.payload?.isAnimated, true)
 })

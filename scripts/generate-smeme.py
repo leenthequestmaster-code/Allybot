@@ -204,9 +204,40 @@ def make_smeme(in_path: str, out_path: str, top_text: str, bottom_text: str, siz
 
     canvas.save(out_path, format="WEBP", quality=85)
 
+def make_overlay(out_path: str, top_text: str, bottom_text: str, size_pct: int = 50):
+    target_size = max(16, min(92, int(size_pct)))
+
+    canvas = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(canvas)
+    top_end_y = 0
+
+    if top_text and top_text.strip():
+        font, font_size, stroke, lines = fit_text_lines(draw, top_text, max_w=480, max_h=180, target_size=target_size)
+        curr_y = 12
+        for line in lines:
+            line_h = draw_line_with_emoji(canvas, draw, line, font, font_size, stroke, curr_y)
+            curr_y += line_h + 6
+        top_end_y = curr_y
+
+    if bottom_text and bottom_text.strip():
+        font, font_size, stroke, lines = fit_text_lines(draw, bottom_text, max_w=480, max_h=180, target_size=target_size)
+        total_h = 0
+        for line in lines:
+            tokens = tokenize_line(line)
+            _, lh = measure_tokens(draw, tokens, font, font_size, stroke)
+            total_h += lh + 6
+
+        start_y = max(top_end_y + 8, 500 - total_h)
+        curr_y = start_y
+        for line in lines:
+            line_h = draw_line_with_emoji(canvas, draw, line, font, font_size, stroke, curr_y)
+            curr_y += line_h + 6
+
+    canvas.save(out_path, format="PNG")
+
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python3 generate-smeme.py <in_image> <out_webp> [top_text] [bottom_text] [size_pct]", file=sys.stderr)
+        print("Usage: python3 generate-smeme.py <in_image|--overlay> <out_path> [top_text] [bottom_text] [size_pct]", file=sys.stderr)
         sys.exit(1)
 
     in_f = sys.argv[1]
@@ -219,4 +250,7 @@ if __name__ == "__main__":
     except ValueError:
         size_pct = 50
 
-    make_smeme(in_f, out_f, top, bottom, size_pct)
+    if in_f == "--overlay":
+        make_overlay(out_f, top, bottom, size_pct)
+    else:
+        make_smeme(in_f, out_f, top, bottom, size_pct)

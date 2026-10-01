@@ -136,7 +136,9 @@ async function transformAndSend(
       timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
     })
     const allowed = target === 'sticker'
-      ? (downloaded.kind === 'image' && downloaded.mimeType.startsWith('image/')) || (downloaded.kind === 'video' && downloaded.mimeType.startsWith('video/'))
+      ? (downloaded.kind === 'image' && downloaded.mimeType.startsWith('image/')) ||
+        (downloaded.kind === 'video' && downloaded.mimeType.startsWith('video/')) ||
+        (downloaded.kind === 'sticker' && downloaded.mimeType === 'image/webp')
       : target === 'image'
         ? downloaded.kind === 'sticker' && downloaded.mimeType === 'image/webp'
         : target === 'gif'
@@ -144,7 +146,7 @@ async function transformAndSend(
           : (downloaded.kind === 'video' || downloaded.kind === 'audio') && (downloaded.mimeType.startsWith('video/') || downloaded.mimeType.startsWith('audio/'))
     if (!allowed) {
       const message = target === 'sticker'
-        ? 'Untuk sticker, kirim gambar atau video pendek.'
+        ? 'Untuk sticker, kirim gambar, video pendek, atau balas stiker.'
         : target === 'image'
           ? 'Untuk gambar, balas sticker WebP.'
           : target === 'gif'
@@ -165,12 +167,20 @@ async function transformAndSend(
       await context.reply('Hasil media terlalu besar atau kosong.')
       return
     }
+
+    const isAnimatedSticker =
+      target === 'sticker' &&
+      (downloaded.kind === 'video' ||
+        downloaded.mimeType === 'image/gif' ||
+        (downloaded.kind === 'sticker' &&
+          (Buffer.from(downloaded.data).includes('ANIM') || Buffer.from(downloaded.data).includes('ANMF'))))
+
     await context.whatsapp.sendMedia(context.message.remoteJid, {
       kind: target === 'gif' ? 'video' : target === 'audio' ? 'audio' : target,
       data,
       mimeType: target === 'sticker' ? 'image/webp' : target === 'image' ? 'image/png' : target === 'gif' ? 'video/mp4' : 'audio/ogg; codecs=opus',
       ...(target === 'gif' ? { gifPlayback: true } : {}),
-      ...(target === 'sticker' && downloaded.kind === 'video' ? { isAnimated: true } : {}),
+      ...(isAnimatedSticker ? { isAnimated: true } : {}),
     })
   } catch (error) {
     context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', target }, 'media command failed safely')
@@ -292,8 +302,10 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             await commandContext.reply(`Kirim gambar dengan caption ${commandContext.prefix}smeme <teks atas> | <teks bawah>, atau balas gambar lalu ketik command.`)
             return
           }
-          if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > MEDIA_INPUT_MAX_BYTES) {
-            await commandContext.reply('File terlalu besar nih, maksimal 15 MB ya~ 📁')
+          const inputLimit = maxInputBytesFor(selected.descriptor)
+          if (selected.descriptor.sizeBytes !== undefined && selected.descriptor.sizeBytes > inputLimit) {
+            const limitMb = Math.round(inputLimit / (1024 * 1024))
+            await commandContext.reply(`File terlalu besar nih, maksimal ${limitMb} MB ya~ 📁`)
             return
           }
           if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
@@ -343,7 +355,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
 
           try {
             const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
-              maxBytes: MEDIA_INPUT_MAX_BYTES,
+              maxBytes: inputLimit,
               timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
             })
 
@@ -352,28 +364,112 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             const { join } = await import('node:path')
 
             const tmpId = `smeme_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-            const inPath = `/tmp/${tmpId}_in.png`
             const outPath = `/tmp/${tmpId}_out.webp`
+            const scriptPath = join(process.cwd(), 'scripts', 'generate-smeme.py')
+
+            const isAnimated =
+              downloaded.kind === 'video' ||
+              downloaded.mimeType === 'image/gif' ||
+              (downloaded.kind === 'sticker' &&
+                (Buffer.from(downloaded.data).includes('ANIM') || Buffer.from(downloaded.data).includes('ANMF')))
 
             let dataWithExif: Buffer | null = null
+
             try {
-              await writeFile(inPath, downloaded.data)
-              const scriptPath = join(process.cwd(), 'scripts', 'generate-smeme.py')
-              await runPythonScript(scriptPath, [inPath, outPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
-              const rawData = await readFile(outPath)
-              dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
+              if (isAnimated) {
+                const overlayPath = `/tmp/${tmpId}_overlay.png`
+                try {
+                  await runPythonScript(scriptPath, ['--overlay', overlayPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
+
+                  if (downloaded.kind === 'video') {
+                    const videoInPath = `/tmp/${tmpId}_in.mp4`
+                    await writeFile(videoInPath, downloaded.data)
+                    try {
+                      await new Promise<void>((resolve, reject) => {
+                        const ffmpeg = spawn('ffmpeg', [
+                          '-y',
+                          '-i', videoInPath,
+                          '-i', overlayPath,
+                          '-t', '6',
+                          '-filter_complex',
+                          '[0:v]fps=10,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba[base];[base][1:v]overlay=0:0[v]',
+                          '-map', '[v]',
+                          '-an',
+                          '-c:v', 'libwebp',
+                          '-lossless', '0',
+                          '-compression_level', '4',
+                          '-q:v', '45',
+                          '-loop', '0',
+                          '-f', 'webp',
+                          outPath,
+                        ])
+                        let settled = false
+                        const timer = setTimeout(() => {
+                          if (!settled) {
+                            settled = true
+                            ffmpeg.kill('SIGKILL')
+                            reject(new Error('ffmpeg timeout'))
+                          }
+                        }, 25_000)
+                        ffmpeg.once('error', (err) => {
+                          if (!settled) {
+                            settled = true
+                            clearTimeout(timer)
+                            reject(err)
+                          }
+                        })
+                        ffmpeg.once('close', (code) => {
+                          if (!settled) {
+                            settled = true
+                            clearTimeout(timer)
+                            if (code === 0) resolve()
+                            else reject(new Error(`ffmpeg exited with code ${code}`))
+                          }
+                        })
+                      })
+                      const rawData = await readFile(outPath)
+                      dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
+                    } finally {
+                      await unlink(videoInPath).catch(() => {})
+                    }
+                  } else {
+                    // GIF or animated WebP sticker
+                    const overlayBuf = await readFile(overlayPath)
+                    const sharp = (await import('sharp')).default
+                    const animWebp = await sharp(downloaded.data, { animated: true })
+                      .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+                      .composite([{ input: overlayBuf, blend: 'over' }])
+                      .webp({ loop: 0, quality: 60 })
+                      .toBuffer()
+                    dataWithExif = setStickerExif(animWebp, 'Meme Stickers', 'Allybot')
+                  }
+                } finally {
+                  await unlink(overlayPath).catch(() => {})
+                  await unlink(outPath).catch(() => {})
+                }
+              } else {
+                // Static image
+                const inPath = `/tmp/${tmpId}_in.png`
+                try {
+                  await writeFile(inPath, downloaded.data)
+                  await runPythonScript(scriptPath, [inPath, outPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
+                  const rawData = await readFile(outPath)
+                  dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
+                } finally {
+                  await unlink(inPath).catch(() => {})
+                  await unlink(outPath).catch(() => {})
+                }
+              }
             } catch {
               const rawData = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, 'sticker')
               dataWithExif = setStickerExif(Buffer.from(rawData), 'Meme Stickers', 'Allybot')
-            } finally {
-              await unlink(inPath).catch(() => {})
-              await unlink(outPath).catch(() => {})
             }
 
             await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
               kind: 'sticker',
               data: new Uint8Array(dataWithExif),
               mimeType: 'image/webp',
+              ...(isAnimated ? { isAnimated: true } : {}),
             })
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'smeme command failed')

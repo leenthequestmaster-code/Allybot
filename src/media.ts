@@ -41,10 +41,14 @@ export function runFfmpeg(args: readonly string[], input: Uint8Array, maxOutputB
 
     const cleanup = (): void => {
       if (timer) clearTimeout(timer)
+      child.stdin.removeAllListeners('error')
       child.stdout.removeAllListeners()
       child.stderr.removeAllListeners()
       child.removeAllListeners('error')
       child.removeAllListeners('close')
+      try { child.stdin.destroy() } catch {}
+      try { child.stdout.destroy() } catch {}
+      try { child.stderr.destroy() } catch {}
     }
     const fail = (error: Error): void => {
       if (settled) return
@@ -71,7 +75,7 @@ export function runFfmpeg(args: readonly string[], input: Uint8Array, maxOutputB
       if (settled) return
       settled = true
       cleanup()
-      if (code !== 0) {
+      if (code !== 0 || outputBytes === 0 || chunks.length === 0) {
         reject(new MediaTransformError('process_failed', `media transform failed (${stderrBytes} diagnostic bytes)`))
         return
       }
@@ -197,12 +201,18 @@ export class FfmpegMediaTransformer implements MediaTransformer {
   ) {}
 
   transform(input: Uint8Array, inputMimeType: string, inputKind: CoreMediaKind, target: MediaTransformKind): Promise<Uint8Array> {
+    if (!input || input.byteLength === 0) {
+      return Promise.reject(new MediaTransformError('process_failed', 'empty media input'))
+    }
     const outputLimit = target === 'sticker' ? MEDIA_TRANSFORM_MAX_OUTPUT_BYTES : MEDIA_TRANSFORM_HARD_OUTPUT_MAX_BYTES
+    if (target === 'sticker' && (inputKind === 'video' || inputMimeType === 'image/gif')) {
+      return this.runner(videoToStickerArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
+    }
     if (target === 'sticker' && inputKind === 'image' && inputMimeType.startsWith('image/')) {
       return this.runner(imageToStickerArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
-    if (target === 'sticker' && inputKind === 'video' && inputMimeType.startsWith('video/')) {
-      return this.runner(videoToStickerArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
+    if (target === 'sticker' && inputKind === 'sticker' && inputMimeType === 'image/webp') {
+      return Promise.resolve(input)
     }
     if (target === 'image' && inputKind === 'sticker' && inputMimeType === 'image/webp') {
       return this.runner(stickerToImageArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
