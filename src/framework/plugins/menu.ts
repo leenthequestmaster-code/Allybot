@@ -335,7 +335,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
     },
     {
       title: 'Search & Download',
-      commands: ['google', 'search', 'image', 'gambar', 'wiki', 'wikipedia', 'cuaca', 'weather', 'lirik', 'lyrics', 'pin', 'pinterest', 'pixiv', 'ss', 'screenshot', 'qr', 'ytmp3', 'yta', 'ytaudio', 'yt2mp3', 'ytmp4', 'ytv', 'ytvideo', 'yt2', 'tik', 'tt', 'tiktok', 'tik2mp3', 'ttmp3', 'tiktokaudio', 'tikmp3', 'dl', 'download', 'viddl', 'multidl'],
+      commands: ['google', 'search', 'image', 'gambar', 'wiki', 'wikipedia', 'cuaca', 'weather', 'lirik', 'lyrics', 'pin', 'pinterest', 'pixiv', 'ss', 'screenshot', 'qr', 'ytmp3', 'yta', 'ytaudio', 'yt2mp3', 'ytmp4', 'ytv', 'ytvideo', 'yt2', 'tik', 'tt', 'tiktok', 'tik2mp3', 'ttmp3', 'tiktokaudio', 'tikmp3', 'dl', 'download', 'viddl', 'multidl', 'spotify', 'play', 'lagu'],
     },
     {
       title: 'System & Info',
