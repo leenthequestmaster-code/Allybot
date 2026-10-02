@@ -20,7 +20,6 @@ type CategoryPresentation = {
 const BOT_NAME = 'Allybot'
 const BOT_VERSION = '0.1.0'
 const MENU_THUMBNAIL_MIME_TYPE = 'image/jpeg'
-const MENU_THUMBNAIL_CAPTION = 'Allybot — menu bantuan'
 const ROADMAP_CATEGORY_NAMES = [
   'group',
   'moderation',
@@ -146,31 +145,6 @@ function presentationFor(category: string): CategoryPresentation {
   return categoryPresentation[category] ?? { label: category.toUpperCase(), icon: '📂' }
 }
 
-function categoryLabel(category: MenuCategory): string {
-  return presentationFor(category.name).label
-}
-
-function formatUptime(seconds: number): string {
-  const totalSeconds = Math.max(0, Math.floor(seconds))
-  const days = Math.floor(totalSeconds / 86_400)
-  const hours = Math.floor((totalSeconds % 86_400) / 3_600)
-  const minutes = Math.floor((totalSeconds % 3_600) / 60)
-  const remainingSeconds = totalSeconds % 60
-  const parts: string[] = []
-  if (days) parts.push(`${days}d`)
-  if (hours || days) parts.push(`${hours}h`)
-  if (minutes || hours || days) parts.push(`${minutes}m`)
-  parts.push(`${remainingSeconds}s`)
-  return parts.join(' ')
-}
-
-function formatOwner(ownerJid: string | undefined): string {
-  if (!ownerJid) return 'Belum dikonfigurasi'
-  const phone = ownerJid.split('@')[0]?.replace(/\D/g, '') ?? ''
-  if (phone.length < 7) return 'Terkonfigurasi'
-  return `${phone.slice(0, 3)}••••${phone.slice(-4)}`
-}
-
 function isSameJid(left: string | undefined, right: string | undefined): boolean {
   if (!left || !right) return false
   return left.split(':')[0] === right.split(':')[0]
@@ -235,10 +209,10 @@ function renderBotProfile(): string {
   return [
     '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
     '─֪──໋࣭─𝆭──꫶',
-    '> ⟐┃ Nama : *Allybot*',
+    `> ⟐┃ Nama : *${BOT_NAME}*`,
     '> ⟐┃ Uptime : *-*',
     '> ⟐┃ Owner : *6283197859955*',
-    '> ⟐┃ Versi : *v0.1.0*',
+    `> ⟐┃ Versi : *v${BOT_VERSION}*`,
     '*─┼────────────────┼─*',
   ].join('\n')
 }
