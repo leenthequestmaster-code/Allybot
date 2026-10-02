@@ -264,62 +264,78 @@ type SubCategoryDef = {
 const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
   group: [
     {
-      title: 'Member & Info',
-      commands: ['groupinfo', 'membercount', 'admins', 'members', 'memberinfo'],
+      title: 'Member & Profil',
+      commands: ['groupinfo', 'ginfo', 'membercount', 'admins', 'adminlist', 'members', 'memberlist', 'memberinfo', 'info'],
     },
     {
-      title: 'Rules & Welcome',
-      commands: ['rules', 'ruleshistory', 'setrules', 'clearrules', 'welcome', 'setwelcome', 'clearwelcome', 'left', 'setleave', 'clearleave'],
+      title: 'Peraturan Grup',
+      commands: ['rules', 'ruleshistory'],
     },
     {
-      title: 'Interaction & Settings',
-      commands: ['afk', 'tagme', 'suggest', 'report', 'prefix', 'setprefix', 'groupsettings', 'link', 'invite', 'setlanguage', 'settimezone', 'role', 'permissions'],
+      title: 'Interaksi & Komunitas',
+      commands: ['afk', 'away', 'tagme', 'role', 'permissions', 'ooc', 'suggest', 'report'],
     },
   ],
   moderation: [
     {
       title: 'Quick Action',
-      commands: ['kick', 'ban', 'unban', 'mute', 'unmute', 'modaction', 'moderate'],
+      commands: ['kick', 'tendang', 'ban', 'unban', 'mute', 'unmute', 'modaction', 'moderate'],
     },
     {
-      title: 'Warning System',
-      commands: ['warn', 'warnings', 'warns', 'unwarn', 'clearwarn', 'setlimit'],
+      title: 'Warning & Case System',
+      commands: ['warn', 'warnings', 'warns', 'unwarn', 'clearwarn', 'setlimit', 'cases', 'case', 'claimcase', 'appeal', 'auditverify'],
     },
     {
       title: 'Automod Protection',
-      commands: ['antilink', 'antispam', 'antitoxic', 'safety', 'setsafety', 'auditverify'],
+      commands: ['safety', 'setsafety', 'antilink', 'antispam', 'antitoxic'],
     },
     {
-      title: 'Chat Access',
-      commands: ['lock', 'unlock', 'groupmode', 'promote', 'demote', 'tagall', 'hidetag', 'del', 'clear', 'leave', 'botleave', 'setkotaksaran', 'setreportbox', 'replysaran', 'replyreport', 'blocksaran', 'blockreport', 'modstatus', 'cases', 'case'],
+      title: 'Chat & Member Control',
+      commands: ['lock', 'unlock', 'groupmode', 'promote', 'demote', 'tagall', 'hidetag', 'del', 'delete', 'clear'],
+    },
+    {
+      title: 'Group Rules & Settings',
+      commands: ['link', 'invite', 'setprefix', 'setrules', 'clearrules', 'welcome', 'left', 'leavetoggle', 'setwelcome', 'clearwelcome', 'setleave', 'clearleave', 'leave', 'botleave'],
+    },
+    {
+      title: 'Character & Roleplay Admin',
+      commands: ['inspectchar', 'charinfo', 'chardebug', 'inspect', 'setlevel', 'chlevel', 'lvl', 'setrank', 'chrank', 'rankset', 'resetstats', 'resetsheet', 'statreset', 'givetoken', 'addtoken', 'tokenreward', 'forceretire', 'killchar', 'wipechar', 'setgroup', 'whitelistooc', 'oocwhitelist'],
+    },
+    {
+      title: 'Feedback & Reports',
+      commands: ['setkotaksaran', 'setreportbox', 'replysaran', 'replyreport', 'blocksaran', 'blockreport', 'modstatus'],
     },
   ],
   'your-character': [
     {
       title: 'Status & Profile',
-      commands: ['character', 'char', 'stats', 'inspectchar'],
+      commands: ['character', 'char', 'yourcharacter', 'stats', 'mystats', 'characterstats'],
     },
     {
-      title: 'Progression',
-      commands: ['daftar', 'alokasi', 'pensiun', 'savecharacter', 'savechar', 'timerp', 'setlevel', 'setrank', 'resetstats', 'forceretire', 'givetoken', 'deletecharacter', 'cancel', 'retry'],
+      title: 'Progression & Registration',
+      commands: ['daftar', 'registercharacter', 'createcharacter', 'confirm', 'next', 'skip', 'lewati', 'prev', 'kembali', 'retry', 'retrycharacter', 'cancel', 'cancelcharacter', 'alokasi', 'addstat', 'upstat', 'allocatestat', 'deletecharacter', 'deletechar', 'offcharacter', 'pensiun', 'savecharacter', 'savechar', 'timerp'],
     },
     {
       title: 'Economy & Vela',
-      commands: ['bank', 'wallet', 'vela', 'pay', 'bankreward', 'bankpolicy', 'tax', 'taxbayar', 'banksweep'],
+      commands: ['vela', 'wallet', 'bank', 'pay', 'tax', 'taxbayar', 'bayarpajak', 'bankreward', 'bankpolicy', 'banksweep'],
     },
   ],
   tools: [
     {
       title: 'Artificial Intelligence',
-      commands: ['ai', 'ally', 'translate', 'summarize', 'tts', 'text2img', 'img2text'],
+      commands: ['ai', 'ally', 'tanya', 'translate', 'summarize', 'aidetection', 'tts', 'suara', 'text2img', 'buatgambar', 't2i', 'img2text', 'ocr'],
     },
     {
       title: 'Media & Sticker',
-      commands: ['sticker', 's', 'stickerwm', 'swm', 'brat', 'bratvid', 'smeme', 'emojimix', 'qc', 'toimg', 'togif', 'toaudio', 'tovideo', 'compress', 'hd', 'spack', 'removebg'],
+      commands: ['sticker', 's', 'stiker', 'toimg', 'togambar', 'togif', 'gif', 'toaudio', 'audio', 'tomp3', 'tovideo', 'tomp4', 'compress', 'kompres', 'kecilkan', 'removebg', 'nobg', 'hd', 'remini', 'upscale', 'stickerwm', 'swm', 'smeme', 'emojimix', 'mixemoji', 'spack', 'stickerpack', 'pack', 'tourl', 'brat', 'brats', 'bratsticker', 'bratvid', 'bvid', 'bratvideo', 'bratanim'],
+    },
+    {
+      title: 'Visual Card & Stalk',
+      commands: ['qc', 'quotly', 'qchat', 'iqc', 'iosqc', 'fakechat', 'iqcs', 'iosqcs', 'iqcsticker', 'fakechatsticker', 'x', 'tweet', 'faketweet', 'xpost', 'ttstalk', 'tiktokstalk', 'igstalk', 'instagramstalk'],
     },
     {
       title: 'Search & Download',
-      commands: ['google', 'image', 'wiki', 'cuaca', 'lirik', 'pin', 'pixiv', 'tik', 'tik2mp3', 'dl', 'multidl', 'tourl', 'ytmp3', 'ytmp4', 'yt2', 'ss', 'qr'],
+      commands: ['google', 'search', 'image', 'gambar', 'wiki', 'wikipedia', 'cuaca', 'weather', 'lirik', 'lyrics', 'pin', 'pinterest', 'pixiv', 'ss', 'screenshot', 'qr', 'ytmp3', 'yta', 'ytaudio', 'yt2mp3', 'ytmp4', 'ytv', 'ytvideo', 'yt2', 'tik', 'tt', 'tiktok', 'tik2mp3', 'ttmp3', 'tiktokaudio', 'tikmp3', 'dl', 'download', 'viddl', 'multidl'],
     },
     {
       title: 'System & Info',
@@ -364,11 +380,7 @@ function renderCategoryMenu(category: MenuCategory, prefix: string): string {
 
     const remainder = category.commands.filter((cmd) => !assigned.has(cmd.name.toLowerCase()))
     if (remainder.length > 0) {
-      if (groups.length > 0) {
-        groups[groups.length - 1].commands.push(...remainder)
-      } else {
-        groups.push({ title: 'Other Commands', commands: remainder })
-      }
+      groups.push({ title: 'Other Commands', commands: remainder })
     }
 
     let globalIndex = 0
