@@ -41,6 +41,7 @@ export interface InboxMessage {
   subject: string
   body: string
   html: string
+  date?: string
 }
 
 const FETCH_TIMEOUT_MS = 15000
@@ -294,6 +295,7 @@ export async function mailtmReadAll(token: string): Promise<InboxMessage[]> {
       subject?: string
       text?: string
       html?: string[] | string
+      createdAt?: string
     } | null
     const html = Array.isArray(msg?.html) ? msg.html.join('\n') : (msg?.html ?? '')
     out.push({
@@ -301,6 +303,7 @@ export async function mailtmReadAll(token: string): Promise<InboxMessage[]> {
       subject: msg?.subject ?? '',
       body: msg?.text ?? '',
       html,
+      date: msg?.createdAt,
     })
   }
   return out
@@ -329,6 +332,8 @@ interface MbtEmail {
   body?: string
   text?: string
   html?: string
+  date?: string
+  createdAt?: string
 }
 
 function mbtNormalize(e: Record<string, unknown>): MbtEmail {
@@ -348,6 +353,12 @@ function mbtNormalize(e: Record<string, unknown>): MbtEmail {
           ? (e['text'] as string)
           : '',
     html: typeof e['html'] === 'string' ? (e['html'] as string) : '',
+    date:
+      typeof e['date'] === 'string'
+        ? (e['date'] as string)
+        : typeof e['createdAt'] === 'string'
+          ? (e['createdAt'] as string)
+          : undefined,
   }
 }
 
@@ -414,6 +425,7 @@ export async function mbtReadAll(address: string): Promise<InboxMessage[]> {
   for (const raw of rec?.emails ?? []) {
     const e = mbtNormalize(raw)
     let { subject, from, body, html } = e
+    let date = e.date
     if (!body && !html && e.id) {
       const d = await fetchJsonRetry(
         `https://mailboxtemp.com/api/email/${enc}/${encodeURIComponent(e.id)}`,
@@ -425,8 +437,9 @@ export async function mbtReadAll(address: string): Promise<InboxMessage[]> {
       if (n.from) from = n.from
       if (n.body) body = n.body
       if (n.html) html = n.html
+      if (n.date) date = n.date
     }
-    out.push({ from: from ?? '', subject: subject ?? '', body: body ?? '', html: html ?? '' })
+    out.push({ from: from ?? '', subject: subject ?? '', body: body ?? '', html: html ?? '', date })
   }
   return out
 }
@@ -443,6 +456,7 @@ interface TmlEmail {
   subject?: string
   body?: string
   html?: string
+  date?: string
 }
 
 function tmlNormalize(e: Record<string, unknown>): TmlEmail {
@@ -457,11 +471,20 @@ function tmlNormalize(e: Record<string, unknown>): TmlEmail {
     : typeof e['html'] === 'string'
       ? (e['html'] as string)
       : ''
+  const date =
+    typeof e['createdAt'] === 'number'
+      ? new Date(e['createdAt'] as number).toISOString()
+      : typeof e['createdAt'] === 'string'
+        ? (e['createdAt'] as string)
+        : typeof e['date'] === 'string'
+          ? (e['date'] as string)
+          : undefined
   return {
     from,
     subject: typeof e['subject'] === 'string' ? (e['subject'] as string) : '',
     body: typeof e['body'] === 'string' ? (e['body'] as string) : '',
     html,
+    date,
   }
 }
 
@@ -526,8 +549,75 @@ export async function tmlReadAll(token: string): Promise<InboxMessage[]> {
   const rec = r.json as { emails?: Array<Record<string, unknown>> } | null
   return (rec?.emails ?? []).map((raw) => {
     const e = tmlNormalize(raw)
-    return { from: e.from ?? '', subject: e.subject ?? '', body: e.body ?? '', html: e.html ?? '' }
+    return { from: e.from ?? '', subject: e.subject ?? '', body: e.body ?? '', html: e.html ?? '', date: e.date }
   })
+}
+
+// Semua link Firebase-ish dalam satu pesan (untuk !am login — pola longgar).
+const LOGIN_URL_RE =
+  /https?:\/\/[^\s'"<>]*(?:firebaseapp\.com|continueUrl|oobCode)[^\s'"<>]*/gi
+
+export function extractAllLinks(
+  ...parts: Array<string | null | undefined>
+): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const p of parts) {
+    if (typeof p !== 'string' || !p.length) continue
+    const all = p.match(LOGIN_URL_RE)
+    if (!all) continue
+    for (const u of all) {
+      const dec = decodeEntities(u)
+      if (!seen.has(dec)) {
+        seen.add(dec)
+        out.push(dec)
+      }
+    }
+  }
+  // Inner auth_action dulu (link asli), sisanya setelahnya.
+  out.sort((a, b) => {
+    const ai = a.includes('/auth_action/') ? 0 : 1
+    const bi = b.includes('/auth_action/') ? 0 : 1
+    return ai - bi
+  })
+  return out
+}
+
+// Baca inbox untuk !am login — retry 2x delay 5s khusus 429.
+export async function readInboxWithRetry(inbox: TempInbox): Promise<{
+  messages: InboxMessage[]
+  expired: boolean
+} | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 5000))
+    try {
+      if (inbox.provider === 'mail.tm') {
+        return { messages: await mailtmReadAll(inbox.token), expired: false }
+      }
+      if (inbox.provider === 'mailboxtemp') {
+        return { messages: await mbtReadAll(inbox.token), expired: false }
+      }
+      const r = await fetchJson(
+        `https://api.tempmail.lol/v2/inbox?token=${encodeURIComponent(inbox.token)}`,
+        { headers: TML_UA },
+      )
+      if (r.status === 429) continue
+      if (r.status === 404) return { messages: [], expired: true }
+      const rec = r.json as { expired?: boolean; emails?: Array<Record<string, unknown>> } | null
+      if (rec?.expired) return { messages: [], expired: true }
+      const messages = (rec?.emails ?? []).map((raw) => {
+        const e = tmlNormalize(raw)
+        return {
+          from: e.from ?? '', subject: e.subject ?? '',
+          body: e.body ?? '', html: e.html ?? '', date: e.date,
+        } as InboxMessage
+      })
+      return { messages, expired: false }
+    } catch {
+      if (attempt === 2) return null
+    }
+  }
+  return null
 }
 
 // ── API publik ───────────────────────────────────────────────────────────────

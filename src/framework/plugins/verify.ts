@@ -8,6 +8,8 @@ import {
   waitForVerificationLink,
   deleteTempInbox,
   readLastLink,
+  readInboxWithRetry,
+  extractAllLinks,
 } from '../../services/tempmail.js'
 import type { TempInbox, PollInfo } from '../../services/tempmail.js'
 import {
@@ -20,6 +22,11 @@ import {
   saveAutoSession,
   getAutoSession,
   clearAutoSession,
+  markAccountVerified,
+  removeTempSession,
+  findAccount,
+  listAccounts,
+  removeAccount,
 } from '../../services/amprem-auto-session.js'
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
@@ -84,7 +91,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
   return {
     name: 'amprem',
-    version: '1.4.0',
+    version: '1.5.0',
 
     load(context: PluginContext): void {
       const logger = context.logger
@@ -123,6 +130,26 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
           if (first === 'last') {
             await handleLast(ctx)
+            return
+          }
+
+          if (first === 'login') {
+            await handleLogin(ctx)
+            return
+          }
+
+          if (first === 'inbox') {
+            await handleInbox(ctx)
+            return
+          }
+
+          if (first === 'list') {
+            await handleList(ctx)
+            return
+          }
+
+          if (first === 'forget') {
+            await handleForget(ctx)
             return
           }
 
@@ -201,6 +228,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         const t0 = Date.now()
         let inbox: TempInbox | null = null
         let timedOut = false
+        let verifiedOk = false
 
         try {
           await ctx.reply('Membuat email sementara...')
@@ -260,12 +288,19 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
           const verified = await verifyLink(box.email, found.link)
           consumeAutoLimit(senderJid)
-          clearAutoSession(senderJid)
           logger.info(
             { provider: box.provider, waitMs: Date.now() - t0, ok: verified.status },
             'amprem auto run',
           )
-          await ctx.reply(verified.message)
+          if (verified.status) {
+            verifiedOk = true
+            markAccountVerified(senderJid, box.email)
+            await ctx.reply(
+              `${verified.message}\nEmail akun: ${box.email}\nUntuk login ke aplikasi nanti, jalankan:\n!am login ${box.email}`,
+            )
+          } else {
+            await ctx.reply(verified.message)
+          }
         } catch (err: unknown) {
           const code = (err as { code?: string }).code
           if (code === 'TIMEOUT') {
@@ -276,14 +311,18 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           }
         } finally {
           autoRunning.delete(senderJid)
-          // Timeout → session dipertahankan untuk !amprem last.
-          // Sukses/gagal lain → inbox dihapus + session dibersihkan.
-          if (inbox && !timedOut) {
+          // Sukses → inbox DISIMPAN permanen untuk !am login (verified).
+          // Timeout → temp dipertahankan untuk !am last, mail.tm dihapus fisik.
+          // Gagal lain → temp dihapus.
+          if (!inbox) {
+            // inbox tidak pernah dibuat — tidak ada yang dibersihkan
+          } else if (verifiedOk) {
+            markAccountVerified(senderJid, inbox.email)
+          } else if (timedOut) {
+            if (inbox.provider === 'mail.tm') await deleteTempInbox(inbox)
+          } else {
             await deleteTempInbox(inbox)
-            clearAutoSession(senderJid)
-          } else if (inbox && timedOut && inbox.provider === 'mail.tm') {
-            // mail.tm inbox bisa dihapus, session tetap ada untuk retry baca.
-            await deleteTempInbox(inbox)
+            removeTempSession(senderJid, inbox.email)
           }
         }
       }
@@ -324,8 +363,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           try {
             const verified = await verifyLink(inbox.email, res.link)
             consumeAutoLimit(senderJid)
-            clearAutoSession(senderJid)
-            await deleteTempInbox(inbox)
+            if (verified.status) markAccountVerified(senderJid, inbox.email)
             logger.info(
               { provider: inbox.provider, via: 'last', ok: verified.status },
               'amprem last run',
@@ -351,6 +389,169 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         }
         const raw = `Dari: ${m.from}\nSubjek: ${m.subject}\n\n${(m.body || m.html).slice(0, 500)}`
         await ctx.reply(`Link tidak terdeteksi otomatis. Isi pesan terakhir:\n\n${raw}`)
+      }
+
+      // ── !am login <email> ───────────────────────────────────────────────
+      async function handleLogin(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const email = ctx.args.slice(1).join(' ').trim().toLowerCase()
+
+        if (!email || !EMAIL_REGEX.test(email)) {
+          await ctx.reply('Contoh: !am login email@domain.com')
+          return
+        }
+
+        const acc = findAccount(senderJid, email)
+        if (!acc) {
+          await ctx.reply('Email tidak ditemukan di akun kamu.')
+          return
+        }
+
+        const inbox: TempInbox = {
+          email: acc.email,
+          token: acc.token,
+          provider: acc.provider as TempInbox['provider'],
+          extra: acc.extra,
+        }
+
+        const res = await readInboxWithRetry(inbox)
+        if (!res) {
+          await ctx.reply('Service sedang down, coba lagi nanti.')
+          return
+        }
+        if (res.expired) {
+          await ctx.reply('Inbox sudah tidak tersedia di provider. Akun ini tidak bisa login lagi.')
+          return
+        }
+        if (!res.messages.length) {
+          await ctx.reply('Belum ada email baru. Coba login dari aplikasi dulu, nanti link-nya masuk ke inbox ini, lalu jalankan command ini lagi.')
+          return
+        }
+
+        // Pesan terbaru dulu.
+        const sorted = [...res.messages].reverse()
+        const links: string[] = []
+        for (const m of sorted) {
+          for (const u of extractAllLinks(m.subject, m.from, m.body, m.html)) {
+            if (!links.includes(u)) links.push(u)
+          }
+          if (links.length >= 5) break
+        }
+
+        if (!links.length) {
+          await ctx.reply('Link tidak terdeteksi. Coba !am inbox untuk lihat manual.')
+          return
+        }
+
+        logger.info(
+          { provider: acc.provider, n: links.length, via: 'login' },
+          'amprem login run',
+        )
+        await ctx.reply(
+          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.`,
+        )
+      }
+
+      // ── !am inbox <email> — 5 pesan terbaru, plain ─────────────────────────
+      async function handleInbox(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const email = ctx.args.slice(1).join(' ').trim().toLowerCase()
+
+        if (!email || !EMAIL_REGEX.test(email)) {
+          await ctx.reply('Contoh: !am inbox email@domain.com')
+          return
+        }
+
+        const acc = findAccount(senderJid, email)
+        if (!acc) {
+          await ctx.reply('Email tidak ditemukan di akun kamu.')
+          return
+        }
+
+        const inbox: TempInbox = {
+          email: acc.email,
+          token: acc.token,
+          provider: acc.provider as TempInbox['provider'],
+          extra: acc.extra,
+        }
+
+        const res = await readInboxWithRetry(inbox)
+        if (!res) {
+          await ctx.reply('Service sedang down, coba lagi nanti.')
+          return
+        }
+        if (res.expired) {
+          await ctx.reply('Inbox sudah tidak tersedia di provider. Akun ini tidak bisa login lagi.')
+          return
+        }
+        if (!res.messages.length) {
+          await ctx.reply('Belum ada email baru, coba login dari app dulu.')
+          return
+        }
+
+        const latest = res.messages.slice(-5).reverse()
+        const lines = [`Inbox: ${acc.email}`, '']
+        latest.forEach((m, i) => {
+          let when = m.date ?? ''
+          try {
+            if (when) {
+              const d = new Date(when)
+              when = d.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+            }
+          } catch {
+            // tampilkan mentah
+          }
+          lines.push(
+            `[${i + 1}] ${when}`,
+            `From: ${m.from}`,
+            `Subject: ${m.subject}`,
+            `Body: ${(m.body || '(kosong)').slice(0, 500)}`,
+            '',
+          )
+        })
+        await ctx.reply(lines.join('\n').slice(0, 3000))
+      }
+
+      // ── !am list — semua akun user ─────────────────────────────────────────
+      async function handleList(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const accs = listAccounts(senderJid)
+        if (!accs.length) {
+          await ctx.reply('Belum ada akun. Buat dengan !am auto.')
+          return
+        }
+        const lines = ['Daftar akun kamu:', '']
+        accs.forEach((a, i) => {
+          lines.push(`${i + 1}. ${a.email} (${a.provider}) — ${a.active ? 'aktif' : 'sementara'}`)
+        })
+        await ctx.reply(lines.join('\n'))
+      }
+
+      // ── !am forget <email> — hapus session ─────────────────────────────────
+      async function handleForget(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const email = ctx.args.slice(1).join(' ').trim().toLowerCase()
+
+        if (!email) {
+          await ctx.reply('Contoh: !am forget email@domain.com')
+          return
+        }
+
+        const sess = findAccount(senderJid, email)
+        if (!removeAccount(senderJid, email)) {
+          await ctx.reply('Email tidak ditemukan di akun kamu.')
+          return
+        }
+        // Hapus fisik kalau masih temp (verified dibiarkan di provider).
+        if (sess && !sess.active) {
+          await deleteTempInbox({
+            email: sess.email,
+            token: sess.token,
+            provider: sess.provider as TempInbox['provider'],
+            extra: sess.extra,
+          })
+        }
+        await ctx.reply(`Session ${email} dihapus.`)
       }
 
       // ── URL interceptor (existing, tidak diubah) ──────────────────────────
