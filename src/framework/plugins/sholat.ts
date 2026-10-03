@@ -36,12 +36,12 @@ export const sholatPlugin: Plugin = {
         // --- 1. STATUS ---
         if (subcmd === 'status') {
           if (!ctx.message.remoteJid.endsWith('@g.us')) {
-            await ctx.reply('Perintah ini hanya dapat digunakan di grup.')
+            await ctx.reply('Command ini cuma bisa dipakai di grup.')
             return
           }
           const status = await getStatus(ctx.message.remoteJid)
           if (!status) {
-            await ctx.reply('Grup ini belum subscribe reminder sholat.')
+            await ctx.reply('Grup ini belum pasang reminder sholat.')
             return
           }
           await ctx.reply(`✅ *Reminder Sholat Aktif*\nKota: ${status.kota.toUpperCase()}\nStatus: ${status.enabled ? 'On' : 'Off'}`)
@@ -52,18 +52,18 @@ export const sholatPlugin: Plugin = {
         if (subcmd === 'subscribe') {
           const groupJid = ctx.message.remoteJid
           if (!groupJid.endsWith('@g.us')) {
-            await ctx.reply('Subscribe hanya untuk grup, bukan DM.')
+            await ctx.reply('Subscribe cuma buat di grup, bukan DM.')
             return
           }
           
           if (!(await isAdminOrOwner(ctx, groupJid))) {
-            await ctx.reply('Hanya admin grup yang bisa subscribe reminder.')
+            await ctx.reply('Cuma admin grup yang bisa nyalain reminder.')
             return
           }
 
           const kota = argsLower.slice(1).join(' ')
           if (!kota) {
-            await ctx.reply('Wajib sertakan kota. Contoh: !sholat subscribe jakarta')
+            await ctx.reply('Sertakan nama kotanya. Contoh: !sholat subscribe jakarta')
             return
           }
 
@@ -71,12 +71,12 @@ export const sholatPlugin: Plugin = {
           try {
              await getJadwal(kota)
           } catch (e: any) {
-             await ctx.reply(e.message || 'Gagal memvalidasi kota.')
+             await ctx.reply(e.message || 'Gagal ngecek kota.')
              return
           }
 
           await subscribe(groupJid, kota, ctx.message.senderJid || '')
-          await ctx.reply(`✅ Reminder sholat aktif untuk grup ini.\nKota: ${kota.toUpperCase()}\n\nAkan kirim adzan + quote tiap waktu sholat.\nAdmin bisa nonaktifkan dengan: !sholat unsubscribe`)
+          await ctx.reply(`✅ Reminder sholat aktif buat grup ini.\nKota: ${kota.toUpperCase()}\n\nAdzan & quote bakal dikirim tiap masuk waktu sholat.\nMatiinnya pakai: !sholat unsubscribe (khusus admin)`)
           return
         }
 
@@ -84,27 +84,27 @@ export const sholatPlugin: Plugin = {
         if (subcmd === 'set-kota') {
           const groupJid = ctx.message.remoteJid
           if (!groupJid.endsWith('@g.us')) {
-            await ctx.reply('Perintah ini hanya untuk grup.')
+            await ctx.reply('Command ini cuma bisa dipakai di grup.')
             return
           }
 
           if (!(await isAdminOrOwner(ctx, groupJid))) {
-            await ctx.reply('Hanya admin grup yang bisa mengganti kota.')
+            await ctx.reply('Cuma admin grup yang bisa ganti kota.')
             return
           }
 
           const kota = argsLower.slice(1).join(' ')
           if (!kota) {
-            await ctx.reply('Wajib sertakan kota. Contoh: !sholat set-kota jakarta')
+            await ctx.reply('Sertakan nama kotanya. Contoh: !sholat set-kota jakarta')
             return
           }
 
           try {
              await getJadwal(kota) // Validate
              await setKota(groupJid, kota)
-             await ctx.reply(`✅ Kota untuk reminder sholat berhasil diubah menjadi: ${kota.toUpperCase()}`)
+             await ctx.reply(`✅ Kota reminder sholat udah diganti ke: ${kota.toUpperCase()}`)
           } catch (e: any) {
-             await ctx.reply(e.message || 'Gagal memvalidasi/mengubah kota.')
+             await ctx.reply(e.message || 'Gagal ngecek kota.')
           }
           return
         }
@@ -113,40 +113,40 @@ export const sholatPlugin: Plugin = {
         if (subcmd === 'unsubscribe') {
           const groupJid = ctx.message.remoteJid
           if (!groupJid.endsWith('@g.us')) {
-            await ctx.reply('Perintah ini hanya untuk grup.')
+            await ctx.reply('Command ini cuma bisa dipakai di grup.')
             return
           }
 
           if (!(await isAdminOrOwner(ctx, groupJid))) {
-            await ctx.reply('Hanya admin grup yang bisa unsubscribe.')
+            await ctx.reply('Cuma admin grup yang bisa matiin reminder.')
             return
           }
 
           await unsubscribe(groupJid)
-          await ctx.reply('❎ Reminder sholat untuk grup ini telah dinonaktifkan.')
+          await ctx.reply('❎ Reminder sholat buat grup ini udah dimatikan.')
           return
         }
 
         // --- 5. RESET (OWNER ONLY) ---
         if (subcmd === 'reset') {
           if (!isOwner(ctx)) {
-            await ctx.reply('Hanya owner yang bisa mereset reminder grup.')
+            await ctx.reply('Cuma owner yang bisa reset reminder grup.')
             return
           }
           const targetJid = ctx.args[1]
           if (!targetJid) {
-            await ctx.reply('Sertakan JID grup. Contoh: !sholat reset 123456@g.us')
+            await ctx.reply('Kasih JID grupnya. Contoh: !sholat reset 123456@g.us')
             return
           }
           await unsubscribe(targetJid)
-          await ctx.reply(`✅ Reminder sholat untuk grup ${targetJid} berhasil di-reset.`)
+          await ctx.reply(`✅ Reminder sholat grup ${targetJid} sukses di-reset.`)
           return
         }
 
         // --- DEFAULT: INFO JADWAL ---
         const query = ctx.args.join(' ').trim()
         if (!query) {
-          await ctx.reply('Ketik kota. Contoh: !sholat jakarta')
+          await ctx.reply('Kasih nama kotanya. Contoh: !sholat jakarta')
           return
         }
 
@@ -165,7 +165,7 @@ export const sholatPlugin: Plugin = {
                           
           await ctx.reply(message)
         } catch (err: any) {
-          await ctx.reply(err.message || 'Service sedang sibuk, coba lagi nanti.')
+          await ctx.reply(err.message || 'Server lagi sibuk, coba bentar lagi ya.')
         }
       },
     })

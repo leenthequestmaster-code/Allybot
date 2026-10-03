@@ -15,13 +15,13 @@ export const quranPlugin: Plugin = {
         const query = ctx.args.join(' ').trim()
         
         if (!query) {
-          await ctx.reply('Sertakan surah dan nomor ayat. Contoh: !quran 2:255')
+          await ctx.reply('Kasih surah dan nomor ayatnya. Contoh: !quran 2:255')
           return
         }
         
         const match = query.match(/^(\d+):(\d+)$/)
         if (!match) {
-          await ctx.reply('Format salah. Gunakan format surah:ayat, contoh: !quran 2:255')
+          await ctx.reply('Formatnya salah. Pakai format surah:ayat, contoh: !quran 2:255')
           return
         }
 
@@ -39,7 +39,7 @@ export const quranPlugin: Plugin = {
           await ctx.reply(message)
         } catch (err: any) {
           // Send specific validation error to user or generic network error
-          await ctx.reply(err.message || 'Service sedang sibuk, coba lagi nanti.')
+          await ctx.reply(err.message || 'Server lagi sibuk, coba bentar lagi ya.')
         }
       },
     })

@@ -45,7 +45,7 @@ async function fetchWithRetry(module: string, url: string, retries = 3): Promise
 
 export async function getAyat(surah: number, ayat: number): Promise<AyatResult> {
   if (surah < 1 || surah > 114) {
-    throw new Error('Surah tidak valid. Quran memiliki 114 surah.')
+    throw new Error('Surah nggak valid. Quran cuma punya 114 surah.')
   }
 
   const now = Date.now()
@@ -63,14 +63,14 @@ export async function getAyat(surah: number, ayat: number): Promise<AyatResult> 
       }
       CACHE.set(surah, surahData)
     } catch (e) {
-      throw new Error('Service sedang sibuk, coba lagi nanti.')
+      throw new Error('Server lagi sibuk, coba bentar lagi ya.')
     }
   }
 
   const { namaLatin, jumlahAyat, ayat: daftarAyat } = surahData.data
 
   if (ayat < 1 || ayat > jumlahAyat) {
-    throw new Error(`Ayat tidak valid. Surah ${namaLatin} memiliki ${jumlahAyat} ayat.`)
+    throw new Error(`Ayat nggak valid. Surah ${namaLatin} cuma punya ${jumlahAyat} ayat.`)
   }
 
   const ayatData = daftarAyat[ayat - 1]

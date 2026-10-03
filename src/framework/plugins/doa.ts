@@ -20,7 +20,7 @@ export const doaPlugin: Plugin = {
         const listKategori = Array.from(kategoriSet).join(', ')
 
         if (!query) {
-          await ctx.reply(`Ketik ID doa atau kategorinya. Kategori tersedia: ${listKategori}\n\nContoh: !doa sebelum-tidur\nAtau: !doa tidur`)
+          await ctx.reply(`Ketik ID doa atau kategorinya.\n\nKategori yang ada: ${listKategori}\n\nContoh: !doa sebelum-tidur (spesifik) atau !doa tidur (random dari kategori)`)
           return
         }
 
@@ -33,7 +33,7 @@ export const doaPlugin: Plugin = {
         }
 
         if (matched.length === 0) {
-          await ctx.reply(`Doa atau kategori tidak ditemukan.\n\nKategori tersedia: ${listKategori}`)
+          await ctx.reply(`Doa atau kategori itu nggak ketemu.\n\nKategori yang ada: ${listKategori}`)
           return
         }
 

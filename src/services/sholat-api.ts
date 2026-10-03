@@ -125,9 +125,9 @@ export async function getJadwal(kota: string, dateObj: Date = new Date()): Promi
       }
     } catch (e: any) {
       if (e.message?.includes('HTTP 400')) {
-         throw new Error(`Kota "${kota}" tidak ditemukan. Coba: Jakarta, Bandung, Surabaya.`)
+         throw new Error(`Kota "${kota}" nggak ketemu. Coba: Jakarta, Bandung, Surabaya.`)
       }
-      throw new Error('Service sedang sibuk, coba lagi nanti.')
+      throw new Error('Server lagi sibuk, coba bentar lagi ya.')
     }
   }
 
@@ -137,7 +137,7 @@ export async function getJadwal(kota: string, dateObj: Date = new Date()): Promi
   }
 
   if (lastError?.message.includes('Kota tidak ditemukan')) {
-    throw new Error(`Kota "${kota}" tidak ditemukan. Coba: Jakarta, Bandung, Surabaya.`)
+    throw new Error(`Kota "${kota}" nggak ketemu. Coba: Jakarta, Bandung, Surabaya.`)
   }
-  throw new Error('Service sedang sibuk, coba lagi nanti.')
+  throw new Error('Server lagi sibuk, coba bentar lagi ya.')
 }
