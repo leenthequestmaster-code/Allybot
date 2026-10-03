@@ -23,7 +23,7 @@ function loadVerifyConfig(): VerifyConfig {
   }
   return {
     verify_api_url:
-      typeof obj['verify_api_url'] === 'string' ? obj['verify_api_url'] : 'http://localhost:3000',
+      typeof obj['verify_api_url'] === 'string' ? obj['verify_api_url'] : 'http://localhost:3300',
     verify_timeout_ms:
       typeof obj['verify_timeout_ms'] === 'number' ? obj['verify_timeout_ms'] : 10000,
     verify_retry_count:
@@ -31,10 +31,28 @@ function loadVerifyConfig(): VerifyConfig {
   }
 }
 
+// Normalized response shape — abstrak dari shape service produksi.
 export interface ApiResponse {
   status: boolean
   message: string
   data: unknown
+}
+
+// am-reverse response shape (raw dari service)
+interface AmReverseResponse {
+  success?: boolean
+  status?: boolean
+  message?: string
+  [key: string]: unknown
+}
+
+// Normalize am-reverse shape ke ApiResponse standar plugin.
+// am-reverse pakai field 'success', plugin kita pakai 'status'.
+function normalize(raw: AmReverseResponse): ApiResponse {
+  const status = typeof raw.success === 'boolean' ? raw.success : (raw.status ?? false)
+  const message = typeof raw.message === 'string' ? raw.message : ''
+  const { success: _s, status: _st, message: _m, ...rest } = raw
+  return { status, message, data: Object.keys(rest).length ? rest : null }
 }
 
 const BACKOFF_DELAYS_MS = [1000, 3000]
@@ -64,9 +82,9 @@ async function postWithRetry(
       const elapsed = Date.now() - t0
       console.log(`[verify-api] POST ${endpoint} ${res.status} ${elapsed}ms`)
 
-      // 4xx/5xx: parse and return WITHOUT retrying
-      const json = (await res.json()) as ApiResponse
-      return json
+      // 4xx/5xx: parse dan return WITHOUT retrying
+      const raw = (await res.json()) as AmReverseResponse
+      return normalize(raw)
     } catch (err) {
       clearTimeout(timer)
 
@@ -74,7 +92,6 @@ async function postWithRetry(
         throw Object.assign(new Error('timeout'), { code: 'TIMEOUT' })
       }
 
-      // Network error — retry with backoff
       if (attempt < maxRetries) {
         const delay = BACKOFF_DELAYS_MS[attempt] ?? 1000
         await new Promise<void>((r) => setTimeout(r, delay))
@@ -85,10 +102,13 @@ async function postWithRetry(
   throw Object.assign(new Error('network after retry'), { code: 'NETWORK_RETRY' })
 }
 
+// POST /api/send-link — { email }
 export async function sendLink(email: string): Promise<ApiResponse> {
-  return postWithRetry('/api/send', { email })
+  return postWithRetry('/api/send-link', { email })
 }
 
+// POST /api/verify-link — { email, magicLink }
+// 'link' di-map ke field 'magicLink' yang diexpect am-reverse.
 export async function verifyLink(email: string, link: string): Promise<ApiResponse> {
-  return postWithRetry('/api/verify', { email, link })
+  return postWithRetry('/api/verify-link', { email, magicLink: link })
 }
