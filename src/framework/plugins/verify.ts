@@ -310,7 +310,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
             verifiedOk = true
             markAccountVerified(senderJid, box.email)
             await ctx.reply(
-              `${verified.message}\nEmail akun: ${box.email}\nUntuk login ke aplikasi nanti, jalankan:\n!am login ${box.email}`,
+              `Verifikasi berhasil. Akun aktif.\n\nAkun: ${box.email}\n\nBuat login ke aplikasi:\n1. Buka Alight Motion di HP\n2. Ketuk Sign In / Masuk\n3. Masukkan email ini: ${box.email}\n4. Balik ke sini, jalankan:\n!am login ${box.email}\n\nPENTING: jangan jalankan !am login sebelum Sign In di app — link lama sudah tidak berlaku.`,
             )
           } else {
             await ctx.reply(verified.message)
@@ -462,7 +462,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
         if (!fresh.length) {
           await ctx.reply(
-            `Belum ada email login baru untuk ${email}. Buka app Alight Motion, pilih Sign In dengan email, masukkan ${email}. Tunggu email masuk (biasanya <5 detik), lalu jalankan !am login ${email} lagi.`,
+            `Belum ada email login baru untuk ${email}.\n\n1. Buka Alight Motion di HP\n2. Ketuk Sign In / Masuk\n3. Masukkan: ${email}\n4. Tunggu <5 detik, lalu jalankan:\n!am login ${email}`,
           )
           return true
         }
