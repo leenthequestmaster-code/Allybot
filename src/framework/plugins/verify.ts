@@ -7,12 +7,20 @@ import {
   createTempInbox,
   waitForVerificationLink,
   deleteTempInbox,
+  readLastLink,
 } from '../../services/tempmail.js'
+import type { TempInbox, PollInfo } from '../../services/tempmail.js'
 import {
   restoreAutoLimits,
   checkAutoLimit,
   consumeAutoLimit,
 } from '../../services/amprem-auto-limiter.js'
+import {
+  restoreAutoSessions,
+  saveAutoSession,
+  getAutoSession,
+  clearAutoSession,
+} from '../../services/amprem-auto-session.js'
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
 const URL_REGEX = /^https?:\/\/\S+$/
@@ -76,11 +84,12 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
   return {
     name: 'amprem',
-    version: '1.3.0',
+    version: '1.4.0',
 
     load(context: PluginContext): void {
       const logger = context.logger
       restoreAutoLimits()
+      restoreAutoSessions()
 
       context.commands.register({
         name: 'amprem',
@@ -109,6 +118,11 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
           if (first === 'auto') {
             await handleAuto(ctx)
+            return
+          }
+
+          if (first === 'last') {
+            await handleLast(ctx)
             return
           }
 
@@ -157,7 +171,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         }
       }
 
-      // ── Mode 2 auto (baru) ───────────────────────────────────────────────
+      // ── Mode 2 auto ───────────────────────────────────────────────────────
       async function handleAuto(ctx: CommandContext): Promise<void> {
         const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
         const cfg = loadConfig()
@@ -185,7 +199,8 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
         autoRunning.add(senderJid)
         const t0 = Date.now()
-        let inbox: import('../../services/tempmail.js').TempInbox | null = null
+        let inbox: TempInbox | null = null
+        let timedOut = false
 
         try {
           await ctx.reply('Membuat email sementara...')
@@ -198,6 +213,14 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const box = inbox
 
+          // Simpan session untuk recovery via !amprem last.
+          saveAutoSession(senderJid, {
+            email: box.email,
+            token: box.token,
+            provider: box.provider,
+            extra: box.extra,
+          })
+
           await ctx.reply(`${box.email}\nMengirim ke service...`)
 
           const sent = await sendLink(box.email)
@@ -208,20 +231,36 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
           await ctx.reply('Menunggu email verifikasi...')
 
+          const onPoll = (p: PollInfo): void => {
+            // Log per poll — tanpa token, tanpa body penuh.
+            logger.info(
+              {
+                provider: p.provider, poll: p.poll, http: p.httpStatus,
+                count: p.count, subj: p.firstSubject.slice(0, 80),
+                from: p.firstFrom.slice(0, 60), head: p.bodyHead.slice(0, 100),
+                matched: p.matched,
+              } as unknown as Record<string, unknown>,
+              'amprem poll',
+            )
+          }
+
           const found = await waitForVerificationLink(box, {
             timeoutMs: cfg.tempmail_timeout_ms,
             pollIntervalMs: cfg.tempmail_poll_interval_ms,
+            onPoll,
           })
 
           if (!found) {
+            timedOut = true
             await ctx.reply(
-              'Email verifikasi tidak masuk dalam 60 detik. Coba lagi atau pakai mode manual.',
+              'Email verifikasi tidak masuk dalam 60 detik. Coba !am last untuk ambil manual, atau pakai mode manual.',
             )
             return
           }
 
           const verified = await verifyLink(box.email, found.link)
           consumeAutoLimit(senderJid)
+          clearAutoSession(senderJid)
           logger.info(
             { provider: box.provider, waitMs: Date.now() - t0, ok: verified.status },
             'amprem auto run',
@@ -237,8 +276,81 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           }
         } finally {
           autoRunning.delete(senderJid)
-          if (inbox) await deleteTempInbox(inbox)
+          // Timeout → session dipertahankan untuk !amprem last.
+          // Sukses/gagal lain → inbox dihapus + session dibersihkan.
+          if (inbox && !timedOut) {
+            await deleteTempInbox(inbox)
+            clearAutoSession(senderJid)
+          } else if (inbox && timedOut && inbox.provider === 'mail.tm') {
+            // mail.tm inbox bisa dihapus, session tetap ada untuk retry baca.
+            await deleteTempInbox(inbox)
+          }
         }
+      }
+
+      // ── Mode 3 last (recovery manual) ─────────────────────────────────────
+      async function handleLast(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+
+        if (autoRunning.has(senderJid)) {
+          await ctx.reply('Tunggu auto yang sedang jalan selesai dulu.')
+          return
+        }
+
+        const sess = getAutoSession(senderJid)
+        if (!sess) {
+          await ctx.reply('Inbox terakhir sudah expire atau kosong. Jalankan !am auto lagi.')
+          return
+        }
+
+        await ctx.reply(`Cek inbox ${sess.email}...`)
+
+        const inbox: TempInbox = {
+          email: sess.email,
+          token: sess.token,
+          provider: (['mail.tm', 'mailboxtemp', 'tempmail.lol'] as string[]).includes(sess.provider)
+            ? (sess.provider as TempInbox['provider'])
+            : 'tempmail.lol',
+          extra: sess.extra,
+        }
+
+        const res = await readLastLink(inbox)
+        if (!res || !res.messages.length) {
+          await ctx.reply('Inbox terakhir sudah expire atau kosong. Jalankan !am auto lagi.')
+          return
+        }
+
+        if (res.link) {
+          try {
+            const verified = await verifyLink(inbox.email, res.link)
+            consumeAutoLimit(senderJid)
+            clearAutoSession(senderJid)
+            await deleteTempInbox(inbox)
+            logger.info(
+              { provider: inbox.provider, via: 'last', ok: verified.status },
+              'amprem last run',
+            )
+            await ctx.reply(verified.message)
+          } catch (err: unknown) {
+            const code = (err as { code?: string }).code
+            if (code === 'TIMEOUT') {
+              await ctx.reply('Service tidak merespon, coba lagi.')
+            } else {
+              logger.error({ err }, 'amprem last verify error')
+              await ctx.reply('Service sedang down, coba lagi nanti.')
+            }
+          }
+          return
+        }
+
+        // Ada pesan tapi matcher gagal — kirim mentah biar user bisa lihat manual.
+        const m = res.messages[res.messages.length - 1]
+        if (!m) {
+          await ctx.reply('Inbox terakhir sudah expire atau kosong. Jalankan !am auto lagi.')
+          return
+        }
+        const raw = `Dari: ${m.from}\nSubjek: ${m.subject}\n\n${(m.body || m.html).slice(0, 500)}`
+        await ctx.reply(`Link tidak terdeteksi otomatis. Isi pesan terakhir:\n\n${raw}`)
       }
 
       // ── URL interceptor (existing, tidak diubah) ──────────────────────────
