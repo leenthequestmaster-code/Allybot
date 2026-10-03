@@ -210,6 +210,36 @@ export function listAccounts(jid: string): StoredAccount[] {
 }
 
 // Hapus akun (temp maupun verified). Return true kalau ada yang dihapus.
+// State "link login sudah dikirim" — anti re-extract pesan sama.
+// Disimpan di memory saja (tidak persist): restart = reset, aman.
+interface LoginSent {
+  messageId: string
+  sentAt: number
+}
+
+const loginSent: Record<string, Record<string, LoginSent>> = {}
+
+const LOGIN_RESEND_MS = 5 * 60 * 1000
+
+export function getLoginSent(jid: string, email: string): LoginSent | null {
+  return loginSent[jid]?.[email.toLowerCase()] ?? null
+}
+
+// Return true kalau boleh kirim (belum pernah / sudah >5 mnt), sekaligus catat.
+export function markLoginSent(jid: string, email: string, messageId: string): boolean {
+  const now = Date.now()
+  const prev = loginSent[jid]?.[email.toLowerCase()]
+  if (prev && prev.messageId === messageId && now - prev.sentAt < LOGIN_RESEND_MS) {
+    return false
+  }
+  if (!loginSent[jid]) loginSent[jid] = {}
+  ;(loginSent[jid] as Record<string, LoginSent>)[email.toLowerCase()] = {
+    messageId,
+    sentAt: now,
+  }
+  return true
+}
+
 export function removeAccount(jid: string, email: string): boolean {
   const list = state[jid]
   if (!list) return false

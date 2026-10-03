@@ -37,11 +37,13 @@ export interface PollInfo {
 }
 
 export interface InboxMessage {
+  msgId: string
   from: string
   subject: string
   body: string
   html: string
   date?: string
+  ts: number
 }
 
 const FETCH_TIMEOUT_MS = 15000
@@ -305,7 +307,9 @@ export async function mailtmReadAll(token: string): Promise<InboxMessage[]> {
       createdAt?: string
     } | null
     const html = Array.isArray(msg?.html) ? msg.html.join('\n') : (msg?.html ?? '')
+    const ts = msg?.createdAt ? Date.parse(msg.createdAt) || 0 : 0
     out.push({
+      msgId: `mailtm:${m.id ?? ts}`, ts,
       from: msg?.from?.address ?? '',
       subject: msg?.subject ?? '',
       body: msg?.text ?? '',
@@ -446,7 +450,8 @@ export async function mbtReadAll(address: string): Promise<InboxMessage[]> {
       if (n.html) html = n.html
       if (n.date) date = n.date
     }
-    out.push({ from: from ?? '', subject: subject ?? '', body: body ?? '', html: html ?? '', date })
+    const ts = date ? Date.parse(date) || 0 : 0
+    out.push({ msgId: `mbt:${e.id ?? ts}`, ts, from: from ?? '', subject: subject ?? '', body: body ?? '', html: html ?? '', date })
   }
   return out
 }
@@ -556,7 +561,16 @@ export async function tmlReadAll(token: string): Promise<InboxMessage[]> {
   const rec = r.json as { emails?: Array<Record<string, unknown>> } | null
   return (rec?.emails ?? []).map((raw) => {
     const e = tmlNormalize(raw)
-    return { from: e.from ?? '', subject: e.subject ?? '', body: e.body ?? '', html: e.html ?? '', date: e.date }
+    const mid = typeof raw['_id'] === 'string' ? (raw['_id'] as string) : ''
+    const ts =
+      typeof raw['createdAt'] === 'number'
+        ? (raw['createdAt'] as number)
+        : typeof raw['date'] === 'number'
+          ? (raw['date'] as number)
+          : e.date
+            ? Date.parse(e.date) || 0
+            : 0
+    return { msgId: `tml:${mid || ts}`, ts, from: e.from ?? '', subject: e.subject ?? '', body: e.body ?? '', html: e.html ?? '', date: e.date }
   })
 }
 

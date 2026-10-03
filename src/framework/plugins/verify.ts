@@ -29,6 +29,8 @@ import {
   findAccount,
   listAccounts,
   removeAccount,
+  getLoginSent,
+  markLoginSent,
 } from '../../services/amprem-auto-session.js'
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
@@ -93,7 +95,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
   return {
     name: 'amprem',
-    version: '1.5.0',
+    version: '1.6.0',
 
     load(context: PluginContext): void {
       const logger = context.logger
@@ -157,6 +159,11 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
           if (first === 'raw') {
             await handleRaw(ctx)
+            return
+          }
+
+          if (first === 'status') {
+            await handleStatus(ctx)
             return
           }
 
@@ -398,13 +405,235 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         await ctx.reply(`Link tidak terdeteksi otomatis. Isi pesan terakhir:\n\n${raw}`)
       }
 
-      // ── !am login <email> ───────────────────────────────────────────────
+      // ── !am login <email> [wait] — hanya pesan BARU, bukan burned ─────────
+      // Verification email dari !am auto sudah burned (dipakai am-reverse).
+      // Login link valid hanya datang dari pesan BARU setelah user Sign In
+      // di app. Filter by timestamp + subject, jangan pernah kirim link lama.
+
+      function loginSubjectOk(subject: string): boolean {
+        const s = subject.toLowerCase()
+        if (/verify|verification|activate/.test(s)) return false
+        return /sign\s*in|login|masuk/.test(s)
+      }
+
+      function filterLoginMessages(
+        messages: import('../../services/tempmail.js').InboxMessage[],
+        t0: number,
+      ): import('../../services/tempmail.js').InboxMessage[] {
+        const lo = t0 - 30000
+        return messages
+          .filter((m) => (m.ts || 0) >= lo && loginSubjectOk(m.subject))
+          .sort((a, b) => b.ts - a.ts)
+      }
+
+      async function doLoginFetch(
+        ctx: CommandContext,
+        senderJid: string,
+        email: string,
+        acc: { email: string; token: string; provider: string; extra?: string },
+        t0: number,
+      ): Promise<boolean> {
+        const inbox: TempInbox = {
+          email: acc.email,
+          token: acc.token,
+          provider: acc.provider as TempInbox['provider'],
+          extra: acc.extra,
+        }
+
+        const res = await readInboxWithRetry(inbox)
+        if (!res) {
+          await ctx.reply('Service sedang down, coba lagi nanti.')
+          return true
+        }
+        if (res.expired) {
+          await ctx.reply('Inbox sudah tidak tersedia. Jalankan !am auto untuk akun baru.')
+          return true
+        }
+
+        console.log(
+          `[login] user=${senderJid} email=${email} t0=${t0} | messages in inbox: ${res.messages.length} | extract network calls: 0`,
+        )
+        const fresh = filterLoginMessages(res.messages, t0)
+        console.log(`[login] filtered (after t0-30s, subject match): ${fresh.length}`)
+        if (fresh.length) {
+          const top = fresh.slice(0, 3).map((m) => `${m.msgId}@${m.ts}`).join(',')
+          console.log(`[login] selected messageId: ${top}`)
+        }
+
+        if (!fresh.length) {
+          await ctx.reply(
+            `Belum ada email login baru untuk ${email}. Buka app Alight Motion, pilih Sign In dengan email, masukkan ${email}. Tunggu email masuk (biasanya <5 detik), lalu jalankan !am login ${email} lagi.`,
+          )
+          return true
+        }
+
+        // Anti re-extract: pesan yang link-nya sudah dikirim <5 mnt di-skip.
+        const unsent = fresh.filter((m) => {
+          const s = getLoginSent(senderJid, email)
+          if (!s) return true
+          if (s.messageId !== m.msgId) return true
+          return Date.now() - s.sentAt >= 5 * 60 * 1000
+        })
+
+        if (!unsent.length) {
+          await ctx.reply(
+            `Link login terakhir untuk ${email} sudah dikirim di atas. Kalau expired, buka app AM lagi untuk trigger email baru.`,
+          )
+          return true
+        }
+
+        const links: string[] = []
+        let usedId = ''
+        for (const m of unsent.slice(0, 3)) {
+          const msgKey = `${m.from}|${m.subject}|${m.date ?? ''}`
+          const cached = getCachedLinks(msgKey)
+          const found = cached ?? extractAllLinks(m.subject, m.from, m.body, m.html)
+          if (cached === null && found.length) setCachedLinks(msgKey, found)
+          if (found.length && !usedId) usedId = m.msgId
+          for (const u of found) if (!links.includes(u)) links.push(u)
+          if (links.length >= 5) break
+        }
+
+        if (!links.length) {
+          await ctx.reply('Link tidak terdeteksi. Coba !am raw untuk lihat manual.')
+          return true
+        }
+
+        if (!markLoginSent(senderJid, email, usedId || 'unknown')) {
+          await ctx.reply(
+            `Link login terakhir untuk ${email} sudah dikirim di atas. Kalau expired, buka app AM lagi untuk trigger email baru.`,
+          )
+          return true
+        }
+
+        logger.info(
+          { provider: acc.provider, n: links.length, via: 'login' },
+          'amprem login run',
+        )
+        await ctx.reply(
+          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.`,
+        )
+        return true
+      }
+
       async function handleLogin(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const rest = ctx.args.slice(1).join(' ').trim().split(/\s+/)
+        const email = (rest[0] ?? '').toLowerCase()
+        const wantWait = (rest[1] ?? '').toLowerCase() === 'wait'
+
+        if (!email || !EMAIL_REGEX.test(email)) {
+          await ctx.reply('Contoh: !am login email@domain.com')
+          return
+        }
+
+        const acc = findAccount(senderJid, email)
+        if (!acc) {
+          await ctx.reply('Email tidak ditemukan di akun kamu.')
+          return
+        }
+
+        if (!wantWait) {
+          await doLoginFetch(ctx, senderJid, email, acc, Date.now())
+          return
+        }
+
+        // Mode wait: poll 60 detik tiap 2 detik.
+        const t0 = Date.now()
+        const deadline = t0 + 60000
+        let elapsed = 0
+        await ctx.reply('Menunggu email login... (60s)')
+        while (Date.now() < deadline) {
+          const ok = await doLoginFetchOnce(ctx, senderJid, email, acc, t0, true)
+          if (ok) return
+          const left = deadline - Date.now()
+          if (left <= 0) break
+          await new Promise((r) => setTimeout(r, Math.min(2000, left)))
+          elapsed = Math.floor((Date.now() - t0) / 1000)
+          if (elapsed >= 10 && (elapsed % 10 === 0 || left < 3000)) {
+            await ctx.reply(`Menunggu email login... (${elapsed}s)`)
+          }
+        }
+        await ctx.reply(
+          `Belum ada email login masuk dalam 60 detik. Pastikan kamu sudah masukkan ${email} di layar Sign In AM.`,
+        )
+      }
+
+      // Versi sekali-fetch untuk mode wait. Return true kalau sudah selesai
+      // (link terkirim / expired / error fatal), false kalau lanjut poll.
+      async function doLoginFetchOnce(
+        ctx: CommandContext,
+        senderJid: string,
+        email: string,
+        acc: { email: string; token: string; provider: string; extra?: string },
+        t0: number,
+        quietEmpty: boolean,
+      ): Promise<boolean> {
+        const inbox: TempInbox = {
+          email: acc.email,
+          token: acc.token,
+          provider: acc.provider as TempInbox['provider'],
+          extra: acc.extra,
+        }
+
+        const res = await readInboxWithRetry(inbox)
+        if (!res) {
+          await ctx.reply('Service sedang down, coba lagi nanti.')
+          return true
+        }
+        if (res.expired) {
+          await ctx.reply('Inbox sudah tidak tersedia. Jalankan !am auto untuk akun baru.')
+          return true
+        }
+
+        const fresh = filterLoginMessages(res.messages, t0)
+        if (!fresh.length) return false
+
+        const unsent = fresh.filter((m) => {
+          const s = getLoginSent(senderJid, email)
+          if (!s) return true
+          if (s.messageId !== m.msgId) return true
+          return Date.now() - s.sentAt >= 5 * 60 * 1000
+        })
+        if (!unsent.length) {
+          await ctx.reply(
+            `Link login terakhir untuk ${email} sudah dikirim di atas. Kalau expired, buka app AM lagi untuk trigger email baru.`,
+          )
+          return true
+        }
+
+        const links: string[] = []
+        let usedId = ''
+        for (const m of unsent.slice(0, 3)) {
+          const found = extractAllLinks(m.subject, m.from, m.body, m.html)
+          if (found.length && !usedId) usedId = m.msgId
+          for (const u of found) if (!links.includes(u)) links.push(u)
+          if (links.length >= 5) break
+        }
+
+        if (!links.length) {
+          await ctx.reply('Link tidak terdeteksi. Coba !am raw untuk lihat manual.')
+          return true
+        }
+
+        if (!markLoginSent(senderJid, email, usedId || 'unknown')) return true
+        logger.info(
+          { provider: acc.provider, n: links.length, via: 'login-wait' },
+          'amprem login run',
+        )
+        await ctx.reply(
+          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.`,
+        )
+        return true
+      }
+
+      // ── !am status <email> — preview tanpa extract ─────────────────────────
+      async function handleStatus(ctx: CommandContext): Promise<void> {
         const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
         const email = ctx.args.slice(1).join(' ').trim().toLowerCase()
 
         if (!email || !EMAIL_REGEX.test(email)) {
-          await ctx.reply('Contoh: !am login email@domain.com')
+          await ctx.reply('Contoh: !am status email@domain.com')
           return
         }
 
@@ -426,44 +655,29 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           await ctx.reply('Service sedang down, coba lagi nanti.')
           return
         }
-        if (res.expired) {
-          await ctx.reply('Inbox sudah tidak tersedia di provider. Akun ini tidak bisa login lagi.')
-          return
-        }
-        if (!res.messages.length) {
-          await ctx.reply('Belum ada email baru. Coba login dari aplikasi dulu, nanti link-nya masuk ke inbox ini, lalu jalankan command ini lagi.')
+        if (res.expired || !res.messages.length) {
+          await ctx.reply(`Inbox: ${acc.email}\n\nBelum ada pesan.`)
           return
         }
 
-        // Pesan terbaru dulu. Cache per message ID — panggilan kedua
-        // dengan pesan sama kirim cached, tidak hit provider lagi.
-        const sorted = [...res.messages].reverse()
-        const links: string[] = []
-        for (const m of sorted) {
-          const msgId = `${m.from}|${m.subject}|${m.date ?? ''}`
-          const cached = getCachedLinks(msgId)
-          if (cached) {
-            for (const u of cached) if (!links.includes(u)) links.push(u)
-          } else {
-            const found = extractAllLinks(m.subject, m.from, m.body, m.html)
-            if (found.length) setCachedLinks(msgId, found)
-            for (const u of found) if (!links.includes(u)) links.push(u)
+        const sent = getLoginSent(senderJid, email)
+        const latest = [...res.messages].sort((a, b) => b.ts - a.ts).slice(0, 5)
+        const lines = [`Inbox: ${acc.email}`, '']
+        for (const m of latest) {
+          let when = m.date ?? ''
+          try {
+            if (when) when = new Date(when).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+          } catch {
+            // tampilkan mentah
           }
-          if (links.length >= 5) break
+          const isSent = sent?.messageId === m.msgId
+          lines.push(
+            `- ${when} — ${m.subject}`,
+            `  Status: ${isSent ? 'SUDAH DIKIRIM' : 'BELUM DIKIRIM'}`,
+          )
         }
-
-        if (!links.length) {
-          await ctx.reply('Link tidak terdeteksi. Coba !am inbox untuk lihat manual.')
-          return
-        }
-
-        logger.info(
-          { provider: acc.provider, n: links.length, via: 'login' },
-          'amprem login run',
-        )
-        await ctx.reply(
-          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.`,
-        )
+        lines.push('', 'Aksi: jalankan !am login <email> untuk extract')
+        await ctx.reply(lines.join('\n'))
       }
 
       // ── !am inbox <email> — 5 pesan terbaru, plain ─────────────────────────
