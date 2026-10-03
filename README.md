@@ -356,26 +356,26 @@ Untuk tiga fitur stub: jalur wiring-nya sudah disiapkan sebagai *disable ladder*
 6. **Test bergantung pada `dist/`** — harus build setiap kali source berubah (lihat [Troubleshooting](#troubleshooting)).
 7. Plugin `utility-fun` (game ringan: `random`, `rps`, `8ball`, dsb.) ada di source dan teruji, tetapi **belum diregistrasi** di `src/index.ts` — command-nya tidak aktif di bot berjalan.
 
-## Islamic Utilities
+## 🕌 Islamic Utilities
 
-Allybot dilengkapi fitur utilitas Islami yang cepat, ringan, dan gratis. Seluruh command ini dapat dipanggil di DM maupun di Grup:
+Fitur keagamaan bawaan Allybot. Jalan di DM maupun grup tanpa setup tambahan.
 
-- **`!quran <surah>:<ayat>`** — Menampilkan ayat Al-Quran lengkap dengan aksara Arab dan terjemahan bahasa Indonesia.
-  *Contoh:* `!quran 2:255`
-- **`!sholat <kota>`** — Mengecek jadwal sholat 5 waktu (+ Imsak) hari ini untuk kota yang diberikan.
-  *Contoh:* `!sholat jakarta`
-- **`!doa <kategori/id>`** — Menampilkan kumpulan 80+ doa harian.
-  *Contoh:* `!doa sebelum-tidur` atau `!doa makan`
+| Command | Fungsi | Contoh |
+| :--- | :--- | :--- |
+| `!quran <surah>:<ayat>` | Baca ayat Arab beserta terjemahannya. | `!quran 2:255` |
+| `!sholat <kota>` | Cek jadwal 5 waktu hari ini. | `!sholat jakarta` |
+| `!doa <kategori/id>` | Cari spesifik dari koleksi 80+ doa harian. | `!doa tidur` |
 
-### Reminder Waktu Sholat (Grup)
-Grup dapat mengaktifkan notifikasi otomatis tiap kali waktu sholat tiba untuk kota tertentu. Bot akan mengirimkan **audio adzan** yang disusul dengan random quote/hadith pengingat sholat.
+### ⏰ Reminder Adzan (Grup)
 
-*(Note: Command berikut hanya dapat dijalankan oleh Admin Grup atau Owner Bot)*
-- **`!sholat subscribe <kota>`** — Mengaktifkan reminder sholat otomatis.
-- **`!sholat unsubscribe`** — Mematikan reminder sholat.
-- **`!sholat set-kota <kota>`** — Mengganti target kota reminder.
-- **`!sholat status`** — Cek apakah reminder sedang aktif dan untuk kota apa.
-- **`!sholat reset <jid>`** — *(Owner Only)* Mematikan paksa reminder sebuah grup jika terjadi *spam* atau masalah.
+Admin grup bisa pasang pengingat sholat otomatis. Allybot bakal kirim audio adzan pendek plus *quote* hadith tiap masuk waktu.
+
+*(Khusus Admin Grup)*
+- `!sholat subscribe <kota>` : Nyalakan reminder untuk grup ini.
+- `!sholat unsubscribe` : Matikan reminder.
+- `!sholat set-kota <kota>` : Ganti target kota.
+- `!sholat status` : Cek status dan kota yang lagi aktif.
+- `!sholat reset <jid>` : *(Owner only)* Matikan paksa reminder grup lain dari DM.
 
 ## Troubleshooting
 
