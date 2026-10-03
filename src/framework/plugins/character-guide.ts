@@ -40,7 +40,6 @@ import {
 } from '../../services/character-guide-service.js'
 import { calculateCharacterStats, renderStatsCard } from '../../services/character-stats.js'
 import { renderStatusCardImage } from '../../services/status-card-renderer.js'
-import { executeHunt, renderHuntReport } from '../../services/character-hunting.js'
 import type { EconomyService } from '../../services/economy-service.js'
 import { extractCommandPayload, parseCharacterSheet } from '../../services/character-sheet-parser.js'
 import { GroupContextService } from '../../services/group-context-service.js'
@@ -1368,75 +1367,6 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           const { targetKey } = await resolveAdminTarget(commandContext, service, actor)
           const result = await service.forceRetire(targetKey)
           await commandContext.reply(result.message)
-        },
-      })
-
-      context.commands.register({
-        name: 'hunt',
-        aliases: ['berburu', 'ekspedisi'],
-        description: 'Jalankan ekspedisi perburuan monster alam liar untuk imbalan Vela',
-        category: 'roleplay',
-        hidden: true,
-        menuOrder: 8,
-        cooldownMs: 30_000,
-        handler: async (commandContext) => {
-          pruneTransientState()
-          const actor = actorJid(commandContext)
-          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
-          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
-          const record = await service.getActiveForOwner(actor)
-          if (!record) return void await commandContext.reply('Kamu belum memiliki Character aktif. Ketik !daftar untuk membuat karakter.')
-          
-          const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {}, record.bonusTokens ?? 0)
-          const result = executeHunt(record.name, record.className, stats)
-
-          if (result.victory && result.velaEarned > 0 && commandContext.services.has('economy')) {
-            try {
-              const eco = commandContext.services.get<EconomyService>('economy')
-              if (eco.isEnabled) {
-                const group = groupJid(commandContext) || '120363000000000001@g.us'
-                const opKey = `hunt-reward-${actor}-${Date.now()}`
-                await eco.grantReward(group, actor, result.velaEarned, actor, opKey, `Hasil Berburu: ${result.monster.name}`)
-              }
-            } catch (err) {
-              context.logger.warn({ err }, 'failed to grant hunt reward to economy')
-            }
-          }
-
-          await commandContext.reply(renderHuntReport(record.name, result))
-        },
-      })
-
-      context.commands.register({
-        name: 'toko',
-        aliases: ['pasar', 'shop'],
-        description: 'Lihat daftar perbekalan resmi Benua Allyssea',
-        category: 'your-character',
-        hidden: true,
-        menuOrder: 9,
-        cooldownMs: 5_000,
-        handler: async (commandContext) => {
-          await commandContext.reply([
-            '🏪 *TOKO PERBEKALAN RESMI ALLYSSEA*',
-            '─────────────────────────────',
-            '1. *Ramuan Pemulih HP (Minor Salve)*',
-            '   • Harga: 50 Vela',
-            '   • Efek : Memulihkan 200 Health Point saat bertualang.',
-            '',
-            '2. *Kristal Bintang (Star Shard)*',
-            '   • Harga: 75 Vela',
-            '   • Efek : Memulihkan 100 Star Energy.',
-            '',
-            '3. *Peta Lembah Jura (Expedition Map)*',
-            '   • Harga: 150 Vela',
-            '   • Efek : Membuka wilayah perburuan berimbalan tinggi.',
-            '',
-            '4. *Surat Lisensi Pemburu (Hunter Crest)*',
-            '   • Harga: 500 Vela',
-            '   • Efek : Bukti kelayakan ujian kenaikan Rank.',
-            '─────────────────────────────',
-            '_Gunakan *!hunt* untuk mengumpulkan Vela dari perburuan monster liar._',
-          ].join('\n'))
         },
       })
 

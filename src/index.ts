@@ -1,4 +1,4 @@
-import { loadConfig, publicConfig, type AppConfig } from './config.js'
+import { loadConfig, publicConfig } from './config.js'
 import { errorMessage } from './errors.js'
 import { AppLifecycle } from './lifecycle.js'
 import { ApplicationFramework } from './framework/application.js'
@@ -20,9 +20,9 @@ import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-m
 
 import { utilityPlugin } from './framework/plugins/utility.js'
 import { mediaPlugin } from './framework/plugins/media.js'
+import { spotifyPlugin } from './framework/plugins/spotify.js'
 import { toolsSearchPlugin } from './framework/plugins/tools-search.js'
-import { createAiHandler, MAX_AI_INPUT_LENGTH } from './ai-handler.js'
-import { createLogger, type AppLogger } from './logger.js'
+import { createLogger } from './logger.js'
 import { createSentryReporter } from './sentry.js'
 import { createSentryPlugin } from './framework/plugins/sentry.js'
 import { createPermissionResolver } from './permissions.js'
@@ -99,7 +99,7 @@ async function main(): Promise<void> {
     : () => createSqliteEconomyClient(config.DATABASE_PATH)
 
   framework.registerService(new EconomyService(logger, {
-    env: { ...process.env, ECONOMY_ENABLED: 'true' },
+    env: { ...process.env, ECONOMY_ENABLED: config.ECONOMY_ENABLED ? 'true' : 'false' },
     cacheTtlSeconds: 15,
     createClient: economyClient,
   }))
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
     : undefined
 
   framework.registerService(new GroupContextService(logger, {
-    env: { ...process.env, GROUP_CONTEXT_ENABLED: 'true' },
+    env: { ...process.env, GROUP_CONTEXT_ENABLED: config.GROUP_CONTEXT_ENABLED ? 'true' : 'false' },
     createClient: groupContextClient,
   }))
 
@@ -117,7 +117,7 @@ async function main(): Promise<void> {
     : undefined
 
   framework.registerService(new CharacterGuideService(logger, {
-    env: { ...process.env, CHARACTER_GUIDE_ENABLED: 'true' },
+    env: { ...process.env, CHARACTER_GUIDE_ENABLED: config.CHARACTER_GUIDE_ENABLED ? 'true' : 'false' },
     createClient: characterClient,
   }))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
@@ -144,6 +144,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
+  framework.registerPlugin(spotifyPlugin)
   framework.registerPlugin(toolsSearchPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   if (config.SUGGEST_ENABLED) framework.registerPlugin(createSuggestPlugin(whatsapp))
