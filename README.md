@@ -356,6 +356,27 @@ Untuk tiga fitur stub: jalur wiring-nya sudah disiapkan sebagai *disable ladder*
 6. **Test bergantung pada `dist/`** — harus build setiap kali source berubah (lihat [Troubleshooting](#troubleshooting)).
 7. Plugin `utility-fun` (game ringan: `random`, `rps`, `8ball`, dsb.) ada di source dan teruji, tetapi **belum diregistrasi** di `src/index.ts` — command-nya tidak aktif di bot berjalan.
 
+## Islamic Utilities
+
+Allybot dilengkapi fitur utilitas Islami yang cepat, ringan, dan gratis. Seluruh command ini dapat dipanggil di DM maupun di Grup:
+
+- **`!quran <surah>:<ayat>`** — Menampilkan ayat Al-Quran lengkap dengan aksara Arab dan terjemahan bahasa Indonesia.
+  *Contoh:* `!quran 2:255`
+- **`!sholat <kota>`** — Mengecek jadwal sholat 5 waktu (+ Imsak) hari ini untuk kota yang diberikan.
+  *Contoh:* `!sholat jakarta`
+- **`!doa <kategori/id>`** — Menampilkan kumpulan 80+ doa harian.
+  *Contoh:* `!doa sebelum-tidur` atau `!doa makan`
+
+### Reminder Waktu Sholat (Grup)
+Grup dapat mengaktifkan notifikasi otomatis tiap kali waktu sholat tiba untuk kota tertentu. Bot akan mengirimkan **audio adzan** yang disusul dengan random quote/hadith pengingat sholat.
+
+*(Note: Command berikut hanya dapat dijalankan oleh Admin Grup atau Owner Bot)*
+- **`!sholat subscribe <kota>`** — Mengaktifkan reminder sholat otomatis.
+- **`!sholat unsubscribe`** — Mematikan reminder sholat.
+- **`!sholat set-kota <kota>`** — Mengganti target kota reminder.
+- **`!sholat status`** — Cek apakah reminder sedang aktif dan untuk kota apa.
+- **`!sholat reset <jid>`** — *(Owner Only)* Mematikan paksa reminder sebuah grup jika terjadi *spam* atau masalah.
+
 ## Troubleshooting
 
 | Gejala | Penyebab umum | Solusi |

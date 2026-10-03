@@ -1,0 +1,41 @@
+import { DOA_LIST } from '../../services/doa-data.js';
+export const doaPlugin = {
+    name: 'doa',
+    version: '1.0.0',
+    load: (context) => {
+        context.commands.register({
+            name: 'doa',
+            description: 'Baca doa harian berdasarkan kategori',
+            category: 'utility',
+            handler: async (ctx) => {
+                const query = ctx.args.join(' ').trim().toLowerCase();
+                // Ambil semua kategori unik
+                const kategoriSet = new Set();
+                DOA_LIST.forEach(d => kategoriSet.add(d.kategori));
+                const listKategori = Array.from(kategoriSet).join(', ');
+                if (!query) {
+                    await ctx.reply(`Ketik ID doa atau kategorinya. Kategori tersedia: ${listKategori}\n\nContoh: !doa sebelum-tidur\nAtau: !doa tidur`);
+                    return;
+                }
+                // Cari berdasarkan id pasti dulu
+                let matched = DOA_LIST.filter(d => d.id === query);
+                // Kalau ga ketemu, cari berdasarkan kategori
+                if (matched.length === 0) {
+                    matched = DOA_LIST.filter(d => d.kategori === query);
+                }
+                if (matched.length === 0) {
+                    await ctx.reply(`Doa atau kategori tidak ditemukan.\n\nKategori tersedia: ${listKategori}`);
+                    return;
+                }
+                // Kalau match banyak (kategori), ambil satu random
+                const selected = matched[Math.floor(Math.random() * matched.length)];
+                const message = `🤲 *${selected.judul}*\n\n` +
+                    `${selected.arab}\n\n` +
+                    `_${selected.latin}_\n\n` +
+                    `"${selected.arti}"\n\n` +
+                    `📚 Sumber: ${selected.sumber}`;
+                await ctx.reply(message);
+            },
+        });
+    },
+};

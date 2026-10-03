@@ -8,6 +8,9 @@ import { economyPlugin } from './framework/plugins/economy.js'
 import { developerModePlugin } from './framework/plugins/developer-mode.js'
 import { codebasePlugin } from './framework/plugins/codebase.js'
 import { technicalPlugin } from './framework/plugins/technical.js'
+import { quranPlugin } from './framework/plugins/quran.js'
+import { sholatPlugin } from './framework/plugins/sholat.js'
+import { doaPlugin } from './framework/plugins/doa.js'
 import { createAfkPlugin } from './framework/plugins/afk.js'
 import { createSuggestPlugin } from './framework/plugins/suggest.js'
 import { menuPlugin } from './framework/plugins/menu.js'
@@ -49,6 +52,8 @@ import { createPostgresGroupContextClient } from './services/group-context-postg
 import { createGroupContextPlugin } from './framework/plugins/group-context.js'
 import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
 import { WebCompanionService } from './services/web-companion-service.js'
+
+import { startScheduler } from './services/sholat-scheduler.js'
 
 async function main(): Promise<void> {
   const config = loadConfig()
@@ -148,9 +153,15 @@ async function main(): Promise<void> {
   framework.registerPlugin(spotifyPlugin)
   framework.registerPlugin(createVerifyPlugin(whatsapp))
   framework.registerPlugin(toolsSearchPlugin)
+  framework.registerPlugin(quranPlugin)
+  framework.registerPlugin(sholatPlugin)
+  framework.registerPlugin(doaPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   if (config.SUGGEST_ENABLED) framework.registerPlugin(createSuggestPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework, sentry)
+  
+  startScheduler(whatsapp)
+  
   try {
     await lifecycle.start()
   } catch (error) {
