@@ -2021,67 +2021,6 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
         },
       })
 
-      // 31. !dl / !download / !viddl (Universal Downloader)
-      context.commands.register({
-        name: 'dl',
-        aliases: ['download', 'viddl'],
-        description: 'Unduh video dari TikTok, YouTube, Instagram, X/Twitter, FB, Reddit',
-        category: 'tools',
-        menuOrder: 31,
-        cooldownMs: 5_000,
-        handler: async (commandContext) => {
-          const rawText = commandContext.args.join(' ')
-          const detected = extractMediaUrl(rawText)
-
-          if (!detected) {
-            await commandContext.reply(`Format: ${commandContext.prefix}dl <url>\n\nPlatform yang didukung:\n• TikTok\n• YouTube / Shorts\n• Instagram Reels\n• Twitter / X\n• Facebook & Reddit`)
-            return
-          }
-
-          if (!commandContext.whatsapp.sendMedia) return
-          const { url, platform } = detected
-          await commandContext.react('⏳')
-
-          try {
-            if (platform === 'youtube') {
-              const result = await ytDownloader(url, 'video')
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'video',
-                data: result.data,
-                mimeType: result.mimeType,
-                fileName: 'video.mp4',
-              })
-              return
-            }
-
-            const info = await resolveMedia(url, platform)
-            if (!info || !info.playUrl) {
-              await commandContext.reply(`Waduh, video [${platform}] ini nggak bisa diambil nih. Pastikan kontennya bersifat publik dan tidak diprivat ya~ 🙏`)
-              return
-            }
-
-            const buf = await fetchMediaBuffer(info.playUrl, 25 * 1024 * 1024)
-            if (!buf) {
-              await commandContext.reply(`Waduh, video [${platform}] terlalu besar (maksimal 25 MB) atau gagal diunduh ya~ 🙏`)
-              return
-            }
-
-            const captionParts: string[] = [`[${platform.toUpperCase()}]`]
-            if (info.title) captionParts.push(info.title.slice(0, 100))
-            if (info.author) captionParts.push(`@${info.author}`)
-
-            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-              kind: 'video',
-              data: new Uint8Array(buf),
-              mimeType: 'video/mp4',
-              caption: captionParts.join('\n'),
-            })
-          } catch (error) {
-            commandContext.logger.warn({ error, platform }, 'universal dl failed')
-            await commandContext.reply(`Waduh, gagal ngambil video [${platform}] nih. Coba sebentar lagi ya~ 🙏`)
-          }
-        },
-      })
 
       // 32. !hd / !remini / !upscale
       context.commands.register({
