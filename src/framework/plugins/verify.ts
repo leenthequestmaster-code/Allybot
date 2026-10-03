@@ -10,6 +10,8 @@ import {
   readLastLink,
   readInboxWithRetry,
   extractAllLinks,
+  getCachedLinks,
+  setCachedLinks,
 } from '../../services/tempmail.js'
 import type { TempInbox, PollInfo } from '../../services/tempmail.js'
 import {
@@ -150,6 +152,11 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
           if (first === 'forget') {
             await handleForget(ctx)
+            return
+          }
+
+          if (first === 'raw') {
+            await handleRaw(ctx)
             return
           }
 
@@ -428,12 +435,19 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           return
         }
 
-        // Pesan terbaru dulu.
+        // Pesan terbaru dulu. Cache per message ID — panggilan kedua
+        // dengan pesan sama kirim cached, tidak hit provider lagi.
         const sorted = [...res.messages].reverse()
         const links: string[] = []
         for (const m of sorted) {
-          for (const u of extractAllLinks(m.subject, m.from, m.body, m.html)) {
-            if (!links.includes(u)) links.push(u)
+          const msgId = `${m.from}|${m.subject}|${m.date ?? ''}`
+          const cached = getCachedLinks(msgId)
+          if (cached) {
+            for (const u of cached) if (!links.includes(u)) links.push(u)
+          } else {
+            const found = extractAllLinks(m.subject, m.from, m.body, m.html)
+            if (found.length) setCachedLinks(msgId, found)
+            for (const u of found) if (!links.includes(u)) links.push(u)
           }
           if (links.length >= 5) break
         }
@@ -552,6 +566,49 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           })
         }
         await ctx.reply(`Session ${email} dihapus.`)
+      }
+
+      // ── !am raw <email> — body mentah, tanpa parse ──────────────────────────
+      async function handleRaw(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const email = ctx.args.slice(1).join(' ').trim().toLowerCase()
+
+        if (!email || !EMAIL_REGEX.test(email)) {
+          await ctx.reply('Contoh: !am raw email@domain.com')
+          return
+        }
+
+        const acc = findAccount(senderJid, email)
+        if (!acc) {
+          await ctx.reply('Email tidak ditemukan di akun kamu.')
+          return
+        }
+
+        const inbox: TempInbox = {
+          email: acc.email,
+          token: acc.token,
+          provider: acc.provider as TempInbox['provider'],
+          extra: acc.extra,
+        }
+
+        const res = await readInboxWithRetry(inbox)
+        if (!res) {
+          await ctx.reply('Service sedang down, coba lagi nanti.')
+          return
+        }
+        if (res.expired || !res.messages.length) {
+          await ctx.reply('Inbox terakhir sudah expire atau kosong. Jalankan !am auto lagi.')
+          return
+        }
+
+        const m = res.messages[res.messages.length - 1]
+        if (!m) {
+          await ctx.reply('Inbox terakhir sudah expire atau kosong. Jalankan !am auto lagi.')
+          return
+        }
+        // Mentah apa adanya — tidak di-parse, tidak di-decode.
+        const raw = `From: ${m.from}\nSubject: ${m.subject}\n\n${m.body || m.html || '(kosong)'}`
+        await ctx.reply(`Raw message:\n\n${raw}`.slice(0, 3000))
       }
 
       // ── URL interceptor (existing, tidak diubah) ──────────────────────────

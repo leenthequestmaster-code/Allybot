@@ -78,62 +78,69 @@ async function fetchJsonRetry(
   }
 }
 
-// ── Ekstraksi link verifikasi ────────────────────────────────────────────────
-// Link Firebase: outer wrapper terpotong di %26 (encoded &), tapi inner URL
-// tetap utuh — auth.code() di am-reverse bisa parse oobCode dari inner.
-// Urutan: inner alightcreative.com/auth_action > outer firebaseapp >
-// URL verify-ish lain > oobCode mentah.
+// Cache link per message ID — !am login berkali-kali untuk inbox sama
+// kirim cached, tidak re-extract dan tidak hit provider lagi.
+const linkCache = new Map<string, string[]>()
 
-const INNER_AUTH_RE = /https:\/\/alightcreative\.com\/auth_action\/[^\s'"<>]+/
-const FIREBASE_LINK_RE = /https:\/\/alight-creative\.firebaseapp\.com[^\s'"<>]+/
-const VERIFY_URL_RE =
-  /https?:\/\/\S*(?:verify|auth|confirm|activate|login|firebaseapp\.com|continueUrl|oobCode)[^\s'"<>]*/i
-const OOB_RE = /oobCode[%=_3D]+([A-Za-z0-9_-]{10,})/
-
-function decodeEntities(s: string): string {
-  return s.replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&quot;/g, '"')
+export function getCachedLinks(msgId: string): string[] | null {
+  const v = linkCache.get(msgId)
+  return v ? [...v] : null
 }
 
+export function setCachedLinks(msgId: string, links: string[]): void {
+  linkCache.set(msgId, [...links])
+  // Batasi 200 entry biar tidak bocor memori.
+  if (linkCache.size > 200) {
+    const first = linkCache.keys().next()
+    if (!first.done && first.value) linkCache.delete(first.value)
+  }
+}
+
+export function clearLinkCache(): void {
+  linkCache.clear()
+}
+
+// ── Ekstraksi link verifikasi ────────────────────────────────────────────────
+// Pure regex, zero network call. Link RAW apa adanya — tanpa decode/encode
+// ulang, tanpa fetch/HEAD/redirect-follow. oobCode single-use: JANGAN fetch.
+
+const VERIFY_URL_RE =
+  /https?:\/\/\S*(?:verify|auth|confirm|activate|login|firebaseapp\.com|continueUrl|oobCode)[^\s'"<>]*/i
 export function extractVerificationLink(
   ...parts: Array<string | null | undefined>
 ): string | null {
   const texts = parts.filter(
     (p): p is string => typeof p === 'string' && p.length > 0,
   )
-  // 1. Inner auth_action — URL verifikasi asli, param paling lengkap.
-  const inners: string[] = []
-  for (const t of texts) {
-    const m = t.match(INNER_AUTH_RE)
-    if (m) inners.push(decodeEntities(m[0]))
-  }
-  if (inners.length) {
-    inners.sort((a, b) => b.length - a.length)
-    return inners[0] as string
-  }
-  // 2. Outer Firebase wrapper.
-  for (const t of texts) {
-    const m = t.match(FIREBASE_LINK_RE)
-    if (m) return decodeEntities(m[0])
-  }
-  // 3. URL verify-ish lain — ambil yang terpanjang.
+  // Link RAW apa adanya — tanpa decode/encode ulang, tanpa network call.
+  // Firebase __/auth/links?link=... adalah wrapper; user klik → Firebase
+  // yang handle redirect + validasi. oobCode single-use: JANGAN fetch.
   const cands: string[] = []
   for (const t of texts) {
     const all = t.match(
       new RegExp(VERIFY_URL_RE.source, VERIFY_URL_RE.flags + 'g'),
     )
-    if (all) for (const u of all) cands.push(decodeEntities(u))
+    if (all) for (const u of all) cands.push(u)
   }
-  if (cands.length) {
-    cands.sort((a, b) => b.length - a.length)
-    return cands[0] as string
-  }
-  // 4. oobCode mentah (decode %3D/%26 dulu karena Firebase encode param).
-  for (const t of texts) {
-    const dec = t.replace(/%3D/gi, '=').replace(/%26/gi, '&')
-    const m = dec.match(OOB_RE)
-    if (m) return m[1] as string
-  }
-  return null
+  if (!cands.length) return null
+  // Outer Firebase wrapper dulu (paling lengkap param-nya).
+  cands.sort((a, b) => {
+    const af = a.includes('firebaseapp.com/__/auth/links') ? 0 : 1
+    const bf = b.includes('firebaseapp.com/__/auth/links') ? 0 : 1
+    if (af !== bf) return af - bf
+    return b.length - a.length
+  })
+  return (cands[0] ?? null) as string | null
+}
+
+
+// Audit extract — dipanggil setiap extract untuk log.
+// networkCalls SELALU 0: extractor ini pure regex, zero fetch.
+export function auditExtract(inputLen: number, urls: string[]): void {
+  console.log(
+    `[extract] input length: ${inputLen} chars | urls found: ${urls.length} | ` +
+      `selected: ${(urls[0] ?? '-').slice(0, 80)} | network calls made: 0`,
+  )
 }
 
 // ── Poll loop generik ────────────────────────────────────────────────────────
@@ -560,6 +567,10 @@ const LOGIN_URL_RE =
 export function extractAllLinks(
   ...parts: Array<string | null | undefined>
 ): string[] {
+  // RAW apa adanya — tanpa decode/encode, tanpa fetch. oobCode single-use.
+  const inputLen = parts.reduce(
+    (n, x) => n + (typeof x === 'string' ? x.length : 0), 0,
+  )
   const out: string[] = []
   const seen = new Set<string>()
   for (const p of parts) {
@@ -567,19 +578,20 @@ export function extractAllLinks(
     const all = p.match(LOGIN_URL_RE)
     if (!all) continue
     for (const u of all) {
-      const dec = decodeEntities(u)
-      if (!seen.has(dec)) {
-        seen.add(dec)
-        out.push(dec)
+      if (!seen.has(u)) {
+        seen.add(u)
+        out.push(u)
       }
     }
   }
-  // Inner auth_action dulu (link asli), sisanya setelahnya.
+  // Outer Firebase wrapper dulu (paling lengkap param-nya).
   out.sort((a, b) => {
-    const ai = a.includes('/auth_action/') ? 0 : 1
-    const bi = b.includes('/auth_action/') ? 0 : 1
-    return ai - bi
+    const af = a.includes('firebaseapp.com/__/auth/links') ? 0 : 1
+    const bf = b.includes('firebaseapp.com/__/auth/links') ? 0 : 1
+    if (af !== bf) return af - bf
+    return b.length - a.length
   })
+  auditExtract(inputLen, out)
   return out
 }
 
