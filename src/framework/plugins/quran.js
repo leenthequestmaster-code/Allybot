@@ -10,27 +10,37 @@ export const quranPlugin = {
             handler: async (ctx) => {
                 const query = ctx.args.join(' ').trim();
                 if (!query) {
-                    await ctx.reply('Sertakan surah dan nomor ayat. Contoh: !quran 2:255');
+                    await ctx.reply('Ketik surah sama ayatnya ya. Contoh: `!quran 2:255`');
                     return;
                 }
                 const match = query.match(/^(\d+):(\d+)$/);
                 if (!match) {
-                    await ctx.reply('Format salah. Gunakan format surah:ayat, contoh: !quran 2:255');
+                    await ctx.reply('Formatnya kurang pas. Pake titik dua ya, contoh: `!quran 2:255`');
                     return;
                 }
                 const surah = parseInt(match[1], 10);
                 const ayat = parseInt(match[2], 10);
                 try {
                     const result = await getAyat(surah, ayat);
-                    const message = `📖 *${result.surah_name}:${result.nomor_ayat}*\n\n` +
-                        `${result.arab}\n\n` +
-                        `_${result.latin}_\n\n` +
-                        `"${result.arti}"`;
+                    const message = [
+                        '𓏼 *`𝐐𝘂𝗿𝗮𝗻 𝐀𝘆𝗮𝘁`*',
+                        '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+                        `⡇╌ *Surah* : ${result.surah_name}`,
+                        `⡇╌ *Ayat*  : ${result.nomor_ayat}`,
+                        '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+                        `${result.arab}`,
+                        '',
+                        `_${result.latin}_`,
+                        '',
+                        `> "${result.arti}"`,
+                        '━━━━━━━━━━━━━━━━━━━━',
+                        '*© Allyssea Roleplay Community*',
+                    ].join('\n');
                     await ctx.reply(message);
                 }
                 catch (err) {
                     // Send specific validation error to user or generic network error
-                    await ctx.reply(err.message || 'Service sedang sibuk, coba lagi nanti.');
+                    await ctx.reply(err.message || 'Waduh, servernya lagi penuh nih. Coba tes bentar lagi ya.');
                 }
             },
         });

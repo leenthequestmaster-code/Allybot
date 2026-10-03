@@ -1,19 +1,25 @@
 import { getCached, setCached } from './sholat-cache.js';
-async function fetchWithRetry(url, retries = 3) {
+async function fetchWithRetry(module, url, retries = 3) {
     let lastErr;
     for (let i = 0; i < retries; i++) {
+        const start = Date.now();
         try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 10000); // 10s
             const res = await fetch(url, { signal: controller.signal });
             clearTimeout(timeout);
+            const dur = Date.now() - start;
             if (!res.ok) {
+                console.error(`[${module}] GET ${url} status=${res.status} dur=${dur}ms (retry ${i})`);
                 throw new Error(`HTTP ${res.status}`);
             }
+            console.info(`[${module}] GET ${url} status=${res.status} dur=${dur}ms`);
             return await res.json();
         }
         catch (e) {
             lastErr = e;
+            const dur = Date.now() - start;
+            console.error(`[${module}] GET ${url} status=ERROR dur=${dur}ms msg="${e.message}" (retry ${i})`);
             if (i < retries - 1) {
                 await new Promise((r) => setTimeout(r, Math.pow(3, i) * 1000)); // 1s, 3s, 9s
             }
@@ -26,7 +32,7 @@ async function fetchWithRetry(url, retries = 3) {
  */
 async function getKotaIdMyQuran(kota) {
     const url = `https://api.myquran.com/v2/sholat/kota/cari/${encodeURIComponent(kota)}`;
-    const result = await fetchWithRetry(url);
+    const result = await fetchWithRetry('sholat-api', url);
     if (!result.status || !result.data || result.data.length === 0) {
         throw new Error('Kota tidak ditemukan.');
     }
@@ -67,7 +73,7 @@ export async function getJadwal(kota, dateObj = new Date()) {
         const kotaId = await getKotaIdMyQuran(kota);
         const dateMyQuran = getFormatTanggalMyQuran(dateObj);
         const url = `https://api.myquran.com/v2/sholat/jadwal/${kotaId}/${dateMyQuran}`;
-        const result = await fetchWithRetry(url);
+        const result = await fetchWithRetry('sholat-api', url);
         if (result.status && result.data && result.data.jadwal) {
             const j = result.data.jadwal;
             jadwal = {
@@ -91,7 +97,7 @@ export async function getJadwal(kota, dateObj = new Date()) {
         try {
             const dateAladhan = getFormatTanggalAladhan(dateObj);
             const url = `https://api.aladhan.com/v1/timingsByCity/${dateAladhan}?city=${encodeURIComponent(kota)}&country=Indonesia`;
-            const result = await fetchWithRetry(url);
+            const result = await fetchWithRetry('sholat-api', url);
             if (result.code === 200 && result.data && result.data.timings) {
                 const j = result.data.timings;
                 jadwal = {
@@ -109,9 +115,9 @@ export async function getJadwal(kota, dateObj = new Date()) {
         }
         catch (e) {
             if (e.message?.includes('HTTP 400')) {
-                throw new Error(`Kota "${kota}" tidak ditemukan. Coba: Jakarta, Bandung, Surabaya.`);
+                throw new Error(`Kota "${kota}" nggak ketemu. Coba: Jakarta, Bandung, Surabaya.`);
             }
-            throw new Error('Service sedang sibuk, coba lagi nanti.');
+            throw new Error('Server lagi sibuk, coba bentar lagi ya.');
         }
     }
     if (jadwal) {
@@ -119,7 +125,7 @@ export async function getJadwal(kota, dateObj = new Date()) {
         return jadwal;
     }
     if (lastError?.message.includes('Kota tidak ditemukan')) {
-        throw new Error(`Kota "${kota}" tidak ditemukan. Coba: Jakarta, Bandung, Surabaya.`);
+        throw new Error(`Kota "${kota}" nggak ketemu. Coba: Jakarta, Bandung, Surabaya.`);
     }
-    throw new Error('Service sedang sibuk, coba lagi nanti.');
+    throw new Error('Server lagi sibuk, coba bentar lagi ya.');
 }

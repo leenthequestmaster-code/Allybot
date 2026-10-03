@@ -40,12 +40,19 @@ export const doaPlugin: Plugin = {
         // Kalau match banyak (kategori), ambil satu random
         const selected = matched[Math.floor(Math.random() * matched.length)]
 
-        const message = `🤲 *${selected.judul}*\n` +
-                        `━━━━━━━━━━━━━━━━━━\n` +
-                        `${selected.arab}\n\n` +
-                        `_${selected.latin}_\n\n` +
-                        `> "${selected.arti}"\n\n` +
-                        `🏷️ _Sumber: ${selected.sumber}_`
+        const message = [
+          '𓏼 *`𝐃𝗼𝗮 𝐇𝗮𝗿𝗶𝗮𝗻`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          `⡇╌ *Judul* : ${selected.judul}`,
+          '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+          `${selected.arab}`,
+          '',
+          `_${selected.latin}_`,
+          '',
+          `> "${selected.arti}"`,
+          '━━━━━━━━━━━━━━━━━━━━',
+          `*Sumber* : ${selected.sumber}`,
+        ].join('\n')
                         
         await ctx.reply(message)
       },

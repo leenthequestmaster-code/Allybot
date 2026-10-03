@@ -110,10 +110,18 @@ export async function sendReminder(whatsapp: WhatsAppPort, groupJid: string, sho
 
     const quote = await getQuoteFor(groupJid)
     
-    const textMsg = `🕌 *WAKTU ${sholat.toUpperCase()}*\n` +
-      `📍 ${kota.toUpperCase()} — ⏰ ${timeStr} WIB\n` +
-      `━━━━━━━━━━━━━━━━━━\n` +
-      (quote ? `> _"${quote.teks}"_\n> \n> 📚 *${quote.sumber}*` : '')
+    const textMsg = [
+      `𓏼 *\`𝐑𝗲𝗺𝗶𝗻𝗱𝗲𝗿 𝐒𝗵𝗼𝗹𝗮𝘁\`*`,
+      '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+      `⡇╌ *Waktu* : ${sholat.toUpperCase()}`,
+      `⡇╌ *Jam*   : ${timeStr} WIB`,
+      `⡇╌ *Kota*  : ${kota.toUpperCase()}`,
+      '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+      quote ? `> _"${quote.teks}"_` : '',
+      quote ? `> \n> 📚 *${quote.sumber}*` : '',
+      '━━━━━━━━━━━━━━━━━━━━',
+      '*© Allyssea Roleplay Community*',
+    ].filter(Boolean).join('\n')
 
     // Send audio first if exists
     if (fileData && whatsapp.sendMedia) {

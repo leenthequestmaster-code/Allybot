@@ -44,7 +44,17 @@ export const sholatPlugin: Plugin = {
             await ctx.reply('Grup ini belum ngaktifin reminder sholat.')
             return
           }
-          await ctx.reply(`⚙️ *REMINDER SHOLAT*\n━━━━━━━━━━━━━━━━━━\n📍 Kota   : ${status.kota.toUpperCase()}\n🟢 Status : ${status.enabled ? 'ON' : 'OFF'}\n━━━━━━━━━━━━━━━━━━\n_Adzan otomatis nyala di grup ini._`)
+          const message = [
+            '𓏼 *`𝐒𝘁𝗮𝘁𝘂𝘀 𝐑𝗲𝗺𝗶𝗻𝗱𝗲𝗿`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Kota*   : ${status.kota.toUpperCase()}`,
+            `⡇╌ *Status* : ${status.enabled ? 'Aktif' : 'Nonaktif'}`,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            '_Adzan otomatis nyala di grup ini._',
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n')
+          await ctx.reply(message)
           return
         }
 
@@ -155,16 +165,21 @@ export const sholatPlugin: Plugin = {
           const now = new Date()
           const tgl = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
           
-          const message = `🕌 *JADWAL SHOLAT — ${query.toUpperCase()}*\n` +
-                          `🗓️ _${tgl}_\n` +
-                          `━━━━━━━━━━━━━━━━━━\n` +
-                          `🕋 Imsak    : ${jadwal.imsak}\n` +
-                          `🌅 Subuh    : ${jadwal.subuh}\n` +
-                          `☀️ Dzuhur   : ${jadwal.dzuhur}\n` +
-                          `🌤️ Ashar    : ${jadwal.ashar}\n` +
-                          `🌇 Maghrib  : ${jadwal.maghrib}\n` +
-                          `🌙 Isya     : ${jadwal.isya}\n` +
-                          `━━━━━━━━━━━━━━━━━━`
+          const message = [
+            '𓏼 *`𝐉𝗮𝗱𝘄𝗮𝗹 𝐒𝗵𝗼𝗹𝗮𝘁`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Kota* : ${query.toUpperCase()}`,
+            `⡇╌ *Hari* : ${tgl}`,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            `⡇╌ *Imsak*   : ${jadwal.imsak}`,
+            `⡇╌ *Subuh*   : ${jadwal.subuh}`,
+            `⡇╌ *Dzuhur*  : ${jadwal.dzuhur}`,
+            `⡇╌ *Ashar*   : ${jadwal.ashar}`,
+            `⡇╌ *Maghrib* : ${jadwal.maghrib}`,
+            `⡇╌ *Isya*    : ${jadwal.isya}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n')
                           
           await ctx.reply(message)
         } catch (err: any) {

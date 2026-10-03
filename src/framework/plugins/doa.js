@@ -14,7 +14,7 @@ export const doaPlugin = {
                 DOA_LIST.forEach(d => kategoriSet.add(d.kategori));
                 const listKategori = Array.from(kategoriSet).join(', ');
                 if (!query) {
-                    await ctx.reply(`Ketik ID doa atau kategorinya. Kategori tersedia: ${listKategori}\n\nContoh: !doa sebelum-tidur\nAtau: !doa tidur`);
+                    await ctx.reply(`Ketik ID atau kategorinya ya.\n\n📚 *Kategori yang ada:*\n_${listKategori}_\n\nContoh: \`!doa sebelum-tidur\` (spesifik) atau \`!doa tidur\` (random dari kategori)`);
                     return;
                 }
                 // Cari berdasarkan id pasti dulu
@@ -24,16 +24,24 @@ export const doaPlugin = {
                     matched = DOA_LIST.filter(d => d.kategori === query);
                 }
                 if (matched.length === 0) {
-                    await ctx.reply(`Doa atau kategori tidak ditemukan.\n\nKategori tersedia: ${listKategori}`);
+                    await ctx.reply(`Doa atau kategorinya nggak ketemu nih.\n\n📚 *Kategori yang ada:*\n_${listKategori}_`);
                     return;
                 }
                 // Kalau match banyak (kategori), ambil satu random
                 const selected = matched[Math.floor(Math.random() * matched.length)];
-                const message = `🤲 *${selected.judul}*\n\n` +
-                    `${selected.arab}\n\n` +
-                    `_${selected.latin}_\n\n` +
-                    `"${selected.arti}"\n\n` +
-                    `📚 Sumber: ${selected.sumber}`;
+                const message = [
+                    '𓏼 *`𝐃𝗼𝗮 𝐇𝗮𝗿𝗶𝗮𝗻`*',
+                    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+                    `⡇╌ *Judul* : ${selected.judul}`,
+                    '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+                    `${selected.arab}`,
+                    '',
+                    `_${selected.latin}_`,
+                    '',
+                    `> "${selected.arti}"`,
+                    '━━━━━━━━━━━━━━━━━━━━',
+                    `*Sumber* : ${selected.sumber}`,
+                ].join('\n');
                 await ctx.reply(message);
             },
         });

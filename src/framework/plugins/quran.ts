@@ -31,12 +31,20 @@ export const quranPlugin: Plugin = {
         try {
           const result = await getAyat(surah, ayat)
           
-          const message = `📖 *${result.surah_name} : ${result.nomor_ayat}*\n` +
-                          `━━━━━━━━━━━━━━━━━━\n` +
-                          `${result.arab}\n\n` +
-                          `_${result.latin}_\n\n` +
-                          `> "${result.arti}"\n` +
-                          `━━━━━━━━━━━━━━━━━━`
+          const message = [
+            '𓏼 *`𝐐𝘂𝗿𝗮𝗻 𝐀𝘆𝗮𝘁`*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ *Surah* : ${result.surah_name}`,
+            `⡇╌ *Ayat*  : ${result.nomor_ayat}`,
+            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
+            `${result.arab}`,
+            '',
+            `_${result.latin}_`,
+            '',
+            `> "${result.arti}"`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Roleplay Community*',
+          ].join('\n')
                           
           await ctx.reply(message)
         } catch (err: any) {
