@@ -52,6 +52,9 @@ import { createPostgresGroupContextClient } from './services/group-context-postg
 import { createGroupContextPlugin } from './framework/plugins/group-context.js'
 import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
 import { WebCompanionService } from './services/web-companion-service.js'
+import { DownloaderService } from "./services/downloader-service.js"
+
+import { downloaderPlugin } from "./framework/plugins/downloader.js"
 
 import { startScheduler } from './services/sholat-scheduler.js'
 
@@ -132,6 +135,7 @@ async function main(): Promise<void> {
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
+  framework.registerService(new DownloaderService())
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
   if (config.AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))
@@ -150,6 +154,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
+  framework.registerPlugin(downloaderPlugin)
   framework.registerPlugin(spotifyPlugin)
   framework.registerPlugin(createVerifyPlugin(whatsapp))
   framework.registerPlugin(toolsSearchPlugin)
