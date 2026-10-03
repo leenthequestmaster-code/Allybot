@@ -19,6 +19,9 @@ export interface StoredAccount {
   expiresAt?: number
   verifiedAt?: number
   active: boolean
+  dead?: boolean
+  deadAt?: number
+  lastCheckedAt?: number
 }
 
 // Alias legacy — !am last pakai shape ini.
@@ -250,4 +253,87 @@ export function removeAccount(jid: string, email: string): boolean {
   else delete state[jid]
   schedulePersist()
   return true
+}
+
+// ── GC session mati ──────────────────────────────────────────────────────────
+// Iterasi semua akun, cek hidup/mati via provider. Tandai dead, jangan hapus.
+
+import { fetchJson } from './tempmail.js'
+
+export interface GcResult {
+  total: number
+  alive: number
+  dead: number
+  skipped: number
+  deadAccounts: Array<{ email: string; provider: string }>
+}
+
+async function checkAlive(a: StoredAccount): Promise<'alive' | 'dead' | 'skip'> {
+  try {
+    if (a.provider === 'mail.tm') {
+      if (!a.token) return 'skip'
+      const r = await fetchJson('https://api.mail.tm/messages', {
+        headers: { Authorization: `Bearer ${a.token}` },
+      })
+      if (r.status === 200) return 'alive'
+      return r.status === 401 || r.status === 404 ? 'dead' : 'skip'
+    }
+    if (a.provider === 'mailboxtemp') {
+      if (!a.token) return 'skip'
+      const enc = encodeURIComponent(a.token)
+      const r = await fetchJson(`https://mailboxtemp.com/api/inbox/${enc}/emails`)
+      if (r.status === 200) return 'alive'
+      return r.status === 404 || r.status === 410 ? 'dead' : 'skip'
+    }
+    // tempmail.lol
+    if (!a.token) return 'skip'
+    const r = await fetchJson(
+      `https://api.tempmail.lol/v2/inbox?token=${encodeURIComponent(a.token)}`,
+      { headers: { 'User-Agent': 'TempMailJS/4.4.0' } },
+    )
+    if (r.status === 200) return 'alive'
+    if (r.status === 404 || r.status === 401) return 'dead'
+    const rec = r.json as { expired?: boolean } | null
+    return rec?.expired ? 'dead' : 'skip'
+  } catch {
+    return 'skip'
+  }
+}
+
+export async function runGc(): Promise<GcResult> {
+  let total = 0
+  let alive = 0
+  let dead = 0
+  let skipped = 0
+  const deadAccounts: Array<{ email: string; provider: string }> = []
+
+  for (const jid of Object.keys(state)) {
+    const list = state[jid]
+    if (!Array.isArray(list)) continue
+    for (const a of list) {
+      total++
+      // Skip yang sudah ditandai mati — jangan probe ulang tiap hari.
+      if (a.dead) {
+        dead++
+        deadAccounts.push({ email: a.email, provider: a.provider })
+        continue
+      }
+      const verdict = await checkAlive(a)
+      if (verdict === 'alive') {
+        alive++
+        a.lastCheckedAt = Date.now()
+        dirty = true
+      } else if (verdict === 'dead') {
+        dead++
+        a.dead = true
+        a.deadAt = Date.now()
+        deadAccounts.push({ email: a.email, provider: a.provider })
+        dirty = true
+      } else {
+        skipped++
+      }
+    }
+  }
+  if (dirty) schedulePersist()
+  return { total, alive, dead, skipped, deadAccounts }
 }

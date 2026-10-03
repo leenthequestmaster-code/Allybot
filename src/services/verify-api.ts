@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from 'fs'
+import { tripOnRateLimit, isRateLimited, rateLimitingFor, rateLimitTripsThisHour } from './amprem-rate-limit.js'
 import { resolve } from 'path'
 
 const CONFIG_PATH = resolve('/opt/Allybot/data/config.json')
@@ -65,6 +66,12 @@ async function postWithRetry(
   const url = `${cfg.verify_api_url}${endpoint}`
   const maxRetries = cfg.verify_retry_count
 
+  // Global cooldown aktif → tolak tanpa hit service.
+  if (isRateLimited()) {
+    const secs = rateLimitingFor()
+    return { status: false, message: `Service sedang sibuk. Coba lagi dalam ${secs}s.`, data: null }
+  }
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), cfg.verify_timeout_ms)
@@ -84,6 +91,7 @@ async function postWithRetry(
 
       // 4xx/5xx: parse dan return WITHOUT retrying
       const raw = (await res.json()) as AmReverseResponse
+      tripOnRateLimit(res.status, raw, res.headers, endpoint.startsWith('/api/verify') ? 'verify' : 'send')
       return normalize(raw)
     } catch (err) {
       clearTimeout(timer)
@@ -111,4 +119,9 @@ export async function sendLink(email: string): Promise<ApiResponse> {
 // 'link' di-map ke field 'magicLink' yang diexpect am-reverse.
 export async function verifyLink(email: string, link: string): Promise<ApiResponse> {
   return postWithRetry('/api/verify-link', { email, magicLink: link })
+}
+
+/// Notif owner: expose counter dari amprem-rate-limit.
+export function ampremRateLimitTrips(): number {
+  return rateLimitTripsThisHour()
 }

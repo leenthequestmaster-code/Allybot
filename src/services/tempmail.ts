@@ -48,7 +48,7 @@ export interface InboxMessage {
 
 const FETCH_TIMEOUT_MS = 15000
 
-async function fetchJson(
+export async function fetchJson(
   url: string,
   init?: RequestInit,
 ): Promise<{ status: number; json: unknown }> {

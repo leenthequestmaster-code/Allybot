@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import type { Plugin, PluginContext, CommandContext, CoreMessage, WhatsAppPort } from '../contracts.js'
-import { sendLink, verifyLink } from '../../services/verify-api.js'
+import { sendLink, verifyLink, ampremRateLimitTrips } from '../../services/verify-api.js'
 import { setSession, getSession, clearSession } from '../../services/verify-session.js'
 import {
   createTempInbox,
@@ -31,7 +31,13 @@ import {
   removeAccount,
   getLoginSent,
   markLoginSent,
+  runGc,
 } from '../../services/amprem-auto-session.js'
+import {
+  restoreSchedulerState,
+  shouldRunBackup,
+  shouldRunGc,
+} from '../../services/amprem-scheduler.js'
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
 const URL_REGEX = /^https?:\/\/\S+$/
@@ -47,6 +53,10 @@ interface BotConfig {
   amprem_auto_cooldown_ms: number
   amprem_auto_quota_default: number
   amprem_auto_quota_premium: number
+  amprem_backup_hour: number
+  amprem_gc_hour: number
+  amprem_gc_enabled: boolean
+  amprem_rate_limit_notify_owner: boolean
 }
 
 function loadConfig(): BotConfig {
@@ -70,6 +80,10 @@ function loadConfig(): BotConfig {
     amprem_auto_cooldown_ms: num(raw['amprem_auto_cooldown_ms'], 300000),
     amprem_auto_quota_default: num(raw['amprem_auto_quota_default'], 3),
     amprem_auto_quota_premium: num(raw['amprem_auto_quota_premium'], 20),
+    amprem_backup_hour: num(raw['amprem_backup_hour'], 3),
+    amprem_gc_hour: num(raw['amprem_gc_hour'], 4),
+    amprem_gc_enabled: raw['amprem_gc_enabled'] !== false,
+    amprem_rate_limit_notify_owner: raw['amprem_rate_limit_notify_owner'] !== false,
   }
 }
 
@@ -95,12 +109,30 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
   return {
     name: 'amprem',
-    version: '1.6.0',
+    version: '1.7.0',
 
     load(context: PluginContext): void {
       const logger = context.logger
       restoreAutoLimits()
       restoreAutoSessions()
+      restoreSchedulerState()
+
+      // ── Cron harian: backup 03:00 WIB, GC 04:00 WIB ───────────────────
+      // Cek tiap menit; state file bikin idempotent (tidak double-run).
+      const cronTimer = setInterval(() => {
+        try {
+          const cfgNow = loadConfig()
+          if (cfgNow.amprem_gc_enabled && shouldRunGc(cfgNow.amprem_gc_hour)) {
+            void runGcCron(whatsapp, cfgNow.owners, logger)
+          }
+          if (shouldRunBackup(cfgNow.amprem_backup_hour)) {
+            void runBackupCron(whatsapp, cfgNow.owners, logger)
+          }
+        } catch (err) {
+          logger.error({ err }, 'amprem cron tick error')
+        }
+      }, 60_000)
+      ;(cronTimer as unknown as { unref?: () => void }).unref?.()
 
       context.commands.register({
         name: 'amprem',
@@ -167,6 +199,12 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
 
+          if (first === 'backup') {
+            await handleBackup(ctx)
+            return
+          }
+
+          // Command lain dengan args bukan subcommand → manual.
           await handleManual(ctx)
         },
       })
@@ -188,6 +226,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
         try {
           const result = await sendLink(email)
+          await maybeNotifyRateLimit()
 
           if (result.status) {
             setSession(senderJid, email)
@@ -266,6 +305,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           await ctx.reply(`${box.email}\nMengirim ke service...`)
 
           const sent = await sendLink(box.email)
+          await maybeNotifyRateLimit()
           if (!sent.status) {
             await ctx.reply(sent.message)
             return
@@ -301,6 +341,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           }
 
           const verified = await verifyLink(box.email, found.link)
+          await maybeNotifyRateLimit()
           consumeAutoLimit(senderJid)
           logger.info(
             { provider: box.provider, waitMs: Date.now() - t0, ok: verified.status },
@@ -376,6 +417,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         if (res.link) {
           try {
             const verified = await verifyLink(inbox.email, res.link)
+            await maybeNotifyRateLimit()
             consumeAutoLimit(senderJid)
             if (verified.status) markAccountVerified(senderJid, inbox.email)
             logger.info(
@@ -511,7 +553,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           'amprem login run',
         )
         await ctx.reply(
-          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.`,
+          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.\n\nSetelah login di app: Settings -> Account -> Change Email, ganti ke email pribadimu. Akun jadi permanen tanpa butuh bot lagi.`,
         )
         return true
       }
@@ -622,7 +664,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           'amprem login run',
         )
         await ctx.reply(
-          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.`,
+          `Link login Alight Motion:\n${links.join('\n\n')}\n\nBuka link ini di device yang mau login.\n\nSetelah login di app: Settings -> Account -> Change Email, ganti ke email pribadimu. Akun jadi permanen tanpa butuh bot lagi.`,
         )
         return true
       }
@@ -655,14 +697,34 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           await ctx.reply('Service sedang down, coba lagi nanti.')
           return
         }
-        if (res.expired || !res.messages.length) {
-          await ctx.reply(`Inbox: ${acc.email}\n\nBelum ada pesan.`)
-          return
+        if (res.expired) {
+          acc.dead = true
+          acc.deadAt = Date.now()
+        } else {
+          acc.lastCheckedAt = Date.now()
         }
 
+        const madeAt = new Date(acc.createdAt).toLocaleString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+        })
+        const lines = [
+          `Status akun: ${acc.email}`,
+          `Provider: ${acc.provider}`,
+          `Dibuat: ${madeAt}`,
+          `Inbox: ${res.expired ? 'mati (inbox tidak tersedia di provider)' : 'aktif'}`,
+        ]
+        if (res.expired) {
+          lines.push('', 'Akun ini tidak bisa login lagi. Jalankan !am auto untuk akun baru.')
+          await ctx.reply(lines.join('\n'))
+          return
+        }
+        lines.push(`Pesan: ${res.messages.length} pesan`)
+        lines.push('Terakhir dicek: baru saja')
+        lines.push('')
         const sent = getLoginSent(senderJid, email)
         const latest = [...res.messages].sort((a, b) => b.ts - a.ts).slice(0, 5)
-        const lines = [`Inbox: ${acc.email}`, '']
+        lines.push('Pesan terbaru:')
         for (const m of latest) {
           let when = m.date ?? ''
           try {
@@ -750,7 +812,13 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         }
         const lines = ['Daftar akun kamu:', '']
         accs.forEach((a, i) => {
-          lines.push(`${i + 1}. ${a.email} (${a.provider}) — ${a.active ? 'aktif' : 'sementara'}`)
+          const status = a.dead
+            ? 'mati (inbox tidak tersedia)'
+            : a.active
+              ? 'aktif'
+              : 'sementara'
+          lines.push(`${i + 1}. ${a.email} (${a.provider})`)
+          lines.push(`   Status: ${status}`)
         })
         await ctx.reply(lines.join('\n'))
       }
@@ -825,6 +893,136 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         await ctx.reply(`Raw message:\n\n${raw}`.slice(0, 3000))
       }
 
+      // ── Cron backup ─────────────────────────────────────────────────────
+      async function runBackupCron(
+        port: WhatsAppPort,
+        owners: string[],
+        l: { error(o: unknown, m?: string): void; info(o: unknown, m?: string): void },
+      ): Promise<void> {
+        const t0 = Date.now()
+        try {
+          const fsMod = await import('fs')
+          const pathMod = await import('path')
+          const filePath = pathMod.resolve('/opt/Allybot/data/amprem_sessions.json')
+          if (!fsMod.existsSync(filePath)) {
+            l.error({}, 'backup cron: session file tidak ada')
+            return
+          }
+          const buf = fsMod.readFileSync(filePath)
+          const date = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10)
+          const fileName = `amprem_sessions_backup_${date}.json`
+          // Kirim via sendMedia (document) ke DM owner pertama.
+          const owner = owners[0]
+          if (!owner) {
+            l.error({}, 'backup cron: no owner configured')
+            return
+          }
+          for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+              await port.sendMedia?.(owner, {
+                kind: 'document',
+                data: new Uint8Array(buf),
+                mimeType: 'application/json',
+                fileName,
+              })
+              l.info({ durMs: Date.now() - t0, bytes: buf.length, fileName }, 'backup cron sent')
+              return
+            } catch (err) {
+              l.error({ err, attempt }, 'backup cron send gagal')
+              if (attempt < 2) await new Promise((r) => setTimeout(r, 30000))
+            }
+          }
+        } catch (err) {
+          l.error({ err }, 'backup cron error')
+        }
+      }
+
+      // ── Cron GC ──────────────────────────────────────────────────────────
+      async function runGcCron(
+        port: WhatsAppPort,
+        owners: string[],
+        l: { error(o: unknown, m?: string): void; info(o: unknown, m?: string): void },
+      ): Promise<void> {
+        const t0 = Date.now()
+        try {
+          const res = await runGc()
+          l.info(
+            { durMs: Date.now() - t0, total: res.total, alive: res.alive, dead: res.dead, skipped: res.skipped },
+            'amprem gc run',
+          )
+          if (res.dead > 0) {
+            const deadLines = res.deadAccounts
+              .slice(0, 10)
+              .map((d) => `${d.email} (${d.provider})`)
+              .join('\n')
+            const owner = owners[0]
+            if (owner) {
+              await port.sendText?.(
+                owner,
+                `GC !am: ${res.dead} akun mati ditemukan.\n${deadLines}\n\nCek dengan !am status, hapus dengan !am forget.`,
+              )
+            }
+          }
+        } catch (err) {
+          l.error({ err }, 'amprem gc error')
+        }
+      }
+
+      // ── !am backup (owner-only, DM) ──────────────────────────────────────
+      async function handleBackup(ctx: CommandContext): Promise<void> {
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const cfg = loadConfig()
+
+        // Non-owner: diam — jangan bocorkan command owner.
+        if (!cfg.owners.includes(senderJid)) return
+
+        try {
+          const fsMod = await import('fs')
+          const pathMod = await import('path')
+          const filePath = pathMod.resolve('/opt/Allybot/data/amprem_sessions.json')
+          if (!fsMod.existsSync(filePath)) {
+            await ctx.reply('Session file belum ada.')
+            return
+          }
+          const buf = fsMod.readFileSync(filePath)
+          const date = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10)
+          const fileName = `amprem_sessions_backup_${date}.json`
+          await ctx.whatsapp.sendMedia?.(senderJid, {
+            kind: 'document',
+            data: new Uint8Array(buf),
+            mimeType: 'application/json',
+            fileName,
+          })
+        } catch (err) {
+          logger.error({ err }, 'amprem backup manual error')
+          await ctx.reply('Gagal kirim backup.')
+        }
+      }
+
+      // ── Notif owner rate-limit trip >3x/jam ──────────────────────────────
+      // Dipanggil tiap selesai send/verify — cek counter global.
+      async function maybeNotifyRateLimit(): Promise<void> {
+        try {
+          const cfg = loadConfig()
+          if (!cfg.amprem_rate_limit_notify_owner) return
+          const trips = ampremRateLimitTrips()
+          if (trips > 3) {
+            // Kirim sekali: flag in-memory.
+            if ((maybeNotifyRateLimit as unknown as { notified?: boolean }).notified) return
+            ;(maybeNotifyRateLimit as unknown as { notified?: boolean }).notified = true
+            const owner = cfg.owners[0]
+            if (owner) {
+              await whatsapp.sendText(
+                owner,
+                `[rate-limit] am-reverse kena 429 ${trips}x dalam 1 jam terakhir. Cek service / usage.`,
+              )
+            }
+          }
+        } catch {
+          // notif best-effort
+        }
+      }
+
       // ── URL interceptor (existing, tidak diubah) ──────────────────────────
       context.events.on('message.received', async (message: CoreMessage) => {
         const text = message.text?.trim()
@@ -850,6 +1048,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
 
         try {
           const result = await verifyLink(sessionEmail, text)
+          await maybeNotifyRateLimit()
           clearSession(senderJid)
           await whatsapp.sendText(message.remoteJid, result.message)
         } catch (err: unknown) {
