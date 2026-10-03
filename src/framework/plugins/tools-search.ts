@@ -149,49 +149,6 @@ export const toolsSearchPlugin: Plugin = {
       },
     })
 
-    // 3. Lyrics Search
-    context.commands.register({
-      name: 'lirik',
-      aliases: ['lyrics'],
-      description: 'Cari lirik lagu',
-      category: 'tools',
-      menuOrder: 3,
-      cooldownMs: SEARCH_COOLDOWN_MS,
-      handler: async (commandContext) => {
-        const query = boundText(commandContext.args.join(' '))
-        if (!query) {
-          await commandContext.reply(usage(commandContext, 'lirik', '<judul lagu / artis>') + '\nContoh: `!lirik Coldplay Yellow`')
-          return
-        }
-        try {
-          const res = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`, {
-            signal: AbortSignal.timeout(10_000),
-          })
-          if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          const items = (await res.json()) as any[]
-          const track = items.find((i) => i.plainLyrics)
-          if (!track || !track.plainLyrics) {
-            await commandContext.reply('Liriknya nggak ketemu nih. Coba tulis judul sama penyanyinya lebih lengkap ya~ 🎶')
-            return
-          }
-          const lyrics = track.plainLyrics.length > 2000 ? `${track.plainLyrics.slice(0, 1990)}...` : track.plainLyrics
-          await commandContext.reply([
-            '𓏼 *`𝐒𝗼𝗻𝗴 𝐋𝘆𝗿𝗶𝗰𝐬`*',
-            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-            `⡇╌ *Judul*  : ${track.trackName}`,
-            `⡇╌ *Artis*  : ${track.artistName}`,
-            '─͜──͜──͜─  · • ·  ─͜──͜──͜─',
-            lyrics,
-            '━━━━━━━━━━━━━━━━━━━━',
-            '*© Allyssea Roleplay Community*',
-          ].join('\n'))
-        } catch (error) {
-          commandContext.logger.warn({ error }, 'lyrics command failed')
-          await commandContext.reply('Lirik lagu itu belum ketemu nih, coba cek lagi judulnya ya~ 🎧')
-        }
-      },
-    })
-
     // 4. Wikipedia Summary
     context.commands.register({
       name: 'wiki',

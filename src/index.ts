@@ -20,6 +20,7 @@ import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-m
 
 import { utilityPlugin } from './framework/plugins/utility.js'
 import { mediaPlugin } from './framework/plugins/media.js'
+import { spotifyPlugin } from './framework/plugins/spotify.js'
 import { toolsSearchPlugin } from './framework/plugins/tools-search.js'
 import { createLogger } from './logger.js'
 import { createSentryReporter } from './sentry.js'
@@ -143,6 +144,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
+  framework.registerPlugin(spotifyPlugin)
   framework.registerPlugin(toolsSearchPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   if (config.SUGGEST_ENABLED) framework.registerPlugin(createSuggestPlugin(whatsapp))
