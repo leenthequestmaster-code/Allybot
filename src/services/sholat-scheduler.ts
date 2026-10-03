@@ -132,8 +132,24 @@ export async function sendReminder(whatsapp: WhatsAppPort, groupJid: string, sho
       })
     }
     
-    // Then send the text caption
-    if (whatsapp.sendText) {
+    // Check if thumbnail image exists
+    const thumbPath = join(process.cwd(), 'data', 'sholat_thumb', `${sholat.toLowerCase()}.jpg`)
+    let thumbData: Buffer | null = null
+    try {
+      thumbData = await fs.readFile(thumbPath)
+    } catch {
+      // Thumbnail missing, fallback to text only
+    }
+
+    // Send Image + Caption, or Text only
+    if (thumbData && whatsapp.sendMedia) {
+      await whatsapp.sendMedia(groupJid, {
+        kind: 'image',
+        data: new Uint8Array(thumbData),
+        mimeType: 'image/jpeg',
+        caption: textMsg
+      })
+    } else if (whatsapp.sendText) {
       await whatsapp.sendText(groupJid, textMsg)
     }
     
