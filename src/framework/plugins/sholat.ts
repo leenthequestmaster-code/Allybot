@@ -36,15 +36,15 @@ export const sholatPlugin: Plugin = {
         // --- 1. STATUS ---
         if (subcmd === 'status') {
           if (!ctx.message.remoteJid.endsWith('@g.us')) {
-            await ctx.reply('Command ini cuma bisa dipakai di grup.')
+            await ctx.reply('Sori, command ini khusus dipake di grup aja.')
             return
           }
           const status = await getStatus(ctx.message.remoteJid)
           if (!status) {
-            await ctx.reply('Grup ini belum pasang reminder sholat.')
+            await ctx.reply('Grup ini belum ngaktifin reminder sholat.')
             return
           }
-          await ctx.reply(`✅ *Reminder Sholat Aktif*\nKota: ${status.kota.toUpperCase()}\nStatus: ${status.enabled ? 'On' : 'Off'}`)
+          await ctx.reply(`⚙️ *REMINDER SHOLAT*\n━━━━━━━━━━━━━━━━━━\n📍 Kota   : ${status.kota.toUpperCase()}\n🟢 Status : ${status.enabled ? 'ON' : 'OFF'}\n━━━━━━━━━━━━━━━━━━\n_Adzan otomatis nyala di grup ini._`)
           return
         }
 
@@ -57,13 +57,13 @@ export const sholatPlugin: Plugin = {
           }
           
           if (!(await isAdminOrOwner(ctx, groupJid))) {
-            await ctx.reply('Cuma admin grup yang bisa nyalain reminder.')
+            await ctx.reply('Cuma admin grup yang punya akses buat nyalain reminder ini.')
             return
           }
 
           const kota = argsLower.slice(1).join(' ')
           if (!kota) {
-            await ctx.reply('Sertakan nama kotanya. Contoh: !sholat subscribe jakarta')
+            await ctx.reply('Sertakan nama kotanya ya. Contoh: `!sholat subscribe jakarta`')
             return
           }
 
@@ -76,7 +76,7 @@ export const sholatPlugin: Plugin = {
           }
 
           await subscribe(groupJid, kota, ctx.message.senderJid || '')
-          await ctx.reply(`✅ Reminder sholat aktif buat grup ini.\nKota: ${kota.toUpperCase()}\n\nAdzan & quote bakal dikirim tiap masuk waktu sholat.\nMatiinnya pakai: !sholat unsubscribe (khusus admin)`)
+          await ctx.reply(`✅ Reminder sholat aktif buat grup ini.\n📍 Kota: ${kota.toUpperCase()}\n\nAdzan & quote bakal dikirim tiap masuk waktu sholat.\nMatiinnya pakai: \`!sholat unsubscribe\` (khusus admin)`)
           return
         }
 
@@ -84,7 +84,7 @@ export const sholatPlugin: Plugin = {
         if (subcmd === 'set-kota') {
           const groupJid = ctx.message.remoteJid
           if (!groupJid.endsWith('@g.us')) {
-            await ctx.reply('Command ini cuma bisa dipakai di grup.')
+            await ctx.reply('Sori, command ini khusus dipake di grup aja.')
             return
           }
 
@@ -95,7 +95,7 @@ export const sholatPlugin: Plugin = {
 
           const kota = argsLower.slice(1).join(' ')
           if (!kota) {
-            await ctx.reply('Sertakan nama kotanya. Contoh: !sholat set-kota jakarta')
+            await ctx.reply('Sertakan nama kotanya. Contoh: `!sholat set-kota jakarta`')
             return
           }
 
@@ -113,7 +113,7 @@ export const sholatPlugin: Plugin = {
         if (subcmd === 'unsubscribe') {
           const groupJid = ctx.message.remoteJid
           if (!groupJid.endsWith('@g.us')) {
-            await ctx.reply('Command ini cuma bisa dipakai di grup.')
+            await ctx.reply('Sori, command ini khusus dipake di grup aja.')
             return
           }
 
@@ -135,7 +135,7 @@ export const sholatPlugin: Plugin = {
           }
           const targetJid = ctx.args[1]
           if (!targetJid) {
-            await ctx.reply('Kasih JID grupnya. Contoh: !sholat reset 123456@g.us')
+            await ctx.reply('Kasih JID grupnya. Contoh: `!sholat reset 123456@g.us`')
             return
           }
           await unsubscribe(targetJid)
@@ -146,7 +146,7 @@ export const sholatPlugin: Plugin = {
         // --- DEFAULT: INFO JADWAL ---
         const query = ctx.args.join(' ').trim()
         if (!query) {
-          await ctx.reply('Kasih nama kotanya. Contoh: !sholat jakarta')
+          await ctx.reply('Kasih nama kotanya ya. Contoh: `!sholat jakarta`')
           return
         }
 
@@ -155,17 +155,20 @@ export const sholatPlugin: Plugin = {
           const now = new Date()
           const tgl = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
           
-          const message = `🕌 *Jadwal Sholat — ${query.toUpperCase()}*\n📅 ${tgl}\n\n` +
-                          `Imsak: ${jadwal.imsak}\n` +
-                          `Subuh: ${jadwal.subuh}\n` +
-                          `Dzuhur: ${jadwal.dzuhur}\n` +
-                          `Ashar: ${jadwal.ashar}\n` +
-                          `Maghrib: ${jadwal.maghrib}\n` +
-                          `Isya: ${jadwal.isya}`
+          const message = `🕌 *JADWAL SHOLAT — ${query.toUpperCase()}*\n` +
+                          `🗓️ _${tgl}_\n` +
+                          `━━━━━━━━━━━━━━━━━━\n` +
+                          `🕋 Imsak    : ${jadwal.imsak}\n` +
+                          `🌅 Subuh    : ${jadwal.subuh}\n` +
+                          `☀️ Dzuhur   : ${jadwal.dzuhur}\n` +
+                          `🌤️ Ashar    : ${jadwal.ashar}\n` +
+                          `🌇 Maghrib  : ${jadwal.maghrib}\n` +
+                          `🌙 Isya     : ${jadwal.isya}\n` +
+                          `━━━━━━━━━━━━━━━━━━`
                           
           await ctx.reply(message)
         } catch (err: any) {
-          await ctx.reply(err.message || 'Server lagi sibuk, coba bentar lagi ya.')
+          await ctx.reply(err.message || 'Waduh, servernya lagi penuh nih. Coba tes bentar lagi ya.')
         }
       },
     })

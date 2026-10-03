@@ -15,13 +15,13 @@ export const quranPlugin: Plugin = {
         const query = ctx.args.join(' ').trim()
         
         if (!query) {
-          await ctx.reply('Kasih surah dan nomor ayatnya. Contoh: !quran 2:255')
+          await ctx.reply('Ketik surah sama ayatnya ya. Contoh: `!quran 2:255`')
           return
         }
         
         const match = query.match(/^(\d+):(\d+)$/)
         if (!match) {
-          await ctx.reply('Formatnya salah. Pakai format surah:ayat, contoh: !quran 2:255')
+          await ctx.reply('Formatnya kurang pas. Pake titik dua ya, contoh: `!quran 2:255`')
           return
         }
 
@@ -31,15 +31,17 @@ export const quranPlugin: Plugin = {
         try {
           const result = await getAyat(surah, ayat)
           
-          const message = `📖 *${result.surah_name}:${result.nomor_ayat}*\n\n` +
+          const message = `📖 *${result.surah_name} : ${result.nomor_ayat}*\n` +
+                          `━━━━━━━━━━━━━━━━━━\n` +
                           `${result.arab}\n\n` +
                           `_${result.latin}_\n\n` +
-                          `"${result.arti}"`
+                          `> "${result.arti}"\n` +
+                          `━━━━━━━━━━━━━━━━━━`
                           
           await ctx.reply(message)
         } catch (err: any) {
           // Send specific validation error to user or generic network error
-          await ctx.reply(err.message || 'Server lagi sibuk, coba bentar lagi ya.')
+          await ctx.reply(err.message || 'Waduh, servernya lagi penuh nih. Coba tes bentar lagi ya.')
         }
       },
     })
