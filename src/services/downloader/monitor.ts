@@ -23,10 +23,11 @@ export class Monitor {
   }>()
 
   record(adapter: string, success: boolean, latencyMs: number, error?: string): void {
-    let m = this.metrics.get(adapter)
+    const key = adapter?.trim() || 'unknown'
+    let m = this.metrics.get(key)
     if (!m) {
       m = { total: 0, success: 0, fail: 0, totalLatency: 0 }
-      this.metrics.set(adapter, m)
+      this.metrics.set(key, m)
     }
     m.total++
     m.totalLatency += latencyMs
@@ -35,7 +36,8 @@ export class Monitor {
     } else {
       m.fail++
       if (error) {
-        m.lastError = error
+        // Truncate stack traces to avoid unbounded memory growth & leaking internals
+        m.lastError = error.length > 500 ? error.slice(0, 500) : error
         m.lastErrorAt = Date.now()
       }
     }

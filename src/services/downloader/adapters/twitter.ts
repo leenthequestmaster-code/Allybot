@@ -8,13 +8,30 @@
 import type { DownloaderAdapter, ResolveOptions, ResolveResult, MediaItem } from '../types.js'
 
 const MATCH = /(?:twitter\.com|x\.com)\/[^\s]+\/status\/\d+/i
+const VXTWITTER_HOST = 'api.vxtwitter.com'
+const USER_AGENT = 'Allybot/1.0'
+const FETCH_TIMEOUT_MS = 15_000
+
+/** Only allow https URL, prevents SSRF/local file access via compromised API response */
+function isSafeHttpUrl(raw: unknown): raw is string {
+  if (typeof raw !== 'string' || !raw) return false
+  try {
+    const u = new URL(raw)
+    return u.protocol === 'https:' || u.protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
+function truncateTitle(value: unknown, fallback: string): string {
+  return String(value ?? fallback).slice(0, 100)
+}
 
 async function resolveViaVxtwitter(url: string): Promise<ResolveResult> {
-  const vxUrl = url
-    .replace(/(?:twitter\.com|x\.com)/i, 'api.vxtwitter.com')
+  const vxUrl = url.replace(/(?:twitter\.com|x\.com)/i, VXTWITTER_HOST)
   const res = await fetch(vxUrl, {
-    headers: { 'User-Agent': 'Allybot/1.0' },
-    signal: AbortSignal.timeout(15_000),
+    headers: { 'User-Agent': USER_AGENT },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`vxtwitter ${res.status}`)
   const data = await res.json() as Record<string, unknown>
@@ -26,7 +43,7 @@ async function resolveViaVxtwitter(url: string): Promise<ResolveResult> {
   const items: MediaItem[] = []
   for (const m of mediaList) {
     const mediaUrl = String(m.url || '')
-    if (!mediaUrl) continue
+    if (!mediaUrl || !isSafeHttpUrl(mediaUrl)) continue
     const isVideo = m.type === 'video' || /\.mp4/i.test(mediaUrl)
     items.push({
       url: mediaUrl,
@@ -40,7 +57,7 @@ async function resolveViaVxtwitter(url: string): Promise<ResolveResult> {
 
   return {
     type: items.length > 1 ? 'carousel' : (items[0].mime.startsWith('video') ? 'video' : 'image'),
-    title: String(data.text || 'Tweet').slice(0, 100),
+    title: truncateTitle(data.text, 'Tweet'),
     author: String(data.user_screen_name || data.user_name || ''),
     thumbnail: null,
     media: items,
@@ -53,17 +70,22 @@ export const twitterAdapter: DownloaderAdapter = {
   match: MATCH,
 
   async resolve(url: string, _opts?: ResolveOptions): Promise<ResolveResult> {
-    // Try primary package first
+    if (!url || typeof url !== 'string' || !MATCH.test(url)) {
+      throw new Error('URL Twitter/X tidak valid.')
+    }
+
+    // Try primary package first (import cached lazily)
     try {
       const mod = await import('@cedricdsst/twitter-video-downloader')
       const result = await mod.resolveTwitterVideo(url)
       if (result && typeof result === 'object') {
-        const videoUrl = (result as Record<string, unknown>).url || (result as Record<string, unknown>).videoUrl
-        if (videoUrl && typeof videoUrl === 'string') {
+        const r = result as Record<string, unknown>
+        const videoUrl = isSafeHttpUrl(r.url) ? r.url : isSafeHttpUrl(r.videoUrl) ? r.videoUrl : null
+        if (videoUrl) {
           return {
             type: 'video',
-            title: String((result as Record<string, unknown>).text || 'Tweet').slice(0, 100),
-            author: String((result as Record<string, unknown>).username || ''),
+            title: truncateTitle(r.text, 'Tweet'),
+            author: String(r.username || ''),
             thumbnail: null,
             media: [{
               url: videoUrl,

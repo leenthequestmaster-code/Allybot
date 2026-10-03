@@ -106,7 +106,7 @@ async function sendSingleMedia(
   await semaphore.acquire()
   try {
     const buffer = item.buffer
-      ? Buffer.from(item.buffer)
+      ? Buffer.from(item.buffer.buffer as ArrayBuffer, item.buffer.byteOffset, item.buffer.byteLength)
       : await downloadBuffer(item.url, logger)
 
     if (!buffer) {
@@ -114,24 +114,46 @@ async function sendSingleMedia(
     }
 
     const size = buffer.byteLength
+    const mime = (item.mime || '').toLowerCase() || 'application/octet-stream'
 
-    // Route by type and size
-    if (item.mime.startsWith('audio/')) {
+    // Audio → send as audio (guard size; besar → document)
+    if (mime.startsWith('audio/')) {
+      if (size > MAX_INLINE_VIDEO_BYTES) {
+        await whatsapp.sendMedia(remoteJid, {
+          kind: 'document',
+          data: new Uint8Array(buffer),
+          mimeType: mime,
+          caption,
+          fileName: `download.${item.ext || 'mp3'}`,
+        })
+        return { sent: true }
+      }
       await whatsapp.sendMedia(remoteJid, {
         kind: 'audio',
         data: new Uint8Array(buffer),
-        mimeType: item.mime,
+        mimeType: mime,
         caption,
         ptt: false,
       })
       return { sent: true }
     }
 
-    if (item.mime.startsWith('image/')) {
+    // Image → size-aware: kecil inline, besar document
+    if (mime.startsWith('image/')) {
+      if (size > MAX_INLINE_VIDEO_BYTES) {
+        await whatsapp.sendMedia(remoteJid, {
+          kind: 'document',
+          data: new Uint8Array(buffer),
+          mimeType: mime,
+          caption,
+          fileName: `download.${item.ext || 'jpg'}`,
+        })
+        return { sent: true }
+      }
       await whatsapp.sendMedia(remoteJid, {
         kind: 'image',
         data: new Uint8Array(buffer),
-        mimeType: item.mime,
+        mimeType: mime,
         caption,
       })
       return { sent: true }
@@ -142,7 +164,7 @@ async function sendSingleMedia(
       await whatsapp.sendMedia(remoteJid, {
         kind: 'video',
         data: new Uint8Array(buffer),
-        mimeType: item.mime,
+        mimeType: mime,
         caption,
       })
       return { sent: true }
@@ -152,7 +174,7 @@ async function sendSingleMedia(
       await whatsapp.sendMedia(remoteJid, {
         kind: 'document',
         data: new Uint8Array(buffer),
-        mimeType: item.mime,
+        mimeType: mime,
         caption,
         fileName: `download.${item.ext}`,
       })

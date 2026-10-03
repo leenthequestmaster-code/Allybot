@@ -6,31 +6,34 @@
 
 import type { DownloaderAdapter, ResolveResult, ResolveOptions } from '../types.js'
 
-const PD_REGEX = /pixeldrain\.com\/[ul]\/([\w]+)/i
+const PD_REGEX = /pixeldrain\.com\/([ul])\/([A-Za-z0-9_-]+)/i
+const PIXELDRAIN_API = 'https://pixeldrain.com/api/'
+const PD_TIMEOUT_MS = 15_000
+const PD_USER_AGENT = 'Allybot/1.0'
 
 export const pixeldrainAdapter: DownloaderAdapter = {
   name: 'pixeldrain',
   match: PD_REGEX,
 
-  async resolve(url: string, _opts?: ResolveOptions): Promise<ResolveResult> {
+  async resolve(url: string, opts?: ResolveOptions): Promise<ResolveResult> {
     const match = url.match(PD_REGEX)
-    if (!match?.[1]) {
+    if (!match?.[2]) {
       throw new Error('URL Pixeldrain nggak valid.')
     }
 
-    const fileId = match[1]
-    const isFolder = url.includes('/l/')
+    const fileId = match[2]
+    const isFolder = match[1] === 'l'
 
     if (isFolder) {
       // List API for folders
-      const listUrl = `https://pixeldrain.com/api/list/${fileId}`
+      const listUrl = `${PIXELDRAIN_API}list/${fileId}`
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 15_000)
+      const timer = setTimeout(() => controller.abort(), PD_TIMEOUT_MS)
 
       try {
         const resp = await fetch(listUrl, {
           signal: controller.signal,
-          headers: { 'User-Agent': 'Allybot/1.0' },
+          headers: { 'User-Agent': PD_USER_AGENT },
         })
         clearTimeout(timer)
 
@@ -51,7 +54,7 @@ export const pixeldrainAdapter: DownloaderAdapter = {
         const media = data.files.map(f => {
           const ext = f.name.split('.').pop() ?? 'bin'
           return {
-            url: `https://pixeldrain.com/api/file/${f.id}?download`,
+            url: `${PIXELDRAIN_API}file/${f.id}?download`,
             mime: f.mime_type,
             ext,
             size: f.size,
@@ -73,14 +76,14 @@ export const pixeldrainAdapter: DownloaderAdapter = {
     }
 
     // Single file
-    const infoUrl = `https://pixeldrain.com/api/file/${fileId}/info`
+    const infoUrl = `${PIXELDRAIN_API}file/${fileId}/info`
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 15_000)
+    const timer = setTimeout(() => controller.abort(), PD_TIMEOUT_MS)
 
     try {
       const resp = await fetch(infoUrl, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'Allybot/1.0' },
+        headers: { 'User-Agent': PD_USER_AGENT },
       })
       clearTimeout(timer)
 
@@ -97,14 +100,21 @@ export const pixeldrainAdapter: DownloaderAdapter = {
       }
 
       const ext = info.name.split('.').pop() ?? 'bin'
-      const downloadUrl = `https://pixeldrain.com/api/file/${fileId}?download`
-      const isVideo = info.mime_type.startsWith('video/')
-      const isImage = info.mime_type.startsWith('image/')
-      const isAudio = info.mime_type.startsWith('audio/')
+      const downloadUrl = `${PIXELDRAIN_API}file/${fileId}?download`
+      const mime = info.mime_type || 'application/octet-stream'
+      const isVideo = mime.startsWith('video/')
+      const isImage = mime.startsWith('image/')
+      const isAudio = mime.startsWith('audio/')
 
-      let type: 'video' | 'image' | 'audio' | 'carousel' | 'search' = 'video'
+      if (opts?.maxSizeMB && info.size > opts.maxSizeMB * 1024 * 1024) {
+        throw new Error(`File melebihi batas ${opts.maxSizeMB} MB.`)
+      }
+
+      let type: 'video' | 'image' | 'audio' | 'carousel' | 'search'
       if (isImage) type = 'image'
+      else if (isVideo) type = 'video'
       else if (isAudio) type = 'audio'
+      else type = 'video' // fallback untuk binary lain (document via video kind)
 
       return {
         type,
@@ -113,7 +123,7 @@ export const pixeldrainAdapter: DownloaderAdapter = {
         thumbnail: null,
         media: [{
           url: downloadUrl,
-          mime: info.mime_type,
+          mime,
           ext,
           size: info.size,
         }],

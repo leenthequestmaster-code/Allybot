@@ -8,23 +8,25 @@ import type { DownloaderAdapter, ResolveResult, ResolveOptions } from '../types.
 
 const VIDEY_REGEX = /videy\.co/i
 const ID_REGEX = /videy\.co\/(?:watch\?v=|v\/|embed\/)?([a-zA-Z0-9]+)/i
+const VIDEY_CDN_BASE = 'https://cdn.videy.co/'
+const HEAD_TIMEOUT_MS = 10_000
 
 export const videyAdapter: DownloaderAdapter = {
   name: 'videy',
   match: VIDEY_REGEX,
 
-  async resolve(url: string, _opts?: ResolveOptions): Promise<ResolveResult> {
+  async resolve(url: string, opts?: ResolveOptions): Promise<ResolveResult> {
     const match = url.match(ID_REGEX)
     if (!match?.[1]) {
       throw new Error('URL Videy nggak valid.')
     }
 
     const videoId = match[1]
-    const cdnUrl = `https://cdn.videy.co/${videoId}.mp4`
+    const cdnUrl = new URL(`${encodeURIComponent(videoId)}.mp4`, VIDEY_CDN_BASE).toString()
 
     // HEAD verify
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 10_000)
+    const timer = setTimeout(() => controller.abort(), HEAD_TIMEOUT_MS)
 
     try {
       const resp = await fetch(cdnUrl, {
@@ -40,6 +42,10 @@ export const videyAdapter: DownloaderAdapter = {
 
       const contentLength = resp.headers.get('content-length')
       const size = contentLength ? parseInt(contentLength, 10) : null
+
+      if (opts?.maxSizeMB && size !== null && size > opts.maxSizeMB * 1024 * 1024) {
+        throw new Error(`Video melebihi batas ${opts.maxSizeMB} MB.`)
+      }
 
       return {
         type: 'video',

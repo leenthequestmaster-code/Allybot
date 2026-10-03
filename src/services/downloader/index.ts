@@ -44,6 +44,7 @@ function getBreaker(name: string): CircuitBreaker {
 
 /** Detect which adapter can handle a URL. Returns null if none match. */
 export function detectPlatform(url: string): DownloaderAdapter | null {
+  if (!url || typeof url !== 'string') return null
   for (const adapter of adapters) {
     if (adapter.match && adapter.match.test(url)) {
       return adapter

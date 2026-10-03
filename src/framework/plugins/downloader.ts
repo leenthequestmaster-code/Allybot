@@ -17,7 +17,7 @@ import type { SearchResult } from '../../services/downloader/types.js'
 /* ── Error messages (Indonesian, casual) ── */
 
 const MSG = {
-  PLATFORM_UNSUPPORTED: '❌ Platform nggak didukung. Support: IG, FB, X, Threads, SC, Videy, Pixeldrain.',
+  PLATFORM_UNSUPPORTED: '❌ Platform nggak didukung. Support: IG, FB, X/Twitter (!tw), Threads, SC, Videy, Pixeldrain.',
   RESOLVE_FAILED: '❌ Gagal ambil media. Pastikan kontennya publik ya~',
   TIMEOUT: '⏱ Timeout. Coba lagi nanti~',
   FILE_TOO_BIG: (size: number, url: string) => `⚠️ File ${size}MB terlalu besar. Link: ${url}`,
@@ -29,18 +29,18 @@ const MSG = {
   CAROUSEL_LIMIT: (total: number) => `ℹ️ Mengirim ${MAX_CAROUSEL_ITEMS} dari ${total} media. Sisanya nggak dikirim ya~`,
   NO_RESULTS: '😢 Nggak ketemu hasil pencarian.',
   SEARCH_QUERY_MISSING: '❌ Tulis kata kunci pencarian. Contoh: !yts lofi hip hop',
+  NO_RECIPIENT: '❌ Sedang memproses, coba lagi dalam beberapa detik~',
 } as const
 
 /* ── Helpers ── */
 
 const URL_REGEX = /https?:\/\/[^\s]+/gi
-const SHORT_URL_REGEX = /^https?:\/\/(bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|v\.gd|ow\.ly|buff\.ly)\//i
+const SHORT_URL_REGEX = /^https?:\/\/(bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|v\.gd|ow\.ly|buff\.ly)(?:\/|$)/i
 
-/** Map command alias → expected platform for validation */
+/** Map command alias → expected platform for validation (X/Twitter via !tw, karena !x milik mockup card) */
 const ALIAS_PLATFORM_MAP: Record<string, string> = {
   ig: 'instagram',
   fb: 'facebook',
-  x: 'twitter',
   tw: 'twitter',
   threads: 'threads',
   th: 'threads',
@@ -97,8 +97,8 @@ export const downloaderPlugin: Plugin = {
     /* ── !dl command ── */
     context.commands.register({
       name: 'dl',
-      aliases: ['ig', 'fb', 'x', 'tw', 'threads', 'th'],
-      description: 'Download media dari URL (IG, FB, X, Threads, Videy, Pixeldrain)',
+      aliases: ['ig', 'fb', 'tw', 'threads', 'th'],
+      description: 'Download media dari URL (IG, FB, X/Twitter, Threads, Videy, Pixeldrain)',
       category: 'media',
       menuOrder: 10,
       cooldownMs: 10_000,
@@ -129,20 +129,26 @@ export const downloaderPlugin: Plugin = {
           return
         }
 
+        const adapter = detectPlatform(url)
+
         // If invoked via platform alias, validate URL matches
         const expectedPlatform = ALIAS_PLATFORM_MAP[ctx.commandName]
         if (expectedPlatform) {
-          const detected = detectPlatform(url)
-          if (!detected || detected.name !== expectedPlatform) {
+          if (!adapter || adapter.name !== expectedPlatform) {
             await ctx.reply(MSG.WRONG_PLATFORM(expectedPlatform))
             return
           }
         }
 
         // Check platform support
-        const adapter = detectPlatform(url)
         if (!adapter) {
           await ctx.reply(MSG.PLATFORM_UNSUPPORTED)
+          return
+        }
+
+        const remoteJid = ctx.message.remoteJid
+        if (!remoteJid) {
+          await ctx.reply(MSG.NO_RECIPIENT)
           return
         }
 
@@ -156,11 +162,12 @@ export const downloaderPlugin: Plugin = {
             await ctx.reply(MSG.CAROUSEL_LIMIT(result.media.length))
           }
 
-          await deliverMedia(ctx.whatsapp, ctx.message.remoteJid, result, ctx.logger)
+          await deliverMedia(ctx.whatsapp, remoteJid, result, ctx.logger)
           await ctx.react('✅')
         } catch (err) {
           if (err instanceof CircuitOpenError) {
             await ctx.reply(MSG.CIRCUIT_OPEN(adapter.name))
+            await ctx.react('❌')
             return
           }
 
@@ -194,17 +201,34 @@ export const downloaderPlugin: Plugin = {
 
       async handler(ctx: CommandContext): Promise<void> {
         const url = extractUrl(ctx.args)
+        const remoteJid = ctx.message.remoteJid
+        if (!remoteJid) {
+          await ctx.reply(MSG.NO_RECIPIENT)
+          return
+        }
 
-        if (url && /soundcloud\.com/i.test(url)) {
+        // Exact hostname check, bukan substring: cegah SSRF via soundcloud.com.evil.com
+        let isSoundCloud = false
+        if (url) {
+          try {
+            const parsed = new URL(url)
+            isSoundCloud = /(^|\.)soundcloud\.com$/i.test(parsed.hostname)
+          } catch {
+            isSoundCloud = false
+          }
+        }
+
+        if (url && isSoundCloud) {
           // Download mode
           await ctx.react('⏳')
           try {
             const result = await downloaderService.resolveWith('soundcloud', url)
-            await deliverMedia(ctx.whatsapp, ctx.message.remoteJid, result, ctx.logger)
+            await deliverMedia(ctx.whatsapp, remoteJid, result, ctx.logger)
             await ctx.react('✅')
           } catch (err) {
             if (err instanceof CircuitOpenError) {
               await ctx.reply(MSG.CIRCUIT_OPEN('SoundCloud'))
+              await ctx.react('❌')
               return
             }
             logger.warn({ err, url }, 'sc: download failed')
@@ -266,35 +290,45 @@ export const downloaderPlugin: Plugin = {
       cooldownMs: 3_000,
 
       async handler(ctx: CommandContext): Promise<void> {
-        const metrics = downloaderService.getMetrics()
-        const circuits = downloaderService.getCircuitStates()
-        const cacheStats = await downloaderService.cache.stats()
+        try {
+          const metrics = downloaderService.getMetrics() ?? {}
+          const circuits = downloaderService.getCircuitStates() ?? {}
+          const cacheStats = downloaderService.cache?.stats ? await downloaderService.cache.stats() : null
 
-        const lines: string[] = ['📊 *Downloader Stats*\n']
+          const lines: string[] = ['📊 *Downloader Stats*\n']
 
-        // Metrics per adapter
-        for (const [name, m] of Object.entries(metrics)) {
-          lines.push(
-            `*${name}*: ${m.total} total (✅ ${m.success} / ❌ ${m.fail}) avg ${m.avgLatencyMs}ms`,
-          )
-          if (m.lastError) {
-            lines.push(`  └ Last error: ${m.lastError}`)
+          // Metrics per adapter
+          for (const [name, m] of Object.entries(metrics)) {
+            lines.push(
+              `*${name}*: ${m.total} total (✅ ${m.success} / ❌ ${m.fail}) avg ${m.avgLatencyMs}ms`,
+            )
+            if (m.lastError) {
+              lines.push(`  └ Last error: ${m.lastError}`)
+            }
           }
+
+          // Circuit states
+          lines.push('\n⚡ *Circuit Breakers*')
+          for (const [name, s] of Object.entries(circuits)) {
+            const icon = s.state === 'closed' ? '🟢' : s.state === 'open' ? '🔴' : '🟡'
+            lines.push(`${icon} ${name}: ${s.state} (${s.failures} failures)`)
+          }
+
+          // Cache
+          lines.push('\n💾 *Cache*')
+          if (cacheStats) {
+            lines.push(`Metadata: ${cacheStats.metadataEntries ?? 0} entries`)
+            const bytes = cacheStats.fileSizeBytes ?? 0
+            lines.push(`Files: ${cacheStats.fileCount ?? 0} (${Math.round(bytes / 1024 / 1024)}MB)`)
+          } else {
+            lines.push('Cache tidak tersedia')
+          }
+
+          await ctx.reply(lines.join('\n'))
+        } catch (err) {
+          logger.warn({ err }, 'dlstats: failed to gather stats')
+          await ctx.reply('❌ Gagal ambil statistik downloader.')
         }
-
-        // Circuit states
-        lines.push('\n⚡ *Circuit Breakers*')
-        for (const [name, s] of Object.entries(circuits)) {
-          const icon = s.state === 'closed' ? '🟢' : s.state === 'open' ? '🔴' : '🟡'
-          lines.push(`${icon} ${name}: ${s.state} (${s.failures} failures)`)
-        }
-
-        // Cache
-        lines.push(`\n💾 *Cache*`)
-        lines.push(`Metadata: ${cacheStats.metadataEntries} entries`)
-        lines.push(`Files: ${cacheStats.fileCount} (${Math.round(cacheStats.fileSizeBytes / 1024 / 1024)}MB)`)
-
-        await ctx.reply(lines.join('\n'))
       },
     })
 

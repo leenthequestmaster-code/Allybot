@@ -15,6 +15,7 @@ export interface MediaItem {
   readonly mime: string
   readonly ext: string
   readonly size: number | null
+  /** Optional in-memory payload — avoid holding large files; prefer streaming/url. Enforce maxSizeMB from ResolveOptions. */
   readonly buffer?: Uint8Array
 }
 
@@ -24,7 +25,7 @@ export interface ResolveResult {
   readonly title: string
   readonly author: string
   readonly thumbnail: string | null
-  readonly media: MediaItem[]
+  readonly media: readonly MediaItem[]
   readonly meta: Record<string, unknown>
 }
 
