@@ -20,7 +20,6 @@ const MSG = {
   PLATFORM_UNSUPPORTED: '❌ Platform nggak didukung. Support: IG, FB, X/Twitter (!tw), Threads, SC, Videy, Pixeldrain.',
   RESOLVE_FAILED: '❌ Gagal ambil media. Pastikan kontennya publik ya~',
   TIMEOUT: '⏱ Timeout. Coba lagi nanti~',
-  FILE_TOO_BIG: (size: number, url: string) => `⚠️ File ${size}MB terlalu besar. Link: ${url}`,
   CIRCUIT_OPEN: (platform: string) => `⏳ ${platform} lagi sibuk. Coba 30 menit lagi~`,
   NO_URL: '❌ Kirim URL setelah command. Contoh: !dl https://instagram.com/p/xxx',
   MULTI_URL: '❌ Satu URL aja ya~',
@@ -30,6 +29,7 @@ const MSG = {
   NO_RESULTS: '😢 Nggak ketemu hasil pencarian.',
   SEARCH_QUERY_MISSING: '❌ Tulis kata kunci pencarian. Contoh: !yts lofi hip hop',
   NO_RECIPIENT: '❌ Sedang memproses, coba lagi dalam beberapa detik~',
+  FB_NEEDS_LOGIN: '⚠️ Video Facebook butuh akun yang login buat diambil. Link grup/private/share tanpa cookie nggak bisa~ Coba URL video halaman publik, atau kirim link videonya.',
 } as const
 
 /* ── Helpers ── */
@@ -44,6 +44,8 @@ const ALIAS_PLATFORM_MAP: Record<string, string> = {
   tw: 'twitter',
   threads: 'threads',
   th: 'threads',
+  videy: 'videy',
+  pd: 'pixeldrain',
 }
 
 function extractUrl(args: readonly string[]): string | null {
@@ -63,7 +65,11 @@ function extractUrl(args: readonly string[]): string | null {
 function hasMultipleUrls(args: readonly string[]): boolean {
   const text = args.join(' ')
   const matches = text.match(URL_REGEX)
-  return !!matches && matches.length > 1
+  if (matches && matches.length > 1) return true
+
+  // Protocol-less multi-domain: !dl example.com/a example.com/b → ambil kandidat domain
+  const bareDomains = text.match(/(^|\s)(?:[\w-]+\.)+[a-z]{2,}(?:\/[^\s]*)?/gi)
+  return !!bareDomains && bareDomains.length > 1
 }
 
 function formatSearchResults(results: SearchResult[], platform: string): string {
@@ -97,8 +103,8 @@ export const downloaderPlugin: Plugin = {
     /* ── !dl command ── */
     context.commands.register({
       name: 'dl',
-      aliases: ['ig', 'fb', 'tw', 'threads', 'th'],
-      description: 'Download media dari URL (IG, FB, X/Twitter, Threads, Videy, Pixeldrain)',
+      aliases: ['ig', 'fb', 'tw', 'threads', 'th', 'videy', 'pd'],
+      description: 'Download media dari URL (IG, FB, X/Twitter, Threads, SC, Videy, Pixeldrain)',
       category: 'media',
       menuOrder: 10,
       cooldownMs: 10_000,
@@ -173,7 +179,11 @@ export const downloaderPlugin: Plugin = {
 
           const errMsg = err instanceof Error ? err.message : String(err)
 
-          if (errMsg === 'PLATFORM_UNSUPPORTED') {
+          // Facebook: bedakan kebutuhan login/cookie dari kegagalan umum
+          const isFacebook = adapter.name === 'facebook'
+          if (isFacebook && /(Unable to fetch|licensed|login required|not available|page .* content|\bcookie\b|session)/i.test(errMsg)) {
+            await ctx.reply(MSG.FB_NEEDS_LOGIN)
+          } else if (errMsg === 'PLATFORM_UNSUPPORTED') {
             await ctx.reply(MSG.PLATFORM_UNSUPPORTED)
           } else if (/timeout|abort/i.test(errMsg)) {
             await ctx.reply(MSG.TIMEOUT)

@@ -28,7 +28,8 @@ export const instagramAdapter: DownloaderAdapter = {
   name: 'instagram',
   match: MATCH,
 
-  async resolve(url: string, _opts?: ResolveOptions): Promise<ResolveResult> {
+  async resolve(rawUrl: string, _opts?: ResolveOptions): Promise<ResolveResult> {
+    const url = rawUrl?.trim() || ''
     if (!url || typeof url !== 'string' || !(MATCH.test(url) || STORY_MATCH.test(url))) {
       throw new Error('URL bukan Instagram post.')
     }
