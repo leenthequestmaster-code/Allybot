@@ -255,6 +255,20 @@ export class SendGate {
     this.mediaWaitTimeoutMs = options.mediaWaitTimeoutMs ?? 15_000
   }
 
+  private totalRejections = 0
+
+  getActiveMediaCount(): number {
+    return this.activeMediaCount
+  }
+
+  getMediaWaiterCount(): number {
+    return this.mediaWaiters.length
+  }
+
+  getRejectionCount(): number {
+    return this.totalRejections
+  }
+
   private refillTokens(): void {
     const now = Date.now()
     const elapsed = now - this.lastRefill
@@ -295,6 +309,7 @@ export class SendGate {
     }
 
     if (this.mediaWaiters.length >= this.maxMediaWaiters) {
+      this.totalRejections++
       throw new Error(`Media upload queue full (max ${this.maxMediaWaiters} waiters), please try again later`)
     }
 
@@ -406,6 +421,15 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     this.profilePictureCache.clear()
     retryCache.flushAll()
     return result
+  }
+
+  getSendGateMetrics(): { activeMedia: number; mediaWaiters: number; maxWaiters: number; rejections: number } {
+    return {
+      activeMedia: this.sendGate.getActiveMediaCount(),
+      mediaWaiters: this.sendGate.getMediaWaiterCount(),
+      maxWaiters: 50,
+      rejections: this.sendGate.getRejectionCount(),
+    }
   }
 
   onMessage(listener: (message: CoreMessage) => Promise<void> | void): () => void {

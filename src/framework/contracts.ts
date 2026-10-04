@@ -157,6 +157,7 @@ export interface WhatsAppPort {
   groupRevokeInvite?(groupJid: string): Promise<string | undefined>
   groupLeave?(groupJid: string): Promise<void>
   clearRuntimeCaches?(): RuntimeCacheClearResult
+  getSendGateMetrics?(): { activeMedia: number; mediaWaiters: number; maxWaiters: number; rejections: number }
   getProfilePictureUrl?(jid: string, type?: 'preview' | 'image', timeoutMs?: number): Promise<string | undefined>
   sendImage?(remoteJid: string, imageUrl: string, caption?: string): Promise<void>
   downloadMedia?(message: CoreMessage, source: WhatsAppMediaSource, limits: WhatsAppMediaLimits): Promise<WhatsAppMediaPayload>

@@ -1,5 +1,9 @@
+import { monitorEventLoopDelay } from 'node:perf_hooks'
 import type { CommandContext, Plugin } from '../contracts.js'
 import { isGroupJid } from '../validation.js'
+
+const elHistogram = monitorEventLoopDelay({ resolution: 20 })
+elHistogram.enable()
 
 function formatUptime(seconds: number): string {
   const totalSeconds = Math.max(0, Math.floor(seconds))
@@ -29,13 +33,20 @@ function status(context: CommandContext): string {
 
 function commonHealth(context: CommandContext): string {
   const services = context.services.list().join(',') || 'no-services'
+  const lagP95Ms = (elHistogram.percentile(95) / 1e6).toFixed(1)
+  const gate = context.whatsapp.getSendGateMetrics?.()
+  const gateStr = gate
+    ? `gate=media:${gate.activeMedia}/1,waiters:${gate.mediaWaiters}/${gate.maxWaiters},rej:${gate.rejections}`
+    : ''
   return [
     'Allybot framework ready',
     `connected=${context.whatsapp.isConnected}`,
-    `services=${services}`,
     `status=${status(context)}`,
+    `lag_p95=${lagP95Ms}ms`,
+    ...(gateStr ? [gateStr] : []),
     `uptime=${formatUptime(process.uptime())}`,
     `rss=${formatBytes(process.memoryUsage().rss)}`,
+    `services=${services}`,
   ].join(' | ')
 }
 
