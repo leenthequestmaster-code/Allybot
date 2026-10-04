@@ -231,14 +231,28 @@ export class SendGate {
   private lastRefill: number
   private activeMediaCount = 0
   private readonly maxMediaInFlight: number
-  private readonly mediaWaiters: (() => void)[] = []
+  private readonly maxMediaWaiters: number
+  private readonly mediaWaitTimeoutMs: number
+  private readonly mediaWaiters: {
+    resolve: () => void
+    reject: (err: Error) => void
+    timer: NodeJS.Timeout
+  }[] = []
 
-  constructor(options: { maxBurst?: number; refillIntervalMs?: number; maxMediaInFlight?: number } = {}) {
+  constructor(options: {
+    maxBurst?: number
+    refillIntervalMs?: number
+    maxMediaInFlight?: number
+    maxMediaWaiters?: number
+    mediaWaitTimeoutMs?: number
+  } = {}) {
     this.maxTokens = options.maxBurst ?? 5
     this.tokens = this.maxTokens
     this.refillIntervalMs = options.refillIntervalMs ?? 400
     this.lastRefill = Date.now()
     this.maxMediaInFlight = options.maxMediaInFlight ?? 1
+    this.maxMediaWaiters = options.maxMediaWaiters ?? 50
+    this.mediaWaitTimeoutMs = options.mediaWaitTimeoutMs ?? 15_000
   }
 
   private refillTokens(): void {
@@ -272,13 +286,35 @@ export class SendGate {
           released = true
           this.activeMediaCount -= 1
           const next = this.mediaWaiters.shift()
-          if (next) next()
+          if (next) {
+            clearTimeout(next.timer)
+            next.resolve()
+          }
         }
       }
     }
 
-    await new Promise<void>((resolve) => {
-      this.mediaWaiters.push(resolve)
+    if (this.mediaWaiters.length >= this.maxMediaWaiters) {
+      throw new Error(`Media upload queue full (max ${this.maxMediaWaiters} waiters), please try again later`)
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const waiterEntry = {
+        resolve: () => {
+          resolve()
+        },
+        reject: (err: Error) => {
+          reject(err)
+        },
+        timer: setTimeout(() => {
+          const idx = this.mediaWaiters.indexOf(waiterEntry)
+          if (idx !== -1) {
+            this.mediaWaiters.splice(idx, 1)
+          }
+          reject(new Error(`Media upload slot acquisition timed out (${this.mediaWaitTimeoutMs}ms)`))
+        }, this.mediaWaitTimeoutMs),
+      }
+      this.mediaWaiters.push(waiterEntry)
     })
 
     this.activeMediaCount += 1
@@ -288,7 +324,10 @@ export class SendGate {
         released = true
         this.activeMediaCount -= 1
         const next = this.mediaWaiters.shift()
-        if (next) next()
+        if (next) {
+          clearTimeout(next.timer)
+          next.resolve()
+        }
       }
     }
   }

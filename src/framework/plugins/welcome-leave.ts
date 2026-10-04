@@ -60,6 +60,58 @@ function formatCustomMessage(template: string, event: CoreGroupParticipantUpdate
     .replaceAll('{count}', String(event.participantJids.length))
 }
 
+class AsyncSemaphore {
+  private active = 0
+  private waiters: (() => void)[] = []
+  constructor(private readonly maxConcurrent: number = 2) {}
+
+  async acquire(timeoutMs = 8_000): Promise<() => void> {
+    if (this.active < this.maxConcurrent) {
+      this.active++
+      let released = false
+      return () => {
+        if (!released) {
+          released = true
+          this.active--
+          const next = this.waiters.shift()
+          if (next) next()
+        }
+      }
+    }
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true
+          const idx = this.waiters.indexOf(onSlot)
+          if (idx !== -1) this.waiters.splice(idx, 1)
+          reject(new Error(`Render semaphore timeout (${timeoutMs}ms)`))
+        }
+      }, timeoutMs)
+      const onSlot = () => {
+        if (!settled) {
+          settled = true
+          clearTimeout(timer)
+          resolve()
+        }
+      }
+      this.waiters.push(onSlot)
+    })
+    this.active++
+    let released = false
+    return () => {
+      if (!released) {
+        released = true
+        this.active--
+        const next = this.waiters.shift()
+        if (next) next()
+      }
+    }
+  }
+}
+
+const welcomeRenderSemaphore = new AsyncSemaphore(2)
+
 export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
   return {
     name: 'welcome-leave',
@@ -118,13 +170,19 @@ export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
               }
             }
 
-            const primaryName = firstJid ? userLabel(firstJid) : 'Petualang'
-            const cardBuffer = await VisualCardService.renderWelcomeCard({
-              type: event.action === 'add' ? 'welcome' : 'leave',
-              userName: primaryName,
-              groupName: event.groupName ?? 'Allyssea Group',
-              avatarBuffer,
-            })
+            const primaryName = firstJid ? userLabel(firstJid) : (event.action === 'add' ? 'New Adventurer' : 'Adventurer')
+            const releaseRender = await welcomeRenderSemaphore.acquire(8000)
+            let cardBuffer: Buffer
+            try {
+              cardBuffer = await VisualCardService.renderWelcomeCard({
+                type: event.action === 'add' ? 'welcome' : 'leave',
+                userName: primaryName,
+                groupName: event.groupName ?? 'Allyssea Roleplay Community',
+                avatarBuffer,
+              })
+            } finally {
+              releaseRender()
+            }
 
             await whatsapp.sendMedia(event.groupJid, {
               kind: 'image',

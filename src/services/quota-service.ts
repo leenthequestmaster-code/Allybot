@@ -1,7 +1,7 @@
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { initSqliteDatabase, type DatabaseInstance } from '../storage-helpers.js'
-import { isSameJid } from '../permissions.js'
+import { bareJid, isSameJid } from '../permissions.js'
 
 export type QuotaTier = 'free' | 'donator' | 'owner'
 
@@ -35,9 +35,10 @@ function getTodayString(tzOffsetHours = 7): string {
   return `${y}-${m}-${day}`
 }
 
-function normalizeJidKey(jid: string): string {
+export function canonicalUserKey(jid: string): string {
+  if (!jid) return ''
   const trimmed = jid.trim().toLowerCase()
-  return trimmed.split(':')[0] ?? trimmed
+  return bareJid(trimmed)
 }
 
 export class QuotaService implements Service {
@@ -98,7 +99,7 @@ export class QuotaService implements Service {
     if (!jid) return false
     if (this.isOwner(jid)) return true
     const db = this.requireDb()
-    const key = normalizeJidKey(jid)
+    const key = canonicalUserKey(jid)
     const row = db.prepare('SELECT tier FROM user_donations WHERE user_jid = ?').get(key) as { tier?: string } | undefined
     return Boolean(row && row.tier === 'donator')
   }
@@ -111,7 +112,7 @@ export class QuotaService implements Service {
 
   setDonator(jid: string, enabled: boolean, notes?: string): void {
     const db = this.requireDb()
-    const key = normalizeJidKey(jid)
+    const key = canonicalUserKey(jid)
     if (enabled) {
       db.prepare(`
         INSERT INTO user_donations (user_jid, tier, notes, created_at)
@@ -148,7 +149,7 @@ export class QuotaService implements Service {
       return { limit: 999999, used: 0, remaining: 999999, tier }
     }
     const db = this.requireDb()
-    const key = normalizeJidKey(jid)
+    const key = canonicalUserKey(jid)
     const today = getTodayString(this.tzOffset)
     const row = db.prepare(`
       SELECT used_count, reserved_count
@@ -172,7 +173,7 @@ export class QuotaService implements Service {
     }
 
     const db = this.requireDb()
-    const key = normalizeJidKey(jid)
+    const key = canonicalUserKey(jid)
     const today = getTodayString(this.tzOffset)
     const limit = this.getLimit(tier, quotaKey)
 
@@ -213,7 +214,7 @@ export class QuotaService implements Service {
   commitQuota(jid: string, quotaKey: string): void {
     if (this.isOwner(jid)) return
     const db = this.requireDb()
-    const key = normalizeJidKey(jid)
+    const key = canonicalUserKey(jid)
     const today = getTodayString(this.tzOffset)
 
     const tx = db.transaction(() => {
@@ -231,7 +232,7 @@ export class QuotaService implements Service {
   refundQuota(jid: string, quotaKey: string): void {
     if (this.isOwner(jid)) return
     const db = this.requireDb()
-    const key = normalizeJidKey(jid)
+    const key = canonicalUserKey(jid)
     const today = getTodayString(this.tzOffset)
 
     const tx = db.transaction(() => {

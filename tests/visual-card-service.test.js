@@ -21,6 +21,16 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
 
     const meta = await sharp(png).metadata()
     assert.equal(meta.width, 920)
+
+    // Dynamic menu items test
+    const dynamicPng = await VisualCardService.renderIqc({
+      text: 'Testing dynamic menu items',
+      senderName: 'Adventurer',
+      menuItems: ['Balas', 'Salin', 'Hapus'],
+    })
+    assert.ok(Buffer.isBuffer(dynamicPng))
+    const dynamicMeta = await sharp(dynamicPng).metadata()
+    assert.equal(dynamicMeta.width, 920)
   })
 
   it('renders WhatsApp dark-mode quote chat (!qc) as PNG with speech tail and auto-width', async () => {
@@ -119,7 +129,7 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
     await assert.rejects(async () => VisualCardService.renderBrat('   '), /tidak boleh kosong/)
   })
 
-  it('renders Welcome and Leave Avatar Card (1000x500 PNG) with fallback and custom avatar', async () => {
+  it('renders Welcome and Leave Avatar Card v2 (1200x750 PNG) with fallback and custom avatar', async () => {
     // 1. Welcome card with fallback avatar
     const welcomePng = await VisualCardService.renderWelcomeCard({
       type: 'welcome',
@@ -128,8 +138,8 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
     })
     assert.ok(Buffer.isBuffer(welcomePng))
     const welcomeMeta = await sharp(welcomePng).metadata()
-    assert.equal(welcomeMeta.width, 1000)
-    assert.equal(welcomeMeta.height, 500)
+    assert.equal(welcomeMeta.width, 1200)
+    assert.equal(welcomeMeta.height, 750)
 
     // 2. Leave card with custom avatar buffer
     const mockAvatar = await sharp({
@@ -144,7 +154,7 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
     })
     assert.ok(Buffer.isBuffer(leavePng))
     const leaveMeta = await sharp(leavePng).metadata()
-    assert.equal(leaveMeta.width, 1000)
-    assert.equal(leaveMeta.height, 500)
+    assert.equal(leaveMeta.width, 1200)
+    assert.equal(leaveMeta.height, 750)
   })
 })

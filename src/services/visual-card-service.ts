@@ -10,6 +10,7 @@ export interface IqcOptions {
   readonly senderName?: string
   readonly time?: string
   readonly avatarBuffer?: Buffer
+  readonly menuItems?: readonly string[]
 }
 
 export interface QcOptions {
@@ -207,15 +208,24 @@ export class VisualCardService {
 </svg>`
     const bgDataUrl = 'data:image/svg+xml;base64,' + b64(bgSvg)
 
-    const menuItems: [string, string][] = [
-      ['Balas', '<path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>'],
-      ['Teruskan', '<path d="m15 17 5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>'],
-      ['Salin', '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'],
-      ['Beri Bintang', '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'],
-      ['Sematkan', '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>'],
-      ['Laporkan', '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>'],
-      ['Hapus', '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>'],
-    ]
+    const iconMap: Record<string, string> = {
+      Balas: '<path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+      Teruskan: '<path d="m15 17 5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>',
+      Salin: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+      'Beri Bintang': '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+      Sematkan: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+      Laporkan: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+      Hapus: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+      Edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+      Info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    }
+
+    const defaultMenu = ['Balas', 'Teruskan', 'Salin', 'Beri Bintang', 'Sematkan', 'Laporkan', 'Hapus']
+    const rawItems = options.menuItems && options.menuItems.length > 0 ? options.menuItems : defaultMenu
+    const menuItems: [string, string][] = rawItems.map((item) => [
+      item,
+      iconMap[item] ?? '<path d="m9 18 6-6-6-6"/>',
+    ])
 
     const bubbleChildren = [
       senderName
@@ -1201,24 +1211,35 @@ export class VisualCardService {
   }
 
   /**
-   * Render dynamic Welcome / Leave Avatar Card
+   * Render dynamic Welcome / Leave Avatar Card v2 (1200x750, 16:10 ratio)
    */
   static async renderWelcomeCard(options: WelcomeCardOptions): Promise<Buffer> {
     const fonts = loadFonts()
     const isWelcome = options.type === 'welcome'
-    const primaryColor = isWelcome ? '#00e5ff' : '#f97316'
+    const primaryColor = isWelcome ? '#00e5ff' : '#ff9f43'
     const secondaryColor = isWelcome ? '#38bdf8' : '#fb923c'
-    const titleText = isWelcome ? 'WELCOME TO ALLYSSEA' : 'FAREWELL ADVENTURER'
+    const bgBase = isWelcome ? '#070b12' : '#0f0a07'
+    const auraColor = isWelcome ? 'rgba(0, 229, 255, 0.12)' : 'rgba(255, 159, 67, 0.12)'
+    const borderColor = isWelcome ? 'rgba(0, 229, 255, 0.4)' : 'rgba(255, 159, 67, 0.4)'
+
+    const titleText = isWelcome ? '✦ WELCOME TO ALLYSSEA ✦' : '✦ FAREWELL, ADVENTURER ✦'
+    const contextAction = isWelcome ? 'has entered the realm.' : 'has departed from the realm.'
     const subText = isWelcome
-      ? 'Selamat datang di keluarga Allyssea Roleplay Community.'
-      : 'Terima kasih telah berpetualang bersama kami.'
+      ? 'Selamat datang di keluarga kami. Bersiaplah untuk petualangan baru.'
+      : 'Terima kasih atas semua jejak dan cerita yang telah kau tinggalkan.'
+
+    // Sanitize display name — never show raw phone number or @JID
+    let cleanName = options.userName.trim()
+    if (!cleanName || cleanName.startsWith('@') || /^[+0-9@:._-]+$/.test(cleanName)) {
+      cleanName = isWelcome ? 'New Adventurer' : 'Adventurer'
+    }
 
     let avatarBase64: string | undefined
     if (options.avatarBuffer && options.avatarBuffer.length > 0) {
       try {
         const resized = await sharp(Buffer.from(options.avatarBuffer))
-          .resize(180, 180, { fit: 'cover' })
-          .jpeg({ quality: 85 })
+          .resize(220, 220, { fit: 'cover' })
+          .jpeg({ quality: 88 })
           .toBuffer()
         avatarBase64 = `data:image/jpeg;base64,${resized.toString('base64')}`
       } catch {
@@ -1229,6 +1250,19 @@ export class VisualCardService {
     const defaultAvatarSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${primaryColor}"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`
     const defaultAvatarDataUrl = 'data:image/svg+xml;base64,' + b64(defaultAvatarSvg)
 
+    const bgSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" preserveAspectRatio="none">
+<defs>
+  <radialGradient id="glow" cx="50%" cy="38%" r="45%">
+    <stop offset="0%" stop-color="${isWelcome ? '#00e5ff' : '#ff9f43'}" stop-opacity="0.16"/>
+    <stop offset="60%" stop-color="${isWelcome ? '#0077b6' : '#c0392b'}" stop-opacity="0.04"/>
+    <stop offset="100%" stop-color="${bgBase}" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<rect width="1200" height="750" fill="${bgBase}"/>
+<rect width="1200" height="750" fill="url(#glow)"/>
+</svg>`
+    const bgDataUrl = 'data:image/svg+xml;base64,' + b64(bgSvg)
+
     const vdom = {
       type: 'div',
       props: {
@@ -1236,33 +1270,19 @@ export class VisualCardService {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
-          width: 1000,
-          height: 500,
-          backgroundColor: '#070d18',
-          border: `4px solid ${primaryColor}`,
-          borderRadius: 28,
-          padding: '30px 40px',
+          justifyContent: 'space-between',
+          width: 1200,
+          height: 750,
+          backgroundImage: `url('${bgDataUrl}')`,
+          backgroundSize: '100% 100%',
+          border: `2px solid ${borderColor}`,
+          borderRadius: 24,
+          padding: '40px 48px',
           boxSizing: 'border-box',
           position: 'relative',
         },
         children: [
-          {
-            type: 'div',
-            props: {
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 22,
-                fontWeight: 700,
-                color: primaryColor,
-                letterSpacing: 3,
-                marginBottom: 20,
-              },
-              children: `✦ • • ${titleText} • • ✦`,
-            },
-          },
+          // 1. Eyebrow Header
           {
             type: 'div',
             props: {
@@ -1270,77 +1290,164 @@ export class VisualCardService {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: 170,
-                height: 170,
-                borderRadius: 9999,
+                fontSize: 20,
+                fontWeight: 700,
+                color: primaryColor,
+                letterSpacing: 5,
+                textTransform: 'uppercase',
+              },
+              children: titleText,
+            },
+          },
+
+          // 2. Avatar with accent ring & glow
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 220,
+                height: 220,
+                borderRadius: 110,
                 border: `4px solid ${primaryColor}`,
-                backgroundColor: '#0b1424',
+                backgroundColor: isWelcome ? '#09131f' : '#1a100b',
+                boxShadow: `0 0 28px ${auraColor}`,
                 overflow: 'hidden',
-                marginBottom: 20,
+                position: 'relative',
               },
               children: [
                 {
                   type: 'img',
                   props: {
                     src: avatarBase64 ?? defaultAvatarDataUrl,
-                    width: 170,
-                    height: 170,
+                    width: 212,
+                    height: 212,
                     style: {
                       objectFit: 'cover',
-                      borderRadius: 9999,
+                      borderRadius: 106,
                     },
                   },
                 },
               ],
             },
           },
+
+          // 3. User Identity & Context Line
           {
             type: 'div',
             props: {
               style: {
-                fontSize: 34,
-                fontWeight: 700,
-                color: '#ffffff',
-                marginBottom: 8,
-                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
               },
-              children: options.userName,
+              children: [
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: 44,
+                      fontWeight: 700,
+                      color: '#ffffff',
+                      letterSpacing: 1,
+                      textAlign: 'center',
+                    },
+                    children: cleanName,
+                  },
+                },
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: 20,
+                      color: secondaryColor,
+                      letterSpacing: 1,
+                      textAlign: 'center',
+                    },
+                    children: contextAction,
+                  },
+                },
+              ],
             },
           },
+
+          // 4. Group Name & Subtitle
           {
             type: 'div',
             props: {
               style: {
-                fontSize: 22,
-                fontWeight: 500,
-                color: secondaryColor,
-                marginBottom: 10,
-                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
               },
-              children: options.groupName,
+              children: [
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: 24,
+                      fontWeight: 600,
+                      color: '#e2e8f0',
+                      textAlign: 'center',
+                    },
+                    children: options.groupName,
+                  },
+                },
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: 17,
+                      color: '#94a3b8',
+                      textAlign: 'center',
+                    },
+                    children: subText,
+                  },
+                },
+              ],
             },
           },
+
+          // 5. Ornamental Divider & Footer
           {
             type: 'div',
             props: {
               style: {
-                fontSize: 18,
-                color: '#94a3b8',
-                marginBottom: 12,
-                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+                width: '100%',
               },
-              children: subText,
-            },
-          },
-          {
-            type: 'div',
-            props: {
-              style: {
-                fontSize: 14,
-                color: '#475569',
-                letterSpacing: 1,
-              },
-              children: '© Allyssea Roleplay Community',
+              children: [
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: 13,
+                      color: borderColor,
+                      letterSpacing: 3,
+                    },
+                    children: '✦ ────────────────────────────────────────── ✦',
+                  },
+                },
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      fontSize: 15,
+                      color: '#64748b',
+                      letterSpacing: 2,
+                      textTransform: 'uppercase',
+                    },
+                    children: 'Allyssea Roleplay Community',
+                  },
+                },
+              ],
             },
           },
         ],
@@ -1348,8 +1455,8 @@ export class VisualCardService {
     }
 
     const svg = await satori(vdom as any, {
-      width: 1000,
-      height: 500,
+      width: 1200,
+      height: 750,
       fonts: loadFonts(),
       loadAdditionalAsset: loadEmojiAsset,
     })

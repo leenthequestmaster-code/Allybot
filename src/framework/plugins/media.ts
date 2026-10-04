@@ -242,6 +242,8 @@ async function defaultDownloadYouTubeMedia(
       } catch {}
 
       const processedPath = `/tmp/${tmpId}_final.mp4`
+      let transcodeSuccess = false
+
       if (codec === 'h264') {
         try {
           await execFileAsync('ffmpeg', [
@@ -251,19 +253,13 @@ async function defaultDownloadYouTubeMedia(
             '-movflags', '+faststart',
             processedPath,
           ], { timeout: 30_000 })
-          await unlink(fullPath).catch(() => {})
-          const buffer = await readFile(processedPath)
-          await unlink(processedPath).catch(() => {})
-          return {
-            data: new Uint8Array(buffer),
-            mimeType: 'video/mp4',
-            fileName: `${tmpId}.mp4`,
-            kind: 'video',
-          }
+          transcodeSuccess = true
         } catch {
-          // If repack fails, fall back to reading fullPath
+          transcodeSuccess = false
         }
-      } else {
+      }
+
+      if (!transcodeSuccess) {
         try {
           await execFileAsync('ffmpeg', [
             '-y', '-i', fullPath,
@@ -276,17 +272,36 @@ async function defaultDownloadYouTubeMedia(
             '-movflags', '+faststart',
             processedPath,
           ], { timeout: 45_000 })
-          await unlink(fullPath).catch(() => {})
-          const buffer = await readFile(processedPath)
-          await unlink(processedPath).catch(() => {})
-          return {
-            data: new Uint8Array(buffer),
-            mimeType: 'video/mp4',
-            fileName: `${tmpId}.mp4`,
-            kind: 'video',
+          transcodeSuccess = true
+        } catch {
+          transcodeSuccess = false
+        }
+      }
+
+      if (transcodeSuccess) {
+        // Stage 2: Second-stage ffprobe compatibility verification gate
+        try {
+          const { stdout: probeOut } = await execFileAsync('ffprobe', [
+            '-v', 'error',
+            '-select_streams', 'v:0',
+            '-show_entries', 'stream=codec_name',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            processedPath,
+          ], { timeout: 10_000 })
+          const finalCodec = probeOut.trim().toLowerCase()
+          if (finalCodec === 'h264') {
+            await unlink(fullPath).catch(() => {})
+            const buffer = await readFile(processedPath)
+            await unlink(processedPath).catch(() => {})
+            return {
+              data: new Uint8Array(buffer),
+              mimeType: 'video/mp4',
+              fileName: `${tmpId}.mp4`,
+              kind: 'video',
+            }
           }
         } catch {
-          // If transcode fails, fall back to reading fullPath
+          // If gate inspection fails, fall back to reading processed or source
         }
       }
     }
