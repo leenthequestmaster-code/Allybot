@@ -392,7 +392,7 @@ export class MsgBuilder {
   }
 
 
-  /** Relay an interactive/airich message with async 479-error fallback.
+  /** Relay an interactive message with async 479-error fallback.
    *  Does not block on ack — fires fallback if server rejects within a window. */
   private async _relayWithAckGuard(
     socket: WASocket,

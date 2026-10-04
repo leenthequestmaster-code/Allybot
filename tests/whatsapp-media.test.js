@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { WhatsAppConnection } from '../dist/whatsapp.js'
+import { WhatsAppConnection, SendGate } from '../dist/whatsapp.js'
 
 function logger() {
   return { debug() {}, warn() {} }
@@ -88,4 +88,45 @@ test('WhatsApp adapter sends validated binary media payloads through Baileys', a
   await assert.rejects(() => connection.sendMedia('group@g.us', {
     kind: 'document', data: new Uint8Array([1]), mimeType: 'text/plain', fileName: '../unsafe.txt',
   }), /Document filename is invalid/)
+})
+
+test('SendGate allows burst and paces subsequent requests', async () => {
+  const gate = new SendGate({ maxBurst: 3, refillIntervalMs: 100 })
+  const start = Date.now()
+
+  // 3 immediate permits
+  await gate.acquireSendPermit()
+  await gate.acquireSendPermit()
+  await gate.acquireSendPermit()
+  const burstDuration = Date.now() - start
+  assert.ok(burstDuration < 60, `burst should complete almost immediately, took ${burstDuration}ms`)
+
+  // 4th permit must wait for refill (~100ms)
+  await gate.acquireSendPermit()
+  const pacedDuration = Date.now() - start
+  assert.ok(pacedDuration >= 70, `4th permit should wait for refill, took ${pacedDuration}ms`)
+})
+
+test('SendGate media semaphore limits concurrent media uploads to maxMediaInFlight', async () => {
+  const gate = new SendGate({ maxMediaInFlight: 1 })
+  const events = []
+
+  const job1 = async () => {
+    const release = await gate.acquireMediaSlot()
+    events.push('job1:start')
+    await new Promise((r) => setTimeout(r, 80))
+    events.push('job1:end')
+    release()
+  }
+
+  const job2 = async () => {
+    const release = await gate.acquireMediaSlot()
+    events.push('job2:start')
+    await new Promise((r) => setTimeout(r, 20))
+    events.push('job2:end')
+    release()
+  }
+
+  await Promise.all([job1(), job2()])
+  assert.deepEqual(events, ['job1:start', 'job1:end', 'job2:start', 'job2:end'])
 })

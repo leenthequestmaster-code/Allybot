@@ -70,8 +70,7 @@ async function main(): Promise<void> {
     logger.info({ config: publicConfig(config), node: process.version, integrity }, 'Allybot self-check passed')
     storage.close()
     await sentry.close()
-    if (!integrity.valid) process.exitCode = 2
-    return
+    process.exit(integrity.valid ? 0 : 2)
   }
 
   const redis = new RedisService({ env: process.env })
@@ -89,6 +88,11 @@ async function main(): Promise<void> {
       groupContextOocCooldownMs: config.GROUP_CONTEXT_OOC_COOLDOWN_MS,
       groupContextOocWindowMs: config.GROUP_CONTEXT_OOC_WINDOW_MS,
       groupContextOocMaxPerWindow: config.GROUP_CONTEXT_OOC_MAX_PER_WINDOW,
+      officialOocGroupJid: config.OFFICIAL_OOC_GROUP_JID,
+      officialOocInviteLink: config.OFFICIAL_OOC_INVITE_LINK,
+      officialGroupJids: config.OFFICIAL_GROUP_JIDS
+        ? config.OFFICIAL_GROUP_JIDS.split(',').map((s) => s.trim()).filter(Boolean)
+        : undefined,
     },
     logger,
     whatsapp,
@@ -111,6 +115,7 @@ async function main(): Promise<void> {
     env: { ...process.env, ECONOMY_ENABLED: config.ECONOMY_ENABLED ? 'true' : 'false' },
     cacheTtlSeconds: 15,
     createClient: economyClient,
+    whatsapp,
   }))
   const groupContextClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
     ? () => createPostgresGroupContextClient({ postgresUrl: config.POSTGRES_URL! })

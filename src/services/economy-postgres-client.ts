@@ -62,6 +62,29 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
           status TEXT NOT NULL DEFAULT 'completed',
           created_at TIMESTAMPTZ NOT NULL DEFAULT now()
         );
+
+        CREATE TABLE IF NOT EXISTS economy_outbox (
+          outbox_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          scope_key TEXT NOT NULL,
+          target_jid TEXT NOT NULL,
+          payload JSONB NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          retry_count INT NOT NULL DEFAULT 0,
+          next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          lease_until TIMESTAMPTZ,
+          attempt_id TEXT,
+          last_error TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          sent_at TIMESTAMPTZ
+        );
+
+        CREATE INDEX IF NOT EXISTS economy_outbox_pending_idx
+        ON economy_outbox (next_attempt_at, created_at)
+        WHERE status = 'pending';
+
+        CREATE INDEX IF NOT EXISTS economy_outbox_lease_idx
+        ON economy_outbox (lease_until)
+        WHERE status = 'sending';
       `)
       schemaInitialized = true
     } catch {
@@ -165,18 +188,29 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
         const scopeKey = String(args.p_scope_key ?? '')
         const subjectKey = String(args.p_subject_key ?? '')
         const amount = Math.max(0, Math.floor(Number(args.p_amount ?? 0)))
+        const outboxTargetJid = typeof args.p_outbox_target_jid === 'string' ? args.p_outbox_target_jid.trim() : ''
+        const outboxPayload = args.p_outbox_payload
+          ? (typeof args.p_outbox_payload === 'string' ? args.p_outbox_payload : JSON.stringify(args.p_outbox_payload))
+          : ''
         await getOrCreateAccount(scopeKey, subjectKey)
 
-        await sql`
-          UPDATE economy_accounts
-          SET wallet_balance = wallet_balance + ${amount}, revision = revision + 1, updated_at = now()
-          WHERE scope_key = ${scopeKey} AND subject_key = ${subjectKey}
-        `
-
-        await sql`
-          INSERT INTO economy_history (scope_key, subject_key, entry_type, amount, wallet_delta, safe_delta, reserved_wallet_delta, reason)
-          VALUES (${scopeKey}, ${subjectKey}, 'reward', ${amount}, ${amount}, 0, 0, ${String(args.p_reason ?? 'Reward')})
-        `
+        await sql.begin(async (tx) => {
+          await tx`
+            UPDATE economy_accounts
+            SET wallet_balance = wallet_balance + ${amount}, revision = revision + 1, updated_at = now()
+            WHERE scope_key = ${scopeKey} AND subject_key = ${subjectKey}
+          `
+          await tx`
+            INSERT INTO economy_history (scope_key, subject_key, entry_type, amount, wallet_delta, safe_delta, reserved_wallet_delta, reason)
+            VALUES (${scopeKey}, ${subjectKey}, 'reward', ${amount}, ${amount}, 0, 0, ${String(args.p_reason ?? 'Reward')})
+          `
+          if (outboxTargetJid && outboxPayload) {
+            await tx`
+              INSERT INTO economy_outbox (scope_key, target_jid, payload, status)
+              VALUES (${scopeKey}, ${outboxTargetJid}, ${outboxPayload}::jsonb, 'pending')
+            `
+          }
+        })
 
         return { data: { ok: true, code: 'granted' }, error: null }
       }
@@ -264,9 +298,13 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
 
       if (functionName === 'economy_create_transfer') {
         const scopeKey = String(args.p_scope_key ?? '')
-        const sourceKey = String(args.p_source_key ?? '')
-        const targetKey = String(args.p_target_key ?? '')
+        const sourceKey = String(args.p_sender_key ?? args.p_source_key ?? '')
+        const targetKey = String(args.p_recipient_key ?? args.p_target_key ?? '')
         const amount = Math.max(0, Math.floor(Number(args.p_amount ?? 0)))
+        const outboxTargetJid = typeof args.p_outbox_target_jid === 'string' ? args.p_outbox_target_jid.trim() : ''
+        const outboxPayload = args.p_outbox_payload
+          ? (typeof args.p_outbox_payload === 'string' ? args.p_outbox_payload : JSON.stringify(args.p_outbox_payload))
+          : ''
 
         const source = await getOrCreateAccount(scopeKey, sourceKey)
         await getOrCreateAccount(scopeKey, targetKey)
@@ -300,9 +338,91 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
             INSERT INTO economy_history (scope_key, subject_key, entry_type, amount, wallet_delta, safe_delta, reserved_wallet_delta, reason)
             VALUES (${scopeKey}, ${targetKey}, 'transfer_in', ${amount}, ${amount}, 0, 0, ${String(args.p_reason ?? 'Transfer in')})
           `
+          if (outboxTargetJid && outboxPayload) {
+            await tx`
+              INSERT INTO economy_outbox (scope_key, target_jid, payload, status)
+              VALUES (${scopeKey}, ${outboxTargetJid}, ${outboxPayload}::jsonb, 'pending')
+            `
+          }
         })
 
         return { data: { ok: true, transfer_id: transferId, status: 'completed' }, error: null }
+      }
+
+      if (functionName === 'economy_outbox_claim') {
+        const limit = Math.min(50, Math.max(1, Number(args.p_limit ?? 10)))
+        const attemptId = randomUUID()
+        const rows = await sql`
+          WITH jobs AS (
+            SELECT outbox_id
+            FROM economy_outbox
+            WHERE (status = 'pending' AND next_attempt_at <= now())
+               OR (status = 'sending' AND lease_until <= now())
+            ORDER BY created_at
+            FOR UPDATE SKIP LOCKED
+            LIMIT ${limit}
+          )
+          UPDATE economy_outbox o
+          SET status = 'sending',
+              attempt_id = ${attemptId},
+              lease_until = now() + interval '30 seconds',
+              retry_count = retry_count + 1
+          FROM jobs
+          WHERE o.outbox_id = jobs.outbox_id
+          RETURNING o.outbox_id, o.scope_key, o.target_jid, o.payload, o.attempt_id, o.retry_count
+        `
+        return {
+          data: {
+            jobs: rows.map((r) => ({
+              outbox_id: String(r.outbox_id),
+              scope_key: String(r.scope_key),
+              target_jid: String(r.target_jid),
+              payload: typeof r.payload === 'string' ? JSON.parse(r.payload) : r.payload,
+              attempt_id: String(r.attempt_id),
+              retry_count: Number(r.retry_count),
+            })),
+          },
+          error: null,
+        }
+      }
+
+      if (functionName === 'economy_outbox_mark_sent') {
+        const outboxId = String(args.p_outbox_id ?? '')
+        const attemptId = String(args.p_attempt_id ?? '')
+        await sql`
+          UPDATE economy_outbox
+          SET status = 'sent', sent_at = now()
+          WHERE outbox_id = ${outboxId} AND attempt_id = ${attemptId}
+        `
+        return { data: { ok: true }, error: null }
+      }
+
+      if (functionName === 'economy_outbox_mark_failed') {
+        const outboxId = String(args.p_outbox_id ?? '')
+        const attemptId = String(args.p_attempt_id ?? '')
+        const errorMsg = String(args.p_error ?? 'unknown error').slice(0, 500)
+        await sql`
+          UPDATE economy_outbox
+          SET status = 'pending',
+              next_attempt_at = now() + interval '15 seconds',
+              last_error = ${errorMsg}
+          WHERE outbox_id = ${outboxId} AND attempt_id = ${attemptId}
+        `
+        return { data: { ok: true }, error: null }
+      }
+
+      if (functionName === 'economy_outbox_enqueue') {
+        const scopeKey = String(args.p_scope_key ?? '')
+        const targetJid = String(args.p_target_jid ?? '')
+        const payload = args.p_payload
+          ? (typeof args.p_payload === 'string' ? args.p_payload : JSON.stringify(args.p_payload))
+          : '{}'
+        const outboxId = randomUUID()
+        await sql`
+          INSERT INTO economy_outbox (outbox_id, scope_key, target_jid, payload, status)
+          VALUES (${outboxId}, ${scopeKey}, ${targetJid}, ${payload}::jsonb, 'pending')
+        `
+        return { data: { ok: true, outbox_id: outboxId }, error: null }
       }
 
       if (functionName === 'economy_get_history') {

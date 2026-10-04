@@ -232,6 +232,8 @@ export function registerUtilityFunCommands(context: PluginContext): void {
     category: 'fun',
     menuOrder: 16,
     cooldownMs: FUN_COOLDOWN_MS,
+    freshness: { maxAgeMs: 30_000 },
+    scope: 'both',
     handler: async (commandContext) => {
       pruneChallenges()
       const args = commandContext.args

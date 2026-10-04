@@ -70,6 +70,9 @@ const envSchema = z.object({
   SENTRY_ENVIRONMENT: z.string().regex(/^[a-zA-Z0-9._-]{1,32}$/).default('production'),
   SENTRY_RELEASE: z.string().regex(/^[a-zA-Z0-9._-]{1,128}$/).optional(),
   SENTRY_TRACES_SAMPLE_RATE: z.string().regex(/^(?:0(?:\.\d+)?|1(?:\.0+)?)$/).default('0').transform(Number),
+  OFFICIAL_OOC_GROUP_JID: z.string().optional(),
+  OFFICIAL_OOC_INVITE_LINK: z.string().optional(),
+  OFFICIAL_GROUP_JIDS: z.string().optional(),
 })
 
 export type AppConfig = z.infer<typeof envSchema>

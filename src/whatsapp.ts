@@ -224,6 +224,76 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, operation:
   }
 }
 
+export class SendGate {
+  private tokens: number
+  private readonly maxTokens: number
+  private readonly refillIntervalMs: number
+  private lastRefill: number
+  private activeMediaCount = 0
+  private readonly maxMediaInFlight: number
+  private readonly mediaWaiters: (() => void)[] = []
+
+  constructor(options: { maxBurst?: number; refillIntervalMs?: number; maxMediaInFlight?: number } = {}) {
+    this.maxTokens = options.maxBurst ?? 5
+    this.tokens = this.maxTokens
+    this.refillIntervalMs = options.refillIntervalMs ?? 400
+    this.lastRefill = Date.now()
+    this.maxMediaInFlight = options.maxMediaInFlight ?? 1
+  }
+
+  private refillTokens(): void {
+    const now = Date.now()
+    const elapsed = now - this.lastRefill
+    if (elapsed >= this.refillIntervalMs) {
+      const addedTokens = Math.floor(elapsed / this.refillIntervalMs)
+      this.tokens = Math.min(this.maxTokens, this.tokens + addedTokens)
+      this.lastRefill = now
+    }
+  }
+
+  async acquireSendPermit(): Promise<void> {
+    while (true) {
+      this.refillTokens()
+      if (this.tokens > 0) {
+        this.tokens -= 1
+        return
+      }
+      const waitMs = Math.max(50, this.refillIntervalMs - (Date.now() - this.lastRefill))
+      await new Promise((resolve) => setTimeout(resolve, waitMs))
+    }
+  }
+
+  async acquireMediaSlot(): Promise<() => void> {
+    if (this.activeMediaCount < this.maxMediaInFlight) {
+      this.activeMediaCount += 1
+      let released = false
+      return () => {
+        if (!released) {
+          released = true
+          this.activeMediaCount -= 1
+          const next = this.mediaWaiters.shift()
+          if (next) next()
+        }
+      }
+    }
+
+    await new Promise<void>((resolve) => {
+      this.mediaWaiters.push(resolve)
+    })
+
+    this.activeMediaCount += 1
+    let released = false
+    return () => {
+      if (!released) {
+        released = true
+        this.activeMediaCount -= 1
+        const next = this.mediaWaiters.shift()
+        if (next) next()
+      }
+    }
+  }
+}
+
 export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTransport {
   socket: WASocket | undefined = undefined
   private reconnectTimer: NodeJS.Timeout | undefined
@@ -244,6 +314,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private readonly groupParticipantListeners = new Set<(event: CoreGroupParticipantUpdate) => Promise<void> | void>()
   private readonly connectionListeners = new Set<(event: CoreConnectionState) => Promise<void> | void>()
   private lastDedupCleanupAt = 0
+  private readonly sendGate: SendGate
 
   constructor(
     private readonly config: AppConfig,
@@ -252,6 +323,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     private readonly redis?: RedisService,
   ) {
     this.retryCounterCache = new NodeCache({ stdTTL: 300, useClones: false }) as unknown as CacheStore
+    this.sendGate = new SendGate({ maxBurst: 5, refillIntervalMs: 400, maxMediaInFlight: 1 })
   }
 
   private requireSocket(): WASocket {
@@ -314,6 +386,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
   async sendText(remoteJid: string, text: string, options?: WhatsAppSendOptions): Promise<void> {
     const socket = this.requireSocket()
+    await this.sendGate.acquireSendPermit()
     const content = options?.mentions?.length
       ? { text, mentions: [...options.mentions], linkPreview: null }
       : { text, linkPreview: null }
@@ -496,46 +569,53 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
   async sendMedia(remoteJid: string, payload: WhatsAppMediaPayload): Promise<void> {
     const socket = this.requireSocket()
-    const data = Buffer.from(payload.data)
-    if (!remoteJid || data.length === 0 || data.length > MEDIA_SEND_MAX_BYTES) throw new Error('Media payload is out of bounds')
-    const mimeType = payload.mimeType.trim().toLowerCase()
-    if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*(?:;\s*[a-z0-9!#$&^_.+-]+=[a-z0-9!#$&^_.+-]+)*$/.test(mimeType)) throw new Error('Invalid media MIME type')
-    if (payload.caption && payload.caption.length > 1_000) throw new Error('Media caption is too long')
-    let content:
-      | { sticker: Buffer; mimetype?: string; isAnimated?: boolean }
-      | { image: Buffer; mimetype?: string; caption?: string }
-      | { video: Buffer; mimetype?: string; caption?: string; gifPlayback?: boolean }
-      | { audio: Buffer; mimetype?: string; ptt?: boolean }
-      | { document: Buffer; mimetype: string; fileName?: string; caption?: string }
-    switch (payload.kind) {
-      case 'sticker':
-        if (mimeType !== 'image/webp') throw new Error('Sticker payload must be image/webp')
-        content = { sticker: data, mimetype: mimeType, ...(payload.isAnimated ? { isAnimated: true } : {}) }
-        break
-      case 'image':
-        if (!mimeType.startsWith('image/')) throw new Error('Image payload MIME mismatch')
-        content = { image: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}) }
-        break
-      case 'video':
-        if (!mimeType.startsWith('video/')) throw new Error('Video payload MIME mismatch')
-        content = { video: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}), ...(payload.gifPlayback ? { gifPlayback: true } : {}) }
-        break
-      case 'audio':
-        if (!mimeType.startsWith('audio/')) throw new Error('Audio payload MIME mismatch')
-        content = { audio: data, mimetype: mimeType, ...(payload.ptt !== undefined ? { ptt: payload.ptt } : {}) }
-        break
-      case 'document':
-        if (!payload.fileName || !/^[a-zA-Z0-9][a-zA-Z0-9._ -]{0,99}$/.test(payload.fileName)) throw new Error('Document filename is invalid')
-        content = { document: data, mimetype: mimeType, fileName: payload.fileName, ...(payload.caption ? { caption: payload.caption } : {}) }
-        break
-      default:
-        throw new Error('Unsupported media kind')
+    const releaseMediaSlot = await this.sendGate.acquireMediaSlot()
+    try {
+      await this.sendGate.acquireSendPermit()
+      const data = Buffer.from(payload.data)
+      if (!remoteJid || data.length === 0 || data.length > MEDIA_SEND_MAX_BYTES) throw new Error('Media payload is out of bounds')
+      const mimeType = payload.mimeType.trim().toLowerCase()
+      if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*(?:;\s*[a-z0-9!#$&^_.+-]+=[a-z0-9!#$&^_.+-]+)*$/.test(mimeType)) throw new Error('Invalid media MIME type')
+      if (payload.caption && payload.caption.length > 1_000) throw new Error('Media caption is too long')
+      let content:
+        | { sticker: Buffer; mimetype?: string; isAnimated?: boolean }
+        | { image: Buffer; mimetype?: string; caption?: string }
+        | { video: Buffer; mimetype?: string; caption?: string; gifPlayback?: boolean }
+        | { audio: Buffer; mimetype?: string; ptt?: boolean }
+        | { document: Buffer; mimetype: string; fileName?: string; caption?: string }
+      switch (payload.kind) {
+        case 'sticker':
+          if (mimeType !== 'image/webp') throw new Error('Sticker payload must be image/webp')
+          content = { sticker: data, mimetype: mimeType, ...(payload.isAnimated ? { isAnimated: true } : {}) }
+          break
+        case 'image':
+          if (!mimeType.startsWith('image/')) throw new Error('Image payload MIME mismatch')
+          content = { image: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}) }
+          break
+        case 'video':
+          if (!mimeType.startsWith('video/')) throw new Error('Video payload MIME mismatch')
+          content = { video: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}), ...(payload.gifPlayback ? { gifPlayback: true } : {}) }
+          break
+        case 'audio':
+          if (!mimeType.startsWith('audio/')) throw new Error('Audio payload MIME mismatch')
+          content = { audio: data, mimetype: mimeType, ...(payload.ptt !== undefined ? { ptt: payload.ptt } : {}) }
+          break
+        case 'document':
+          if (!payload.fileName || !/^[a-zA-Z0-9][a-zA-Z0-9._ -]{0,99}$/.test(payload.fileName)) throw new Error('Document filename is invalid')
+          content = { document: data, mimetype: mimeType, fileName: payload.fileName, ...(payload.caption ? { caption: payload.caption } : {}) }
+          break
+        default:
+          throw new Error('Unsupported media kind')
+      }
+      await withTimeout(socket.sendMessage(remoteJid, content), 120_000, 'framework media response')
+    } finally {
+      releaseMediaSlot()
     }
-    await withTimeout(socket.sendMessage(remoteJid, content), 120_000, 'framework media response')
   }
 
   async sendNativeQuickReplies(remoteJid: string, payload: NativeQuickReplyPayload): Promise<void> {
     const socket = this.requireSocket()
+    await this.sendGate.acquireSendPermit()
     if (!remoteJid || payload.buttons.length === 0 || payload.buttons.length > 3) throw new Error('Invalid native quick-reply payload')
 
     const message = proto.Message.create({

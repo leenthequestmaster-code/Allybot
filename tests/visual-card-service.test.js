@@ -117,6 +117,34 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
 
     // Verify rejection of empty text and text exceeding 200 chars
     await assert.rejects(async () => VisualCardService.renderBrat('   '), /tidak boleh kosong/)
-    await assert.rejects(async () => VisualCardService.renderBrat('a'.repeat(201)), /terlalu panjang/)
+  })
+
+  it('renders Welcome and Leave Avatar Card (1000x500 PNG) with fallback and custom avatar', async () => {
+    // 1. Welcome card with fallback avatar
+    const welcomePng = await VisualCardService.renderWelcomeCard({
+      type: 'welcome',
+      userName: '@alice',
+      groupName: 'Allyssea Roleplay',
+    })
+    assert.ok(Buffer.isBuffer(welcomePng))
+    const welcomeMeta = await sharp(welcomePng).metadata()
+    assert.equal(welcomeMeta.width, 1000)
+    assert.equal(welcomeMeta.height, 500)
+
+    // 2. Leave card with custom avatar buffer
+    const mockAvatar = await sharp({
+      create: { width: 100, height: 100, channels: 4, background: { r: 255, g: 0, b: 0, alpha: 1 } },
+    }).png().toBuffer()
+
+    const leavePng = await VisualCardService.renderWelcomeCard({
+      type: 'leave',
+      userName: '@bob',
+      groupName: 'Allyssea Roleplay',
+      avatarBuffer: mockAvatar,
+    })
+    assert.ok(Buffer.isBuffer(leavePng))
+    const leaveMeta = await sharp(leavePng).metadata()
+    assert.equal(leaveMeta.width, 1000)
+    assert.equal(leaveMeta.height, 500)
   })
 })

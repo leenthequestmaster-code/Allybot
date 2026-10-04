@@ -1194,6 +1194,172 @@ export class VisualCardService {
       .webp({ quality: 90 })
       .toBuffer()
   }
+
+  /**
+   * Render dynamic Welcome / Leave Avatar Card
+   */
+  static async renderWelcomeCard(options: WelcomeCardOptions): Promise<Buffer> {
+    const fonts = loadFonts()
+    const isWelcome = options.type === 'welcome'
+    const primaryColor = isWelcome ? '#00e5ff' : '#f97316'
+    const secondaryColor = isWelcome ? '#38bdf8' : '#fb923c'
+    const titleText = isWelcome ? 'WELCOME TO ALLYSSEA' : 'FAREWELL ADVENTURER'
+    const subText = isWelcome
+      ? 'Selamat datang di keluarga Allyssea Roleplay Community.'
+      : 'Terima kasih telah berpetualang bersama kami.'
+
+    let avatarBase64: string | undefined
+    if (options.avatarBuffer && options.avatarBuffer.length > 0) {
+      try {
+        const resized = await sharp(Buffer.from(options.avatarBuffer))
+          .resize(180, 180, { fit: 'cover' })
+          .jpeg({ quality: 85 })
+          .toBuffer()
+        avatarBase64 = `data:image/jpeg;base64,${resized.toString('base64')}`
+      } catch {
+        avatarBase64 = undefined
+      }
+    }
+
+    const defaultAvatarSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${primaryColor}"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`
+    const defaultAvatarDataUrl = 'data:image/svg+xml;base64,' + b64(defaultAvatarSvg)
+
+    const vdom = {
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 1000,
+          height: 500,
+          backgroundColor: '#070d18',
+          border: `4px solid ${primaryColor}`,
+          borderRadius: 28,
+          padding: '30px 40px',
+          boxSizing: 'border-box',
+          position: 'relative',
+        },
+        children: [
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 22,
+                fontWeight: 700,
+                color: primaryColor,
+                letterSpacing: 3,
+                marginBottom: 20,
+              },
+              children: `✦ • • ${titleText} • • ✦`,
+            },
+          },
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 170,
+                height: 170,
+                borderRadius: 9999,
+                border: `4px solid ${primaryColor}`,
+                backgroundColor: '#0b1424',
+                overflow: 'hidden',
+                marginBottom: 20,
+              },
+              children: [
+                {
+                  type: 'img',
+                  props: {
+                    src: avatarBase64 ?? defaultAvatarDataUrl,
+                    width: 170,
+                    height: 170,
+                    style: {
+                      objectFit: 'cover',
+                      borderRadius: 9999,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          {
+            type: 'div',
+            props: {
+              style: {
+                fontSize: 34,
+                fontWeight: 700,
+                color: '#ffffff',
+                marginBottom: 8,
+                textAlign: 'center',
+              },
+              children: options.userName,
+            },
+          },
+          {
+            type: 'div',
+            props: {
+              style: {
+                fontSize: 22,
+                fontWeight: 500,
+                color: secondaryColor,
+                marginBottom: 10,
+                textAlign: 'center',
+              },
+              children: options.groupName,
+            },
+          },
+          {
+            type: 'div',
+            props: {
+              style: {
+                fontSize: 18,
+                color: '#94a3b8',
+                marginBottom: 12,
+                textAlign: 'center',
+              },
+              children: subText,
+            },
+          },
+          {
+            type: 'div',
+            props: {
+              style: {
+                fontSize: 14,
+                color: '#475569',
+                letterSpacing: 1,
+              },
+              children: '© Allyssea Roleplay Community',
+            },
+          },
+        ],
+      },
+    }
+
+    const svg = await satori(vdom as any, {
+      width: 1000,
+      height: 500,
+      fonts: loadFonts(),
+      loadAdditionalAsset: loadEmojiAsset,
+    })
+
+    const resvg = new Resvg(svg)
+    return resvg.render().asPng()
+  }
+}
+
+export interface WelcomeCardOptions {
+  readonly type: 'welcome' | 'leave'
+  readonly userName: string
+  readonly groupName: string
+  readonly avatarBuffer?: Buffer | Uint8Array
+  readonly memberCount?: number
 }
 
 export const brat = VisualCardService.renderBrat

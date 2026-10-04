@@ -70,3 +70,77 @@ test('SQLite Economy Client initializes, creates account snapshot, and handles d
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('Economy Outbox handles atomic transfer commit, local wakeup drain, and failed recovery backoff', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'allybot-economy-outbox-test-'))
+  const dbPath = join(root, 'test.sqlite')
+  const groupJid = '1203630123456789@g.us'
+  const senderJid = '6281111111111@s.whatsapp.net'
+  const recipientJid = '6282222222222@s.whatsapp.net'
+
+  const whatsapp = {
+    isConnected: true,
+    userJid: 'bot@s.whatsapp.net',
+    sent: [],
+    shouldFail: false,
+    async sendText(jid, text) {
+      if (this.shouldFail) throw new Error('WhatsApp network drop')
+      this.sent.push({ jid, text })
+    },
+  }
+
+  try {
+    const service = new EconomyService(logger, {
+      env: { ECONOMY_ENABLED: 'true' },
+      createClient: () => createSqliteEconomyClient(dbPath),
+      whatsapp,
+    })
+
+    service.initialize({ logger, config: {}, services: { has: () => false, get: () => undefined } })
+
+    // 1. Transfer with outboxNotification (happy path)
+    const outboxMsg = 'Bukti transfer: 200 Vela berhasil dikirim ke @6282222222222'
+    await service.createTransfer(
+      groupJid,
+      senderJid,
+      recipientJid,
+      200,
+      senderJid,
+      'op-transfer-outbox-1',
+      'Pembayaran item',
+      { targetJid: groupJid, text: outboxMsg },
+    )
+
+    // Wait a brief tick for local wakeup drain
+    await new Promise((r) => setTimeout(r, 50))
+
+    // Verified: Outbox was claimed and sent via WhatsAppPort!
+    assert.equal(whatsapp.sent.length, 1)
+    assert.equal(whatsapp.sent[0].jid, groupJid)
+    assert.equal(whatsapp.sent[0].text, outboxMsg)
+
+    // Check balances
+    const sender = (await service.getAccountSnapshot(groupJid, senderJid)).snapshot
+    const recipient = (await service.getAccountSnapshot(groupJid, recipientJid)).snapshot
+    assert.equal(sender.walletBalance, 800)
+    assert.equal(recipient.walletBalance, 1200)
+
+    // 2. Outbox send failure handling
+    whatsapp.shouldFail = true
+    await service.enqueueOutbox(groupJid, groupJid, { text: 'Pesan outbox gagal' })
+    await new Promise((r) => setTimeout(r, 50))
+
+    // WhatsApp sent length shouldn't increase
+    assert.equal(whatsapp.sent.length, 1)
+
+    // 3. Recovery backoff check
+    whatsapp.shouldFail = false
+    const client = service.client
+    const claimedBeforeBackoff = await client.rpc('economy_outbox_claim', { p_limit: 10 })
+    assert.equal(claimedBeforeBackoff.data.jobs.length, 0)
+
+    await service.shutdown()
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

@@ -95,6 +95,49 @@ export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
           : event.action === 'add'
             ? formatWelcome(event)
             : formatLeave(event)
+
+        if (whatsapp.sendMedia) {
+          try {
+            const { VisualCardService } = await import('../../services/visual-card-service.js')
+            let avatarBuffer: Buffer | undefined
+            const firstJid = event.participantJids[0]
+            if (firstJid && whatsapp.getProfilePictureUrl) {
+              try {
+                const url = await Promise.race([
+                  whatsapp.getProfilePictureUrl(firstJid, 'image', 2000),
+                  new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 2000)),
+                ])
+                if (url) {
+                  const res = await fetch(url, { signal: AbortSignal.timeout(2000) })
+                  if (res.ok) {
+                    avatarBuffer = Buffer.from(await res.arrayBuffer())
+                  }
+                }
+              } catch {
+                avatarBuffer = undefined
+              }
+            }
+
+            const primaryName = firstJid ? userLabel(firstJid) : 'Petualang'
+            const cardBuffer = await VisualCardService.renderWelcomeCard({
+              type: event.action === 'add' ? 'welcome' : 'leave',
+              userName: primaryName,
+              groupName: event.groupName ?? 'Allyssea Group',
+              avatarBuffer,
+            })
+
+            await whatsapp.sendMedia(event.groupJid, {
+              kind: 'image',
+              data: new Uint8Array(cardBuffer),
+              mimeType: 'image/png',
+              caption: text,
+            })
+            return
+          } catch (renderError) {
+            context.logger?.warn?.({ err: renderError }, 'welcome card render failed, falling back to text')
+          }
+        }
+
         await whatsapp.sendText(event.groupJid, text, mentionOptions(event.participantJids))
       })
     },

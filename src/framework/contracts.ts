@@ -184,6 +184,9 @@ export interface FrameworkConfig {
   readonly groupContextOocCooldownMs?: number
   readonly groupContextOocWindowMs?: number
   readonly groupContextOocMaxPerWindow?: number
+  readonly officialOocGroupJid?: string
+  readonly officialOocInviteLink?: string
+  readonly officialGroupJids?: readonly string[]
 }
 
 export interface CommandContext {
@@ -199,6 +202,12 @@ export interface CommandContext {
   react(emoji: string): Promise<void>
 }
 
+export interface FreshnessPolicy {
+  readonly maxAgeMs: number
+}
+
+export type CommandScope = 'group' | 'private' | 'both' | 'internal'
+
 export interface CommandDefinition {
   readonly name: string
   readonly aliases?: readonly string[]
@@ -208,6 +217,8 @@ export interface CommandDefinition {
   readonly hidden?: boolean
   readonly permission?: string
   readonly cooldownMs?: number
+  readonly freshness?: FreshnessPolicy
+  readonly scope?: CommandScope
   readonly validate?: (ctx: CommandContext) => string | undefined
   readonly handler: (ctx: CommandContext) => Promise<void> | void
 }

@@ -360,3 +360,215 @@ test('isGroupJid only accepts numeric WhatsApp group JIDs', () => {
   assert.equal(isGroupJid('120363012345678901@newsletter'), false)
   assert.equal(isGroupJid(''), false)
 })
+
+test('CommandRegistry drops stale commands when freshness policy is configured', async () => {
+  const whatsapp = createFakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+
+  let interactiveExecuted = false
+  let regularExecuted = false
+
+  registry.register({
+    name: 'fresh-game',
+    freshness: { maxAgeMs: 30_000 },
+    handler: async (ctx) => {
+      interactiveExecuted = true
+      await ctx.reply('game moved')
+    },
+  })
+
+  registry.register({
+    name: 'regular-info',
+    handler: async (ctx) => {
+      regularExecuted = true
+      await ctx.reply('info delivered')
+    },
+  })
+
+  const now = Date.now()
+
+  // 1. Stale interactive command (45s old) -> dropped silently
+  const staleMsg = {
+    id: 'msg-stale',
+    remoteJid: 'chat@s.whatsapp.net',
+    senderJid: 'user@s.whatsapp.net',
+    text: '!fresh-game',
+    timestamp: now - 45_000,
+    fromMe: false,
+  }
+  const staleResult = await registry.dispatch(staleMsg)
+  assert.equal(staleResult, false)
+  assert.equal(interactiveExecuted, false)
+  assert.equal(whatsapp.sent.length, 0)
+
+  // 2. Fresh interactive command (5s old) -> executed
+  const freshMsg = {
+    id: 'msg-fresh',
+    remoteJid: 'chat@s.whatsapp.net',
+    senderJid: 'user@s.whatsapp.net',
+    text: '!fresh-game',
+    timestamp: now - 5_000,
+    fromMe: false,
+  }
+  const freshResult = await registry.dispatch(freshMsg)
+  assert.equal(freshResult, true)
+  assert.equal(interactiveExecuted, true)
+  assert.equal(whatsapp.sent.length, 1)
+  assert.equal(whatsapp.sent[0].text, 'game moved')
+
+  // 3. Regular command without freshness policy (60s old) -> executed normally
+  const regularOldMsg = {
+    id: 'msg-regular',
+    remoteJid: 'chat@s.whatsapp.net',
+    senderJid: 'user@s.whatsapp.net',
+    text: '!regular-info',
+    timestamp: now - 60_000,
+    fromMe: false,
+  }
+  const regularResult = await registry.dispatch(regularOldMsg)
+  assert.equal(regularResult, true)
+  assert.equal(regularExecuted, true)
+  assert.equal(whatsapp.sent.length, 2)
+  assert.equal(whatsapp.sent[1].text, 'info delivered')
+})
+
+test('CommandRegistry enforces scope: group-only, private-only, both, and your-character default', async () => {
+  const whatsapp = createFakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+
+  let groupExecuted = false
+  let charExecuted = false
+  let privateExecuted = false
+
+  registry.register({
+    name: 'kick',
+    category: 'moderation',
+    handler: async () => { groupExecuted = true },
+  })
+
+  registry.register({
+    name: 'stats',
+    category: 'your-character',
+    handler: async () => { charExecuted = true },
+  })
+
+  registry.register({
+    name: 'secret',
+    scope: 'private',
+    handler: async () => { privateExecuted = true },
+  })
+
+  const groupJid = '120363012345678901@g.us'
+  const privateJid = '6281234567890@s.whatsapp.net'
+
+  // 1. Group command in private -> denied with group-only message
+  await registry.dispatch({ id: 'm1', remoteJid: privateJid, text: '!kick', timestamp: Date.now(), fromMe: false })
+  assert.equal(groupExecuted, false)
+  assert.match(whatsapp.sent.at(-1)?.text ?? '', /cuma bisa dijalankan di dalam grup/)
+
+  // 2. Group command in group -> executed
+  await registry.dispatch({ id: 'm2', remoteJid: groupJid, text: '!kick', timestamp: Date.now(), fromMe: false })
+  assert.equal(groupExecuted, true)
+
+  // 3. your-character command in private -> executed
+  await registry.dispatch({ id: 'm3', remoteJid: privateJid, text: '!stats', timestamp: Date.now(), fromMe: false })
+  assert.equal(charExecuted, true)
+
+  // 4. your-character command in group -> executed
+  charExecuted = false
+  await registry.dispatch({ id: 'm4', remoteJid: groupJid, text: '!stats', timestamp: Date.now(), fromMe: false })
+  assert.equal(charExecuted, true)
+
+  // 5. Private-only command in group -> denied with private chat message
+  await registry.dispatch({ id: 'm5', remoteJid: groupJid, text: '!secret', timestamp: Date.now(), fromMe: false })
+  assert.equal(privateExecuted, false)
+  assert.match(whatsapp.sent.at(-1)?.text ?? '', /cuma bisa dijalankan di private chat/)
+
+  // 6. Private-only command in private -> executed
+  await registry.dispatch({ id: 'm6', remoteJid: privateJid, text: '!secret', timestamp: Date.now(), fromMe: false })
+  assert.equal(privateExecuted, true)
+})
+
+test('CommandRegistry enforces Join-First Gate (OOC Allyssea membership)', async () => {
+  const oocGroupJid = '120363099999999999@g.us'
+  const externalGroupJid = '120363088888888888@g.us'
+  const memberJid = '6281111111111@s.whatsapp.net'
+  const nonMemberJid = '6282222222222@s.whatsapp.net'
+
+  const whatsapp = {
+    ...createFakeWhatsapp(),
+    async getGroupMetadata(jid) {
+      if (jid === oocGroupJid) {
+        return {
+          jid: oocGroupJid,
+          subject: 'OOC Allyssea',
+          participants: [{ jid: memberJid, role: 'member' }],
+        }
+      }
+      return undefined
+    },
+  }
+
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(
+    {
+      ...config,
+      officialOocGroupJid: oocGroupJid,
+      officialOocInviteLink: 'https://chat.whatsapp.com/test-ooc-link',
+    },
+    logger,
+    whatsapp,
+    services,
+    events,
+  )
+
+  let commandExecuted = false
+  registry.register({
+    name: 'ping',
+    scope: 'both',
+    handler: async () => { commandExecuted = true },
+  })
+
+  // 1. Non-member in external group -> rejected with invite link
+  commandExecuted = false
+  await registry.dispatch({
+    id: 'm1',
+    remoteJid: externalGroupJid,
+    senderJid: nonMemberJid,
+    text: '!ping',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.equal(commandExecuted, false)
+  assert.match(whatsapp.sent.at(-1)?.text ?? '', /bergabung ke grup resmi OOC Allyssea/)
+  assert.match(whatsapp.sent.at(-1)?.text ?? '', /test-ooc-link/)
+
+  // 2. Member in external group -> allowed!
+  commandExecuted = false
+  await registry.dispatch({
+    id: 'm2',
+    remoteJid: externalGroupJid,
+    senderJid: memberJid,
+    text: '!ping',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.equal(commandExecuted, true)
+
+  // 3. Any user inside official OOC group itself -> bypasses join check!
+  commandExecuted = false
+  await registry.dispatch({
+    id: 'm3',
+    remoteJid: oocGroupJid,
+    senderJid: nonMemberJid,
+    text: '!ping',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+  assert.equal(commandExecuted, true)
+})

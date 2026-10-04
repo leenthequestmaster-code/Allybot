@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Logger } from 'pino'
-import type { Service, ServiceContext } from '../framework/contracts.js'
+import type { Service, ServiceContext, WhatsAppPort } from '../framework/contracts.js'
 import { isGroupJid, isJid } from '../framework/validation.js'
 import type { RedisService } from '../redis.js'
 
@@ -97,6 +97,7 @@ export interface EconomyServiceOptions {
   readonly createClient?: (config: any) => EconomyRpcClient
   readonly redis?: EconomyRedisCache
   readonly clock?: () => number
+  readonly whatsapp?: WhatsAppPort
 }
 
 const ECONOMY_CACHE_SCOPE = 'economy-account'
@@ -136,9 +137,12 @@ export class EconomyService implements Service {
   private readonly backendConfigured: boolean
   private readonly injectedRedis?: EconomyRedisCache
   private readonly clock: () => number
+  private readonly whatsapp?: WhatsAppPort
   private enabled = false
   private client: EconomyRpcClient | undefined
   private redis: EconomyRedisCache | undefined
+  private outboxTimer?: NodeJS.Timeout
+  private activeDrain: Promise<number> | null = null
 
   constructor(
     private readonly logger: Logger,
@@ -159,6 +163,7 @@ export class EconomyService implements Service {
     this.createClient = options.createClient ?? (() => ({ rpc: async () => ({ data: null, error: null }) }))
     this.injectedRedis = options.redis
     this.clock = options.clock ?? (() => Date.now())
+    this.whatsapp = options.whatsapp
   }
 
   initialize(context: ServiceContext): void {
@@ -171,6 +176,15 @@ export class EconomyService implements Service {
 
     this.client = this.createClient({})
     this.logger.info({ cacheTtlSeconds: this.cacheTtlSeconds }, 'Economy service initialized')
+
+    if (this.whatsapp) {
+      this.outboxTimer = setInterval(() => {
+        this.drainOutbox().catch((err) => {
+          this.logger.warn({ err }, 'economy outbox background recovery scan failed')
+        })
+      }, 15_000)
+      this.outboxTimer.unref?.()
+    }
   }
 
   get isEnabled(): boolean {
@@ -354,6 +368,7 @@ export class EconomyService implements Service {
     actorJid: string,
     operationKey: string,
     note: string,
+    outboxNotification?: { targetJid: string; text: string },
   ): Promise<Record<string, unknown>> {
     this.assertGroupIdentity(groupJid)
     this.assertActorIdentity(senderJid)
@@ -369,8 +384,15 @@ export class EconomyService implements Service {
       p_operation_key: operationKey,
       p_actor_key: hashIdentity(canonicalJid(actorJid)),
       p_note: note,
+      ...(outboxNotification ? {
+        p_outbox_target_jid: outboxNotification.targetJid,
+        p_outbox_payload: JSON.stringify({ text: outboxNotification.text }),
+      } : {}),
     })
     await this.invalidateAccount(groupJid, senderJid)
+    if (outboxNotification) {
+      this.drainOutbox().catch(() => {})
+    }
     return result
   }
 
@@ -457,9 +479,64 @@ export class EconomyService implements Service {
   }
 
   async shutdown(): Promise<void> {
+    if (this.outboxTimer) {
+      clearInterval(this.outboxTimer)
+      this.outboxTimer = undefined
+    }
     this.client = undefined
     this.redis = undefined
     this.enabled = false
+  }
+
+  async drainOutbox(): Promise<number> {
+    if (!this.enabled || !this.client) return 0
+    if (this.activeDrain) return this.activeDrain
+
+    const client = this.client
+
+    this.activeDrain = (async () => {
+      let totalSent = 0
+      try {
+        const port = this.whatsapp
+        if (!port || !port.isConnected) return 0
+
+        const claimRes = await client.rpc('economy_outbox_claim', { p_limit: 10 })
+        const jobs = ((claimRes.data as Record<string, unknown> | null)?.jobs as any[]) ?? []
+        for (const job of jobs) {
+          try {
+            const text = job.payload?.text ?? (typeof job.payload === 'string' ? job.payload : JSON.stringify(job.payload))
+            await port.sendText(job.target_jid, text)
+            await client.rpc('economy_outbox_mark_sent', {
+              p_outbox_id: job.outbox_id,
+              p_attempt_id: job.attempt_id,
+            })
+            totalSent++
+          } catch (sendError) {
+            const errorMsg = sendError instanceof Error ? sendError.message : String(sendError)
+            await client.rpc('economy_outbox_mark_failed', {
+              p_outbox_id: job.outbox_id,
+              p_attempt_id: job.attempt_id,
+              p_error: errorMsg,
+            })
+          }
+        }
+      } finally {
+        this.activeDrain = null
+      }
+      return totalSent
+    })()
+
+    return this.activeDrain
+  }
+
+  async enqueueOutbox(groupJid: string, targetJid: string, payload: Record<string, unknown>): Promise<void> {
+    if (!this.client) throw new EconomyUnavailableError()
+    await this.client.rpc('economy_outbox_enqueue', {
+      p_scope_key: hashIdentity(canonicalJid(groupJid)),
+      p_target_jid: targetJid,
+      p_payload: JSON.stringify(payload),
+    })
+    this.drainOutbox().catch(() => {})
   }
 
   // Tax System (PRD §5.2)
