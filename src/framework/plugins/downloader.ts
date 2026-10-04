@@ -17,7 +17,7 @@ import type { SearchResult } from '../../services/downloader/types.js'
 /* ── Error messages (Indonesian, casual) ── */
 
 const MSG = {
-  PLATFORM_UNSUPPORTED: '❌ Platform nggak didukung. Support: IG, FB, X/Twitter (!tw), Threads, SC, Videy, Pixeldrain.',
+  PLATFORM_UNSUPPORTED: '❌ Platform nggak didukung. Support: IG, X/Twitter (!tw), Threads, SC, Videy, Pixeldrain.',
   RESOLVE_FAILED: '❌ Gagal ambil media. Pastikan kontennya publik ya~',
   TIMEOUT: '⏱ Timeout. Coba lagi nanti~',
   CIRCUIT_OPEN: (platform: string) => `⏳ ${platform} lagi sibuk. Coba 30 menit lagi~`,
@@ -29,7 +29,6 @@ const MSG = {
   NO_RESULTS: '😢 Nggak ketemu hasil pencarian.',
   SEARCH_QUERY_MISSING: '❌ Tulis kata kunci pencarian. Contoh: !yts lofi hip hop',
   NO_RECIPIENT: '❌ Sedang memproses, coba lagi dalam beberapa detik~',
-  FB_NEEDS_LOGIN: '⚠️ Video Facebook butuh akun yang login buat diambil. Link grup/private/share tanpa cookie nggak bisa~ Coba URL video halaman publik, atau kirim link videonya.',
 } as const
 
 /* ── Helpers ── */
@@ -40,7 +39,6 @@ const SHORT_URL_REGEX = /^https?:\/\/(bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|
 /** Map command alias → expected platform for validation (X/Twitter via !tw, karena !x milik mockup card) */
 const ALIAS_PLATFORM_MAP: Record<string, string> = {
   ig: 'instagram',
-  fb: 'facebook',
   tw: 'twitter',
   threads: 'threads',
   th: 'threads',
@@ -103,8 +101,8 @@ export const downloaderPlugin: Plugin = {
     /* ── !dl command ── */
     context.commands.register({
       name: 'dl',
-      aliases: ['ig', 'fb', 'tw', 'threads', 'th', 'videy', 'pd'],
-      description: 'Download media dari URL (IG, FB, X/Twitter, Threads, SC, Videy, Pixeldrain)',
+      aliases: ['ig', 'tw', 'threads', 'th', 'videy', 'pd'],
+      description: 'Download media dari URL (IG, X/Twitter, Threads, SC, Videy, Pixeldrain)',
       category: 'media',
       menuOrder: 10,
       cooldownMs: 10_000,
@@ -179,11 +177,7 @@ export const downloaderPlugin: Plugin = {
 
           const errMsg = err instanceof Error ? err.message : String(err)
 
-          // Facebook: bedakan kebutuhan login/cookie dari kegagalan umum
-          const isFacebook = adapter.name === 'facebook'
-          if (isFacebook && /(Unable to fetch|licensed|login required|not available|page .* content|\bcookie\b|session)/i.test(errMsg)) {
-            await ctx.reply(MSG.FB_NEEDS_LOGIN)
-          } else if (errMsg === 'PLATFORM_UNSUPPORTED') {
+          if (errMsg === 'PLATFORM_UNSUPPORTED') {
             await ctx.reply(MSG.PLATFORM_UNSUPPORTED)
           } else if (/timeout|abort/i.test(errMsg)) {
             await ctx.reply(MSG.TIMEOUT)

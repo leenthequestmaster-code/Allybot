@@ -7,7 +7,6 @@ import type { DownloaderAdapter, ResolveOptions, ResolveResult } from './types.j
 import { CircuitBreaker, CircuitOpenError } from './circuit.js'
 
 import { instagramAdapter } from './adapters/instagram.js'
-import { facebookAdapter } from './adapters/facebook.js'
 import { twitterAdapter } from './adapters/twitter.js'
 import { threadsAdapter } from './adapters/threads.js'
 import { soundcloudAdapter } from './adapters/soundcloud.js'
@@ -22,7 +21,6 @@ export { searchSoundCloud } from './adapters/soundcloud.js'
 /** All registered adapters (order matters for detection priority) */
 const adapters: readonly DownloaderAdapter[] = [
   instagramAdapter,
-  facebookAdapter,
   twitterAdapter,
   threadsAdapter,
   soundcloudAdapter,
