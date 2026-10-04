@@ -446,67 +446,57 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
                 try {
                   await runPythonScript(scriptPath, ['--overlay', overlayPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
 
-                  if (downloaded.kind === 'video') {
-                    const videoInPath = `/tmp/${tmpId}_in.mp4`
-                    await writeFile(videoInPath, downloaded.data)
-                    try {
-                      await new Promise<void>((resolve, reject) => {
-                        const ffmpeg = spawn('ffmpeg', [
-                          '-y',
-                          '-i', videoInPath,
-                          '-i', overlayPath,
-                          '-t', '6',
-                          '-filter_complex',
-                          '[0:v]fps=10,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba[base];[base][1:v]overlay=0:0[v]',
-                          '-map', '[v]',
-                          '-an',
-                          '-c:v', 'libwebp',
-                          '-lossless', '0',
-                          '-compression_level', '4',
-                          '-q:v', '45',
-                          '-loop', '0',
-                          '-f', 'webp',
-                          outPath,
-                        ])
-                        let settled = false
-                        const timer = setTimeout(() => {
-                          if (!settled) {
-                            settled = true
-                            ffmpeg.kill('SIGKILL')
-                            reject(new Error('ffmpeg timeout'))
-                          }
-                        }, 25_000)
-                        ffmpeg.once('error', (err) => {
-                          if (!settled) {
-                            settled = true
-                            clearTimeout(timer)
-                            reject(err)
-                          }
-                        })
-                        ffmpeg.once('close', (code) => {
-                          if (!settled) {
-                            settled = true
-                            clearTimeout(timer)
-                            if (code === 0) resolve()
-                            else reject(new Error(`ffmpeg exited with code ${code}`))
-                          }
-                        })
+                  const ext = downloaded.kind === 'video' ? 'mp4' : (downloaded.mimeType === 'image/gif' ? 'gif' : 'webp')
+                  const animInPath = `/tmp/${tmpId}_in.${ext}`
+                  await writeFile(animInPath, downloaded.data)
+                  try {
+                    await new Promise<void>((resolve, reject) => {
+                      const ffmpeg = spawn('ffmpeg', [
+                        '-y',
+                        '-i', animInPath,
+                        '-loop', '1',
+                        '-i', overlayPath,
+                        '-t', '6',
+                        '-filter_complex',
+                        '[0:v]fps=10,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba[base];[base][1:v]overlay=0:0:shortest=1[v]',
+                        '-map', '[v]',
+                        '-an',
+                        '-c:v', 'libwebp',
+                        '-lossless', '0',
+                        '-compression_level', '4',
+                        '-q:v', '45',
+                        '-loop', '0',
+                        '-f', 'webp',
+                        outPath,
+                      ])
+                      let settled = false
+                      const timer = setTimeout(() => {
+                        if (!settled) {
+                          settled = true
+                          ffmpeg.kill('SIGKILL')
+                          reject(new Error('ffmpeg timeout'))
+                        }
+                      }, 25_000)
+                      ffmpeg.once('error', (err) => {
+                        if (!settled) {
+                          settled = true
+                          clearTimeout(timer)
+                          reject(err)
+                        }
                       })
-                      const rawData = await readFile(outPath)
-                      dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
-                    } finally {
-                      await unlink(videoInPath).catch(() => {})
-                    }
-                  } else {
-                    // GIF or animated WebP sticker
-                    const overlayBuf = await readFile(overlayPath)
-                    const sharp = (await import('sharp')).default
-                    const animWebp = await sharp(downloaded.data, { animated: true })
-                      .resize(512, 512, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                      .composite([{ input: overlayBuf, blend: 'over' }])
-                      .webp({ loop: 0, quality: 60 })
-                      .toBuffer()
-                    dataWithExif = setStickerExif(animWebp, 'Meme Stickers', 'Allybot')
+                      ffmpeg.once('close', (code) => {
+                        if (!settled) {
+                          settled = true
+                          clearTimeout(timer)
+                          if (code === 0) resolve()
+                          else reject(new Error(`ffmpeg exited with code ${code}`))
+                        }
+                      })
+                    })
+                    const rawData = await readFile(outPath)
+                    dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
+                  } finally {
+                    await unlink(animInPath).catch(() => {})
                   }
                 } finally {
                   await unlink(overlayPath).catch(() => {})

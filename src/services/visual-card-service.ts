@@ -196,13 +196,13 @@ export class VisualCardService {
     const nameColor = senderName ? getAccentColor(senderName) : '#53bdeb'
 
     const bgSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 1200" preserveAspectRatio="none">
-<defs><filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="35"/></filter></defs>
-<rect width="920" height="1200" fill="#0b0f0e"/>
+<defs><filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="40"/></filter></defs>
+<rect width="920" height="1200" fill="#0b141a"/>
 <g filter="url(#b)">
-  <rect x="300" y="-50" width="650" height="220" rx="50" fill="#1b4d38"/>
-  <rect x="50" y="280" width="650" height="110" rx="40" fill="#2b302f"/>
-  <rect x="50" y="410" width="600" height="110" rx="40" fill="#2b302f"/>
-  <rect x="50" y="520" width="700" height="100" rx="40" fill="#252a29"/>
+  <rect x="250" y="-40" width="700" height="240" rx="60" fill="#0d4a36"/>
+  <rect x="40" y="240" width="600" height="140" rx="50" fill="#1f2c34"/>
+  <rect x="60" y="400" width="550" height="140" rx="50" fill="#1f2c34"/>
+  <rect x="50" y="550" width="650" height="120" rx="40" fill="#182229"/>
 </g>
 </svg>`
     const bgDataUrl = 'data:image/svg+xml;base64,' + b64(bgSvg)
@@ -224,9 +224,9 @@ export class VisualCardService {
             props: {
               style: {
                 fontWeight: 700,
-                fontSize: 22,
+                fontSize: 26,
                 color: nameColor,
-                marginBottom: 8,
+                marginBottom: 6,
               },
               children: senderName,
             },
@@ -236,9 +236,9 @@ export class VisualCardService {
         type: 'div',
         props: {
           style: {
-            fontSize: 34,
+            fontSize: 32,
             lineHeight: 1.35,
-            color: '#fff',
+            color: '#e9edef',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           },
@@ -253,14 +253,14 @@ export class VisualCardService {
             justifyContent: 'flex-end',
             alignItems: 'center',
             gap: 6,
-            marginTop: 10,
+            marginTop: 8,
           },
           children: [
             {
               type: 'span',
-              props: { style: { fontSize: 22, color: '#888' }, children: time },
+              props: { style: { fontSize: 20, color: '#8696a0' }, children: time },
             },
-            svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 22, '0 0 24 24', 2.5),
+            svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 20, '0 0 24 24', 2.5),
           ],
         },
       },
@@ -276,76 +276,81 @@ export class VisualCardService {
           position: 'relative',
           backgroundImage: `url('${bgDataUrl}')`,
           backgroundSize: '100% 100%',
-          padding: '50px 45px',
+          padding: '45px 40px',
           alignItems: 'flex-start',
         },
         children: [
-          // Reactions bar
+          // Reactions bar (iOS floating pill)
           {
             type: 'div',
             props: {
               style: {
                 display: 'flex',
                 alignItems: 'center',
-                gap: 24,
-                height: 104,
-                padding: '0 26px',
-                borderRadius: 52,
-                backgroundColor: '#222726',
-                marginBottom: 25,
+                gap: 20,
+                height: 92,
+                padding: '0 24px',
+                borderRadius: 46,
+                backgroundColor: '#202528',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                marginBottom: 20,
               },
               children: [
                 ...['👍', '❤️', '😂', '😮', '😢', '🙏'].map((e) => ({
                   type: 'span',
-                  props: { style: { fontSize: 54 }, children: e },
+                  props: { style: { fontSize: 46 }, children: e },
                 })),
                 {
                   type: 'div',
                   props: {
                     style: {
                       display: 'flex',
-                      width: 58,
-                      height: 58,
-                      borderRadius: 29,
-                      backgroundColor: '#3a3f3e',
+                      width: 50,
+                      height: 50,
+                      borderRadius: 25,
+                      backgroundColor: '#2c3236',
                       alignItems: 'center',
                       justifyContent: 'center',
                     },
-                    children: [svgIcon('<path d="M12 5v14M5 12h14"/>', '#d5dad8', 30)],
+                    children: [svgIcon('<path d="M12 5v14M5 12h14"/>', '#8696a0', 26)],
                   },
                 },
               ],
             },
           },
 
-          // Bubble
+          // Bubble (iOS WhatsApp dark bubble)
           {
             type: 'div',
             props: {
               style: {
                 display: 'flex',
                 flexDirection: 'column',
-                minWidth: 280,
+                minWidth: 260,
                 maxWidth: 720,
-                padding: '20px 30px 16px',
-                borderRadius: 30,
-                backgroundColor: '#1f2826',
-                marginBottom: 35,
+                padding: '16px 24px 14px',
+                borderRadius: 22,
+                backgroundColor: '#202c34',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                marginBottom: 25,
               },
               children: bubbleChildren,
             },
           },
 
-          // Action Menu Card
+          // Action Menu Card (iOS Context Menu)
           {
             type: 'div',
             props: {
               style: {
                 display: 'flex',
                 flexDirection: 'column',
-                width: 520,
-                borderRadius: 28,
-                backgroundColor: '#222726',
+                width: 480,
+                borderRadius: 18,
+                backgroundColor: '#202528',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
                 overflow: 'hidden',
               },
               children: menuItems.map(([label, iconD], idx) => {
@@ -357,22 +362,22 @@ export class VisualCardService {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '20px 28px',
-                      borderBottom: idx < menuItems.length - 1 ? '1px solid #2e3433' : 'none',
+                      padding: '18px 24px',
+                      borderBottom: idx < menuItems.length - 1 ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
                     },
                     children: [
                       {
                         type: 'span',
                         props: {
                           style: {
-                            fontSize: 26,
-                            color: isDelete ? '#ff453a' : '#fff',
+                            fontSize: 24,
+                            color: isDelete ? '#ff453a' : '#e9edef',
                             fontWeight: isDelete ? 700 : 400,
                           },
                           children: label,
                         },
                       },
-                      svgIcon(iconD, isDelete ? '#ff453a' : '#d5dad8', 26),
+                      svgIcon(iconD, isDelete ? '#ff453a' : '#8696a0', 24),
                     ],
                   },
                 }
