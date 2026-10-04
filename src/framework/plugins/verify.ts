@@ -38,6 +38,8 @@ import {
   shouldRunBackup,
   shouldRunGc,
 } from '../../services/amprem-scheduler.js'
+import { isSameJid } from '../../permissions.js'
+import type { QuotaService } from '../../services/quota-service.js'
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
 const URL_REGEX = /^https?:\/\/\S+$/
@@ -144,10 +146,16 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         handler: async (ctx: CommandContext) => {
           const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
 
-          // Beta lock — hanya owner
+          // Akses aktivator !am khusus untuk Owner atau Donator Seumur Hidup
           const cfg = loadConfig()
-          if (!cfg.owners.includes(senderJid)) {
-            await ctx.reply('Fitur ini belum tersedia.')
+          const quotaService = ctx.services.has('quota')
+            ? ctx.services.get<QuotaService>('quota')
+            : undefined
+          const isOwner = cfg.owners.includes(senderJid) || (Boolean(ctx.config.botOwnerJid) && isSameJid(senderJid, ctx.config.botOwnerJid!))
+          const isDonator = quotaService?.isDonator(senderJid) ?? false
+
+          if (!isOwner && !isDonator) {
+            await ctx.reply('Fitur aktivator !am khusus untuk Donator Seumur Hidup. Ketik !donasi untuk informasi donasi.')
             return
           }
 

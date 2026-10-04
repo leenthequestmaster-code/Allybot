@@ -1,6 +1,7 @@
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import { commandDescription } from '../command-copy.js'
 import { registerUtilityFunCommands } from './utility-fun.js'
+import type { QuotaService } from '../../services/quota-service.js'
 
 const MAX_QUERY_LENGTH = 80
 const MAX_REPLY_LENGTH = 3_500
@@ -341,6 +342,97 @@ export const utilityPlugin: Plugin = {
           '━━━━━━━━━━━━━━━━━━━━',
           '*© Allyssea Roleplay Community*',
         ].join('\n'))
+      },
+    })
+
+    context.commands.register({
+      name: 'donasi',
+      aliases: ['donate', 'donatur'],
+      description: 'Dukung operasional Allybot & unlock fitur eksklusif seumur hidup',
+      category: 'tools',
+      menuOrder: 5,
+      cooldownMs: UTILITY_COOLDOWN_MS,
+      scope: 'both',
+      handler: async (commandContext) => {
+        const quotaService = commandContext.services.has('quota')
+          ? commandContext.services.get<QuotaService>('quota')
+          : undefined
+        const sender = commandContext.message.senderJid ?? commandContext.message.remoteJid
+        const isDonator = quotaService?.isDonator(sender) ?? false
+        const tier = quotaService?.getTier(sender) ?? 'free'
+
+        const statusText = tier === 'owner'
+          ? '👑 *Status:* Owner (Akses Penuh Tanpa Batas)'
+          : isDonator
+            ? '🌟 *Status:* Donator Seumur Hidup (Aktif)'
+            : '⚪ *Status:* Member Regular'
+
+        await commandContext.reply([
+          '𓏼 *`𝐃𝗼𝗻𝐚𝐬𝗶 𝐀𝗹𝗹𝘆𝐬𝐬𝗲𝐚`*',
+          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+          statusText,
+          '',
+          'Dukung server VPS Allybot agar tetap aktif 24/7 bebas gangguan.',
+          '⡇╌ *Donasi*    : Seikhlasnya',
+          '⡇╌ *Masa Aktif*: Seumur Hidup (Lifetime)',
+          '',
+          '🎁 *Keuntungan Donator:*',
+          '• Akses fitur aktivator Alight Motion (`!am`)',
+          '• Limit harian download & play 50x / hari (Regular: 5x)',
+          '• Prioritas proses antrean downloader',
+          '',
+          '💳 *Cara Donasi:*',
+          '1. Transfer seikhlasnya via E-Wallet (Dana/GoPay/OVO/BCA).',
+          '2. Kontak Owner untuk tujuan transfer: wa.me/6283197859955',
+          '3. Kirim bukti transfer via `!report` atau DM Owner.',
+          '━━━━━━━━━━━━━━━━━━━━',
+          '*© Allyssea Roleplay Community*',
+        ].join('\n'))
+      },
+    })
+
+    context.commands.register({
+      name: 'setdonasi',
+      aliases: ['adddonatur'],
+      description: 'Atur status Donator Seumur Hidup untuk pengguna',
+      category: 'tools',
+      hidden: true,
+      permission: 'bot.owner',
+      cooldownMs: 0,
+      scope: 'both',
+      handler: async (commandContext) => {
+        const quotaService = commandContext.services.has('quota')
+          ? commandContext.services.get<QuotaService>('quota')
+          : undefined
+        if (!quotaService) {
+          await commandContext.reply('Layanan quota tidak aktif.')
+          return
+        }
+
+        const targetArg = commandContext.args[0]
+        const stateArg = (commandContext.args[1] ?? 'on').toLowerCase()
+        const enabled = stateArg === 'on' || stateArg === '1' || stateArg === 'true'
+
+        const mention = commandContext.message.mentionedJids?.[0]
+        const rawTarget = mention ?? targetArg
+        if (!rawTarget) {
+          await commandContext.reply(`Format: ${commandContext.prefix}setdonasi <@user|nomor> <on|off> [catatan]`)
+          return
+        }
+
+        const cleanPhone = rawTarget.replace(/[^0-9]/g, '')
+        if (!cleanPhone || cleanPhone.length < 5) {
+          await commandContext.reply('Nomor atau target pengguna tidak valid.')
+          return
+        }
+        const targetJid = `${cleanPhone}@s.whatsapp.net`
+        const note = commandContext.args.slice(2).join(' ') || undefined
+
+        quotaService.setDonator(targetJid, enabled, note)
+        const actionLabel = enabled ? 'diaktifkan' : 'dinonaktifkan'
+        await commandContext.reply(`✅ Status Donator Seumur Hidup untuk @${cleanPhone} berhasil ${actionLabel}.`, {
+          mentions: [targetJid],
+        })
       },
     })
 

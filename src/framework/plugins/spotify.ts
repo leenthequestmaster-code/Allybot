@@ -8,6 +8,7 @@ import { checkCooldown, markCall } from '../../services/music-cooldown.js'
 import { checkQuota, consumeQuota, restoreLimits, startRolloverInterval } from '../../services/music-limiter.js'
 import { runOnce, stats as queueStats } from '../../services/music-queue.js'
 import { initMusic, searchAndDownload, MusicError } from '../../services/music-service.js'
+import type { QuotaService } from '../../services/quota-service.js'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,7 +82,11 @@ export const spotifyPlugin: Plugin = {
         const remoteJid = ctx.message.remoteJid
         const senderJid = ctx.message.senderJid ?? remoteJid
         const isGroup = isGroupJid(remoteJid)
-        const tier = getTier(senderJid, isGroup ? remoteJid : undefined, config)
+        const quotaService = ctx.services.has('quota')
+          ? ctx.services.get<QuotaService>('quota')
+          : undefined
+        const baseTier = getTier(senderJid, isGroup ? remoteJid : undefined, config)
+        const tier = (quotaService?.isDonator(senderJid) && baseTier === 'free') ? 'premium' : baseTier
 
         // Cooldown
         const cooldown = checkCooldown(remoteJid, isGroup, tier, config)
@@ -94,7 +99,7 @@ export const spotifyPlugin: Plugin = {
         // Quota
         const quotaInfo = checkQuota(senderJid, tier, config)
         if (!quotaInfo.ok) {
-          await ctx.reply(`Jatah download kamu hari ini udah habis (${quotaInfo.used}/${quotaInfo.quota} lagu). Coba lagi besok ya, reset otomatis tengah malam WIB.`)
+          await ctx.reply(`Jatah download kamu hari ini udah habis (${quotaInfo.used}/${quotaInfo.quota} lagu). Donasi seikhlasnya via !donasi untuk menaikkan limit hingga 50 lagu/hari seumur hidup!`)
           return
         }
 

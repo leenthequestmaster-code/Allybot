@@ -13,6 +13,7 @@ import { DownloaderService } from '../../services/downloader-service.js'
 import { deliverMedia, MAX_CAROUSEL_ITEMS } from '../../services/downloader/deliver.js'
 import { CircuitOpenError, detectPlatform } from '../../services/downloader/index.js'
 import type { SearchResult } from '../../services/downloader/types.js'
+import type { QuotaService } from '../../services/quota-service.js'
 
 /* ── Error messages (Indonesian, casual) ── */
 
@@ -156,6 +157,16 @@ export const downloaderPlugin: Plugin = {
           return
         }
 
+        const quotaService = ctx.services.has('quota')
+          ? ctx.services.get<QuotaService>('quota')
+          : undefined
+        const senderJid = ctx.message.senderJid ?? ctx.message.remoteJid
+        const reservation = quotaService?.reserveQuota(senderJid, 'downloader')
+        if (reservation && !reservation.ok) {
+          await ctx.reply(`Limit harian download kamu sudah habis (0/${reservation.limit}). Donasi seikhlasnya via !donasi untuk menaikkan limit hingga 50x/hari seumur hidup!`)
+          return
+        }
+
         await ctx.react('⏳')
 
         try {
@@ -167,8 +178,10 @@ export const downloaderPlugin: Plugin = {
           }
 
           await deliverMedia(ctx.whatsapp, remoteJid, result, ctx.logger)
+          quotaService?.commitQuota(senderJid, 'downloader')
           await ctx.react('✅')
         } catch (err) {
+          quotaService?.refundQuota(senderJid, 'downloader')
           if (err instanceof CircuitOpenError) {
             await ctx.reply(MSG.CIRCUIT_OPEN(adapter.name))
             await ctx.react('❌')
