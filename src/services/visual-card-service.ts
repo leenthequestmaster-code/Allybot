@@ -1211,258 +1211,134 @@ export class VisualCardService {
   }
 
   /**
-   * Render dynamic Welcome / Leave Avatar Card v2 (1200x750, 16:10 ratio)
+   * Render dynamic Welcome / Leave Avatar Card (1024x611 Polaroid/Instagram pop-art)
    */
   static async renderWelcomeCard(options: WelcomeCardOptions): Promise<Buffer> {
-    const fonts = loadFonts()
     const isWelcome = options.type === 'welcome'
-    const primaryColor = isWelcome ? '#00e5ff' : '#ff9f43'
-    const secondaryColor = isWelcome ? '#38bdf8' : '#fb923c'
-    const bgBase = isWelcome ? '#070b12' : '#0f0a07'
-    const auraColor = isWelcome ? 'rgba(0, 229, 255, 0.12)' : 'rgba(255, 159, 67, 0.12)'
-    const borderColor = isWelcome ? 'rgba(0, 229, 255, 0.4)' : 'rgba(255, 159, 67, 0.4)'
+    const templateFileName = isWelcome ? 'welcome-template.png' : 'leave-template.png'
+    const rootPath = join(process.cwd(), 'assets', templateFileName)
+    const distPath = join(process.cwd(), 'dist', 'assets', templateFileName)
+    const templatePath = existsSync(rootPath) ? rootPath : distPath
 
-    const titleText = isWelcome ? '✦ WELCOME TO ALLYSSEA ✦' : '✦ FAREWELL, ADVENTURER ✦'
-    const contextAction = isWelcome ? 'has entered the realm.' : 'has departed from the realm.'
-    const subText = isWelcome
-      ? 'Selamat datang di keluarga kami. Bersiaplah untuk petualangan baru.'
-      : 'Terima kasih atas semua jejak dan cerita yang telah kau tinggalkan.'
-
-    // Sanitize display name — never show raw phone number or @JID
-    let cleanName = options.userName.trim()
-    if (!cleanName || cleanName.startsWith('@') || /^[+0-9@:._-]+$/.test(cleanName)) {
-      cleanName = isWelcome ? 'New Adventurer' : 'Adventurer'
+    let baseBuffer: Buffer
+    try {
+      baseBuffer = readFileSync(templatePath)
+    } catch {
+      baseBuffer = readFileSync(join(process.cwd(), 'assets', 'welcome-template.png'))
     }
 
-    let avatarBase64: string | undefined
+    // Sanitize display name
+    let cleanName = options.userName.trim()
+    if (!cleanName || cleanName === '@' || /^[+0-9@:._-]+$/.test(cleanName)) {
+      cleanName = isWelcome ? 'New Commoner' : 'Commoner'
+    } else if (!cleanName.startsWith('@')) {
+      cleanName = `@${cleanName}`
+    }
+
+    // 1. Process Avatar
+    // Dashed photo box polygon mask (matching the 8° tilted polaroid frame):
+    const maskSvg = `<svg width="1024" height="611" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="435,158 710,197 670,477 414,510" fill="#ffffff"/>
+    </svg>`
+
+    let avatarSource: Buffer
     if (options.avatarBuffer && options.avatarBuffer.length > 0) {
       try {
-        const resized = await sharp(Buffer.from(options.avatarBuffer))
-          .resize(220, 220, { fit: 'cover' })
-          .jpeg({ quality: 88 })
+        avatarSource = await sharp(Buffer.from(options.avatarBuffer))
+          .resize(360, 420, { fit: 'cover' })
+          .png()
           .toBuffer()
-        avatarBase64 = `data:image/jpeg;base64,${resized.toString('base64')}`
       } catch {
-        avatarBase64 = undefined
+        avatarSource = await VisualCardService.createDefaultAvatar(360, 420, isWelcome)
       }
+    } else {
+      avatarSource = await VisualCardService.createDefaultAvatar(360, 420, isWelcome)
     }
 
-    const defaultAvatarSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${primaryColor}"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`
-    const defaultAvatarDataUrl = 'data:image/svg+xml;base64,' + b64(defaultAvatarSvg)
+    // Rotate avatar by 8.16 degrees clockwise to match the polaroid tilt
+    const rotatedAvatar = await sharp(avatarSource)
+      .rotate(8.16, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer()
 
-    const bgSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 750" preserveAspectRatio="none">
-<defs>
-  <radialGradient id="glow" cx="50%" cy="38%" r="45%">
-    <stop offset="0%" stop-color="${isWelcome ? '#00e5ff' : '#ff9f43'}" stop-opacity="0.16"/>
-    <stop offset="60%" stop-color="${isWelcome ? '#0077b6' : '#c0392b'}" stop-opacity="0.04"/>
-    <stop offset="100%" stop-color="${bgBase}" stop-opacity="0"/>
-  </radialGradient>
-</defs>
-<rect width="1200" height="750" fill="${bgBase}"/>
-<rect width="1200" height="750" fill="url(#glow)"/>
-</svg>`
-    const bgDataUrl = 'data:image/svg+xml;base64,' + b64(bgSvg)
+    const avMeta = await sharp(rotatedAvatar).metadata()
+    const avLeft = Math.round(560 - (avMeta.width ?? 360) / 2)
+    const avTop = Math.round(335 - (avMeta.height ?? 420) / 2)
 
-    const vdom = {
-      type: 'div',
-      props: {
-        style: {
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          width: 1200,
-          height: 750,
-          backgroundImage: `url('${bgDataUrl}')`,
-          backgroundSize: '100% 100%',
-          border: `2px solid ${borderColor}`,
-          borderRadius: 24,
-          padding: '40px 48px',
-          boxSizing: 'border-box',
-          position: 'relative',
-        },
-        children: [
-          // 1. Eyebrow Header
-          {
-            type: 'div',
-            props: {
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 20,
-                fontWeight: 700,
-                color: primaryColor,
-                letterSpacing: 5,
-                textTransform: 'uppercase',
-              },
-              children: titleText,
-            },
-          },
-
-          // 2. Avatar with accent ring & glow
-          {
-            type: 'div',
-            props: {
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: 220,
-                height: 220,
-                borderRadius: 110,
-                border: `4px solid ${primaryColor}`,
-                backgroundColor: isWelcome ? '#09131f' : '#1a100b',
-                boxShadow: `0 0 28px ${auraColor}`,
-                overflow: 'hidden',
-                position: 'relative',
-              },
-              children: [
-                {
-                  type: 'img',
-                  props: {
-                    src: avatarBase64 ?? defaultAvatarDataUrl,
-                    width: 212,
-                    height: 212,
-                    style: {
-                      objectFit: 'cover',
-                      borderRadius: 106,
-                    },
-                  },
-                },
-              ],
-            },
-          },
-
-          // 3. User Identity & Context Line
-          {
-            type: 'div',
-            props: {
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-              },
-              children: [
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: 44,
-                      fontWeight: 700,
-                      color: '#ffffff',
-                      letterSpacing: 1,
-                      textAlign: 'center',
-                    },
-                    children: cleanName,
-                  },
-                },
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: 20,
-                      color: secondaryColor,
-                      letterSpacing: 1,
-                      textAlign: 'center',
-                    },
-                    children: contextAction,
-                  },
-                },
-              ],
-            },
-          },
-
-          // 4. Group Name & Subtitle
-          {
-            type: 'div',
-            props: {
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-              },
-              children: [
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: 24,
-                      fontWeight: 600,
-                      color: '#e2e8f0',
-                      textAlign: 'center',
-                    },
-                    children: options.groupName,
-                  },
-                },
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: 17,
-                      color: '#94a3b8',
-                      textAlign: 'center',
-                    },
-                    children: subText,
-                  },
-                },
-              ],
-            },
-          },
-
-          // 5. Ornamental Divider & Footer
-          {
-            type: 'div',
-            props: {
-              style: {
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-              },
-              children: [
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: 13,
-                      color: borderColor,
-                      letterSpacing: 3,
-                    },
-                    children: '✦ ────────────────────────────────────────── ✦',
-                  },
-                },
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: 15,
-                      color: '#64748b',
-                      letterSpacing: 2,
-                      textTransform: 'uppercase',
-                    },
-                    children: 'Allyssea Roleplay Community',
-                  },
-                },
-              ],
-            },
-          },
-        ],
+    // Place avatar on transparent 1024x611 canvas and apply polygon mask
+    const avatarCanvas = await sharp({
+      create: {
+        width: 1024,
+        height: 611,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
       },
-    }
-
-    const svg = await satori(vdom as any, {
-      width: 1200,
-      height: 750,
-      fonts: loadFonts(),
-      loadAdditionalAsset: loadEmojiAsset,
     })
+      .composite([{ input: rotatedAvatar, left: avLeft, top: avTop }])
+      .png()
+      .toBuffer()
 
-    const resvg = new Resvg(svg)
-    return resvg.render().asPng()
+    const maskedAvatar = await sharp(avatarCanvas)
+      .composite([{ input: Buffer.from(maskSvg), blend: 'dest-in' }])
+      .png()
+      .toBuffer()
+
+    // 2. Process Username Overlay
+    const safeUsername = cleanName
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&apos;')
+
+    const fontSize = safeUsername.length > 18 ? 16 : safeUsername.length > 14 ? 18 : 21
+    const usernameSvg = `<svg width="240" height="40" xmlns="http://www.w3.org/2000/svg">
+      <text x="120" y="27" font-family="Inter, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="${fontSize}" fill="#1e293b" text-anchor="middle">
+        ${safeUsername}
+      </text>
+    </svg>`
+
+    const rotUsername = await sharp(Buffer.from(usernameSvg))
+      .rotate(8.0, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer()
+
+    const userMeta = await sharp(rotUsername).metadata()
+    const userLeft = Math.round(568 - (userMeta.width ?? 240) / 2)
+    const userTop = Math.round(110 - (userMeta.height ?? 40) / 2)
+
+    // 3. Composite everything onto the base template
+    return sharp(baseBuffer)
+      .composite([
+        { input: maskedAvatar, left: 0, top: 0 },
+        { input: rotUsername, left: userLeft, top: userTop },
+      ])
+      .png()
+      .toBuffer()
+  }
+
+  private static async createDefaultAvatar(width: number, height: number, isWelcome: boolean): Promise<Buffer> {
+    const bgColor = isWelcome ? '#3b82f6' : '#64748b'
+    return sharp({
+      create: {
+        width,
+        height,
+        channels: 4,
+        background: { r: 241, g: 245, b: 249, alpha: 1 },
+      },
+    })
+      .composite([
+        {
+          input: Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="${width / 2}" cy="${height * 0.42}" r="${width * 0.22}" fill="${bgColor}"/>
+            <path d="M ${width * 0.15} ${height * 0.95} C ${width * 0.15} ${height * 0.65}, ${width * 0.85} ${height * 0.65}, ${width * 0.85} ${height * 0.95} Z" fill="${bgColor}"/>
+          </svg>`),
+          left: 0,
+          top: 0,
+        },
+      ])
+      .png()
+      .toBuffer()
   }
 }
 
