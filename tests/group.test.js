@@ -56,7 +56,7 @@ test('group foundation serves read-only metadata and clickable member lists', as
     timestamp: Date.now(),
     fromMe: false,
   })
-  assert.match(core.sent[0].text, /hanya dapat digunakan di dalam grup/)
+  assert.match(core.sent[0].text, /(hanya dapat digunakan|cuma bisa dijalankan) di dalam grup/)
 
   await core.emitMessage({
     id: 'info',

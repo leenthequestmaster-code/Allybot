@@ -14,12 +14,12 @@ function createFakeWhatsapp(options = {}) {
   const sentQuickReplies = []
   const sentLocations = []
   const metadata = options.metadata ?? {
-    jid: 'group@g.us',
+    jid: '120363000000000001@g.us',
     subject: 'Acceptance Group',
-    ownerJid: 'group-owner@s.whatsapp.net',
+    ownerJid: '6281200000001@s.whatsapp.net',
     participants: [
-      { jid: 'admin@s.whatsapp.net', role: 'admin' },
-      { jid: 'member@s.whatsapp.net', role: 'member' },
+      { jid: '6281200000002@s.whatsapp.net', role: 'admin' },
+      { jid: '6281200000003@s.whatsapp.net', role: 'member' },
     ],
   }
 
@@ -77,8 +77,8 @@ function createFakeWhatsapp(options = {}) {
 function message(overrides = {}) {
   return {
     id: `acceptance-${Math.random().toString(36).slice(2)}`,
-    remoteJid: 'chat@s.whatsapp.net',
-    senderJid: 'member@s.whatsapp.net',
+    remoteJid: '120363000000000001@g.us',
+    senderJid: '6281200000003@s.whatsapp.net',
     timestamp: Date.now(),
     fromMe: false,
     ...overrides,
@@ -90,7 +90,7 @@ function createFramework(whatsapp, options = {}) {
     {
       commandPrefix: '!',
       defaultCooldownMs: 0,
-      botOwnerJid: 'owner@s.whatsapp.net',
+      botOwnerJid: '6281200000001@s.whatsapp.net',
     },
     logger,
     whatsapp,
@@ -124,7 +124,7 @@ test('runtime acceptance traces inbound message through command handler to respo
   await whatsapp.emitMessage(message({ id: 'flow-1', text: '!e alpha beta' }))
 
   assert.equal(executions, 1)
-  assert.deepEqual(whatsapp.sentTexts, [{ remoteJid: 'chat@s.whatsapp.net', text: 'echo:alpha|beta' }])
+  assert.deepEqual(whatsapp.sentTexts, [{ remoteJid: '120363000000000001@g.us', text: 'echo:alpha|beta' }])
   assert.equal(framework.state.phase, 'ready')
 
   await framework.stop()
@@ -153,7 +153,7 @@ test('runtime acceptance rejects fromMe, unknown, and invalid commands without h
   await whatsapp.emitMessage(message({ id: 'reject-validation', text: '!validated' }))
 
   assert.equal(executions, 0)
-  assert.deepEqual(whatsapp.sentTexts, [{ remoteJid: 'chat@s.whatsapp.net', text: 'invalid input' }])
+  assert.deepEqual(whatsapp.sentTexts, [{ remoteJid: '120363000000000001@g.us', text: 'invalid input' }])
   await framework.stop()
 })
 
@@ -180,7 +180,7 @@ test('permission denial is enforced before protected handler execution', async (
 
   assert.equal(executions, 0)
   assert.deepEqual(whatsapp.sentTexts, [{
-    remoteJid: 'chat@s.whatsapp.net',
+    remoteJid: '120363000000000001@g.us',
     text: 'Maaf, command ini hanya tersedia untuk owner Allybot.',
   }])
   await framework.stop()

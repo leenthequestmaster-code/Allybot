@@ -25,8 +25,8 @@ function fakeWhatsapp() {
 function message(index, text, overrides = {}) {
   return {
     id: `utility-${index}`,
-    remoteJid: `utility-${index}@s.whatsapp.net`,
-    senderJid: `utility-${index}@s.whatsapp.net`,
+    remoteJid: '120363000000000001@g.us',
+    senderJid: `628120000000${index}@s.whatsapp.net`,
     text,
     timestamp: Date.now(),
     fromMe: false,
@@ -47,7 +47,7 @@ test('utility module split preserves canonical command registration parity', () 
   const registry = createRegistry(fakeWhatsapp())
   assert.deepEqual(registry.list().map((command) => command.name), [
     'commands', 'searchcmd', 'about', 'version', 'support',
-    'time', 'date', 'random', 'choose', 'flip', 'roll', 'truth', 'dare', 'rps', '8ball',
+    'time', 'date', 'donasi', 'setdonasi', 'random', 'choose', 'flip', 'roll', 'truth', 'dare', 'rps', '8ball',
   ])
   assert.deepEqual(registry.get('dice')?.aliases, ['dice'])
   assert.deepEqual(registry.get('suit')?.aliases, ['suit'])

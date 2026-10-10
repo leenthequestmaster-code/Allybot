@@ -55,8 +55,8 @@ function createHarness() {
 function message(text, extra = {}) {
   return {
     id: `msg-${Date.now()}-${Math.random()}`,
-    remoteJid: 'group@g.us',
-    senderJid: 'user@s.whatsapp.net',
+    remoteJid: '120363000000000001@g.us',
+    senderJid: '6281200000001@s.whatsapp.net',
     text,
     timestamp: Date.now(),
     fromMe: false,

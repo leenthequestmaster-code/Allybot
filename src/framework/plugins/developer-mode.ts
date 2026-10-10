@@ -98,6 +98,7 @@ export const developerModePlugin: Plugin = {
       aliases: ['debug'],
       description: 'Owner-controlled Developer Mode diagnostics',
       category: 'developer',
+      scope: 'both',
       hidden: true,
       permission: permissionNames.developerModeObserver,
       cooldownMs: 1_000,

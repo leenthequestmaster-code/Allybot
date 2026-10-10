@@ -258,7 +258,7 @@ test('menus and command indexes never advertise stub-refused commands as active'
     services: { has: (name) => name === 'economy', get: () => economy },
   })
 
-  await registry.dispatch({ id: 'menu-1', remoteJid: 'main@s.whatsapp.net', senderJid: memberJid, text: '!menu', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'menu-1', remoteJid: '120363000000000099@g.us', senderJid: memberJid, text: '!menu', timestamp: Date.now(), fromMe: false })
   const mainBody = whatsapp.sent[0].text
   assert.match(mainBody, /YOUR CHARACTER/)
   for (const hidden of ['!vela', '!wallet', '!bank', '!bankpolicy', '!bankreward', '!banksweep', '!tax', '!taxbayar']) {
@@ -268,7 +268,7 @@ test('menus and command indexes never advertise stub-refused commands as active'
 
   // The category page lists every visible command by name; refused stub commands
   // must be absent there too, while the genuinely-registered command stays listed.
-  await registry.dispatch({ id: 'menu-2', remoteJid: 'main@s.whatsapp.net', senderJid: memberJid, text: '!menu 1', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'menu-2', remoteJid: '120363000000000099@g.us', senderJid: memberJid, text: '!menu 1', timestamp: Date.now(), fromMe: false })
   const categoryBody = whatsapp.sent[1].text
   assert.match(categoryBody, /ping/)
   for (const hidden of ['!vela', '!wallet', '!bank', '!bankpolicy', '!economypolicy', '!bankreward', '!banksweep', '!tax', '!taxbayar', '!bayarpajak']) {

@@ -24,7 +24,7 @@ test('architecture fitness keeps lifecycle ownership and cleanup seams intact', 
 test('architecture fitness keeps guardrail outcomes and feature flags fail-closed', () => {
   const guardrails = read('src/framework/guardrails.ts')
   const service = read('src/services/platform-guardrail-service.ts')
-  const suggestion = read('src/services/suggestion-relay-service.ts')
+  const suggestion = read('src/services/group-moderation-service.ts')
 
   assert.match(guardrails, /'allowed', 'denied', 'changed', 'failed', 'limited', 'opened', 'closed'/)
   assert.match(service, /allowed: false, reason: 'Guardrail audit unavailable'/)

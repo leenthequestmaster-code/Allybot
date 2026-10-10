@@ -24,7 +24,7 @@ Class: Knight
 Element: Fire
 Will Of Path: Light`
 
-test('End-to-end: Setgroup guide -> !daftar -> choice -> issue card -> savecharacter -> getActive -> retire', async () => {
+test('End-to-end: Setgroup guide -> !daftar -> choice -> issue card -> savecharacter -> getActive -> retire', { skip: !process.env.DISPOSABLE_POSTGRES_URL }, async () => {
   const charClient = createPostgresCharacterClient({ postgresUrl: POSTGRES_URL })
   const groupClient = createPostgresGroupContextClient({ postgresUrl: POSTGRES_URL })
 

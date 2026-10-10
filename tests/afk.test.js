@@ -73,10 +73,10 @@ test('AFK plugin persists state, forwards every mention privately, and auto-unse
   app.registerPlugin(createAfkPlugin(core))
   await app.start()
 
-  const groupJid = 'roleplay@g.us'
-  const aliceJid = 'alice@s.whatsapp.net'
-  const bobJid = 'bob@s.whatsapp.net'
-  groupConfiguration.setPrefix(groupJid, '##', 'admin@s.whatsapp.net')
+  const groupJid = '120363000000000001@g.us'
+  const aliceJid = '6281200000001@s.whatsapp.net'
+  const bobJid = '6281200000002@s.whatsapp.net'
+  groupConfiguration.setPrefix(groupJid, '##', '6281200000003@s.whatsapp.net')
 
   await core.emitMessage(message('set-afk', aliceJid, groupJid, '!afk makan malam'))
   assert.match(core.sent[0].text, /sekarang AFK/)

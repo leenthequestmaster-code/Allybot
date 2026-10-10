@@ -131,7 +131,7 @@ test('codebase command is permission-gated', async () => {
     )
     app.registerPlugin(codebasePlugin)
     await app.start()
-    await core.emitMessage(message('denied-codebase', '!codebase', 'private@s.whatsapp.net', 'stranger@s.whatsapp.net'))
+    await core.emitMessage(message('denied-codebase', '!codebase', '120363000000000001@g.us', '6281200000002@s.whatsapp.net'))
 
     assert.equal(core.media.length, 0)
     assert.match(core.sent[0].text, /Developer Mode/)

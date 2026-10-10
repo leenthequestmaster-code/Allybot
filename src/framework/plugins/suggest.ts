@@ -119,6 +119,7 @@ export function createSuggestPlugin(
         aliases: ['saran'],
         description: 'Kirim kritik atau saran secara anonim ke pengurus bot.',
         category: 'group',
+        scope: 'both',
         menuOrder: 15,
         handler: async (commandContext) => {
           const service = getService()
@@ -295,6 +296,7 @@ export function createSuggestPlugin(
         aliases: ['lapor'],
         description: 'Laporkan pelanggaran ke pengurus secara aman dengan bukti.',
         category: 'group',
+        scope: 'both',
         menuOrder: 16,
         handler: async (commandContext) => {
           const service = getService()

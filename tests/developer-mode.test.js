@@ -136,7 +136,7 @@ test('Developer Mode command is owner-controlled, private-only, and redacted', a
     assert.equal(core.sent[1].text.includes(targetJid), false)
 
     await core.emitMessage(groupMessage('group-runtime', targetJid, '!dev runtime'))
-    assert.match(core.sent[2].text, /hanya dapat digunakan melalui private chat/)
+    assert.match(core.sent[2].text, /(hanya dapat digunakan melalui|cuma bisa dijalankan di) private chat/)
     const boundaryAudit = service.listAudit(100)
     assert.ok(boundaryAudit.some((record) => record.event === 'access.denied'))
     assert.equal(JSON.stringify(boundaryAudit).includes(targetJid), false)

@@ -24,14 +24,14 @@ function createHarness() {
 }
 
 function message(text, senderJid) {
-  return { id: `ai-${senderJid}`, remoteJid: 'group@g.us', senderJid, text, timestamp: Date.now(), fromMe: false }
+  return { id: `ai-${senderJid}`, remoteJid: '120363000000000001@g.us', senderJid, text, timestamp: Date.now(), fromMe: false }
 }
 
 test('AI tools translate and summarize use bounded explicit input and Indonesian aliases', async () => {
   const harness = createHarness()
 
-  await harness.commands.dispatch(message('!translate Inggris | Selamat datang', 'alice@s.whatsapp.net'))
-  await harness.commands.dispatch(message('!ringkas Ini adalah teks yang perlu diringkas', 'bob@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!translate Inggris | Selamat datang', '6281200000001@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!ringkas Ini adalah teks yang perlu diringkas', '6281200000002@s.whatsapp.net'))
 
   assert.equal(harness.whatsapp.sent.length, 2)
   assert.match(harness.whatsapp.sent[0].text, /Terjemahan/) 
@@ -44,7 +44,7 @@ test('AI tools translate and summarize use bounded explicit input and Indonesian
 test('AI translate rejects missing separator without contacting provider', async () => {
   const harness = createHarness()
 
-  await harness.commands.dispatch(message('!terjemah Inggris tanpa pemisah', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!terjemah Inggris tanpa pemisah', '6281200000001@s.whatsapp.net'))
 
   assert.equal(harness.prompts.length, 0)
   assert.match(harness.whatsapp.sent[0].text, /Format: !translate <bahasa> \| <teks>/)
@@ -53,7 +53,7 @@ test('AI translate rejects missing separator without contacting provider', async
 test('AI summarize rejects oversized explicit text before provider call', async () => {
   const harness = createHarness()
 
-  await harness.commands.dispatch(message(`!summarize ${'x'.repeat(1_201)}`, 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message(`!summarize ${'x'.repeat(1_201)}`, '6281200000001@s.whatsapp.net'))
 
   assert.equal(harness.prompts.length, 0)
   assert.match(harness.whatsapp.sent[0].text, /Format: !summarize <teks>/)

@@ -12,7 +12,7 @@ import { CharacterRegistrationWizardService } from '../dist/services/character-r
 
 const TEST_POSTGRES_URL = process.env.DISPOSABLE_POSTGRES_URL || 'postgres://allybot_test_runner:***@127.0.0.1:5433/allybot_isolated_test'
 
-test('Integration: Character Wizard full creation through Service & DB', async () => {
+test('Integration: Character Wizard full creation through Service & DB', { skip: !process.env.DISPOSABLE_POSTGRES_URL }, async () => {
   const sql = postgres(TEST_POSTGRES_URL, { max: 2 })
   const logger = pino({ level: 'silent' })
 

@@ -41,7 +41,7 @@ function createHarness({ media = {}, transformer } = {}) {
     config,
     events,
     commands,
-    services: { get() { throw new Error('service unavailable') } },
+    services: { has() { return false }, get() { throw new Error('service unavailable') } },
   })
   return { commands, whatsapp, sent, downloads, reactions }
 }
@@ -49,7 +49,7 @@ function createHarness({ media = {}, transformer } = {}) {
 function message(text, senderJid, extra = {}) {
   return {
     id: `media-${senderJid}`,
-    remoteJid: 'group@g.us',
+    remoteJid: '120363000000000001@g.us',
     senderJid,
     text,
     timestamp: Date.now(),
@@ -61,7 +61,7 @@ function message(text, senderJid, extra = {}) {
 test('sticker transforms a direct image and sends server-selected WebP payload', async () => {
   const harness = createHarness({ media: { kind: 'image', mimeType: 'image/jpeg', data: new Uint8Array([9]) } })
 
-  await harness.commands.dispatch(message('!sticker', 'alice@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!sticker', '6281200000001@s.whatsapp.net', {
     media: { kind: 'image', mimeType: 'image/jpeg', sizeBytes: 100 },
   }))
 
@@ -75,7 +75,7 @@ test('sticker transforms a direct image and sends server-selected WebP payload',
 test('toimg transforms quoted WebP sticker and sends PNG image payload', async () => {
   const harness = createHarness({ media: { kind: 'sticker', mimeType: 'image/webp', data: new Uint8Array([9]) } })
 
-  await harness.commands.dispatch(message('!toimg', 'bob@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!toimg', '6281200000002@s.whatsapp.net', {
     quotedMedia: { kind: 'sticker', mimeType: 'image/webp', quoted: true, sizeBytes: 100 },
   }))
 
@@ -142,7 +142,7 @@ test('FfmpegMediaTransformer selects fixed targets and rejects unsupported conve
 test('media command rejects oversized descriptor before downloading', async () => {
   const harness = createHarness({ media: { kind: 'image', mimeType: 'image/jpeg', data: new Uint8Array([9]) } })
 
-  await harness.commands.dispatch(message('!sticker', 'alice@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!sticker', '6281200000001@s.whatsapp.net', {
     media: { kind: 'image', mimeType: 'image/jpeg', sizeBytes: 3 * 1024 * 1024 + 1 },
   }))
 
@@ -155,7 +155,7 @@ test('media command fails closed when optional media capabilities are absent', a
   delete harness.whatsapp.downloadMedia
   delete harness.whatsapp.sendMedia
 
-  await harness.commands.dispatch(message('!sticker', 'alice@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!sticker', '6281200000001@s.whatsapp.net', {
     media: { kind: 'image', mimeType: 'image/jpeg', sizeBytes: 100 },
   }))
 
@@ -168,7 +168,7 @@ test('media command does not send when transformer exceeds output cap', async ()
     transformer: { async transform() { return new Uint8Array(512 * 1024 + 1) } },
   })
 
-  await harness.commands.dispatch(message('!stiker', 'alice@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!stiker', '6281200000001@s.whatsapp.net', {
     media: { kind: 'image', mimeType: 'image/jpeg', sizeBytes: 100 },
   }))
 
@@ -182,7 +182,7 @@ test('media transform errors are converted to safe user-facing output', async ()
     transformer: { async transform() { throw new MediaTransformError('timeout', 'internal detail') } },
   })
 
-  await harness.commands.dispatch(message('!sticker', 'alice@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!sticker', '6281200000001@s.whatsapp.net', {
     media: { kind: 'image', mimeType: 'image/jpeg', sizeBytes: 100 },
   }))
 
@@ -197,7 +197,7 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   })
 
   // 1. tomp3 alias
-  await harness.commands.dispatch(message('!tomp3', 'alice@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!tomp3', '6281200000001@s.whatsapp.net', {
     media: { kind: 'video', mimeType: 'video/mp4', sizeBytes: 100 },
   }))
   assert.equal(harness.sent.at(-1)?.type, 'media')
@@ -208,55 +208,55 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
     media: { kind: 'image', mimeType: 'image/jpeg', data: new Uint8Array([1, 2, 3]) },
     transformer: { async transform() { return new Uint8Array([1, 2]) } },
   })
-  await imgHarness.commands.dispatch(message('!stickerwm By Ally', 'alice@s.whatsapp.net', {
+  await imgHarness.commands.dispatch(message('!stickerwm By Ally', '6281200000001@s.whatsapp.net', {
     media: { kind: 'image', mimeType: 'image/jpeg', sizeBytes: 100 },
   }))
   assert.equal(imgHarness.sent.at(-1)?.type, 'media')
   assert.equal(imgHarness.sent.at(-1)?.payload.kind, 'sticker')
 
   // 3. tovideo with video harness
-  await harness.commands.dispatch(message('!tovideo', 'alice@s.whatsapp.net', {
+  await harness.commands.dispatch(message('!tovideo', '6281200000001@s.whatsapp.net', {
     media: { kind: 'video', mimeType: 'video/mp4', sizeBytes: 100 },
   }))
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
   // 4. compress
-  await imgHarness.commands.dispatch(message('!compress', 'alice@s.whatsapp.net', {
+  await imgHarness.commands.dispatch(message('!compress', '6281200000001@s.whatsapp.net', {
     media: { kind: 'image', mimeType: 'image/png', sizeBytes: 100 },
   }))
   assert.equal(imgHarness.sent.at(-1)?.type, 'media')
 
   // 5. emojimix
-  await harness.commands.dispatch(message('!emojimix 😂+😎', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!emojimix 😂+😎', '6281200000001@s.whatsapp.net'))
   assert.equal(harness.sent.at(-1)?.type, 'media')
   assert.equal(harness.sent.at(-1)?.payload.kind, 'sticker')
 
   // 6. qr validation
-  await harness.commands.dispatch(message('!qr', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!qr', '6281200000001@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !qr <teks>/)
 
   // 7. ytmp3 & ytmp4 validation (uses reaction ⏳)
-  await harness.commands.dispatch(message('!ytmp3 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!ytmp3 https://youtu.be/dQw4w9WgXcQ', '6281200000001@s.whatsapp.net'))
   assert.equal(harness.reactions.at(-1)?.emoji, '⏳')
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
-  await harness.commands.dispatch(message('!ytmp4 https://youtu.be/dQw4w9WgXcQ', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!ytmp4 https://youtu.be/dQw4w9WgXcQ', '6281200000001@s.whatsapp.net'))
   assert.equal(harness.reactions.at(-1)?.emoji, '⏳')
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
   // 8. yt2 downloader (uses reaction ⏳)
-  await harness.commands.dispatch(message('!yt2', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!yt2', '6281200000001@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !yt2/)
 
-  await harness.commands.dispatch(message('!yt2 https://youtu.be/dQw4w9WgXcQ', 'bob@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!yt2 https://youtu.be/dQw4w9WgXcQ', '6281200000002@s.whatsapp.net'))
   assert.equal(harness.reactions.at(-1)?.emoji, '⏳')
   assert.equal(harness.sent.at(-1)?.type, 'media')
 
   // 9. brat & brats validation and execution
-  await harness.commands.dispatch(message('!brat', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!brat', '6281200000001@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !brat/)
 
-  await harness.commands.dispatch(message('!brats', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!brats', '6281200000001@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !brats/)
 
   await harness.commands.dispatch(message('!brat i am so brat', 'brat-run@s.whatsapp.net'))
@@ -272,11 +272,11 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   assert.equal(bratsSent?.payload?.mimeType, 'image/webp')
 
   // 10. bratvid validation
-  await harness.commands.dispatch(message('!bratvid', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!bratvid', '6281200000001@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !bratvid/)
 
   // 10. qc validation
-  await harness.commands.dispatch(message('!qc', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!qc', '6281200000001@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Balas pesan teks dengan !qc/)
 
   // 11. iqc & iqcs validation and execution
@@ -309,7 +309,7 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   assert.equal(xSent?.payload?.mimeType, 'image/png')
 
   // 13. spack validation
-  await harness.commands.dispatch(message('!spack', 'alice@s.whatsapp.net'))
+  await harness.commands.dispatch(message('!spack', '6281200000001@s.whatsapp.net'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format pembuatan Sticker Pack/)
 
   // 14. animated video to sticker with isAnimated flag

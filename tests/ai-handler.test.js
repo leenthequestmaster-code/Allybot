@@ -154,7 +154,7 @@ test('AI plugin dispatches !ai and !ally through the ApplicationFramework', asyn
   }))
   await app.start()
 
-  await core.emitMessage({ id: 'ai', remoteJid: 'chat@s.whatsapp.net', senderJid: 'user@s.whatsapp.net', text: '!ai apa kabar?', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'ai', remoteJid: '120363000000000001@g.us', senderJid: '6281200000001@s.whatsapp.net', text: '!ai apa kabar?', timestamp: Date.now(), fromMe: false })
   assert.match(core.sent[0].text, /Allybot AI/)
   assert.match(core.sent[0].text, /jawaban untuk WhatsApp/)
   assert.equal(calls[0].model, PRIMARY_MODEL)
@@ -167,7 +167,7 @@ test('AI plugin dispatches !ai and !ally through the ApplicationFramework', asyn
     transport: async () => ({ content: 'jawaban prefix titik' }),
   }))
   await dotApp.start()
-  await dotCore.emitMessage({ id: 'ally', remoteJid: 'chat@s.whatsapp.net', senderJid: 'user@s.whatsapp.net', text: '.ally halo', timestamp: Date.now(), fromMe: false })
+  await dotCore.emitMessage({ id: 'ally', remoteJid: '120363000000000001@g.us', senderJid: '6281200000001@s.whatsapp.net', text: '.ally halo', timestamp: Date.now(), fromMe: false })
   assert.match(dotCore.sent[0].text, /jawaban prefix titik/)
   await dotApp.stop()
 })

@@ -1907,7 +1907,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          const quotaService = commandContext.services.has('quota')
+          const quotaService = Boolean(commandContext.services?.has?.('quota'))
             ? commandContext.services.get<QuotaService>('quota')
             : undefined
           const senderJid = commandContext.message.senderJid ?? commandContext.message.remoteJid
@@ -1950,7 +1950,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          const quotaService = commandContext.services.has('quota')
+          const quotaService = Boolean(commandContext.services?.has?.('quota'))
             ? commandContext.services.get<QuotaService>('quota')
             : undefined
           const senderJid = commandContext.message.senderJid ?? commandContext.message.remoteJid
@@ -2036,7 +2036,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             return
           }
 
-          const quotaService = commandContext.services.has('quota')
+          const quotaService = Boolean(commandContext.services?.has?.('quota'))
             ? commandContext.services.get<QuotaService>('quota')
             : undefined
           const senderJid = commandContext.message.senderJid ?? commandContext.message.remoteJid

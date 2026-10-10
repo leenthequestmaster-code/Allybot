@@ -47,11 +47,11 @@ async function assertIsolatedStack() {
   }
 }
 
-test('S4_guard_verification: ensures connection to isolated PG17 and Redis', async () => {
+test('S4_guard_verification: ensures connection to isolated PG17 and Redis', { skip: !process.env.DISPOSABLE_POSTGRES_URL }, async () => {
   await assertIsolatedStack();
 });
 
-test('R1_raw_parsing_and_token_bounds: negative and non-integer inputs rejected for alokasi', async () => {
+test('R1_raw_parsing_and_token_bounds: negative and non-integer inputs rejected for alokasi', { skip: !process.env.DISPOSABLE_POSTGRES_URL }, async () => {
   await assertIsolatedStack();
   const { parseStrictPositiveInt, parseStrictSignedInt } = await import('../dist/framework/plugins/character-guide.js');
 
@@ -94,7 +94,7 @@ test('R1_raw_parsing_and_token_bounds: negative and non-integer inputs rejected 
   }
 });
 
-test('R1_command_handler_exploit_prevention: !alokasi str -5 rejected without minting tokens', async () => {
+test('R1_command_handler_exploit_prevention: !alokasi str -5 rejected without minting tokens', { skip: !process.env.DISPOSABLE_POSTGRES_URL }, async () => {
   await assertIsolatedStack();
   const { createCharacterGuidePlugin } = await import('../dist/framework/plugins/character-guide.js');
   const { CharacterGuideService } = await import('../dist/services/character-guide-service.js');
@@ -141,7 +141,7 @@ test('R1_command_handler_exploit_prevention: !alokasi str -5 rejected without mi
   }
 });
 
-test('R3_concurrency_race_20_parallel: double-spending prevented via row-level locks', async () => {
+test('R3_concurrency_race_20_parallel: double-spending prevented via row-level locks', { skip: !process.env.DISPOSABLE_POSTGRES_URL }, async () => {
   await assertIsolatedStack();
   const { createPostgresCharacterClient } = await import('../dist/services/character-postgres-client.js');
   const client = createPostgresCharacterClient({ postgresUrl: process.env.DISPOSABLE_POSTGRES_URL });

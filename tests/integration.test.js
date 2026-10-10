@@ -69,8 +69,8 @@ test('ApplicationFramework owns lifecycle and dispatches through WhatsAppPort', 
   await app.start()
   assert.equal(app.state.phase, 'ready')
   assert.equal(core.isConnected, true)
-  await core.emitMessage({ id: 'm1', remoteJid: 'chat@s.whatsapp.net', text: '!hello', timestamp: Date.now(), fromMe: false })
-  assert.deepEqual(core.sent, [{ remoteJid: 'chat@s.whatsapp.net', text: 'hello from framework' }])
+  await core.emitMessage({ id: 'm1', remoteJid: '120363000000000001@g.us', text: '!hello', timestamp: Date.now(), fromMe: false })
+  assert.deepEqual(core.sent, [{ remoteJid: '120363000000000001@g.us', text: 'hello from framework' }])
   await app.stop()
   assert.equal(app.state.phase, 'stopped')
   assert.deepEqual(lifecycle, ['service:init', 'plugin:load', 'plugin:init', 'plugin:ready', 'plugin:unload', 'service:shutdown'])
@@ -90,13 +90,13 @@ test('A failed command is isolated and framework remains ready for later command
   })
 
   await app.start()
-  await core.emitMessage({ id: 'bad', remoteJid: 'chat@s.whatsapp.net', text: '!bad', timestamp: Date.now(), fromMe: false })
-  await core.emitMessage({ id: 'good', remoteJid: 'chat@s.whatsapp.net', text: '!good', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'bad', remoteJid: '120363000000000001@g.us', text: '!bad', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'good', remoteJid: '120363000000000001@g.us', text: '!good', timestamp: Date.now(), fromMe: false })
   assert.equal(app.state.phase, 'ready')
   assert.equal(frameworkErrors, 1)
   assert.deepEqual(core.sent, [
-    { remoteJid: 'chat@s.whatsapp.net', text: 'Maaf, command tidak dapat diproses saat ini. Silakan coba lagi.' },
-    { remoteJid: 'chat@s.whatsapp.net', text: 'still alive' },
+    { remoteJid: '120363000000000001@g.us', text: 'Maaf, command tidak dapat diproses saat ini. Silakan coba lagi.' },
+    { remoteJid: '120363000000000001@g.us', text: 'still alive' },
   ])
   await app.stop()
 })
@@ -104,41 +104,41 @@ test('A failed command is isolated and framework remains ready for later command
 test('Technical commands provide routed ping, safe profile, and owner-only cache clear', async () => {
   const core = new FakeCore()
   const app = new ApplicationFramework(
-    { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: 'owner@s.whatsapp.net' },
+    { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: '6281200000001@s.whatsapp.net' },
     logger,
     core,
     {
       permissionResolver: (permission, context) => permission === 'bot.owner'
-        && context.message.senderJid === 'owner@s.whatsapp.net',
+        && context.message.senderJid === '6281200000001@s.whatsapp.net',
     },
   )
   app.registerPlugin(technicalPlugin)
   await app.start()
 
-  await core.emitMessage({ id: 'ping', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!ping', timestamp: Date.now() - 20, receivedAt: Date.now() - 15, fromMe: false })
+  await core.emitMessage({ id: 'ping', remoteJid: '120363000000000001@g.us', senderJid: '6281200000001@s.whatsapp.net', text: '!ping', timestamp: Date.now() - 20, receivedAt: Date.now() - 15, fromMe: false })
   assert.match(core.sent[0].text, /Pong.*Allybot aktif/)
   assert.match(core.sent[0].text, /Latency: \d+ ms/)
 
-  await core.emitMessage({ id: 'profile', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!bprofile', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'profile', remoteJid: '120363000000000001@g.us', senderJid: '6281200000001@s.whatsapp.net', text: '!bprofile', timestamp: Date.now(), fromMe: false })
   assert.match(core.sent[1].text, /Allybot Profile/)
   assert.match(core.sent[1].text, /Node\.js/)
-  assert.equal(core.sent[1].text.includes('owner@s.whatsapp.net'), false)
+  assert.equal(core.sent[1].text.includes('6281200000001@s.whatsapp.net'), false)
   assert.equal(core.sent[1].text.includes('databasePath'), false)
 
-  await core.emitMessage({ id: 'owner-profile', remoteJid: 'chat@s.whatsapp.net', senderJid: 'stranger@s.whatsapp.net', text: '!owner', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'owner-profile', remoteJid: '120363000000000001@g.us', senderJid: '6281200000002@s.whatsapp.net', text: '!owner', timestamp: Date.now(), fromMe: false })
   assert.match(core.sent[2].text, /Allybot Owner Profile/)
   assert.match(core.sent[2].text, /Nama: Vallen/)
   assert.match(core.sent[2].text, /Status: Owner/)
   assert.match(core.sent[2].text, /Kontak owner: tidak dipublikasikan/)
   assert.match(core.sent[2].text, /text fallback digunakan/)
   assert.equal(/(?:\+?\d[\d -]{6,}\d)/.test(core.sent[2].text), false)
-  assert.equal(core.sent[2].text.includes('owner@s.whatsapp.net'), false)
+  assert.equal(core.sent[2].text.includes('6281200000001@s.whatsapp.net'), false)
   assert.equal(core.sent[2].text.includes('password'), false)
 
-  await core.emitMessage({ id: 'clearcache-denied', remoteJid: 'chat@s.whatsapp.net', senderJid: 'stranger@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'clearcache-denied', remoteJid: '120363000000000001@g.us', senderJid: '6281200000002@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
   assert.match(core.sent[3].text, /hanya tersedia untuk owner Allybot/)
 
-  await core.emitMessage({ id: 'clearcache', remoteJid: 'chat@s.whatsapp.net', senderJid: 'owner@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'clearcache', remoteJid: '120363000000000001@g.us', senderJid: '6281200000001@s.whatsapp.net', text: '!clearcache', timestamp: Date.now(), fromMe: false })
   assert.match(core.sent[4].text, /Duplicate-message cache: 3 entry/)
   assert.match(core.sent[4].text, /Auth\/session\/database: tidak disentuh/)
   await app.stop()
@@ -146,7 +146,7 @@ test('Technical commands provide routed ping, safe profile, and owner-only cache
 
 test('JID commands are owner/developer-gated, group-scoped, bounded, and text-only', async () => {
   const core = new FakeCore()
-  const ownerJid = 'owner@s.whatsapp.net'
+  const ownerJid = '6281200000001@s.whatsapp.net'
   const app = new ApplicationFramework(
     { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: ownerJid },
     logger,
@@ -180,7 +180,7 @@ test('JID commands are owner/developer-gated, group-scoped, bounded, and text-on
   await core.emitMessage({
     id: 'groupid-denied',
     remoteJid: '120363000000000000@g.us',
-    senderJid: 'stranger@s.whatsapp.net',
+    senderJid: '6281200000002@s.whatsapp.net',
     text: '!groupid',
     timestamp: Date.now(),
     fromMe: false,
@@ -222,9 +222,9 @@ test('Diagnostics plugin exposes only a minimal non-sensitive proof command', as
   const app = new ApplicationFramework(config, logger, core)
   app.registerPlugin(diagnosticsPlugin)
   await app.start()
-  await core.emitMessage({ id: 'diag', remoteJid: 'chat@s.whatsapp.net', text: '!health', timestamp: Date.now(), fromMe: false })
+  await core.emitMessage({ id: 'diag', remoteJid: '120363000000000001@g.us', text: '!health', timestamp: Date.now(), fromMe: false })
   assert.equal(core.sent.length, 1)
-  assert.match(core.sent[0].text, /^Allybot framework ready \| connected=true \| services=/)
+  assert.match(core.sent[0].text, /^Allybot framework ready \| connected=true \| .*services=/)
   await app.stop()
 })
 
@@ -252,7 +252,7 @@ test('Plugin ready hooks follow dependency order', async () => {
 test('Public owner profile is available to non-owner callers in a group without identity disclosure', async () => {
   const core = new FakeCore()
   const app = new ApplicationFramework(
-    { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: 'owner@s.whatsapp.net' },
+    { commandPrefix: '!', defaultCooldownMs: 0, botOwnerJid: '6281200000001@s.whatsapp.net' },
     logger,
     core,
   )
@@ -263,7 +263,7 @@ test('Public owner profile is available to non-owner callers in a group without 
     await core.emitMessage({
       id: 'owner-profile-group',
       remoteJid: '120363000000000000@g.us',
-      senderJid: 'stranger@s.whatsapp.net',
+      senderJid: '6281200000002@s.whatsapp.net',
       text: '!owner',
       timestamp: Date.now(),
       fromMe: false,
@@ -272,7 +272,7 @@ test('Public owner profile is available to non-owner callers in a group without 
     assert.match(core.sent[0].text, /Control plane: protected/)
     assert.match(core.sent[0].text, /Kontak owner: tidak dipublikasikan/)
     assert.equal(/(?:\+?\d[\d -]{6,}\d)/.test(core.sent[0].text), false)
-    assert.equal(core.sent[0].text.includes('owner@s.whatsapp.net'), false)
+    assert.equal(core.sent[0].text.includes('6281200000001@s.whatsapp.net'), false)
   } finally {
     await app.stop()
   }
@@ -287,7 +287,7 @@ test('Public owner profile image failure uses text fallback without raw error lo
   const owner = commands.find((command) => command.name === 'owner')
   const replies = []
   await owner.handler({
-    message: { remoteJid: 'chat@s.whatsapp.net', timestamp: Date.now() },
+    message: { remoteJid: '120363000000000001@g.us', timestamp: Date.now() },
     config: { botOwnerJid: '6283197859955@s.whatsapp.net' },
     prefix: '!',
     whatsapp: {

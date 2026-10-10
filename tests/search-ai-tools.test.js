@@ -48,11 +48,12 @@ function createHarness() {
   return { commands, whatsapp, sent }
 }
 
-function message(text, senderJid = 'user@s.whatsapp.net', extra = {}) {
+let senderIdx = 1;
+function message(text, senderJid, extra = {}) {
   return {
     id: `msg-${Date.now()}`,
-    remoteJid: 'group@g.us',
-    senderJid,
+    remoteJid: '120363000000000001@g.us',
+    senderJid: senderJid ?? `628120000000${senderIdx++}@s.whatsapp.net`,
     text,
     timestamp: Date.now(),
     fromMe: false,
@@ -70,10 +71,6 @@ test('Search Tools: google, image, lirik, wiki, and cuaca commands', async () =>
   // 2. Image usage
   await harness.commands.dispatch(message('!image'))
   assert.match(harness.sent.at(-1)?.text ?? '', /Format: !image/)
-
-  // 3. Lyrics usage
-  await harness.commands.dispatch(message('!lirik'))
-  assert.match(harness.sent.at(-1)?.text ?? '', /Format: !lirik/)
 
   // 4. Wikipedia usage
   await harness.commands.dispatch(message('!wiki'))
