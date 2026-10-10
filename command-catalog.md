@@ -142,6 +142,8 @@ Aturan baca:
 |---|---|
 | `!about` | Tentang Allybot. |
 | `!ai` (ally, tanya) | Tanya AI tanpa memori percakapan. |
+| `!rekap` (summary, rangkum, tldr) | Rangkum obrolan terkini di grup dengan AI. |
+
 | `!aidetection` (deteksiai, aidetect) | Deteksi teks AI. |
 | `!bookmark` | Bookmark pesan ter-quote. |
 | `!bookmarks` (tersimpan) | Daftar bookmark. |

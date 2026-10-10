@@ -57,6 +57,9 @@ export interface AiHandlerOptions {
   readonly transport?: AiTransport
   readonly logger?: AiLogger
   readonly fallbackEnabled?: boolean
+  readonly systemPrompt?: string
+  readonly maxInputLength?: number
+  readonly preserveNewlines?: boolean
 }
 
 export type AiErrorCode = 'missing_api_key' | 'invalid_input' | 'provider_unavailable'
@@ -68,7 +71,10 @@ export class AiHandlerError extends Error {
   }
 }
 
-function normalizeInput(message: string): string {
+function normalizeInput(message: string, preserveNewlines = false): string {
+  if (preserveNewlines) {
+    return message.replace(/[^\S\r\n]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+  }
   return message.replace(/\s+/g, ' ').trim()
 }
 
@@ -88,7 +94,7 @@ function safeErrorStatus(error: unknown): number | undefined {
   return typeof status === 'number' && Number.isInteger(status) ? status : undefined
 }
 
-export function createOpenAiCompatibleTransport(options: { apiKey: string; baseUrl?: string }): AiTransport {
+export function createOpenAiCompatibleTransport(options: { apiKey: string; baseUrl?: string; systemPrompt?: string }): AiTransport {
   const client = new OpenAI({
     apiKey: options.apiKey,
     baseURL: options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL,
@@ -96,8 +102,10 @@ export function createOpenAiCompatibleTransport(options: { apiKey: string; baseU
     maxRetries: 0,
   })
 
+  const systemPrompt = options.systemPrompt ?? AI_SYSTEM_PROMPT
+
   return async ({ model, userMessage }) => {
-    const estimatedContextTokens = Math.ceil((userMessage.length + AI_SYSTEM_PROMPT.length) / 3.5)
+    const estimatedContextTokens = Math.ceil((userMessage.length + systemPrompt.length) / 3.5)
     if (estimatedContextTokens > MAX_AI_CONTEXT_TOKENS) {
       throw new AiHandlerError('invalid_input', `Konteks input melebihi batas maksimal ${MAX_AI_CONTEXT_TOKENS.toLocaleString()} token.`)
     }
@@ -105,7 +113,7 @@ export function createOpenAiCompatibleTransport(options: { apiKey: string; baseU
     const response = await client.chat.completions.create({
       model,
       messages: [
-        { role: 'system', content: AI_SYSTEM_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },
       ],
       max_tokens: maxTokens,
@@ -121,14 +129,16 @@ export function createAiHandler(options: AiHandlerOptions = {}): (message: strin
   const configuredFallback = options.fallbackModel ?? process.env.AI_FALLBACK_MODEL
   const fallbackModel = configuredFallback?.trim() || primaryModel
   const transport = options.transport
-    ?? (apiKey ? createOpenAiCompatibleTransport({ apiKey, baseUrl: options.baseUrl }) : undefined)
+    ?? (apiKey ? createOpenAiCompatibleTransport({ apiKey, baseUrl: options.baseUrl, systemPrompt: options.systemPrompt }) : undefined)
   const fallbackEnabled = options.fallbackEnabled ?? false
+  const maxInputLength = options.maxInputLength ?? MAX_AI_INPUT_LENGTH
+  const preserveNewlines = options.preserveNewlines ?? false
 
   return async (message: string): Promise<string> => {
-    const input = normalizeInput(message)
+    const input = normalizeInput(message, preserveNewlines)
     if (!input) throw new AiHandlerError('invalid_input', 'Pesan AI kosong.')
-    if (input.length > MAX_AI_INPUT_LENGTH) {
-      throw new AiHandlerError('invalid_input', `Pesan AI terlalu panjang. Batasnya ${MAX_AI_INPUT_LENGTH} karakter.`)
+    if (input.length > maxInputLength) {
+      throw new AiHandlerError('invalid_input', `Pesan AI terlalu panjang. Batasnya ${maxInputLength} karakter.`)
     }
     if (!transport) throw new AiHandlerError('missing_api_key', 'AI provider belum dikonfigurasi.')
 

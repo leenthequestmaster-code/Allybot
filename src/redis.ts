@@ -326,6 +326,24 @@ export class RedisService implements Service {
     }
   }
 
+  async getBoundedList<T>(key: string, limit?: number): Promise<readonly T[]> {
+    if (!this.client) return []
+    try {
+      const start = typeof limit === 'number' && limit > 0 ? (-limit).toString() : '0'
+      const raw = (await this.client.eval(
+        `return redis.call('LRANGE', KEYS[1], ARGV[1], -1)`,
+        1,
+        this.prefixedKey(key),
+        start,
+      )) as string[]
+      if (!Array.isArray(raw)) return []
+      return raw.map((item) => JSON.parse(item) as T)
+    } catch (error) {
+      this.logger?.warn({ errorName: safeErrorName(error), operation: 'getBoundedList', key }, 'Redis getBoundedList failed')
+      return []
+    }
+  }
+
   async enqueueBounded<T>(key: string, item: T, maxItems: number, ttlSeconds: number): Promise<RedisQueueResult> {
     if (!this.client) return { available: false, accepted: false, droppedOldest: false }
     try {

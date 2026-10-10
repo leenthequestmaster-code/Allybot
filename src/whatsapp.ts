@@ -1007,8 +1007,12 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
       const messageUpsert = events['messages.upsert']
       if (messageUpsert) {
-        await this.handleMessages(socket, messageUpsert, logger)
-        if (messageUpsert.type === 'notify') await this.emitMessages(messageUpsert.messages)
+        if (messageUpsert.type === 'notify') {
+          void this.handleMessages(socket, messageUpsert, logger)
+          await this.emitMessages(messageUpsert.messages)
+        } else {
+          await this.handleMessages(socket, messageUpsert, logger)
+        }
       }
 
       const participantUpdate = events['group-participants.update']

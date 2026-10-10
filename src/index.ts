@@ -58,6 +58,8 @@ import { QuotaService } from './services/quota-service.js'
 import { downloaderPlugin } from "./framework/plugins/downloader.js"
 
 import { startScheduler } from './services/sholat-scheduler.js'
+import { ChatHistoryService } from './services/chat-history-service.js'
+import { createRekapPlugin } from './framework/plugins/rekap.js'
 
 async function main(): Promise<void> {
   const config = loadConfig()
@@ -138,6 +140,11 @@ async function main(): Promise<void> {
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(redis)
+  const chatHistoryService = new ChatHistoryService(logger, { redis })
+  framework.registerService(chatHistoryService)
+  whatsapp.onMessage(async (message) => {
+    await chatHistoryService.recordMessage(message)
+  })
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
@@ -146,6 +153,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
   if (config.AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))
+  if (config.AI_ENABLED) framework.registerPlugin(createRekapPlugin(whatsapp, { fallbackEnabled: config.AI_FALLBACK_ENABLED }))
   framework.registerPlugin(developerModePlugin)
   if (config.CODEBASE_EXPORT_ENABLED) framework.registerPlugin(codebasePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)
