@@ -44,6 +44,19 @@ export class CommandRegistry implements CommandRegistryLike {
   ) {
     this.middleware = composeMiddleware([
       createPermissionMiddleware(permissionResolver),
+      async ({ command, context }, next) => {
+        // Explicit help is still subject to permissions, but not argument validation or cooldown.
+        const isHelpFlag = context.args.length === 1 && ['help', '--help'].includes(context.args[0].toLowerCase())
+        if (isHelpFlag) {
+          const { formatCommandHelp } = await import('./command-help-registry.js')
+          const helpMsg = formatCommandHelp(command.name, command.aliases, context.prefix)
+          if (helpMsg) {
+            await context.reply(helpMsg)
+            return
+          }
+        }
+        await next()
+      },
       createUserRateLimitMiddleware(15, 60_000),
       validationMiddleware,
       createCooldownMiddleware(),
@@ -168,17 +181,6 @@ export class CommandRegistry implements CommandRegistryLike {
             return true
           }
         }
-      }
-    }
-
-    // Deteksi argumen bantuan konsisten: !<command> help
-    const isHelpFlag = args.length === 1 && (args[0].toLowerCase() === 'help' || args[0].toLowerCase() === '--help')
-    if (isHelpFlag) {
-      const { formatCommandHelp } = await import('./command-help-registry.js')
-      const helpMsg = formatCommandHelp(command.name, command.aliases, prefix)
-      if (helpMsg) {
-        await this.whatsapp.sendText(message.remoteJid, helpMsg)
-        return true
       }
     }
 

@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 import * as cheerio from "cheerio"
 
 export interface SfileResult {
@@ -35,12 +36,8 @@ export async function scrapeSfile(url: string): Promise<SfileResult> {
     throw new Error(`Sfile status ${res1.status}`)
   }
 
-  const cookieHeader = res1.headers.get("set-cookie") || ""
-  const cookieStr = cookieHeader
-    .split(",")
-    .map((c) => c.split(";")[0].trim())
-    .filter(Boolean)
-    .join("; ")
+  const cookieOrigin = new URL(res1.url || cleanUrl).origin
+  const cookieStr = (res1.headers.getSetCookie?.() ?? []).map(c => c.split(';')[0].trim()).filter(Boolean).join('; ')
 
   const html1 = await res1.text()
   const $1 = cheerio.load(html1)
@@ -71,7 +68,7 @@ export async function scrapeSfile(url: string): Promise<SfileResult> {
 
   const gateUrl = dwUrl.startsWith("http")
     ? dwUrl
-    : new URL(dwUrl, cleanUrl).href
+    : new URL(dwUrl, res1.url || cleanUrl).href
 
   const res2 = await fetch(gateUrl, {
     headers: {
@@ -81,7 +78,7 @@ export async function scrapeSfile(url: string): Promise<SfileResult> {
         "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.9",
       Referer: cleanUrl,
-      Cookie: cookieStr,
+      Cookie: new URL(gateUrl).origin === cookieOrigin ? cookieStr : "",
     },
     signal: AbortSignal.timeout(15_000),
   })

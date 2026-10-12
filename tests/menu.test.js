@@ -223,7 +223,7 @@ test('!menu <category> delivers clean category interface without interactive but
   await registry.dispatch(message('airich-menu', '120363012345678905@g.us', '!menu 1'))
 
   assert.equal(whatsapp.sent.length, 1)
-  assert.match(whatsapp.sent[0].text, /𝐓𝗼𝗼𝗹𝘀:/)
+  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
   assert.match(whatsapp.sent[0].text, /command tersedia/)
   assert.match(whatsapp.sent[0].text, /© Allybot/)
   assert.doesNotMatch(whatsapp.sent[0].text, /Versi :/)
@@ -245,7 +245,7 @@ test('!menu <category> in group delivers clean category text without interactive
 
   assert.equal(whatsapp.sent.length, 1)
   assert.match(whatsapp.sent[0].text, /!ping/)
-  assert.match(whatsapp.sent[0].text, /𝐓𝗼𝗼𝗹𝘀:/)
+  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
   assert.doesNotMatch(whatsapp.sent[0].text, /Menu Utama/)
   assert.doesNotMatch(whatsapp.sent[0].text, /Semua Command/)
 })

@@ -270,6 +270,56 @@ test('CommandRegistry denies permission before handler execution', async () => {
 })
 
 
+test('CommandRegistry checks permissions before explicit command help and preserves dynamic prefixes', async () => {
+  for (const flag of ['help', '--help']) {
+    for (const allowed of [false, true]) {
+      const whatsapp = createFakeWhatsapp()
+      const events = new EventBus(logger)
+      const services = new ServiceRegistry(logger)
+      let permissionChecks = 0
+      let executions = 0
+      const registry = new CommandRegistry(config, logger, whatsapp, services, events, () => {
+        permissionChecks += 1
+        return allowed
+      }, [], () => '#')
+      registry.register({
+        name: 'kick',
+        permission: 'group.admin',
+        category: 'moderation',
+        validate: () => 'must not validate help',
+        handler: async () => { executions += 1 },
+      })
+      await registry.dispatch({
+        id: `kick-${flag}-${allowed}`,
+        remoteJid: '120363012345678901@g.us',
+        senderJid: '6281234567890@s.whatsapp.net',
+        text: `!kick ${flag}`,
+        timestamp: Date.now(),
+        fromMe: false,
+      })
+      assert.equal(permissionChecks, 1)
+      assert.equal(executions, 0)
+      assert.equal(whatsapp.sent.length, 1)
+      if (allowed) assert.match(whatsapp.sent[0].text, /#kick/)
+      else assert.equal(whatsapp.sent[0].text, 'Command ini khusus admin')
+    }
+  }
+})
+
+test('CommandRegistry retains quoted-media validation and literal help text semantics', async () => {
+  const whatsapp = createFakeWhatsapp()
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  const executions = []
+  registry.register({ name: 'qc', handler: async (context) => { executions.push(context.args) } })
+  const message = { id: 'quote', remoteJid: '120363012345678901@g.us', timestamp: Date.now(), fromMe: false }
+  await registry.dispatch({ ...message, text: '!qc', quotedMedia: { type: 'image' } })
+  await registry.dispatch({ ...message, id: 'literal', text: '!qc help me' })
+  assert.deepEqual(executions, [[], ['help', 'me']])
+  assert.deepEqual(whatsapp.sent, [])
+})
+
 test('ServiceRegistry rejects missing and circular dependencies before initialization', async () => {
   const missing = new ServiceRegistry(logger)
   missing.register({ name: 'consumer', dependencies: ['missing-service'], initialize() {} })
@@ -445,7 +495,7 @@ test('CommandRegistry enforces scope: group-only, private-only, both, and your-c
   let privateExecuted = false
 
   registry.register({
-    name: 'kick',
+    name: 'groupcmd',
     category: 'moderation',
     handler: async () => { groupExecuted = true },
   })
@@ -466,12 +516,12 @@ test('CommandRegistry enforces scope: group-only, private-only, both, and your-c
   const privateJid = '6281234567890@s.whatsapp.net'
 
   // 1. Group command in private -> denied with group-only message
-  await registry.dispatch({ id: 'm1', remoteJid: privateJid, text: '!kick', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'm1', remoteJid: privateJid, text: '!groupcmd', timestamp: Date.now(), fromMe: false })
   assert.equal(groupExecuted, false)
   assert.match(whatsapp.sent.at(-1)?.text ?? '', /cuma bisa dijalankan di dalam grup/)
 
   // 2. Group command in group -> executed
-  await registry.dispatch({ id: 'm2', remoteJid: groupJid, text: '!kick', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'm2', remoteJid: groupJid, text: '!groupcmd', timestamp: Date.now(), fromMe: false })
   assert.equal(groupExecuted, true)
 
   // 3. your-character command in private -> executed

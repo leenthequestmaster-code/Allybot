@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 export interface BilibiliResult {
   title: string
   thumbnail: string

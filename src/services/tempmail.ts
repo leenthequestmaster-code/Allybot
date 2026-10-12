@@ -136,15 +136,6 @@ export function extractVerificationLink(
 }
 
 
-// Audit extract — dipanggil setiap extract untuk log.
-// networkCalls SELALU 0: extractor ini pure regex, zero fetch.
-export function auditExtract(inputLen: number, urls: string[]): void {
-  console.log(
-    `[extract] input length: ${inputLen} chars | urls found: ${urls.length} | ` +
-      `selected: ${(urls[0] ?? '-').slice(0, 80)} | network calls made: 0`,
-  )
-}
-
 // ── Poll loop generik ────────────────────────────────────────────────────────
 
 interface StepResult {
@@ -582,9 +573,6 @@ export function extractAllLinks(
   ...parts: Array<string | null | undefined>
 ): string[] {
   // RAW apa adanya — tanpa decode/encode, tanpa fetch. oobCode single-use.
-  const inputLen = parts.reduce(
-    (n, x) => n + (typeof x === 'string' ? x.length : 0), 0,
-  )
   const out: string[] = []
   const seen = new Set<string>()
   for (const p of parts) {
@@ -605,7 +593,6 @@ export function extractAllLinks(
     if (af !== bf) return af - bf
     return b.length - a.length
   })
-  auditExtract(inputLen, out)
   return out
 }
 

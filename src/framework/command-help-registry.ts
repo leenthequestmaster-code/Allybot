@@ -69,7 +69,7 @@ export const COMMAND_HELP_MAP: Readonly<Record<string, CommandHelpEntry>> = {
   qr: {
     summary: 'Buat gambar kode QR untuk tautan atau catatan penting',
     description: 'Ubah tulisan atau tautan web menjadi gambar kode QR yang dapat dipindai oleh kamera ponsel.',
-    usage: 'Format: !qr <tautan atau teks catatan>',
+    usage: 'Format: !qr <teks>',
     examples: ['!qr https://google.com', '!qr Pembayaran Kas Anggota'],
     type: 'Q',
   },
@@ -212,14 +212,14 @@ export const COMMAND_HELP_MAP: Readonly<Record<string, CommandHelpEntry>> = {
   qc: {
     summary: 'Buat gambar kutipan kata berlatar gelembung obrolan',
     description: 'Jadikan pesan tulisan temanmu di obrolan sebagai stiker kartu kutipan lengkap dengan foto profil pengirim.',
-    usage: 'Balas pesan tulisan teman yang ingin kamu kutip dengan mengetik !qc.',
+    usage: 'Balas pesan teks dengan !qc, atau ketik !qc <teks>',
     examples: ['!qc'],
     type: 'R',
   },
   iqc: {
     summary: 'Buat gambar stiker kutipan dengan tampilan khas ponsel',
     description: 'Ubah teks kutipan obrolan menjadi tampilan gelembung pesan elegan bergaya ponsel modern.',
-    usage: 'Balas pesan tulisan yang ingin dikutip dengan mengetik !iqc.',
+    usage: 'Balas pesan teks dengan !iqc, atau ketik !iqc <teks>',
     examples: ['!iqc'],
     type: 'R',
   },
@@ -242,7 +242,7 @@ export const COMMAND_HELP_MAP: Readonly<Record<string, CommandHelpEntry>> = {
   ai: {
     summary: 'Berbincang santai atau minta bantuan ide ke asisten pintar',
     description: 'Tanyakan jawaban tugas, minta saran solusi, perbaiki tata bahasa, atau diskusikan ide apa pun.',
-    usage: 'Format: !ai <pertanyaanmu> atau balas pesan teks obrolan dengan mengetik !ai.',
+    usage: 'Format: !ai <pertanyaan atau instruksi>',
     examples: ['!ai buatkan pantun ulang tahun untuk ayah', '!ai jelaskan cara kerja fotosintesis'],
     type: 'R',
   },
