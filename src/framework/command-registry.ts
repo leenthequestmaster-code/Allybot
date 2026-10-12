@@ -171,6 +171,17 @@ export class CommandRegistry implements CommandRegistryLike {
       }
     }
 
+    // Deteksi argumen bantuan konsisten: !<command> help
+    const isHelpFlag = args.length === 1 && (args[0].toLowerCase() === 'help' || args[0].toLowerCase() === '--help')
+    if (isHelpFlag) {
+      const { formatCommandHelp } = await import('./command-help-registry.js')
+      const helpMsg = formatCommandHelp(command.name, command.aliases, prefix)
+      if (helpMsg) {
+        await this.whatsapp.sendText(message.remoteJid, helpMsg)
+        return true
+      }
+    }
+
     let replyDelivered = false
     const context: CommandContext = {
       message,

@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { formatCommandHelp } from '../command-help-registry.js'
 import { proto, prepareWAMessageMedia, type WASocket } from '@whiskeysockets/baileys'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import type { DeveloperModeService } from '../../services/developer-mode-service.js'
@@ -36,7 +37,7 @@ const categoryPresentation: Record<string, CategoryPresentation> = {
   moderation: { label: 'ADMIN TOOLS', icon: '🛡️' },
   roleplay: { label: 'ROLEPLAY', icon: '🎭' },
   'your-character': { label: 'YOUR CHARACTER', icon: '🎭' },
-  tools: { label: 'TOOLS LENGKAP', icon: '🧰' },
+  tools: { label: 'TOOLS', icon: '🧰' },
   fun: { label: 'FUN', icon: '🎲' },
   developer: { label: 'DEVELOPER', icon: '🛠️' },
   owner: { label: 'OWNER', icon: '👑' },
@@ -195,14 +196,42 @@ async function canSeePrivilegedCategory(
   return true
 }
 
+const SUBCAT_DESCRIPTIONS: Record<string, string> = {
+  // Tools
+  'Artificial Intelligence': 'Tanya asisten pintar, buat gambar otomatis, dan ubah teks jadi suara',
+  'Media & Sticker': 'Buat stiker WhatsApp, ubah format media, dan jernihkan foto',
+  'Visual Card & Stalk': 'Buat gambar kutipan percakapan dan intip profil media sosial',
+  'Search & Download': 'Cari informasi dan simpan media dari internet langsung ke WhatsApp',
+  'System & Info': 'Cek kondisi bot, waktu saat ini, dan alat bantu hitung praktis',
+
+  // Group
+  'Member & Profil': 'Lihat daftar anggota, pengurus grup, dan profil obrolan',
+  'Peraturan Grup': 'Baca tata tertib dan riwayat aturan yang berlaku di grup',
+  'Interaksi & Komunitas': 'Izin istirahat santai, kirim masukan, dan sapa teman obrolan',
+
+  // Moderation
+  'Quick Action': 'Tindak cepat penertiban anggota yang melanggar aturan',
+  'Warning & Case System': 'Catat peringatan pelanggaran dan kelola permohonan banding',
+  'Automod Protection': 'Jaga obrolan dari kiriman tautan asing, pesan beruntun, dan kata kasar',
+  'Chat & Member Control': 'Atur izin kirim pesan, kunci obrolan, dan kelola admin grup',
+  'Group Rules & Settings': 'Atur pesan sambutan anggota baru dan setelan dasar bot di grup',
+  'Character & Roleplay Admin': 'Bantu kelola lembar karakter dan pembagian poin pemain cerita',
+  'Feedback & Reports': 'Terima pesan kendala dan dengarkan saran dari anggota grup',
+
+  // Your Character
+  'Status & Profile': 'Lihat lembar perkembangan karakter dan kemampuan milikmu',
+  'Progression & Registration': 'Daftarkan karakter ceritamu dan tingkatkan kemampuannya',
+  'Economy & Vela': 'Kelola saldo dompet, simpanan bank, dan pembayaran di grup',
+
+  // Fallback
+  'Other Commands': 'Perintah pendukung dan fungsi tambahan sistem',
+}
+
 function formatCommand(command: CommandDefinition, prefix: string, position: number): string {
-  const lines = [`ㅤׄꖑ *${position}.* \`${prefix}${command.name}\``]
-  if (command.aliases && command.aliases.length > 0) {
-    const aliasStr = command.aliases.map((alias) => `\`${prefix}${alias}\``).join(' ')
-    lines.push(`       ⤷ alias: ${aliasStr}`)
-  }
-  lines.push(`       ⤷ _${commandDescription(command)}_`)
-  return lines.join('\n')
+  const aliasPart = command.aliases && command.aliases.length > 0
+    ? ` (${command.aliases.join(', ')})`
+    : ''
+  return `${position}. *${prefix}${command.name}*${aliasPart}`
 }
 
 function renderBotProfile(): string {
@@ -309,7 +338,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
     },
     {
       title: 'Search & Download',
-      commands: ['google', 'search', 'image', 'gambar', 'wiki', 'wikipedia', 'cuaca', 'weather', 'lirik', 'lyrics', 'pin', 'pinterest', 'pixiv', 'ss', 'screenshot', 'qr', 'ytmp3', 'yta', 'ytaudio', 'yt2mp3', 'ytmp4', 'ytv', 'ytvideo', 'yt2', 'tik', 'tt', 'tiktok', 'tik2mp3', 'ttmp3', 'tiktokaudio', 'tikmp3', 'dl', 'download', 'viddl', 'multidl', 'spotify', 'play', 'lagu'],
+      commands: ['google', 'search', 'image', 'gambar', 'wiki', 'wikipedia', 'cuaca', 'weather', 'lirik', 'lyrics', 'pin', 'pinterest', 'pixiv', 'ss', 'screenshot', 'qr', 'ytmp3', 'yta', 'ytaudio', 'yt2mp3', 'ytmp4', 'ytv', 'ytvideo', 'yt2', 'tik', 'tt', 'tiktok', 'tik2mp3', 'ttmp3', 'tiktokaudio', 'tikmp3', 'dl', 'download', 'viddl', 'multidl', 'terabox', 'tb', 'bypass', 'unshort', 'yts', 'sc', 'dlstats', 'spotify', 'play', 'lagu'],
     },
     {
       title: 'System & Info',
@@ -327,13 +356,10 @@ function renderSubCategoryHeader(title: string): string {
 
 function renderCategoryMenu(category: MenuCategory, prefix: string): string {
   const { icon, label } = presentationFor(category.name)
-  const categoryTitle = label.replace(/^(TOOLS:\s*|TOOLS\s+)/i, '').trim()
   const header = [
-    `⿴⃟۪۪⃕᎒⃟${icon} *𝐓𝗼𝗼𝗹𝘀: ${categoryTitle}*`,
-    '. . . ▭▬▭▬▭ ︵⏜︵',
-    `⡇╌ *${category.commands.length} command tersedia*`,
-    '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
-    '',
+    `${icon} *${label}*`,
+    `_${category.commands.length} command tersedia_`,
+    '──────── · ✦ · ────────',
   ]
 
   const subDefs = CATEGORY_SUB_GROUPS[category.name]
@@ -357,21 +383,38 @@ function renderCategoryMenu(category: MenuCategory, prefix: string): string {
       groups.push({ title: 'Other Commands', commands: remainder })
     }
 
-    let globalIndex = 0
     const renderedGroups = groups.map((g) => {
-      const subHeader = renderSubCategoryHeader(g.title)
+      const desc = SUBCAT_DESCRIPTIONS[g.title] || 'Kumpulan perintah pendukung operasional bot'
+      const subHeader = [
+        `𓏼 *\`${g.title}\`*`,
+        '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
+        `_${desc}_`,
+      ].join('\n')
+
+      let subIndex = 0
       const cmdList = g.commands.map((cmd) => {
-        globalIndex += 1
-        return formatCommand(cmd, prefix, globalIndex)
-      }).join('\n\n')
+        subIndex += 1
+        return formatCommand(cmd, prefix, subIndex)
+      }).join('\n')
       return `${subHeader}\n${cmdList}`
     })
 
     content = renderedGroups.join('\n\n')
   } else {
-    content = category.commands
-      .map((command, index) => formatCommand(command, prefix, index + 1))
-      .join('\n\n')
+    const desc = SUBCAT_DESCRIPTIONS[label] || 'Kumpulan perintah pendukung operasional bot'
+    const subHeader = [
+      `𓏼 *\`${label}\`*`,
+      '─͜──͜──͜─ · ✦ · ─͜──͜──͜─',
+      `_${desc}_`,
+    ].join('\n')
+
+    let subIndex = 0
+    const cmdList = category.commands.map((cmd) => {
+      subIndex += 1
+      return formatCommand(cmd, prefix, subIndex)
+    }).join('\n')
+
+    content = `${subHeader}\n${cmdList}`
   }
 
   const footer = [
@@ -451,6 +494,20 @@ export const menuPlugin: Plugin = {
         }
       }
       const categories = allowedCategories
+
+      // Jalur bantuan langsung: !help <command> atau !menu <command>
+      if (commandContext.args[0] && !/^\d+$/.test(commandContext.args[0])) {
+        const query = commandContext.args[0].trim().toLowerCase()
+        const targetCmd = context.commands.get(query)
+        if (targetCmd) {
+          const helpText = formatCommandHelp(targetCmd.name, targetCmd.aliases, commandContext.prefix)
+          if (helpText) {
+            await commandContext.reply(helpText)
+            return
+          }
+        }
+      }
+
       const category = resolveCategory(categories, commandContext.args[0])
       const thumbnail = await loadMenuThumbnail()
 
@@ -472,8 +529,8 @@ export const menuPlugin: Plugin = {
 
     context.commands.register({
       name: 'menu',
-      aliases: ['m', 'help'],
-      description: 'Show Allybot categories and available commands',
+      aliases: ['m', 'help', 'bantuan'],
+      description: 'Tampilkan menu kategori atau bantuan perintah',
       category: 'system',
       menuOrder: 1,
       hidden: true,

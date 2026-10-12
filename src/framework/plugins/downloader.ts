@@ -1,5 +1,5 @@
 /**
- * Downloader plugin: registers !dl, !sc, !yts, !dlstats commands.
+ * Downloader plugin: registers !dl, !sc, !yts, !dlstats, !bypass commands.
  * @module framework/plugins/downloader
  */
 
@@ -11,20 +11,21 @@ import type {
 } from '../contracts.js'
 import { DownloaderService } from '../../services/downloader-service.js'
 import { deliverMedia, MAX_CAROUSEL_ITEMS } from '../../services/downloader/deliver.js'
-import { CircuitOpenError, detectPlatform } from '../../services/downloader/index.js'
+import { CircuitOpenError, detectPlatform, resolveBypass } from '../../services/downloader/index.js'
+import { scrapeTeraBox } from '../../services/downloader/scrapr-core/terabox.js'
 import type { SearchResult } from '../../services/downloader/types.js'
 import type { QuotaService } from '../../services/quota-service.js'
 
 /* ── Error messages (Indonesian, casual) ── */
 
 const MSG = {
-  PLATFORM_UNSUPPORTED: '❌ Platform nggak didukung. Support: IG, X/Twitter (!tw), Threads, SC, Videy, Pixeldrain.',
+  PLATFORM_UNSUPPORTED: '❌ Platform nggak didukung. Support: IG, FB, X/Twitter (!tw), Threads, Reddit, Pinterest, MediaFire, Sfile, SC, Videy, Pixeldrain.',
   RESOLVE_FAILED: '❌ Gagal ambil media. Pastikan kontennya publik ya~',
   TIMEOUT: '⏱ Timeout. Coba lagi nanti~',
   CIRCUIT_OPEN: (platform: string) => `⏳ ${platform} lagi sibuk. Coba 30 menit lagi~`,
   NO_URL: '❌ Kirim URL setelah command. Contoh: !dl https://instagram.com/p/xxx',
   MULTI_URL: '❌ Satu URL aja ya~',
-  SHORT_URL: '❌ Short URL (bit.ly dll) nggak didukung. Pakai URL asli ya~',
+  SHORT_URL: '❌ Short URL (bit.ly dll) bisa dibuka lewat command !bypass <url> ya~',
   WRONG_PLATFORM: (expected: string) => `❌ URL itu bukan ${expected}. Pakai !dl aja biar otomatis~`,
   CAROUSEL_LIMIT: (total: number) => `ℹ️ Mengirim ${MAX_CAROUSEL_ITEMS} dari ${total} media. Sisanya nggak dikirim ya~`,
   NO_RESULTS: '😢 Nggak ketemu hasil pencarian.',
@@ -35,14 +36,18 @@ const MSG = {
 /* ── Helpers ── */
 
 const URL_REGEX = /https?:\/\/[^\s]+/gi
-const SHORT_URL_REGEX = /^https?:\/\/(bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|v\.gd|ow\.ly|buff\.ly)(?:\/|$)/i
+const SHORT_URL_REGEX = /^https?:\/\/(bit\.ly|tinyurl\.com|t\.co|goo\.gl|is\.gd|v\.gd|ow\.ly|buff\.ly|dub\.sh)(?:\/|$)/i
 
-/** Map command alias → expected platform for validation (X/Twitter via !tw, karena !x milik mockup card) */
+/** Map command alias → expected platform for validation */
 const ALIAS_PLATFORM_MAP: Record<string, string> = {
   ig: 'instagram',
+  fb: 'facebook',
   tw: 'twitter',
   threads: 'threads',
   th: 'threads',
+  reddit: 'reddit',
+  mf: 'mediafire',
+  sfile: 'sfile',
   videy: 'videy',
   pd: 'pixeldrain',
 }
@@ -51,7 +56,6 @@ function extractUrl(args: readonly string[]): string | null {
   const text = args.join(' ')
   const matches = text.match(URL_REGEX)
   if (!matches || matches.length === 0) {
-    // Try without protocol
     const joined = args.join(' ').trim()
     if (joined && /^[\w.-]+\.\w+\//.test(joined)) {
       return `https://${joined}`
@@ -66,7 +70,6 @@ function hasMultipleUrls(args: readonly string[]): boolean {
   const matches = text.match(URL_REGEX)
   if (matches && matches.length > 1) return true
 
-  // Protocol-less multi-domain: !dl example.com/a example.com/b → ambil kandidat domain
   const bareDomains = text.match(/(^|\s)(?:[\w-]+\.)+[a-z]{2,}(?:\/[^\s]*)?/gi)
   return !!bareDomains && bareDomains.length > 1
 }
@@ -88,22 +91,20 @@ function formatSearchResults(results: SearchResult[], platform: string): string 
 
 /* ── Plugin ── */
 
-
 export const downloaderPlugin: Plugin = {
   name: 'downloader' as const,
-  version: '0.1.0' as const,
+  version: '0.2.0' as const,
   dependencies: ['menu'] as const,
 
   async load(context: PluginContext): Promise<void> {
     const logger = context.logger.child({ plugin: 'downloader' })
     const downloaderService = context.services.get<DownloaderService>("downloader")
 
-
     /* ── !dl command ── */
     context.commands.register({
       name: 'dl',
-      aliases: ['ig', 'tw', 'threads', 'th', 'videy', 'pd'],
-      description: 'Download media dari URL (IG, X/Twitter, Threads, SC, Videy, Pixeldrain)',
+      aliases: ['ig', 'fb', 'tw', 'threads', 'th', 'reddit', 'mf', 'sfile', 'videy', 'pd'],
+      description: 'Download media dari Instagram, TikTok, Douyin, Bilibili, RedNote, Bandcamp, Facebook, Twitter, Threads, Reddit, Pinterest, MediaFire, atau Sfile.',
       category: 'media',
       menuOrder: 10,
       cooldownMs: 10_000,
@@ -117,7 +118,6 @@ export const downloaderPlugin: Plugin = {
       async handler(ctx: CommandContext): Promise<void> {
         let url = extractUrl(ctx.args)
 
-        // If no URL found, try treating full args as URL without protocol
         if (!url) {
           const rawInput = ctx.args.join(' ').trim()
           if (rawInput && /[\w.-]+\.\w+/.test(rawInput)) {
@@ -128,7 +128,6 @@ export const downloaderPlugin: Plugin = {
           }
         }
 
-        // Reject short URLs
         if (SHORT_URL_REGEX.test(url)) {
           await ctx.reply(MSG.SHORT_URL)
           return
@@ -136,7 +135,6 @@ export const downloaderPlugin: Plugin = {
 
         const adapter = detectPlatform(url)
 
-        // If invoked via platform alias, validate URL matches
         const expectedPlatform = ALIAS_PLATFORM_MAP[ctx.commandName]
         if (expectedPlatform) {
           if (!adapter || adapter.name !== expectedPlatform) {
@@ -145,7 +143,6 @@ export const downloaderPlugin: Plugin = {
           }
         }
 
-        // Check platform support
         if (!adapter) {
           await ctx.reply(MSG.PLATFORM_UNSUPPORTED)
           return
@@ -172,7 +169,6 @@ export const downloaderPlugin: Plugin = {
         try {
           const result = await downloaderService.resolve(url)
 
-          // Warn about carousel limit
           if (result.type === 'carousel' && result.media.length > MAX_CAROUSEL_ITEMS) {
             await ctx.reply(MSG.CAROUSEL_LIMIT(result.media.length))
           }
@@ -203,6 +199,112 @@ export const downloaderPlugin: Plugin = {
       },
     })
 
+    /* ── !bypass / !unshort command ── */
+    context.commands.register({
+      name: 'bypass',
+      aliases: ['unshort', 'openlink'],
+      description: 'Bypass shortlink atau unshorten URL (bit.ly, dub.sh, sfl.gl, sub2unlock, rekonise)',
+      category: 'media',
+      menuOrder: 13,
+      cooldownMs: 5_000,
+
+      validate(ctx: CommandContext): string | undefined {
+        if (ctx.args.length === 0) return '❌ Masukkan link yang mau di-bypass. Contoh: !bypass https://bit.ly/xxxx'
+        return undefined
+      },
+
+      async handler(ctx: CommandContext): Promise<void> {
+        const rawUrl = extractUrl(ctx.args)
+        if (!rawUrl) {
+          await ctx.reply('❌ URL tidak valid. Pastikan format link benar ya~')
+          return
+        }
+
+        await ctx.react('🔍')
+
+        try {
+          const res = await resolveBypass(rawUrl)
+          const lines: string[] = [
+            '🔓 *Hasil Bypass Link:*',
+            `🔗 *Original:* ${res.originalUrl}`,
+            `🎯 *Tujuan:* ${res.destinationUrl}`,
+          ]
+
+          if (res.hops.length > 2) {
+            lines.push(`🔀 *Redirect Hops:* ${res.hops.length - 1} kali`)
+          }
+
+          if (res.directFile) {
+            lines.push('\n📦 *Direct File Terdeteksi:*')
+            lines.push(`• *Nama:* ${res.directFile.filename}`)
+            lines.push(`• *Ukuran:* ${res.directFile.size}`)
+            lines.push(`• *Link Unduh:* ${res.directFile.url}`)
+          }
+
+          await ctx.reply(lines.join('\n'))
+          await ctx.react('✅')
+        } catch (err) {
+          logger.warn({ err, rawUrl }, 'bypass: failed')
+          await ctx.reply('❌ Gagal mem-bypass link. Link mungkin kedaluwarsa atau server menolak request.')
+          await ctx.react('❌')
+        }
+      },
+    })
+
+    /* ── !terabox command ── */
+    context.commands.register({
+      name: 'terabox',
+      aliases: ['tb'],
+      description: 'Ekstrak file atau stream video dari TeraBox',
+      category: 'media',
+      menuOrder: 14,
+      cooldownMs: 10_000,
+
+      validate(ctx: CommandContext): string | undefined {
+        if (ctx.args.length === 0) return '❌ Masukkan link TeraBox. Contoh: !terabox https://terabox.app/s/xxxx'
+        return undefined
+      },
+
+      async handler(ctx: CommandContext): Promise<void> {
+        const rawUrl = extractUrl(ctx.args)
+        if (!rawUrl) {
+          await ctx.reply('❌ Link TeraBox tidak valid.')
+          return
+        }
+
+        await ctx.react('🔍')
+
+        try {
+          const res = await scrapeTeraBox(rawUrl)
+          if (!res.downloads || res.downloads.length === 0) {
+            await ctx.react('❌')
+            await ctx.reply('❌ Tidak ada file yang ditemukan pada folder/link TeraBox ini.')
+            return
+          }
+
+          let msg = `📦 *TeraBox File Extractor*\n`
+          msg += `📌 *Folder/Judul:* ${res.title}\n`
+          msg += `📁 *Total File:* ${res.downloads.length}\n\n`
+
+          for (let i = 0; i < res.downloads.length; i++) {
+            const item = res.downloads[i]
+            const typeEmoji = item.type === 'video' ? '🎬' : '📄'
+            msg += `${i + 1}. ${typeEmoji} *${item.filename}* (${item.size})\n`
+            msg += `⚡ *Direct Link:* ${item.url}\n\n`
+          }
+
+          msg += `_Catatan: Langsung unduh atau streaming via direct link di atas._`
+
+          await ctx.reply(msg)
+          await ctx.react('✅')
+        } catch (err) {
+          logger.warn({ err, rawUrl }, 'terabox: failed')
+          await ctx.reply('❌ Gagal mengekstrak TeraBox. Server TeraBox menolak atau link kadaluarsa.')
+          await ctx.react('❌')
+        }
+      },
+    })
+
     /* ── !sc command ── */
     context.commands.register({
       name: 'sc',
@@ -224,7 +326,6 @@ export const downloaderPlugin: Plugin = {
           return
         }
 
-        // Exact hostname check, bukan substring: cegah SSRF via soundcloud.com.evil.com
         let isSoundCloud = false
         if (url) {
           try {
@@ -236,7 +337,6 @@ export const downloaderPlugin: Plugin = {
         }
 
         if (url && isSoundCloud) {
-          // Download mode
           await ctx.react('⏳')
           try {
             const result = await downloaderService.resolveWith('soundcloud', url)
@@ -253,7 +353,6 @@ export const downloaderPlugin: Plugin = {
             await ctx.react('❌')
           }
         } else {
-          // Search mode
           const query = ctx.args.join(' ')
           await ctx.react('🔍')
           try {
@@ -297,7 +396,7 @@ export const downloaderPlugin: Plugin = {
       },
     })
 
-    /* ── !dlstats command (hidden, developer only) ── */
+    /* ── !dlstats command ── */
     context.commands.register({
       name: 'dlstats',
       description: 'Downloader metrics & circuit states',
@@ -314,7 +413,6 @@ export const downloaderPlugin: Plugin = {
 
           const lines: string[] = ['📊 *Downloader Stats*\n']
 
-          // Metrics per adapter
           for (const [name, m] of Object.entries(metrics)) {
             lines.push(
               `*${name}*: ${m.total} total (✅ ${m.success} / ❌ ${m.fail}) avg ${m.avgLatencyMs}ms`,
@@ -324,14 +422,12 @@ export const downloaderPlugin: Plugin = {
             }
           }
 
-          // Circuit states
           lines.push('\n⚡ *Circuit Breakers*')
           for (const [name, s] of Object.entries(circuits)) {
             const icon = s.state === 'closed' ? '🟢' : s.state === 'open' ? '🔴' : '🟡'
             lines.push(`${icon} ${name}: ${s.state} (${s.failures} failures)`)
           }
 
-          // Cache
           lines.push('\n💾 *Cache*')
           if (cacheStats) {
             lines.push(`Metadata: ${cacheStats.metadataEntries ?? 0} entries`)
@@ -349,14 +445,9 @@ export const downloaderPlugin: Plugin = {
       },
     })
 
-    logger.info('Downloader plugin loaded: !dl, !sc, !yts, !dlstats')
+    logger.info('Downloader plugin loaded: !dl, !bypass, !terabox, !sc, !yts, !dlstats')
   },
 
-  async initialize(_context: PluginContext): Promise<void> {
-    // Service initialization handled by framework
-  },
-
-  async unload(context: PluginContext): Promise<void> {
-    // Cache cleanup handled by service shutdown lifecycle
-  },
+  async initialize(_context: PluginContext): Promise<void> {},
+  async unload(context: PluginContext): Promise<void> {},
 }

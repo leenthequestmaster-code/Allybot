@@ -7,8 +7,17 @@ import type { DownloaderAdapter, ResolveOptions, ResolveResult } from './types.j
 import { CircuitBreaker, CircuitOpenError } from './circuit.js'
 
 import { instagramAdapter } from './adapters/instagram.js'
+import { facebookAdapter } from './adapters/facebook.js'
 import { twitterAdapter } from './adapters/twitter.js'
 import { threadsAdapter } from './adapters/threads.js'
+import { redditAdapter } from './adapters/reddit.js'
+import { pinterestAdapter } from './adapters/pinterest.js'
+import { douyinAdapter } from './adapters/douyin.js'
+import { bilibiliAdapter } from './adapters/bilibili.js'
+import { rednoteAdapter } from './adapters/rednote.js'
+import { bandcampAdapter } from './adapters/bandcamp.js'
+import { mediafireAdapter } from './adapters/mediafire.js'
+import { sfileAdapter } from './adapters/sfile.js'
 import { soundcloudAdapter } from './adapters/soundcloud.js'
 import { videyAdapter } from './adapters/videy.js'
 import { pixeldrainAdapter } from './adapters/pixeldrain.js'
@@ -17,12 +26,26 @@ export { CircuitOpenError } from './circuit.js'
 export type { DownloaderAdapter, ResolveOptions, ResolveResult, MediaItem, SearchResult } from './types.js'
 export { searchYouTube } from './adapters/youtube-search.js'
 export { searchSoundCloud } from './adapters/soundcloud.js'
+export { resolveUnshorten } from './resolvers/unshorten.js'
+export { resolveSafelinku } from './resolvers/safelinku.js'
+export { resolveSub2Unlock } from './resolvers/sub2unlock.js'
+export { resolveRekonise } from './resolvers/rekonise.js'
+export { resolveBypass } from './resolvers/index.js'
 
 /** All registered adapters (order matters for detection priority) */
 const adapters: readonly DownloaderAdapter[] = [
   instagramAdapter,
+  facebookAdapter,
   twitterAdapter,
   threadsAdapter,
+  redditAdapter,
+  pinterestAdapter,
+  douyinAdapter,
+  bilibiliAdapter,
+  rednoteAdapter,
+  bandcampAdapter,
+  mediafireAdapter,
+  sfileAdapter,
   soundcloudAdapter,
   videyAdapter,
   pixeldrainAdapter,

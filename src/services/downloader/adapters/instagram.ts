@@ -1,9 +1,10 @@
 /**
- * Instagram adapter via ultra-igdl.
+ * Instagram adapter via ultra-igdl (Main) with SnapSave fallback.
  * @module services/downloader/adapters/instagram
  */
 
 import type { DownloaderAdapter, ResolveOptions, ResolveResult, MediaItem } from '../types.js'
+import { scrapeSnapSave } from '../scrapr-core/snapsave.js'
 
 const MATCH = /instagram\.com\/(?:p|reel|reels|tv)\/[\w-]+/i
 const STORY_MATCH = /instagram\.com\/stories\//i
@@ -37,39 +38,59 @@ export const instagramAdapter: DownloaderAdapter = {
       throw new Error('IG story belum didukung.')
     }
 
-    let response: any
+    // --- TIER 1: ultra-igdl (Main) ---
     try {
       const DownloaderCore = await loadIGDownloader()
       const downloader = new DownloaderCore()
-      response = await withTimeout(downloader.download(url), TIMEOUT_MS, 'IG download timed out')
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (/timeout|abort/i.test(msg)) throw msg
-      throw new Error(`Gagal memuat/download post IG: ${msg}`)
+      const response = await withTimeout(downloader.download(url), TIMEOUT_MS, 'IG download timed out')
+
+      if ('media' in response && response.code === 200 && Array.isArray(response.media) && response.media.length > 0) {
+        const items: MediaItem[] = response.media.map((m: any) => ({
+          url: m.url,
+          mime: m.type === 'video' ? 'video/mp4' : 'image/jpeg',
+          ext: m.type === 'video' ? 'mp4' : 'jpg',
+          size: null,
+        }))
+
+        return {
+          type: items.length > 1 ? 'carousel' : (items[0].mime.startsWith('video') ? 'video' : 'image'),
+          title: response.caption ? String(response.caption).slice(0, 100) : 'Instagram Post',
+          author: response.username ? String(response.username) : '',
+          thumbnail: typeof response.media[0]?.thumbnail === 'string' ? response.media[0].thumbnail : null,
+          media: items,
+          meta: { platform: 'instagram', source: 'ultra-igdl' },
+        }
+      }
+    } catch {
+      // Fallback to Tier 2
     }
 
-    // Narrow the union: ErrorResponse has no 'media' field
-    if (!('media' in response) || response.code !== 200) {
-      throw new Error(('message' in response ? response.message : null) || 'Gagal resolve IG post.')
+    // --- TIER 2: SnapSave (Fallback) ---
+    try {
+      const ssRes = await scrapeSnapSave(url)
+      if (ssRes.downloads && ssRes.downloads.length > 0) {
+        const items: MediaItem[] = ssRes.downloads.map((d) => ({
+          url: d.url,
+          mime: d.type === 'video' ? 'video/mp4' : 'image/jpeg',
+          ext: d.type === 'video' ? 'mp4' : 'jpg',
+          size: null,
+        }))
+
+        return {
+          type: items.length > 1 ? 'carousel' : (items[0].mime.startsWith('video') ? 'video' : 'image'),
+          title: ssRes.title || 'Instagram Post',
+          author: 'Instagram User',
+          thumbnail: ssRes.thumbnail || null,
+          media: items,
+          meta: { platform: 'instagram', source: 'snapsave-fallback' },
+        }
+      }
+    } catch (ssErr) {
+      const msg = ssErr instanceof Error ? ssErr.message : String(ssErr)
+      throw new Error(`Gagal resolve post IG (ultra-igdl & snapsave gagal): ${msg}`)
     }
 
-    const items: MediaItem[] = response.media.map((m: any) => ({
-      url: m.url,
-      mime: m.type === 'video' ? 'video/mp4' : 'image/jpeg',
-      ext: m.type === 'video' ? 'mp4' : 'jpg',
-      size: null,
-    }))
-
-    if (items.length === 0) throw new Error('Tidak ada media ditemukan di post IG.')
-
-    return {
-      type: items.length > 1 ? 'carousel' : (items[0].mime.startsWith('video') ? 'video' : 'image'),
-      title: response.caption ? String(response.caption).slice(0, 100) : 'Instagram Post',
-      author: response.username ? String(response.username) : '',
-      thumbnail: typeof response.media[0]?.thumbnail === 'string' ? response.media[0].thumbnail : null,
-      media: items,
-      meta: { platform: 'instagram' },
-    }
+    throw new Error('Gagal resolve post IG.')
   },
 }
 

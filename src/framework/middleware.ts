@@ -4,6 +4,7 @@ import type {
   CommandContext,
 } from './contracts.js'
 import { isGroupJid } from './validation.js'
+import { COMMAND_HELP_MAP, formatCommandHelp } from './command-help-registry.js'
 
 export type PermissionResolver = (
   permission: string,
@@ -98,6 +99,27 @@ export function createCooldownMiddleware(
 }
 
 export const validationMiddleware: CommandMiddleware = async ({ command, context }, next) => {
+  const helpEntry = COMMAND_HELP_MAP[command.name]
+  const hasArgs = context.args.length > 0 && context.args.some((a) => a.trim().length > 0)
+  const hasQuoted = Boolean(context.message.quotedMedia || context.message.quotedText || context.message.quotedMessageId)
+
+  // Otomatis tampilkan format bantuan jika panggilan kosong pada Tipe Q atau Tipe R
+  if (helpEntry) {
+    if (helpEntry.type === 'Q' && !hasArgs) {
+      const helpMsg = formatCommandHelp(command.name, command.aliases, context.prefix)
+      if (helpMsg) {
+        await context.reply(helpMsg)
+        return
+      }
+    } else if (helpEntry.type === 'R' && !hasArgs && !hasQuoted && !context.message.media) {
+      const helpMsg = formatCommandHelp(command.name, command.aliases, context.prefix)
+      if (helpMsg) {
+        await context.reply(helpMsg)
+        return
+      }
+    }
+  }
+
   const error = command.validate?.(context)
   if (error) {
     context.logger.debug({ command: command.name, validationError: error }, 'command validation failed')
