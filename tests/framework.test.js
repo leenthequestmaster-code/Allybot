@@ -445,7 +445,7 @@ test('CommandRegistry enforces scope: group-only, private-only, both, and your-c
   let privateExecuted = false
 
   registry.register({
-    name: 'kick',
+    name: 'groupcmd',
     category: 'moderation',
     handler: async () => { groupExecuted = true },
   })
@@ -466,12 +466,12 @@ test('CommandRegistry enforces scope: group-only, private-only, both, and your-c
   const privateJid = '6281234567890@s.whatsapp.net'
 
   // 1. Group command in private -> denied with group-only message
-  await registry.dispatch({ id: 'm1', remoteJid: privateJid, text: '!kick', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'm1', remoteJid: privateJid, text: '!groupcmd', timestamp: Date.now(), fromMe: false })
   assert.equal(groupExecuted, false)
   assert.match(whatsapp.sent.at(-1)?.text ?? '', /cuma bisa dijalankan di dalam grup/)
 
   // 2. Group command in group -> executed
-  await registry.dispatch({ id: 'm2', remoteJid: groupJid, text: '!kick', timestamp: Date.now(), fromMe: false })
+  await registry.dispatch({ id: 'm2', remoteJid: groupJid, text: '!groupcmd', timestamp: Date.now(), fromMe: false })
   assert.equal(groupExecuted, true)
 
   // 3. your-character command in private -> executed
