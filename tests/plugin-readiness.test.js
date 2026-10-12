@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs'
+import { registerHooks } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import pino from 'pino'
@@ -26,6 +27,37 @@ import { mediaPlugin } from '../dist/framework/plugins/media.js'
 import { toolsSearchPlugin } from '../dist/framework/plugins/tools-search.js'
 import { createAfkPlugin } from '../dist/framework/plugins/afk.js'
 import { createSuggestPlugin } from '../dist/framework/plugins/suggest.js'
+import { createRekapPlugin } from '../dist/framework/plugins/rekap.js'
+import { downloaderPlugin } from '../dist/framework/plugins/downloader.js'
+import { quranPlugin } from '../dist/framework/plugins/quran.js'
+import { sholatPlugin } from '../dist/framework/plugins/sholat.js'
+import { doaPlugin } from '../dist/framework/plugins/doa.js'
+
+// These two legacy plugins perform boot-time I/O outside the framework service registry.
+// Replace their external boundaries before importing them, not their real plugin hooks.
+function isolateLegacyBoot() {
+  const forbidden = '() => { throw new Error("Readiness must not execute external operations") }'
+  const modules = new Map([
+    ['music-config.js', 'export const loadConfig = () => ({ timezone_offset: 7, owners: [], premium_users: [], premium_groups: [] });'],
+    ['music-limiter.js', `export const restoreLimits = () => {}; export const startRolloverInterval = () => {}; export const checkQuota = ${forbidden}; export const consumeQuota = ${forbidden};`],
+    ['music-service.js', `export const initMusic = async () => {}; export const searchAndDownload = ${forbidden}; export class MusicError extends Error {}`],
+    ['amprem-auto-limiter.js', `export const restoreAutoLimits = () => {}; export const checkAutoLimit = ${forbidden}; export const consumeAutoLimit = ${forbidden};`],
+    ['amprem-auto-session.js', `export const restoreAutoSessions = () => {}; ${['saveAutoSession', 'getAutoSession', 'clearAutoSession', 'markAccountVerified', 'removeTempSession', 'findAccount', 'listAccounts', 'removeAccount', 'getLoginSent', 'markLoginSent', 'runGc'].map((name) => `export const ${name} = ${forbidden};`).join(' ')}`],
+    ['amprem-scheduler.js', `export const restoreSchedulerState = () => {}; export const shouldRunBackup = ${forbidden}; export const shouldRunGc = ${forbidden};`],
+  ])
+  const replaced = new Set()
+  const hooks = registerHooks({
+    load(url, context, nextLoad) {
+      const name = url.split('/').at(-1)
+      if (url.includes('/dist/services/') && modules.has(name)) {
+        replaced.add(name)
+        return { format: 'module', source: modules.get(name), shortCircuit: true }
+      }
+      return nextLoad(url, context)
+    },
+  })
+  return { hooks, replaced, expected: [...modules.keys()] }
+}
 
 const logger = pino({ level: 'silent' })
 
@@ -44,6 +76,10 @@ const SERVICE_NAMES = [
   'redis',
   'group-safety',
   'group-moderation-suite',
+  'chat-history',
+  'web-companion',
+  'downloader',
+  'quota',
 ]
 
 // Every property resolves to another callable stub, so plugin load hooks can read flags,
@@ -64,14 +100,6 @@ function stubService(name) {
   })
   return proxy
 }
-
-// PENDING: two plugins collide on command names and die on every production boot.
-// Resolving them needs product decisions on who owns `groupmode` and `ooc`, so they are
-// pinned here instead of silently tolerated. Delete an entry once its collision is fixed.
-// (character-guide's former `timerp` duplicate alias was resolved in the backend-stub
-// disable work — the plugin now reaches ready.)
-const PENDING_PLUGIN_FAILURES = []
-const PENDING_PLUGINS = []
 
 function fakeWhatsapp() {
   const noop = () => () => undefined
@@ -95,7 +123,16 @@ function fakeWhatsapp() {
   }
 }
 
-test('every production plugin reaches ready, except the documented pending collisions', async () => {
+test('every active production plugin reaches ready without network or production storage', async (t) => {
+  const isolation = isolateLegacyBoot()
+  t.after(() => isolation.hooks.deregister())
+  // Block the legacy verify cron entirely; readiness does not exercise scheduled jobs.
+  t.mock.method(globalThis, 'setInterval', () => ({ unref() {} }))
+  t.mock.method(globalThis, 'fetch', () => { throw new Error('Readiness must not use network') })
+  const { spotifyPlugin } = await import('../dist/framework/plugins/spotify.js')
+  const { createVerifyPlugin } = await import('../dist/framework/plugins/verify.js')
+  assert.deepEqual([...isolation.replaced].sort(), isolation.expected.sort(), 'all legacy storage/network boundaries must be replaced')
+
   const root = mkdtempSync(join(tmpdir(), 'allybot-plugin-readiness-'))
   const whatsapp = fakeWhatsapp()
   const framework = new ApplicationFramework(
@@ -125,6 +162,7 @@ test('every production plugin reaches ready, except the documented pending colli
   framework.registerPlugin(createSentryPlugin({ isEnabled: false, captureError() {}, captureMessage() {}, close: async () => {} }))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(createAiPlugin({ fallbackEnabled: false }))
+  framework.registerPlugin(createRekapPlugin(whatsapp, { fallbackEnabled: false }))
   framework.registerPlugin(developerModePlugin)
   framework.registerPlugin(codebasePlugin)
   framework.registerPlugin(diagnosticsPlugin)
@@ -140,21 +178,30 @@ test('every production plugin reaches ready, except the documented pending colli
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(mediaPlugin)
+  framework.registerPlugin(downloaderPlugin)
+  framework.registerPlugin(spotifyPlugin)
+  framework.registerPlugin(createVerifyPlugin(whatsapp))
   framework.registerPlugin(toolsSearchPlugin)
+  framework.registerPlugin(quranPlugin)
+  framework.registerPlugin(sholatPlugin)
+  framework.registerPlugin(doaPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   framework.registerPlugin(createSuggestPlugin(whatsapp))
+
+  // Retain an independent registration-inventory guard: new runtime plugins must be
+  // added here, otherwise an all-ready assertion could silently cover only a subset.
+  const runtimeSource = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8')
+  const testSource = readFileSync(new URL('./plugin-readiness.test.js', import.meta.url), 'utf8')
+  const registrations = (source) => [...source.matchAll(/framework\.registerPlugin\((\w+)/g)].map((match) => match[1])
+  assert.deepEqual(registrations(testSource), registrations(runtimeSource), 'readiness must cover the active runtime plugin set and order')
 
   try {
     await framework.start()
 
-    // A plugin that fails to load is non-fatal by design: the framework still reports
-    // ready while that plugin's commands silently disappear, including the ones already
-    // accepted before the collision, which cleanup() rolls back. Comparing against the
-    // exact pending set means a NEW collision fails this test, and resolving a listed
-    // one also fails it until the entry is removed here.
-    assert.deepEqual(failures, PENDING_PLUGIN_FAILURES, 'plugin load failures changed')
+    // Framework ready alone can mask individual plugin failures and rolled-back commands.
+    assert.deepEqual(failures, [], 'every active plugin must load without collisions')
     const notReady = framework.plugins.list().filter((entry) => entry.state !== 'ready').map((entry) => entry.name)
-    assert.deepEqual(notReady, PENDING_PLUGINS, 'set of non-ready plugins changed')
+    assert.deepEqual(notReady, [], 'every active plugin must reach ready')
     assert.equal(framework.state.phase, 'ready')
   } finally {
     await framework.stop()

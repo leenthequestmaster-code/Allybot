@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: '/root/Allybot-hotfix/.env.test' });
+// Integration targets must be explicitly supplied via DISPOSABLE_*; never load env files.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import postgres from 'postgres';
