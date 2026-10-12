@@ -1,3 +1,4 @@
+import { safeFetch as fetch, assertPublicHttpUrl, boundedBuffer, MAX_MEDIA_BYTES, MAX_JSON_BYTES } from './downloader/safe-fetch.js'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
@@ -24,8 +25,12 @@ export const PLATFORM_PATTERNS: Record<string, RegExp> = {
 }
 
 export function detectPlatform(url: string): string | null {
+  let parsed: URL
+  try { parsed = new URL(url) } catch { return null }
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) return null
+  const hosts: Record<string, string[]> = { tiktok: ['tiktok.com'], instagram: ['instagram.com'], youtube: ['youtube.com', 'youtu.be'], twitter: ['twitter.com', 'x.com'], facebook: ['facebook.com', 'fb.watch'], reddit: ['reddit.com'] }
   for (const [name, pat] of Object.entries(PLATFORM_PATTERNS)) {
-    if (pat.test(url)) return name
+    if (hosts[name]?.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h)) && pat.test(parsed.href)) return name
   }
   return null
 }
@@ -36,7 +41,7 @@ export function extractMediaUrl(text: string): { url: string; platform: string }
     const match = text.match(pat)
     if (match) {
       const cleanUrl = match[0].replace(/[.,;!?)"']+$/u, '')
-      return { url: cleanUrl, platform: name }
+      if (detectPlatform(cleanUrl) === name) return { url: cleanUrl, platform: name }
     }
   }
   return null
@@ -67,6 +72,8 @@ function putCachedResolve(url: string, data: MediaResolveResult): void {
 
 export async function resolveTikWm(url: string): Promise<MediaResolveResult | null> {
   try {
+    if (detectPlatform(url) !== 'tiktok') return null
+    await assertPublicHttpUrl(url)
     const apiUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`
     const res = await fetch(apiUrl, {
       headers: {
@@ -75,7 +82,7 @@ export async function resolveTikWm(url: string): Promise<MediaResolveResult | nu
         'Accept': 'application/json',
       },
       signal: AbortSignal.timeout(15_000),
-    })
+    }, { maxBytes: MAX_JSON_BYTES })
 
     if (!res.ok) return null
     const json = (await res.json()) as any
@@ -116,11 +123,13 @@ export async function resolveYtDlp(url: string, platform = 'unknown'): Promise<M
       ...(useProxy ? ['--proxy', 'socks5://127.0.0.1:10808'] : []),
       url,
     ]
-    const { stdout } = await execFileAsync('yt-dlp', args, { timeout: 30_000 })
+    const { stdout } = await execFileAsync('yt-dlp', args, { timeout: 30_000, maxBuffer: MAX_JSON_BYTES })
     return stdout
   }
 
   try {
+    if (!detectPlatform(url)) return null
+    await assertPublicHttpUrl(url)
     let rawOutput = ''
     try {
       rawOutput = await runDump(true)
@@ -161,6 +170,7 @@ export async function resolveYtDlp(url: string, platform = 'unknown'): Promise<M
 }
 
 export async function resolveMedia(url: string, hintPlatform?: string): Promise<MediaResolveResult | null> {
+  if (!detectPlatform(url)) return null
   const cached = getCachedResolve(url)
   if (cached) return cached
 
@@ -189,23 +199,25 @@ export async function fetchMediaBuffer(
   timeoutMs = 30_000,
 ): Promise<Buffer | null> {
   try {
+    if (!Number.isFinite(maxBytes) || maxBytes <= 0) return null
+    maxBytes = Math.min(Math.floor(maxBytes), MAX_MEDIA_BYTES)
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return null
+    timeoutMs = Math.min(timeoutMs, 60_000)
     const res = await fetch(url, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Referer': url.includes('tiktok') ? 'https://www.tiktok.com/' : undefined as any,
+        'Referer': /(^|\.)tiktok\.com$/.test(new URL(url).hostname) ? 'https://www.tiktok.com/' : undefined as any,
       },
       signal: AbortSignal.timeout(timeoutMs),
-    })
+    }, { timeoutMs, maxBytes })
 
     if (!res.ok) return null
     const contentLength = parseInt(res.headers.get('content-length') || '0', 10)
     if (contentLength > maxBytes) return null
 
-    const arrayBuffer = await res.arrayBuffer()
-    if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > maxBytes) return null
-
-    return Buffer.from(arrayBuffer)
+    const buffer = await boundedBuffer(res, maxBytes)
+    return buffer.byteLength ? buffer : null
   } catch {
     return null
   }

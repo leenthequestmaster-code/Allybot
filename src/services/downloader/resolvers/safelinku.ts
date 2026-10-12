@@ -1,3 +1,4 @@
+import { safeFetch as fetch, assertPublicHttpUrl } from "../safe-fetch.js"
 import crypto from "crypto"
 import { scrapeMediaFire } from "../scrapr-core/mediafire.js"
 import { scrapeSfile } from "../scrapr-core/sfile.js"
@@ -16,35 +17,31 @@ function extractCleanUrl(text: string): string {
 }
 
 class SimpleCookieJar {
-  private cookies = new Map<string, string>()
-
-  setFromHeaders(headers: Headers) {
-    const raw = headers.get("set-cookie")
-    if (!raw) return
-    const list = raw.split(",")
+  private cookies = new Map<string, Map<string, string>>()
+  private requests = 0
+  consumeRequest(): void {
+    if (++this.requests > 40) throw new Error('Safelinku request budget exceeded')
+  }
+  setFromHeaders(headers: Headers, url: string): void {
+    const origin = new URL(url).origin
+    const cookies = this.cookies.get(origin) ?? new Map<string, string>()
+    const list = headers.getSetCookie?.() ?? (headers.get('set-cookie') ? [headers.get('set-cookie')!] : [])
     for (const item of list) {
-      if (!item) continue
-      const part = item.split(";")[0].trim()
-      const eqIdx = part.indexOf("=")
-      if (eqIdx !== -1) {
-        const name = part.slice(0, eqIdx).trim()
-        const value = part.slice(eqIdx + 1).trim()
-        if (name) this.cookies.set(name, value)
-      }
+      const part = item.split(';')[0].trim()
+      const eq = part.indexOf('=')
+      if (eq > 0) cookies.set(part.slice(0, eq), part.slice(eq + 1))
     }
+    this.cookies.set(origin, cookies)
   }
-
-  getCookieHeader(): string {
-    const pairs: string[] = []
-    for (const [k, v] of this.cookies.entries()) {
-      pairs.push(`${k}=${v}`)
-    }
-    return pairs.join("; ")
+  getCookieHeader(url: string): string {
+    return [...(this.cookies.get(new URL(url).origin) ?? [])].map(([k,v]) => `${k}=${v}`).join('; ')
   }
-
-  get(name: string): string | undefined {
-    return this.cookies.get(name)
+  get(name: string, url: string): string | undefined {
+    return this.cookies.get(new URL(url).origin)?.get(name)
   }
+}
+function assertGatewayOrigin(raw: string, expected: string): void {
+  if (new URL(raw).origin !== expected) throw new Error('Unexpected Safelinku gateway origin')
 }
 
 function generateSessionToken(rawXsrfCookie: string): string {
@@ -80,7 +77,9 @@ async function fetchHttp(
 
   const maxHops = 10
   for (let hop = 0; hop < maxHops; hop++) {
-    const cookieHeader = jar ? jar.getCookieHeader() : ""
+    jar?.consumeRequest()
+    delete headers["Cookie"]
+    const cookieHeader = jar ? jar.getCookieHeader(currentUrl) : ""
     if (cookieHeader) headers["Cookie"] = cookieHeader
 
     const res = await fetch(currentUrl, {
@@ -91,12 +90,17 @@ async function fetchHttp(
       signal: AbortSignal.timeout(15_000),
     })
 
-    if (jar) jar.setFromHeaders(res.headers)
+    if (jar) jar.setFromHeaders(res.headers, currentUrl)
 
     const loc = res.headers.get("location")
     if (res.status >= 300 && res.status < 400 && loc) {
-      headers["Referer"] = currentUrl
-      currentUrl = new URL(loc, currentUrl).href
+      const nextUrl = new URL(loc, currentUrl).href
+      if (new URL(nextUrl).origin !== new URL(currentUrl).origin) {
+        for (const name of Object.keys(headers)) {
+          if (["authorization", "proxy-authorization", "cookie", "origin", "referer", "x-requested-with"].includes(name.toLowerCase())) delete headers[name]
+        }
+      } else headers["Referer"] = currentUrl
+      currentUrl = nextUrl
       method = "GET"
       body = undefined
       continue
@@ -123,15 +127,19 @@ async function resolveGateway(html: string, currentUrl: string, jar: SimpleCooki
   const alias = aliasMatch[1]
 
   const parsedAction = new URL(actionUrl, currentUrl)
-  const blogOrigin = `${parsedAction.protocol}//${parsedAction.host}`
+  const gatewayHosts = /(^|\.)(?:sfl\.gl|safelinku\.com|idsly\.bid|idsly\.net|safelinkblogger\.com)$/
+  if (!gatewayHosts.test(parsedAction.hostname)) throw new Error("Unexpected Safelinku form origin")
+  await assertPublicHttpUrl(parsedAction.href)
+  const blogOrigin = parsedAction.origin
   const redirectUrl = `${blogOrigin}/redirect.php?ray_id=${encodeURIComponent(
     rayId
   )}&alias=${encodeURIComponent(alias)}`
 
   const r2 = await fetchHttp(redirectUrl, { headers: { Referer: currentUrl } }, jar)
   const step1PageUrl = r2.url
+  assertGatewayOrigin(step1PageUrl, blogOrigin)
 
-  const xsrf1 = jar.get("XSRF-TOKEN")
+  const xsrf1 = jar.get("XSRF-TOKEN", blogOrigin)
   if (!xsrf1) return null
 
   const tokenPayload1 = generateSessionToken(xsrf1)
@@ -183,8 +191,9 @@ async function resolveGateway(html: string, currentUrl: string, jar: SimpleCooki
 
     const r3 = await fetchHttp(target, { headers: { Referer: step1PageUrl } }, jar)
     step2PageUrl = r3.url
+    assertGatewayOrigin(step2PageUrl, blogOrigin)
 
-    const xsrf2 = jar.get("XSRF-TOKEN") || xsrf1
+    const xsrf2 = jar.get("XSRF-TOKEN", blogOrigin) || xsrf1
     sessionHeaders["Referer"] = step2PageUrl
     await fetchHttp(
       `${blogOrigin}/api/session`,
@@ -283,6 +292,8 @@ export async function resolveSafelinku(url: string, autoResolveFiles = true): Pr
 
     break
   }
+
+  await assertPublicHttpUrl(currentUrl)
 
   let directFile: any = undefined
 

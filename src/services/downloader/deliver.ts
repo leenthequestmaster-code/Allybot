@@ -5,6 +5,7 @@
 
 import type { Logger } from 'pino'
 import type { ResolveResult, MediaItem } from './types.js'
+import { assertPublicHttpUrl, safeFetch, boundedBuffer, MAX_MEDIA_BYTES } from './safe-fetch.js'
 
 /** Minimal WhatsApp port interface for delivery */
 interface WhatsAppPort {
@@ -27,6 +28,7 @@ const MAX_CAROUSEL_ITEMS     = 10
 const CAROUSEL_DELAY_MS      = 1000
 const DOWNLOAD_TIMEOUT_MS    = 60_000
 const CONCURRENCY_CAP        = 3
+const MAX_PENDING_DOWNLOADS  = 12
 
 /** Simple semaphore for concurrency control */
 class Semaphore {
@@ -40,6 +42,7 @@ class Semaphore {
       this.running++
       return
     }
+    if (this.queue.length >= MAX_PENDING_DOWNLOADS) throw new Error("Downloader queue full")
     await new Promise<void>(resolve => this.queue.push(resolve))
   }
 
@@ -66,24 +69,19 @@ function buildCaption(result: ResolveResult): string {
 
 async function downloadBuffer(url: string, logger: Logger): Promise<Buffer | null> {
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
-
-    const response = await fetch(url, {
-      signal: controller.signal,
+    const validatedUrl = await assertPublicHttpUrl(url)
+    const response = await safeFetch(validatedUrl.href, {
       headers: { 'User-Agent': 'Allybot/1.0' },
-    })
-    clearTimeout(timer)
+    }, { timeoutMs: DOWNLOAD_TIMEOUT_MS, maxBytes: MAX_MEDIA_BYTES })
 
     if (!response.ok) {
-      logger.warn({ url, status: response.status }, 'dl-deliver: download failed')
+      logger.warn({ url: validatedUrl.origin, status: response.status }, 'dl-deliver: download failed')
       return null
     }
 
-    const arrayBuf = await response.arrayBuffer()
-    return Buffer.from(arrayBuf)
+    return await boundedBuffer(response, MAX_MEDIA_BYTES)
   } catch (err) {
-    logger.warn({ err, url }, 'dl-deliver: download error')
+    logger.warn({ errorName: (err as Error)?.name || 'DownloadError' }, 'dl-deliver: download error')
     return null
   }
 }
@@ -103,6 +101,9 @@ async function sendSingleMedia(
     return { sent: false, fallbackLink: item.url }
   }
 
+  if ((item.size !== null && item.size > MAX_MEDIA_BYTES) || (item.buffer && item.buffer.byteLength > MAX_MEDIA_BYTES)) {
+    return { sent: false, fallbackLink: item.url }
+  }
   await semaphore.acquire()
   try {
     const buffer = item.buffer
@@ -115,6 +116,8 @@ async function sendSingleMedia(
 
     const size = buffer.byteLength
     const mime = (item.mime || '').toLowerCase() || 'application/octet-stream'
+
+    if (size > MAX_MEDIA_BYTES) return { sent: false, fallbackLink: item.url }
 
     // Audio → send as audio (guard size; besar → document)
     if (mime.startsWith('audio/')) {

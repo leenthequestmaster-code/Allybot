@@ -1,3 +1,4 @@
+import { safeFetch as fetch, assertPublicHttpUrl } from "../safe-fetch.js"
 import { scrapeMediaFire } from "../scrapr-core/mediafire.js"
 import { scrapeSfile } from "../scrapr-core/sfile.js"
 
@@ -75,6 +76,8 @@ export async function resolveUnshorten(url: string, autoResolveFiles = true): Pr
       break
     }
   }
+
+  await assertPublicHttpUrl(currentUrl)
 
   let directFile: UnshortenResult["directFile"] = undefined
 

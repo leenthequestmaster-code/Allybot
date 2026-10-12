@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 /**
  * Pixeldrain adapter (native, no npm dependency).
  * API: pixeldrain.com/api/file/{id}?download

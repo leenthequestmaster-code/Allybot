@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 /**
  * Videy.co adapter (native, no npm dependency).
  * Extracts video ID from URL, constructs CDN link, HEAD-verifies.

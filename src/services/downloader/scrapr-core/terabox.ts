@@ -1,3 +1,4 @@
+import { safeFetch as fetch, assertPublicHttpUrl } from "../safe-fetch.js"
 export interface TeraBoxResult {
   readonly title: string
   readonly thumbnail?: string
@@ -20,7 +21,9 @@ function extractCleanUrl(text: string): string {
 }
 
 export async function scrapeTeraBox(url: string): Promise<TeraBoxResult> {
-  const cleanUrl = extractCleanUrl(url)
+  const parsed = await assertPublicHttpUrl(extractCleanUrl(url))
+  if (!/(^|\.)(?:terabox\.app|terabox\.com|1024tera\.com|freeterabox\.com|4shared\.com)$/.test(parsed.hostname)) throw new Error("Invalid TeraBox hostname")
+  const cleanUrl = parsed.href
   const apiUrl = "https://sechno.com/api/terabox"
 
   const res = await fetch(apiUrl, {
