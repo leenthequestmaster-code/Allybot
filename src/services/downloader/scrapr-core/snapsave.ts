@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 import * as cheerio from "cheerio"
 
 export interface SnapSaveMedia {
@@ -107,12 +108,8 @@ export async function scrapeSnapSave(url: string): Promise<SnapSaveResult> {
     headers,
     signal: AbortSignal.timeout(5_000),
   })
-  const cookieHeader = r1.headers.get("set-cookie") || ""
-  const cookieStr = cookieHeader
-    .split(",")
-    .map((c) => c.split(";")[0].trim())
-    .filter(Boolean)
-    .join("; ")
+  const cookieStr = new URL(r1.url || 'https://snapsave.app/id').origin === 'https://snapsave.app'
+    ? (r1.headers.getSetCookie?.() ?? []).map(c => c.split(';')[0].trim()).filter(Boolean).join('; ') : ''
 
   const params = new URLSearchParams()
   params.append("url", finalUrl)

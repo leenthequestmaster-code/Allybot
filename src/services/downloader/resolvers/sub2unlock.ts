@@ -1,3 +1,4 @@
+import { safeFetch as fetch, assertPublicHttpUrl } from "../safe-fetch.js"
 import * as cheerio from "cheerio"
 import { scrapeMediaFire } from "../scrapr-core/mediafire.js"
 import { scrapeSfile } from "../scrapr-core/sfile.js"
@@ -85,8 +86,10 @@ export async function resolveSub2Unlock(url: string, autoResolveFiles = true): P
       signal: AbortSignal.timeout(15_000),
     })
   } catch (e) {
-    if (cleanUrl.includes("sub2unlock.com")) {
-      targetFetchUrl = cleanUrl.replace("sub2unlock.com", "sub2unlock.io")
+    if (["sub2unlock.com", "www.sub2unlock.com"].includes(new URL(cleanUrl).hostname)) {
+      const fallback = new URL(cleanUrl)
+      fallback.hostname = fallback.hostname.replace("sub2unlock.com", "sub2unlock.io")
+      targetFetchUrl = fallback.href
       res = await fetch(targetFetchUrl, {
         headers: {
           "User-Agent": DEFAULT_UA,
@@ -110,6 +113,8 @@ export async function resolveSub2Unlock(url: string, autoResolveFiles = true): P
   }
 
   const destinationUrl = extracted.unlockedUrl
+  await assertPublicHttpUrl(destinationUrl)
+
   let directFile: any = undefined
 
   if (autoResolveFiles) {

@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 import * as cheerio from "cheerio"
 
 export interface PinterestResult {

@@ -1,3 +1,4 @@
+import { safeFetch as fetch, assertPublicHttpUrl } from "../safe-fetch.js"
 import { scrapeMediaFire } from "../scrapr-core/mediafire.js"
 import { scrapeSfile } from "../scrapr-core/sfile.js"
 
@@ -43,7 +44,7 @@ export async function resolveRekonise(url: string, autoResolveFiles = true): Pro
 
   const title = data.title || "Rekonise Unlock"
   const token = data.unlock_token
-  const actions = Array.isArray(data.actions) ? data.actions : []
+  const actions = Array.isArray(data.actions) ? data.actions.slice(0, 10) : []
 
   for (const a of actions) {
     if (a.type && a.value) {
@@ -71,7 +72,7 @@ export async function resolveRekonise(url: string, autoResolveFiles = true): Pro
       )
       if (payload.issuedAt) {
         const elapsed = Date.now() - payload.issuedAt
-        waitMs = Math.max(0, 11000 - elapsed)
+        waitMs = Math.min(11000, Math.max(0, 11000 - elapsed))
       }
     }
   } catch {}
@@ -94,6 +95,8 @@ export async function resolveRekonise(url: string, autoResolveFiles = true): Pro
   if (!destUrl) {
     throw new Error("Could not retrieve destination URL from Rekonise.")
   }
+
+  await assertPublicHttpUrl(destUrl)
 
   let directFile: any = undefined
   if (autoResolveFiles) {

@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 /**
  * Twitter/X adapter.
  * Primary: @cedricdsst/twitter-video-downloader

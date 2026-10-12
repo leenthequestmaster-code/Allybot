@@ -1,3 +1,4 @@
+import { safeFetch as fetch } from "../safe-fetch.js"
 import crypto from "crypto"
 
 export interface DouyinResult {
@@ -251,28 +252,28 @@ export async function scrapeDouyin(url: string): Promise<DouyinResult> {
   const mobileUA =
     "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
 
-  const cookieJar: Record<string, string> = {}
-  const saveCookies = (res: Response) => {
-    const raw = res.headers.get("set-cookie")
-    if (!raw) return
-    raw.split(",").forEach((c) => {
-      const part = c.split(";")[0]
-      const [k, v] = part.split("=")
-      if (k && v) cookieJar[k.trim()] = v.trim()
-    })
+  const cookieJar = new Map<string, Map<string, string>>()
+  const saveCookies = (res: Response, requestUrl: string) => {
+    const origin = new URL(res.url || requestUrl).origin
+    const cookies = cookieJar.get(origin) ?? new Map<string, string>()
+    for (const raw of res.headers.getSetCookie?.() ?? []) {
+      const part = raw.split(';')[0]
+      const eq = part.indexOf('=')
+      if (eq > 0) cookies.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim())
+    }
+    cookieJar.set(origin, cookies)
   }
-  const getCookieHeader = () =>
-    Object.entries(cookieJar)
-      .map(([k, v]) => `${k}=${v}`)
-      .join("; ")
+  const getCookieHeader = (url: string) => [...(cookieJar.get(new URL(url).origin) ?? [])].map(([k,v]) => `${k}=${v}`).join('; ')
 
   let targetUrl = cleanUrl
   let itemId = extractDouyinItemId(cleanUrl)
-
   const initTtwid = await getTtwid()
+  // The fixed Bytedance token is intentionally initialized only for known service origins.
   if (initTtwid) {
-    const [k, v] = initTtwid.split("=")
-    if (k && v) cookieJar[k.trim()] = v.trim()
+    const eq = initTtwid.indexOf('=')
+    if (eq > 0) for (const origin of ['https://www.douyin.com', 'https://www.iesdouyin.com', 'https://v.douyin.com']) {
+      cookieJar.set(origin, new Map([[initTtwid.slice(0, eq), initTtwid.slice(eq + 1)]]))
+    }
   }
 
   if (cleanUrl.includes("v.douyin.com")) {
@@ -281,14 +282,14 @@ export async function scrapeDouyin(url: string): Promise<DouyinResult> {
         headers: {
           "User-Agent": mobileUA,
           Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          Cookie: getCookieHeader(),
+          Cookie: getCookieHeader(cleanUrl),
         },
         redirect: "manual",
         signal: AbortSignal.timeout(10_000),
       })
-      saveCookies(r1)
+      saveCookies(r1, cleanUrl)
       const loc = r1.headers.get("location")
-      if (loc) targetUrl = loc
+      if (loc) targetUrl = new URL(loc, cleanUrl).href
     } catch {}
   }
 
@@ -308,19 +309,21 @@ export async function scrapeDouyin(url: string): Promise<DouyinResult> {
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        Cookie: getCookieHeader(),
+        Cookie: getCookieHeader(targetUrl),
         Referer: "https://www.douyin.com/",
       },
       signal: AbortSignal.timeout(15_000),
     })
-    saveCookies(r2)
+    saveCookies(r2, targetUrl)
     htmlStr = await r2.text()
   } catch {}
 
   if (htmlStr.includes("_wafchallengeid")) {
     const wafToken = solveWafChallenge(htmlStr)
     if (wafToken) {
-      cookieJar["_wafchallengeid"] = wafToken
+      const cookies = cookieJar.get(new URL(targetUrl).origin) ?? new Map<string, string>()
+      cookies.set("_wafchallengeid", wafToken)
+      cookieJar.set(new URL(targetUrl).origin, cookies)
       try {
         const rWaf = await fetch(targetUrl, {
           headers: {
@@ -328,12 +331,12 @@ export async function scrapeDouyin(url: string): Promise<DouyinResult> {
             Accept:
               "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            Cookie: getCookieHeader(),
+            Cookie: getCookieHeader(targetUrl),
             Referer: targetUrl,
           },
           signal: AbortSignal.timeout(15_000),
         })
-        saveCookies(rWaf)
+        saveCookies(rWaf, targetUrl)
         htmlStr = await rWaf.text()
       } catch {}
     }
@@ -353,7 +356,7 @@ export async function scrapeDouyin(url: string): Promise<DouyinResult> {
             "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1",
           Referer: "https://www.iesdouyin.com/",
           Accept: "application/json",
-          Cookie: getCookieHeader(),
+          Cookie: getCookieHeader(apiUrl),
         },
         signal: AbortSignal.timeout(10_000),
       })

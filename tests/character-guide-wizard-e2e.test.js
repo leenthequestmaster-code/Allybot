@@ -1,5 +1,4 @@
-import dotenv from 'dotenv'
-dotenv.config({ path: '.env.test' })
+// Integration targets must be explicitly supplied via DISPOSABLE_*; never load env files.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -10,9 +9,13 @@ import { createPostgresCharacterClient } from '../dist/services/character-postgr
 import { CharacterGuideService } from '../dist/services/character-guide-service.js'
 import { CharacterRegistrationWizardService } from '../dist/services/character-registration-wizard.js'
 
-const TEST_POSTGRES_URL = process.env.DISPOSABLE_POSTGRES_URL || 'postgres://allybot_test_runner:***@127.0.0.1:5433/allybot_isolated_test'
+const TEST_POSTGRES_URL = process.env.DISPOSABLE_POSTGRES_URL
 
 test('Integration: Character Wizard full creation through Service & DB', { skip: !process.env.DISPOSABLE_POSTGRES_URL }, async () => {
+  const target = new URL(TEST_POSTGRES_URL)
+  assert.equal(target.port, '5433', 'Refusing non-disposable PostgreSQL port')
+  assert.equal(target.username, 'allybot_test_runner', 'Refusing non-test PostgreSQL role')
+  assert.equal(target.pathname, '/allybot_isolated_test', 'Refusing non-test PostgreSQL database')
   const sql = postgres(TEST_POSTGRES_URL, { max: 2 })
   const logger = pino({ level: 'silent' })
 
