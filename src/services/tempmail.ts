@@ -136,12 +136,6 @@ export function extractVerificationLink(
 }
 
 
-// Audit extract — no-op terstruktur: extractor ini pure regex, zero fetch.
-// (Dulu stdout potongan URL terpilih — dihapus: URL bisa memuat token single-use.)
-export function auditExtract(_inputLen: number, _urls: string[]): void {
-  // sengaja diam: tanpa PII/token ke stdout
-}
-
 // ── Poll loop generik ────────────────────────────────────────────────────────
 
 interface StepResult {
@@ -579,9 +573,6 @@ export function extractAllLinks(
   ...parts: Array<string | null | undefined>
 ): string[] {
   // RAW apa adanya — tanpa decode/encode, tanpa fetch. oobCode single-use.
-  const inputLen = parts.reduce(
-    (n, x) => n + (typeof x === 'string' ? x.length : 0), 0,
-  )
   const out: string[] = []
   const seen = new Set<string>()
   for (const p of parts) {
@@ -602,7 +593,6 @@ export function extractAllLinks(
     if (af !== bf) return af - bf
     return b.length - a.length
   })
-  auditExtract(inputLen, out)
   return out
 }
 

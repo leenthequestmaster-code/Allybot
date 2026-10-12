@@ -17,12 +17,13 @@ const SCOPE_FILES = [
 
 function captureConsole(fn) {
   const calls = []
-  const orig = console.log
-  console.log = (...args) => { calls.push(args) }
+  const methods = ['log', 'debug', 'info', 'warn', 'error']
+  const originals = new Map(methods.map((name) => [name, console[name]]))
+  for (const name of methods) console[name] = (...args) => { calls.push(args) }
   try {
     fn()
   } finally {
-    console.log = orig
+    for (const [name, original] of originals) console[name] = original
   }
   return calls
 }
@@ -44,14 +45,28 @@ test('log hygiene ignores local backup and editor artefacts', () => {
 
 test('log hygiene keeps link extraction silent and pure', () => {
   const link = 'https://example.com/auth?oobCode=SYNTHETIC_CODE_123'
-  const prefix = 'klik '
-  const suffix = ' untuk masuk'
-  let out
-  const calls = captureConsole(() => {
-    out = extractAllLinks(prefix + link + suffix, null, undefined)
-  })
-  assert.deepEqual(out, [link])
-  assert.equal(calls.length, 0, 'extractAllLinks must not write to console')
+  const wrapper = 'https://app.firebaseapp.com/__/auth/links?link=https%3A%2F%2Fexample.com%2Fauth%3FoobCode%3DSYNTHETIC_CODE_123'
+  const originalFetch = globalThis.fetch
+  let networkCalls = 0
+  globalThis.fetch = () => {
+    networkCalls++
+    throw new Error('link extraction must never fetch a single-use URL')
+  }
+  try {
+    for (const [parts, expected] of [
+      [['klik ' + link + ' untuk masuk', null, undefined], [link]],
+      [[link, link, wrapper], [wrapper, link]],
+      [[null, undefined, '', 'tanpa tautan'], []],
+    ]) {
+      let out
+      const calls = captureConsole(() => { out = extractAllLinks(...parts) })
+      assert.deepEqual(out, expected, 'preserve raw URLs, ordering, and deduplication')
+      assert.equal(calls.length, 0, 'extractAllLinks must not write to console')
+    }
+    assert.equal(networkCalls, 0, 'extractAllLinks must remain network-free')
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })
 
 test('log hygiene keeps rate-limit trips silent but counted', () => {
