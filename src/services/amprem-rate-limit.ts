@@ -53,7 +53,7 @@ export function tripOnRateLimit(
     _tripCount = 0
   }
   _tripCount++
-  console.log(`[rate-limit] trip, retryAfter=${retryAfter}s, source=${source}`)
+  // Trip tercatat via counter (rateLimitTripsThisHour) + notif owner di plugin.
   return retryAfter
 }
 

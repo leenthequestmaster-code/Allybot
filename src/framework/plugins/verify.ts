@@ -500,15 +500,12 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
           return true
         }
 
-        console.log(
-          `[login] user=${senderJid} email=${email} t0=${t0} | messages in inbox: ${res.messages.length} | extract network calls: 0`,
+        logger.info(
+          { provider: acc.provider, inbox: res.messages.length, via: 'login' },
+          'amprem login fetch',
         )
         const fresh = filterLoginMessages(res.messages, t0)
-        console.log(`[login] filtered (after t0-30s, subject match): ${fresh.length}`)
-        if (fresh.length) {
-          const top = fresh.slice(0, 3).map((m) => `${m.msgId}@${m.ts}`).join(',')
-          console.log(`[login] selected messageId: ${top}`)
-        }
+        logger.debug({ fresh: fresh.length, via: 'login' }, 'amprem login filter')
 
         if (!fresh.length) {
           await ctx.reply(

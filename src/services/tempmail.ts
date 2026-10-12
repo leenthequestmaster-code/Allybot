@@ -136,13 +136,10 @@ export function extractVerificationLink(
 }
 
 
-// Audit extract — dipanggil setiap extract untuk log.
-// networkCalls SELALU 0: extractor ini pure regex, zero fetch.
-export function auditExtract(inputLen: number, urls: string[]): void {
-  console.log(
-    `[extract] input length: ${inputLen} chars | urls found: ${urls.length} | ` +
-      `selected: ${(urls[0] ?? '-').slice(0, 80)} | network calls made: 0`,
-  )
+// Audit extract — no-op terstruktur: extractor ini pure regex, zero fetch.
+// (Dulu stdout potongan URL terpilih — dihapus: URL bisa memuat token single-use.)
+export function auditExtract(_inputLen: number, _urls: string[]): void {
+  // sengaja diam: tanpa PII/token ke stdout
 }
 
 // ── Poll loop generik ────────────────────────────────────────────────────────

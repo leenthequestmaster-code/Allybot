@@ -75,7 +75,6 @@ async function postWithRetry(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), cfg.verify_timeout_ms)
-    const t0 = Date.now()
 
     try {
       const res = await fetch(url, {
@@ -85,9 +84,6 @@ async function postWithRetry(
         signal: controller.signal,
       })
       clearTimeout(timer)
-
-      const elapsed = Date.now() - t0
-      console.log(`[verify-api] POST ${endpoint} ${res.status} ${elapsed}ms`)
 
       // 4xx/5xx: parse dan return WITHOUT retrying
       const raw = (await res.json()) as AmReverseResponse
