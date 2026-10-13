@@ -60,6 +60,8 @@ export interface CoreGroupParticipantUpdate {
   readonly groupName?: string
   readonly action: GroupParticipantAction
   readonly participantJids: readonly string[]
+  /** Display names (notify/pushName) keyed by normalised JID, when available from the transport */
+  readonly participantNames?: ReadonlyMap<string, string>
   readonly at: number
 }
 

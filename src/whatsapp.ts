@@ -1193,12 +1193,24 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
     if (!update.id || participantJids.length === 0) return
     this.groupMetadataCache.delete(update.id)
+
+    // Collect display names from Baileys Contact.notify / Contact.name
+    const participantNames = new Map<string, string>()
+    for (const participant of update.participants) {
+      const jid = participant.phoneNumber ?? participant.id
+      const displayName = (participant.notify ?? participant.name ?? '').trim()
+      if (jid && displayName && !/^[+0-9@:._-]+$/.test(displayName)) {
+        participantNames.set(jid, displayName.slice(0, 50))
+      }
+    }
+
     const groupName = await this.resolveGroupName(update.id)
     const event: CoreGroupParticipantUpdate = {
       groupJid: update.id,
       ...(groupName ? { groupName } : {}),
       action: update.action,
       participantJids,
+      ...(participantNames.size > 0 ? { participantNames } : {}),
       at: Date.now(),
     }
 

@@ -1238,32 +1238,33 @@ export class VisualCardService {
     // 1. Process Avatar
     // Dashed photo box polygon mask (matching the 8° tilted polaroid frame):
     const maskSvg = `<svg width="1024" height="611" xmlns="http://www.w3.org/2000/svg">
-      <polygon points="435,158 710,197 670,477 414,510" fill="#ffffff"/>
+      <polygon points="427,146 720,184 680,488 387,450" fill="#ffffff"/>
     </svg>`
 
     let avatarSource: Buffer
     if (options.avatarBuffer && options.avatarBuffer.length > 0) {
       try {
         avatarSource = await sharp(Buffer.from(options.avatarBuffer))
-          .resize(360, 420, { fit: 'cover' })
+          .rotate()
+          .resize(300, 310, { fit: 'cover' })
           .png()
           .toBuffer()
       } catch {
-        avatarSource = await VisualCardService.createDefaultAvatar(360, 420, isWelcome)
+        avatarSource = await VisualCardService.createDefaultAvatar(300, 310, isWelcome)
       }
     } else {
-      avatarSource = await VisualCardService.createDefaultAvatar(360, 420, isWelcome)
+      avatarSource = await VisualCardService.createDefaultAvatar(300, 310, isWelcome)
     }
 
-    // Rotate avatar by 8.16 degrees clockwise to match the polaroid tilt
+    // Rotate around the measured slot centre; the mask protects the footer.
     const rotatedAvatar = await sharp(avatarSource)
-      .rotate(8.16, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .rotate(7.5, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toBuffer()
 
     const avMeta = await sharp(rotatedAvatar).metadata()
-    const avLeft = Math.round(560 - (avMeta.width ?? 360) / 2)
-    const avTop = Math.round(335 - (avMeta.height ?? 420) / 2)
+    const avLeft = Math.round(554 - (avMeta.width ?? 300) / 2)
+    const avTop = Math.round(317 - (avMeta.height ?? 310) / 2)
 
     // Place avatar on transparent 1024x611 canvas and apply polygon mask
     const avatarCanvas = await sharp({
