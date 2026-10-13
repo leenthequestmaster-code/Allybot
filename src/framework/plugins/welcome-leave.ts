@@ -170,7 +170,7 @@ export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
               }
             }
 
-            const firstJidName = firstJid && event.participantNames?.get(firstJid)
+            const firstJidName = firstJid && (event.participantNames?.get(firstJid) ?? whatsapp.getDisplayName?.(firstJid))
             const primaryName = firstJidName || (firstJid ? userLabel(firstJid) : (event.action === 'add' ? 'New Adventurer' : 'Adventurer'))
             const releaseRender = await welcomeRenderSemaphore.acquire(8000)
             let cardBuffer: Buffer

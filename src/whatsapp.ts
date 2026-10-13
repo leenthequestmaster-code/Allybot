@@ -484,6 +484,10 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     )
   }
 
+  getDisplayName(jid: string): string | undefined {
+    return this.storage.getContactName(jid)
+  }
+
   async getProfilePictureUrl(jid: string, type: 'preview' | 'image' = 'image', timeoutMs = PROFILE_PICTURE_TIMEOUT_MS): Promise<string | undefined> {
     const socket = this.socket
     if (!socket || !this.isConnected) return undefined
@@ -1005,8 +1009,28 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         this.storage.saveCreds(creds)
       }
 
+      const contactsUpdate = events['contacts.update']
+      if (contactsUpdate) {
+        for (const contact of contactsUpdate) {
+          if (contact.id && contact.notify) {
+            this.storage.saveContactName(contact.id, contact.notify)
+          }
+        }
+      }
+
       const messageUpsert = events['messages.upsert']
       if (messageUpsert) {
+        for (const msg of messageUpsert.messages) {
+          if (msg.pushName) {
+            const sender = msg.key.participant || msg.key.remoteJid
+            if (sender && !msg.key.fromMe) {
+              this.storage.saveContactName(sender, msg.pushName)
+              if (msg.key.participantAlt) {
+                this.storage.saveContactName(msg.key.participantAlt, msg.pushName)
+              }
+            }
+          }
+        }
         if (messageUpsert.type === 'notify') {
           void this.handleMessages(socket, messageUpsert, logger)
           await this.emitMessages(messageUpsert.messages)
@@ -1199,8 +1223,14 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     for (const participant of update.participants) {
       const jid = participant.phoneNumber ?? participant.id
       const displayName = (participant.notify ?? participant.name ?? '').trim()
-      if (jid && displayName && !/^[+0-9@:._-]+$/.test(displayName)) {
+      if (jid && displayName && !/^[+0-9@:._\s-]+$/.test(displayName)) {
         participantNames.set(jid, displayName.slice(0, 50))
+      }
+    }
+    for (const jid of participantJids) {
+      if (!participantNames.has(jid)) {
+        const cached = this.storage.getContactName(jid)
+        if (cached) participantNames.set(jid, cached)
       }
     }
 

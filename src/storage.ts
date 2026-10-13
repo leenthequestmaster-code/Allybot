@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import {
   BufferJSON,
   initAuthCreds,
+  jidNormalizedUser,
   type AuthenticationCreds,
   type SignalDataSet,
   type SignalDataTypeMap,
@@ -56,6 +57,7 @@ export class SqliteStorage {
   private readonly messageCacheMaxRows: number
   private readonly messageCacheMaxBytes: number
   private readonly messagePruneTimer: NodeJS.Timeout
+  private readonly contactNamesCache = new Map<string, string>()
 
   constructor(config: AppConfig, logger: AppLogger) {
     this.db = initSqliteDatabase(config.DATABASE_PATH, { foreignKeys: true })
@@ -111,6 +113,12 @@ export class SqliteStorage {
 
       CREATE INDEX IF NOT EXISTS idx_messages_account_time
         ON messages (account_id, timestamp);
+
+      CREATE TABLE IF NOT EXISTS contact_names (
+        jid TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
     `)
 
     this.db
@@ -370,6 +378,38 @@ export class SqliteStorage {
       .prepare('DELETE FROM messages WHERE account_id = ? AND remote_jid = ? AND message_id = ?')
       .run(this.accountId, normalized.jid, normalized.id)
     return res.changes > 0
+  }
+
+  saveContactName(rawJid: string, displayName: string): void {
+    if (!rawJid || !displayName) return
+    const jid = jidNormalizedUser(rawJid)
+    const clean = displayName.trim().slice(0, 50)
+    if (!jid || !clean || /^[+0-9@:._\s-]+$/.test(clean)) return
+    if (this.contactNamesCache.get(jid) === clean) return
+    this.contactNamesCache.set(jid, clean)
+    if (this.contactNamesCache.size > 5000) {
+      const firstKey = this.contactNamesCache.keys().next().value
+      if (firstKey) this.contactNamesCache.delete(firstKey)
+    }
+    const now = Date.now()
+    this.db
+      .prepare('INSERT INTO contact_names (jid, display_name, updated_at) VALUES (?, ?, ?) ON CONFLICT(jid) DO UPDATE SET display_name = excluded.display_name, updated_at = excluded.updated_at')
+      .run(jid, clean, now)
+  }
+
+  getContactName(rawJid: string): string | undefined {
+    if (!rawJid) return undefined
+    const jid = jidNormalizedUser(rawJid)
+    const cached = this.contactNamesCache.get(jid)
+    if (cached) return cached
+    const row = this.db
+      .prepare('SELECT display_name FROM contact_names WHERE jid = ?')
+      .get(jid) as { display_name: string } | undefined
+    if (row?.display_name) {
+      this.contactNamesCache.set(jid, row.display_name)
+      return row.display_name
+    }
+    return undefined
   }
 
   close(): void {
