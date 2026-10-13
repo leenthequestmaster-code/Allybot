@@ -843,20 +843,49 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
       // 18b. /botleave (Khusus Bot Owner)
       context.commands.register({
         name: 'botleave',
-        description: 'Perintahkan bot untuk keluar dari grup ini (Owner only)',
+        description: 'Perintahkan bot untuk keluar dari grup (Owner only)',
         category: 'moderation',
         menuOrder: 21,
+        scope: 'both',
         permission: permissionNames.botOwner,
         handler: async (commandContext) => {
-          const group = requireGroup(commandContext)
-          if (!group) return
+          let targetGroup: string | undefined
+          const arg = commandContext.args[0]?.trim()
 
-          await commandContext.reply('👋 Sampai jumpa semua! Bot berpamitan keluar dari grup atas instruksi Owner~ 🌸')
+          if (arg && isGroupJid(arg)) {
+            targetGroup = arg
+          } else if (isGroupJid(commandContext.message.remoteJid)) {
+            targetGroup = commandContext.message.remoteJid
+          }
+
+          if (!targetGroup) {
+            await commandContext.reply('Format salah! Gunakan `!botleave` langsung di dalam grup, atau `!botleave <jid_grup>` dari private chat.')
+            return
+          }
+
+          const isRemote = targetGroup !== commandContext.message.remoteJid
+          if (isRemote) {
+            try {
+              await commandContext.whatsapp.sendText(
+                targetGroup,
+                '👋 Sampai jumpa semua! Bot berpamitan keluar dari grup atas instruksi Owner~ 🌸',
+              )
+            } catch {}
+          } else {
+            await commandContext.reply('👋 Sampai jumpa semua! Bot berpamitan keluar dari grup atas instruksi Owner~ 🌸')
+          }
+
           if (commandContext.whatsapp.groupLeave) {
             try {
-              await commandContext.whatsapp.groupLeave(group)
+              await commandContext.whatsapp.groupLeave(targetGroup)
+              if (isRemote) {
+                await commandContext.reply(`✅ Berhasil keluar dari grup \`${targetGroup}\`.`)
+              }
             } catch (err) {
-              commandContext.logger.error({ err }, 'failed to leave group')
+              commandContext.logger.error({ err, targetGroup }, 'failed to leave group')
+              if (isRemote) {
+                await commandContext.reply(`⚠️ Gagal keluar dari grup \`${targetGroup}\`: ${err instanceof Error ? err.message : 'Unknown error'}`)
+              }
             }
           }
         },

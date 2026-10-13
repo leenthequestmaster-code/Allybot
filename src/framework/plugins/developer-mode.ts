@@ -61,9 +61,6 @@ function helpText(): string {
     '↳ `!dev status`',
     '↳ `!dev runtime`',
     '↳ `!dev connection`',
-    '↳ `!dev commands`',
-    '↳ `!dev services`',
-    '↳ `!codebase` — kirim export Codebase tersanitasi terakhir dari CI (jika diaktifkan)',
     '',
     'Owner control:',
     '↳ `!dev enable <international-phone-or-jid> <observer|operator> <minutes> <reason>`',
@@ -98,8 +95,8 @@ export const developerModePlugin: Plugin = {
       aliases: ['debug'],
       description: 'Owner-controlled Developer Mode diagnostics',
       category: 'developer',
-      scope: 'both',
       hidden: true,
+      scope: 'both',
       permission: permissionNames.developerModeObserver,
       cooldownMs: 1_000,
       handler: async (commandContext) => {
@@ -206,26 +203,6 @@ export const developerModePlugin: Plugin = {
             `↳ Linked: ${commandContext.whatsapp.isConnected ? 'yes' : 'no'}`,
             '↳ Account identity: redacted',
             '↳ Pairing/QR/session material: redacted',
-          ].join('\n'))
-          return
-        }
-
-        if (subcommand === 'commands') {
-          const commands = context.commands.list()
-            .filter((command) => command.name !== 'dev')
-            .sort((left, right) => left.name.localeCompare(right.name))
-            .map((command) => `↳ ${command.name}${command.aliases?.length ? ` (${command.aliases.join(', ')})` : ''} — ${command.category ?? 'uncategorized'} — ${command.permission ?? 'public'}`)
-          await commandContext.reply(['📚 *Command Registry Metadata*', '', ...commands, '', 'Handler source, credentials, and raw implementation: redacted'].join('\n'))
-          return
-        }
-
-        if (subcommand === 'services') {
-          await commandContext.reply([
-            '🧩 *Service Registry Metadata*',
-            '',
-            ...commandContext.services.list().map((name) => `↳ ${name}`),
-            '',
-            'Service internals, paths, credentials, and database rows: redacted',
           ].join('\n'))
           return
         }

@@ -20,6 +20,8 @@ import { createGroupSafetyPlugin } from './framework/plugins/group-safety.js'
 import { createGroupModerationPlugin } from './framework/plugins/group-moderation.js'
 import { createModerationSuitePlugin } from './framework/plugins/moderation-suite.js'
 import { createGroupSetupMissionPlugin } from './framework/plugins/group-setup-mission.js'
+import { createCommunityPlugin } from './framework/plugins/community.js'
+import { remoteOpsPlugin } from './framework/plugins/remote-ops.js'
 
 import { utilityPlugin } from './framework/plugins/utility.js'
 import { mediaPlugin } from './framework/plugins/media.js'
@@ -36,6 +38,7 @@ import { AfkService } from './services/afk-service.js'
 import { SuggestionService } from './services/suggestion-service.js'
 import { GroupConfigurationService } from './services/group-configuration-service.js'
 import { DeveloperModeService } from './services/developer-mode-service.js'
+import { CommunityService } from './services/community-service.js'
 import { PlatformGuardrailService } from './services/platform-guardrail-service.js'
 import { GroupSafetyService } from './services/group-safety-service.js'
 import { GroupModerationService } from './services/group-moderation-service.js'
@@ -110,6 +113,7 @@ async function main(): Promise<void> {
   framework.registerService(new SuggestionService(config.DATABASE_PATH, logger, { secret: config.SUGGEST_SECRET }))
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
+  framework.registerService(new CommunityService(config.DATABASE_PATH, logger))
   const economyClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
     ? () => createPostgresEconomyClient({ postgresUrl: config.POSTGRES_URL! })
     : () => createSqliteEconomyClient(config.DATABASE_PATH)
@@ -161,6 +165,8 @@ async function main(): Promise<void> {
   framework.registerPlugin(groupPlugin)
   framework.registerPlugin(createGroupContextPlugin(whatsapp))
   framework.registerPlugin(createCharacterGuidePlugin(whatsapp))
+  framework.registerPlugin(createCommunityPlugin(whatsapp))
+  framework.registerPlugin(remoteOpsPlugin)
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
