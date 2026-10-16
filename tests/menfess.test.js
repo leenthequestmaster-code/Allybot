@@ -29,6 +29,7 @@ function createFakeWhatsApp(userJid = '6285181696890@s.whatsapp.net') {
     deleted: [],
     deletedStored: [],
     messageListeners: [],
+    downloadQueue: [],
     onMessage(listener) {
       this.messageListeners.push(listener)
       return () => {}
@@ -48,25 +49,37 @@ function createFakeWhatsApp(userJid = '6285181696890@s.whatsapp.net') {
       this.sent.push({ remoteJid, text, options, type: 'text' })
     },
     async sendMedia(remoteJid, payload) {
-      this.sent.push({ remoteJid, media: payload, text: payload.caption, type: payload.kind })
+      this.sent.push({ remoteJid, media: payload, text: payload.caption, type: payload.kind, fileName: payload.fileName })
     },
     async sendReaction(remoteJid, key, emoji) {
       this.reactions.push({ remoteJid, key, emoji })
     },
-    async downloadMedia(_message, _source, _limits) {
+    async downloadMedia(message, _source, _limits) {
+      if (this.downloadQueue.length > 0) {
+        return this.downloadQueue.shift()
+      }
+      const kind = message.media?.kind ?? 'image'
+      if (kind === 'image') {
+        return {
+          kind: 'image',
+          mimeType: 'image/jpeg',
+          data: await sharp({
+            create: {
+              width: 2000,
+              height: 1500,
+              channels: 3,
+              background: { r: 255, g: 0, b: 0 },
+            },
+          })
+            .jpeg()
+            .toBuffer(),
+        }
+      }
       return {
-        kind: 'image',
-        mimeType: 'image/jpeg',
-        data: await sharp({
-          create: {
-            width: 2000,
-            height: 1500,
-            channels: 3,
-            background: { r: 255, g: 0, b: 0 },
-          },
-        })
-          .jpeg()
-          .toBuffer(),
+        kind,
+        mimeType: kind === 'video' ? 'video/mp4' : kind === 'sticker' ? 'image/webp' : kind === 'audio' ? 'audio/ogg' : 'application/pdf',
+        data: Buffer.from(`fake-${kind}-data`),
+        fileName: kind === 'document' ? 'catatan.pdf' : undefined,
       }
     },
     async deleteMessage(remoteJid, key) {
@@ -181,13 +194,20 @@ test('MenfessService full lifecycle: quota, blacklist, sessions, and closing', a
     // 7. Record message
     await service.recordMessage(threadId, sender, recipient)
 
-    // 8. Close thread
+    // 8. Close thread by sender -> closes for BOTH parties
     const closeRes = await service.closeThread(sender)
     assert.equal(closeRes.closed, true)
     assert.equal(closeRes.threadId, threadId)
+    assert.equal(closeRes.peerJid, recipient)
 
     assert.equal(await service.getActiveSession(sender), undefined)
     assert.equal(await service.getActiveSession(recipient), undefined)
+
+    // Check recently closed
+    const recentSender = service.getRecentlyClosedThread(sender)
+    assert.equal(recentSender?.threadId, threadId)
+    const recentRecipient = service.getRecentlyClosedThread(recipient)
+    assert.equal(recentRecipient?.threadId, threadId)
 
     // 9. Daily rate limit check (maxPerDay: 2)
     const res2 = await service.createThread(sender, recipient)
@@ -213,6 +233,10 @@ test('MenfessService full lifecycle: quota, blacklist, sessions, and closing', a
     const blockRes = await blockService.blockSender(recipient)
     assert.equal(blockRes.blocked, true)
     assert.equal(blockRes.peerJid, sender)
+
+    // Both sessions purged on block
+    assert.equal(await blockService.getActiveSession(sender), undefined)
+    assert.equal(await blockService.getActiveSession(recipient), undefined)
 
     // Attempting to send again should be blocked
     const afterBlock = await blockService.createThread(sender, recipient)
@@ -258,7 +282,7 @@ test('MenfessService image sanitization strips metadata and caps 1024px', async 
   }
 })
 
-test('Menfess End-to-End Plugin conversation: send, sticky reply, media, and stop', async () => {
+test('Menfess End-to-End Plugin: free media types (video, sticker, doc, audio, image) and single-party !stopmenfess termination', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'menfess-e2e-test-'))
   const dbPath = join(dir, 'test-menfess-e2e.sqlite')
 
@@ -288,12 +312,12 @@ test('Menfess End-to-End Plugin conversation: send, sticky reply, media, and sto
     const senderJid = '628111222333@s.whatsapp.net'
     const recipientJid = '628999888777@s.whatsapp.net'
 
-    // Step 1: Send !menfess
+    // Step 1: Send !menfess with text
     await framework.commands.dispatch({
       id: 'm1',
       remoteJid: senderJid,
       senderJid,
-      text: `!menfess 08999888777 Halo ini pesan rahasia perdana!`,
+      text: '!menfess 08999888777 Halo ini pesan rahasia perdana!',
       timestamp: Date.now(),
       fromMe: false,
     })
@@ -303,50 +327,53 @@ test('Menfess End-to-End Plugin conversation: send, sticky reply, media, and sto
     assert.ok(senderReplies.length >= 1)
     assert.match(senderReplies[0].text, /Menfess Berhasil Terkirim/)
 
-    // Check recipient received secret message
-    const recipientMessages = fakeWA.sent.filter((s) => s.remoteJid === recipientJid)
-    assert.ok(recipientMessages.length >= 1)
-    assert.match(recipientMessages[0].text, /Pesan Rahasia Diterima/)
-    assert.match(recipientMessages[0].text, /Halo ini pesan rahasia perdana!/)
-
-    // Step 2: Sticky reply from recipient (plain text, no command prefix!)
+    // Step 2: Sticky reply from recipient with VIDEO
     await fakeWA.emitMessage({
       id: 'm2',
       remoteJid: recipientJid,
       senderJid: recipientJid,
-      text: 'Wah siapa ya ini? Salam kenal!',
+      media: { kind: 'video' },
+      text: 'Ini video buatmu!',
       timestamp: Date.now(),
       fromMe: false,
     })
 
-    // Check sender received relayed message
-    const senderRelays = fakeWA.sent.filter(
-      (s) => s.remoteJid === senderJid && s.text.includes('Wah siapa ya ini?'),
-    )
-    assert.equal(senderRelays.length, 1)
-    assert.match(senderRelays[0].text, /\[Penerima\]/)
+    const senderVideos = fakeWA.sent.filter((s) => s.remoteJid === senderJid && s.type === 'video')
+    assert.equal(senderVideos.length, 1)
+    assert.match(senderVideos[0].text, /Video Anonim \[Penerima\]/)
 
-    // Step 3: Sticky reply from sender (photo)
+    // Step 3: Sticky reply from sender with STICKER
     await fakeWA.emitMessage({
       id: 'm3',
       remoteJid: senderJid,
       senderJid,
-      media: { kind: 'image' },
-      text: 'Ini petunjuk buatmu hehe',
+      media: { kind: 'sticker' },
+      text: 'Stiker lucu',
       timestamp: Date.now(),
       fromMe: false,
     })
 
-    // Check recipient received sanitized photo
-    const recipientPhotos = fakeWA.sent.filter(
-      (s) => s.remoteJid === recipientJid && s.type === 'image',
-    )
-    assert.equal(recipientPhotos.length, 1)
-    assert.match(recipientPhotos[0].text, /Foto Anonim \[Pengirim\]/)
+    const recipientStickers = fakeWA.sent.filter((s) => s.remoteJid === recipientJid && s.type === 'sticker')
+    assert.equal(recipientStickers.length, 1)
 
-    // Step 4: Stop conversation with !stopmenfess
-    await framework.commands.dispatch({
+    // Step 4: Sticky reply with DOCUMENT
+    await fakeWA.emitMessage({
       id: 'm4',
+      remoteJid: recipientJid,
+      senderJid: recipientJid,
+      media: { kind: 'document' },
+      text: 'Ini file dokumen penting',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    const senderDocs = fakeWA.sent.filter((s) => s.remoteJid === senderJid && s.type === 'document')
+    assert.equal(senderDocs.length, 1)
+    assert.match(senderDocs[0].text, /Dokumen Anonim \[Penerima\]/)
+
+    // Step 5: Stop conversation with single party !stopmenfess (initiated by recipient)
+    await framework.commands.dispatch({
+      id: 'm5',
       remoteJid: recipientJid,
       senderJid: recipientJid,
       text: '!stopmenfess',
@@ -356,18 +383,55 @@ test('Menfess End-to-End Plugin conversation: send, sticky reply, media, and sto
 
     // Both parties notified of closure
     const recipientClose = fakeWA.sent.find(
-      (s) => s.remoteJid === recipientJid && s.text.includes('telah resmi diakhiri'),
+      (s) => s.remoteJid === recipientJid && s.text?.includes('telah resmi diakhiri'),
     )
     assert.ok(recipientClose)
+    assert.match(recipientClose.text, /kedua belah pihak/)
 
     const senderClose = fakeWA.sent.find(
-      (s) => s.remoteJid === senderJid && s.text.includes('telah mengakhiri sesi Menfess'),
+      (s) => s.remoteJid === senderJid && s.text?.includes('telah mengakhiri sesi Menfess'),
     )
     assert.ok(senderClose)
+    assert.match(senderClose.text, /ditutup sepenuhnya/)
 
-    // Verification: Active session is now null
+    // Verification: Active session is completely null for BOTH
     assert.equal(await service.getActiveSession(senderJid), undefined)
     assert.equal(await service.getActiveSession(recipientJid), undefined)
+
+    // Step 6: Sender tries to send another message after recipient closed it -> should get closure notice and NOT relay!
+    const sentCountBefore = fakeWA.sent.length
+    await fakeWA.emitMessage({
+      id: 'm6',
+      remoteJid: senderJid,
+      senderJid,
+      text: 'Halo kamu masih di situ?',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    // Recipient must NOT receive this message
+    const leakedMessages = fakeWA.sent.slice(sentCountBefore).filter((s) => s.remoteJid === recipientJid)
+    assert.equal(leakedMessages.length, 0)
+
+    // Sender must receive friendly notice that session ended
+    const senderEndedNotice = fakeWA.sent.slice(sentCountBefore).find((s) => s.remoteJid === senderJid)
+    assert.ok(senderEndedNotice)
+    assert.match(senderEndedNotice.text, /telah resmi diakhiri/)
+
+    // Step 7: Sender executes !stopmenfess after it was already closed -> friendly already closed notice
+    await framework.commands.dispatch({
+      id: 'm7',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!stopmenfess',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    const senderAlreadyClosed = fakeWA.sent.find(
+      (s) => s.remoteJid === senderJid && s.text?.includes('sudah resmi ditutup sebelumnya'),
+    )
+    assert.ok(senderAlreadyClosed)
 
     await framework.stop()
   } finally {

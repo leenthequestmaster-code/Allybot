@@ -1,4 +1,4 @@
-import type { Plugin, WhatsAppPort, CoreMessage } from '../contracts.js'
+import type { Plugin, WhatsAppPort, CoreMessage, WhatsAppMediaPayload } from '../contracts.js'
 import { bareJid, normalizePhoneJid } from '../../permissions.js'
 import { MenfessService } from '../../services/menfess-service.js'
 import { isGroupJid } from '../validation.js'
@@ -7,7 +7,7 @@ export interface MenfessPluginOptions {
   readonly maxMediaBytes?: number
 }
 
-const DEFAULT_MAX_MEDIA_BYTES = 15 * 1024 * 1024 // 15 MB
+const DEFAULT_MAX_MEDIA_BYTES = 25 * 1024 * 1024 // 25 MB
 
 export function parseTargetJid(raw: string): string | undefined {
   if (!raw) return undefined
@@ -45,10 +45,97 @@ export function formatRecipientNotice(threadId: string, text?: string): string {
     '',
     '━━━━━━━━━━━━━━━━━━━━',
     '💡 *Instruksi Balas:*',
-    '↳ Balas langsung (teks/gambar/VN) di chat ini tanpa perintah khusus.',
-    '↳ Ketik `!stopmenfess` untuk mengakhiri sesi.',
-    '↳ Ketik `!blockmenfess` untuk memblokir pengirim ini jika mengganggu/spam.',
+    '↳ Balas langsung (teks, foto, video, suara/VN, stiker, dokumen) di chat ini.',
+    '↳ Ketik `!stopmenfess` untuk mengakhiri sesi untuk kedua belah pihak.',
+    '↳ Ketik `!blockmenfess` untuk memblokir pengirim ini jika mengganggu.',
   ].join('\n')
+}
+
+export async function relayMedia(
+  whatsapp: WhatsAppPort,
+  service: MenfessService,
+  targetJid: string,
+  downloaded: WhatsAppMediaPayload,
+  roleLabel: string,
+  threadId: string,
+  userText?: string,
+): Promise<void> {
+  const cleanText = userText ? sanitizeMenfessText(userText) : ''
+
+  switch (downloaded.kind) {
+    case 'image': {
+      const cleanBuffer = await service.sanitizeImage(Buffer.from(downloaded.data))
+      const caption = [
+        `📷 *Foto Anonim [${roleLabel}]* · \`#${threadId}\``,
+        ...(cleanText ? ['', cleanText] : []),
+      ].join('\n')
+      await whatsapp.sendMedia?.(targetJid, {
+        kind: 'image',
+        data: cleanBuffer,
+        mimeType: 'image/jpeg',
+        caption,
+      })
+      break
+    }
+    case 'video': {
+      const caption = [
+        `🎥 *Video Anonim [${roleLabel}]* · \`#${threadId}\``,
+        ...(cleanText ? ['', cleanText] : []),
+      ].join('\n')
+      await whatsapp.sendMedia?.(targetJid, {
+        kind: 'video',
+        data: downloaded.data,
+        mimeType: downloaded.mimeType || 'video/mp4',
+        caption,
+        ...(downloaded.gifPlayback ? { gifPlayback: true } : {}),
+      })
+      break
+    }
+    case 'audio': {
+      if (cleanText) {
+        await whatsapp.sendText(
+          targetJid,
+          `🎙️ *Pesan Suara [${roleLabel}]* · \`#${threadId}\`\n\n${cleanText}`,
+        )
+      }
+      await whatsapp.sendMedia?.(targetJid, {
+        kind: 'audio',
+        data: downloaded.data,
+        mimeType: downloaded.mimeType || 'audio/ogg; codecs=opus',
+        ptt: true,
+      })
+      break
+    }
+    case 'sticker': {
+      if (cleanText) {
+        await whatsapp.sendText(
+          targetJid,
+          `🏷️ *Stiker Anonim [${roleLabel}]* · \`#${threadId}\`\n\n${cleanText}`,
+        )
+      }
+      await whatsapp.sendMedia?.(targetJid, {
+        kind: 'sticker',
+        data: downloaded.data,
+        mimeType: 'image/webp',
+        ...(downloaded.isAnimated ? { isAnimated: true } : {}),
+      })
+      break
+    }
+    case 'document': {
+      const caption = [
+        `📄 *Dokumen Anonim [${roleLabel}]* · \`#${threadId}\``,
+        ...(cleanText ? ['', cleanText] : []),
+      ].join('\n')
+      await whatsapp.sendMedia?.(targetJid, {
+        kind: 'document',
+        data: downloaded.data,
+        mimeType: downloaded.mimeType || 'application/octet-stream',
+        fileName: downloaded.fileName || 'dokumen',
+        caption,
+      })
+      break
+    }
+  }
 }
 
 export function createMenfessPlugin(
@@ -56,6 +143,7 @@ export function createMenfessPlugin(
   options: MenfessPluginOptions = {},
 ): Plugin {
   const maxMediaBytes = options.maxMediaBytes ?? DEFAULT_MAX_MEDIA_BYTES
+  const closedNoticeCooldowns = new Map<string, number>()
 
   return {
     name: 'menfess',
@@ -80,7 +168,22 @@ export function createMenfessPlugin(
         const currentJid = bareJid(message.senderJid ?? message.remoteJid)
         const service = getService()
         const session = await service.getActiveSession(currentJid)
-        if (!session) return
+        if (!session) {
+          // Check if user recently had a closed thread and tries to send a message
+          const recent = service.getRecentlyClosedThread(currentJid, 60 * 60 * 1000)
+          if (recent) {
+            const now = Date.now()
+            const lastNotice = closedNoticeCooldowns.get(currentJid) ?? 0
+            if (now - lastNotice > 5 * 60 * 1000) {
+              closedNoticeCooldowns.set(currentJid, now)
+              await whatsapp.sendText(
+                message.remoteJid,
+                `⚠️ Sesi Menfess \`#${recent.threadId}\` telah resmi diakhiri. Pesanmu tidak diteruskan ke siapapun.\n\nKetik \`!menfess <nomor> <pesan>\` jika ingin memulai percakapan baru.`,
+              )
+            }
+          }
+          return
+        }
 
         const peerJid = await service.getPeerJid(session.threadId, currentJid)
         if (!peerJid) return
@@ -97,34 +200,16 @@ export function createMenfessPlugin(
             )
 
             if (downloaded) {
-              if (downloaded.kind === 'image') {
-                const cleanBuffer = await service.sanitizeImage(Buffer.from(downloaded.data))
-                const roleLabel = session.role === 'sender' ? 'Pengirim' : 'Penerima'
-                const captionLines = [
-                  `📷 *Foto Anonim [${roleLabel}]* · \`#${session.threadId}\``,
-                  ...(text ? ['', text] : []),
-                ]
-
-                await whatsapp.sendMedia?.(peerJid, {
-                  kind: 'image',
-                  data: cleanBuffer,
-                  mimeType: 'image/jpeg',
-                  caption: captionLines.join('\n'),
-                })
-              } else if (downloaded.kind === 'audio') {
-                await whatsapp.sendMedia?.(peerJid, {
-                  kind: 'audio',
-                  data: downloaded.data,
-                  mimeType: downloaded.mimeType || 'audio/ogg; codecs=opus',
-                  ptt: true,
-                })
-              } else {
-                await whatsapp.sendText(
-                  message.remoteJid,
-                  '⚠️ Menfess saat ini hanya mendukung penerusan pesan teks, gambar/foto, dan pesan suara (VN).',
-                )
-                return
-              }
+              const roleLabel = session.role === 'sender' ? 'Pengirim' : 'Penerima'
+              await relayMedia(
+                whatsapp,
+                service,
+                peerJid,
+                downloaded,
+                roleLabel,
+                session.threadId,
+                text,
+              )
             }
           } catch (err) {
             context.logger.warn({ err, threadId: session.threadId }, 'Failed to relay menfess media')
@@ -159,7 +244,7 @@ export function createMenfessPlugin(
       })
 
       // ==========================================
-      // COMMAND: menfess (aliases: confess, mf)
+      // COMMAND: menfess (aliases: confess, fess, menfes)
       // ==========================================
       context.commands.register({
         name: 'menfess',
@@ -199,9 +284,10 @@ export function createMenfessPlugin(
               '',
               '*Fitur & Keamanan:*',
               '⡇╌ *Zero-Knowledge:* Nomor tidak disimpan dalam teks biasa (AES-GCM + HMAC).',
-              '⡇╌ *Privasi Media:* EXIF GPS/metadata foto otomatis dilucuti.',
+              '⡇╌ *Dukungan Media Penuh:* Kirim teks, gambar/foto, video, audio/VN, stiker, hingga dokumen.',
+              '⡇╌ *Privasi Foto:* EXIF GPS/metadata foto otomatis dilucuti.',
               '⡇╌ *Sticky Session:* Balas langsung chat tanpa perintah khusus selama 24 jam.',
-              '⡇╌ Ketik `!stopmenfess` untuk mengakhiri sesi obrolan kapan saja.',
+              '⡇╌ Ketik `!stopmenfess` untuk mengakhiri sesi obrolan (salah satu berhenti, sesi tamat untuk keduanya).',
               '⡇╌ Ketik `!blockmenfess` jika kamu menerima pesan spam/gangguan.',
             ]
 
@@ -233,13 +319,13 @@ export function createMenfessPlugin(
 
           if (!sanitizedText && !hasDirect && !hasQuoted) {
             await commandContext.reply(
-              '❌ Pesan Menfess tidak boleh kosong. Tulis pesan atau lampirkan foto/audio bersama perintah.',
+              '❌ Pesan Menfess tidak boleh kosong. Tulis pesan atau lampirkan media bersama perintah.',
             )
             return
           }
 
           // 4. Download media if attached
-          let downloadedMedia
+          let downloadedMedia: WhatsAppMediaPayload | undefined
           if (hasDirect || hasQuoted) {
             try {
               downloadedMedia = await whatsapp.downloadMedia?.(
@@ -293,22 +379,29 @@ export function createMenfessPlugin(
           try {
             const recipientNotice = formatRecipientNotice(thread.threadId, sanitizedText)
 
-            if (downloadedMedia && downloadedMedia.kind === 'image') {
-              const cleanBuffer = await service.sanitizeImage(Buffer.from(downloadedMedia.data))
-              await whatsapp.sendMedia?.(targetJid, {
-                kind: 'image',
-                data: cleanBuffer,
-                mimeType: 'image/jpeg',
-                caption: recipientNotice,
-              })
-            } else if (downloadedMedia && downloadedMedia.kind === 'audio') {
-              await whatsapp.sendText(targetJid, recipientNotice)
-              await whatsapp.sendMedia?.(targetJid, {
-                kind: 'audio',
-                data: downloadedMedia.data,
-                mimeType: downloadedMedia.mimeType || 'audio/ogg; codecs=opus',
-                ptt: true,
-              })
+            if (downloadedMedia) {
+              if (downloadedMedia.kind === 'audio' || downloadedMedia.kind === 'sticker') {
+                await whatsapp.sendText(targetJid, recipientNotice)
+                await relayMedia(
+                  whatsapp,
+                  service,
+                  targetJid,
+                  downloadedMedia,
+                  'Pengirim',
+                  thread.threadId,
+                  '',
+                )
+              } else {
+                await relayMedia(
+                  whatsapp,
+                  service,
+                  targetJid,
+                  downloadedMedia,
+                  'Pengirim',
+                  thread.threadId,
+                  sanitizedText ? `${sanitizedText}\n\n💡 Balas langsung di chat ini.` : '💡 Balas langsung di chat ini.',
+                )
+              }
             } else {
               await whatsapp.sendText(targetJid, recipientNotice)
             }
@@ -322,8 +415,8 @@ export function createMenfessPlugin(
               '',
               '💡 *Sesi Terhubung:*',
               '↳ Kamu sekarang berada dalam sesi aktif.',
-              '↳ Kirim chat langsung (teks/gambar/VN) ke bot ini untuk meneruskan pesan ke penerima.',
-              '↳ Ketik `!stopmenfess` jika ingin mengakhiri sesi.',
+              '↳ Kirim chat langsung (teks, foto, video, suara/VN, stiker, dokumen) ke bot ini untuk meneruskan pesan ke penerima.',
+              '↳ Ketik `!stopmenfess` jika ingin mengakhiri sesi (satu pihak berhenti, sesi selesai sepenuhnya).',
             ]
 
             await commandContext.reply(confirmationLines.join('\n'))
@@ -350,16 +443,23 @@ export function createMenfessPlugin(
 
           const res = await service.closeThread(currentJid)
           if (!res.closed) {
+            const recent = service.getRecentlyClosedThread(currentJid, 2 * 60 * 60 * 1000)
+            if (recent) {
+              await commandContext.reply(`ℹ️ Sesi Menfess \`#${recent.threadId}\` sudah resmi ditutup sebelumnya.`)
+              return
+            }
             await commandContext.reply('⚠️ Kamu tidak memiliki sesi Menfess aktif yang sedang berjalan.')
             return
           }
 
-          await commandContext.reply(`🛑 Sesi Menfess \`#${res.threadId}\` telah resmi diakhiri.`)
+          await commandContext.reply(
+            `🛑 Sesi Menfess \`#${res.threadId}\` telah resmi diakhiri. Sesi ditutup sepenuhnya untuk kedua belah pihak.`,
+          )
           if (res.peerJid) {
             try {
               await whatsapp.sendText(
                 res.peerJid,
-                `🛑 Teman bicaramu telah mengakhiri sesi Menfess \`#${res.threadId}\`.`,
+                `🛑 Teman bicaramu telah mengakhiri sesi Menfess \`#${res.threadId}\`. Percakapan ditutup sepenuhnya dan tidak ada lagi pesan yang dapat dikirimkan.`,
               )
             } catch (err) {
               commandContext.logger.warn({ err, peerJid: res.peerJid }, 'Failed to notify peer of session closure')
@@ -384,6 +484,11 @@ export function createMenfessPlugin(
 
           const res = await service.blockSender(currentJid)
           if (!res.blocked) {
+            const recent = service.getRecentlyClosedThread(currentJid, 2 * 60 * 60 * 1000)
+            if (recent && recent.isBlocked) {
+              await commandContext.reply(`ℹ️ Pengirim Menfess \`#${recent.threadId}\` sudah diblokir sebelumnya.`)
+              return
+            }
             await commandContext.reply(
               '⚠️ Perintah blokir hanya dapat digunakan oleh penerima saat sedang berada dalam sesi Menfess aktif.',
             )
@@ -391,7 +496,7 @@ export function createMenfessPlugin(
           }
 
           await commandContext.reply(
-            `🚫 Pengirim Menfess \`#${res.threadId}\` telah berhasil diblokir permanen. Dia tidak akan bisa mengirimkan pesan Menfess lagi kepadamu.`,
+            `🚫 Pengirim Menfess \`#${res.threadId}\` telah berhasil diblokir permanen. Sesi ditutup sepenuhnya untuk kedua belah pihak.`,
           )
           if (res.peerJid) {
             try {

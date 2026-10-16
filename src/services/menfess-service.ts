@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, createHmac, randomBytes } from 'node:
 import type { Logger } from 'pino'
 import sharp from 'sharp'
 import type { Service, ServiceContext } from '../framework/contracts.js'
-import { bareJid } from '../permissions.js'
+import { bareJid, isSameJid } from '../permissions.js'
 import type { RedisService } from '../redis.js'
 import { initSqliteDatabase, requireDatabase, type DatabaseInstance } from '../storage-helpers.js'
 
@@ -463,20 +463,56 @@ export class MenfessService implements Service {
     }
   }
 
-  async closeThread(jid: string): Promise<{ closed: boolean; threadId?: string; peerJid?: string }> {
+  getRecentlyClosedThread(
+    jid: string,
+    windowMs = 3_600_000,
+  ): { threadId: string; role: 'sender' | 'receiver'; updatedAt: number; isBlocked: boolean } | undefined {
+    const clean = bareJid(jid)
+    const hmac = this.crypto.hashJid(clean)
+    const cutoff = this.clock() - windowMs
+    const db = this.database()
+    const row = db
+      .prepare(
+        "SELECT thread_id, sender_hmac, status, updated_at FROM menfess_threads WHERE (sender_hmac = ? OR receiver_hmac = ?) AND status IN ('closed', 'blocked') AND updated_at >= ? ORDER BY updated_at DESC LIMIT 1",
+      )
+      .get(hmac, hmac, cutoff) as { thread_id: string; sender_hmac: string; status: string; updated_at: number } | undefined
+
+    if (!row) return undefined
+    return {
+      threadId: row.thread_id,
+      role: row.sender_hmac === hmac ? 'sender' : 'receiver',
+      updatedAt: row.updated_at,
+      isBlocked: row.status === 'blocked',
+    }
+  }
+
+  async closeThread(
+    jid: string,
+  ): Promise<{ closed: boolean; threadId?: string; peerJid?: string; initiatorJid?: string }> {
     const clean = bareJid(jid)
     const session = await this.getActiveSession(clean)
     if (!session) return { closed: false }
 
-    const peerJid = await this.getPeerJid(session.threadId, clean)
+    const db = this.database()
+    const row = db
+      .prepare('SELECT encrypted_sender, encrypted_receiver, status FROM menfess_threads WHERE thread_id = ?')
+      .get(session.threadId) as { encrypted_sender: string; encrypted_receiver: string; status: string } | undefined
+
+    if (!row) return { closed: false }
+
+    const threadSenderJid = bareJid(this.crypto.decryptJid(row.encrypted_sender))
+    const threadReceiverJid = bareJid(this.crypto.decryptJid(row.encrypted_receiver))
+    const peerJid = isSameJid(clean, threadSenderJid) ? threadReceiverJid : threadSenderJid
 
     const now = this.clock()
-    const db = this.database()
     db.prepare("UPDATE menfess_threads SET status = 'closed', updated_at = ? WHERE thread_id = ?").run(
       now,
       session.threadId,
     )
 
+    // Complete eviction for BOTH parties
+    this.memorySessions.delete(threadSenderJid)
+    this.memorySessions.delete(threadReceiverJid)
     this.memorySessions.delete(clean)
     if (peerJid) {
       this.memorySessions.delete(peerJid)
@@ -485,16 +521,18 @@ export class MenfessService implements Service {
 
     if (this.redis) {
       try {
-        await this.redis.cacheDelete('menfess:active', clean)
-        if (peerJid) {
-          await this.redis.cacheDelete('menfess:active', bareJid(peerJid))
-        }
+        await Promise.all([
+          this.redis.cacheDelete('menfess:active', threadSenderJid),
+          this.redis.cacheDelete('menfess:active', threadReceiverJid),
+          this.redis.cacheDelete('menfess:active', clean),
+          ...(peerJid ? [this.redis.cacheDelete('menfess:active', peerJid)] : []),
+        ])
       } catch (err) {
-        this.logger.debug({ err, threadId: session.threadId }, 'Failed to delete active session in Redis')
+        this.logger.debug({ err, threadId: session.threadId }, 'Failed to delete active sessions in Redis')
       }
     }
 
-    return { closed: true, threadId: session.threadId, peerJid }
+    return { closed: true, threadId: session.threadId, peerJid, initiatorJid: clean }
   }
 
   async blockSender(receiverJid: string): Promise<{ blocked: boolean; threadId?: string; peerJid?: string }> {
@@ -504,14 +542,21 @@ export class MenfessService implements Service {
       return { blocked: false }
     }
 
-    const peerJid = await this.getPeerJid(session.threadId, clean)
-    if (!peerJid) return { blocked: false }
+    const db = this.database()
+    const row = db
+      .prepare('SELECT encrypted_sender, encrypted_receiver, status FROM menfess_threads WHERE thread_id = ?')
+      .get(session.threadId) as { encrypted_sender: string; encrypted_receiver: string; status: string } | undefined
+
+    if (!row) return { blocked: false }
+
+    const threadSenderJid = bareJid(this.crypto.decryptJid(row.encrypted_sender))
+    const threadReceiverJid = bareJid(this.crypto.decryptJid(row.encrypted_receiver))
+    const peerJid = isSameJid(clean, threadSenderJid) ? threadReceiverJid : threadSenderJid
 
     const receiverHmac = this.crypto.hashJid(clean)
     const senderHmac = this.crypto.hashJid(peerJid)
     const now = this.clock()
 
-    const db = this.database()
     db.prepare(`
       INSERT OR IGNORE INTO menfess_blacklist (receiver_hmac, blocked_sender_hmac, created_at)
       VALUES (?, ?, ?)
@@ -522,18 +567,24 @@ export class MenfessService implements Service {
       session.threadId,
     )
 
+    this.memorySessions.delete(threadSenderJid)
+    this.memorySessions.delete(threadReceiverJid)
     this.memorySessions.delete(clean)
-    this.memorySessions.delete(peerJid)
+    if (peerJid) {
+      this.memorySessions.delete(peerJid)
+    }
     this.memoryThreads.delete(session.threadId)
 
     if (this.redis) {
       try {
         await Promise.all([
+          this.redis.cacheDelete('menfess:active', threadSenderJid),
+          this.redis.cacheDelete('menfess:active', threadReceiverJid),
           this.redis.cacheDelete('menfess:active', clean),
-          this.redis.cacheDelete('menfess:active', bareJid(peerJid)),
+          ...(peerJid ? [this.redis.cacheDelete('menfess:active', peerJid)] : []),
         ])
       } catch (err) {
-        this.logger.debug({ err, threadId: session.threadId }, 'Failed to delete active session in Redis')
+        this.logger.debug({ err, threadId: session.threadId }, 'Failed to delete active sessions in Redis')
       }
     }
 
