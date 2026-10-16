@@ -47,10 +47,25 @@ async function allGroupIdsText(context: CommandContext): Promise<string> {
   const listParticipatingGroups = context.whatsapp.listParticipatingGroups
   if (!listParticipatingGroups) return 'Fitur daftar grup belum tersedia pada adapter WhatsApp ini.'
 
+  let gatekeeper: any
+  try {
+    if (context.services.has('gatekeeper')) {
+      gatekeeper = context.services.get('gatekeeper')
+    }
+  } catch {}
+
   try {
     const groups = (await listParticipatingGroups.call(context.whatsapp)).filter((group) => isGroupJid(group.jid))
     const limitedGroups = groups.slice(0, MAX_GROUP_LIST_ITEMS)
-    const lines = limitedGroups.map((group, index) => `${index + 1}. \`${group.jid}\` — ${safeGroupSubject(group.subject)}`)
+    const lines = limitedGroups.map((group, index) => {
+      let tag = ''
+      if (gatekeeper) {
+        const isOff = gatekeeper.isGroupOfficial(group.jid)
+        const isSil = gatekeeper.isGroupSilenced(group.jid)
+        tag = isOff ? (isSil ? ' [Official | Silenced]' : ' [Official]') : ' [Unofficial]'
+      }
+      return `${index + 1}. \`${group.jid}\` — ${safeGroupSubject(group.subject)}${tag}`
+    })
     const truncationNote = groups.length > limitedGroups.length
       ? `\n\n⚠️ Daftar dibatasi hingga ${MAX_GROUP_LIST_ITEMS} grup untuk menjaga ukuran pesan.`
       : ''

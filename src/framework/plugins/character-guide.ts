@@ -1275,7 +1275,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
 
       context.commands.register({
         name: 'inspectchar',
-        aliases: ['charinfo', 'chardebug', 'inspect'],
+        aliases: ['charinfo', 'chardebug', 'charinspect'],
         description: 'Intip visual Status Window karakter target (khusus admin/owner)',
         category: 'moderation',
         permission: permissionNames.groupAdminOrBotOwner,

@@ -321,7 +321,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
     },
     {
       title: 'Character & Roleplay Admin',
-      commands: ['inspectchar', 'charinfo', 'chardebug', 'inspect', 'setlevel', 'chlevel', 'lvl', 'setrank', 'chrank', 'rankset', 'resetstats', 'resetsheet', 'statreset', 'givetoken', 'addtoken', 'tokenreward', 'forceretire', 'killchar', 'wipechar', 'setgroup', 'whitelistooc', 'oocwhitelist'],
+      commands: ['inspectchar', 'charinfo', 'chardebug', 'charinspect', 'setlevel', 'chlevel', 'lvl', 'setrank', 'chrank', 'rankset', 'resetstats', 'resetsheet', 'statreset', 'givetoken', 'addtoken', 'tokenreward', 'forceretire', 'killchar', 'wipechar', 'setgroup', 'whitelistooc', 'oocwhitelist'],
     },
     {
       title: 'Feedback & Reports',

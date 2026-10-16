@@ -54,21 +54,23 @@ function formatActivation(activation: DeveloperModeActivation, revealTarget: boo
 
 function helpText(): string {
   return [
-    '🛠️ *Owner-Controlled Developer Mode*',
+    '🛠️ *Allybot Advanced Developer Suite*',
     '',
-    'Observer commands:',
-    '↳ `!dev help`',
-    '↳ `!dev status`',
-    '↳ `!dev runtime`',
-    '↳ `!dev connection`',
+    '*Unified Developer Diagnostics:*',
+    '↳ `!dev db` : Matrix status SQLite, PostgreSQL 17, Redis 8 & latency',
+    '↳ `!dev ai` : Ping 9Router Sidecar (port 20128) & model registry check',
+    '↳ `!dev logs [n]` : Bounded journalctl error logs with PII/secret scrubbing',
+    '↳ `!dev mem` : V8 process memory snapshot (RSS, Heap, External)',
+    '↳ `!dev gc` : Trigger manual garbage collection & report freed memory',
+    '↳ `!dev plugins` : Summary registered plugins & active command surface',
+    '↳ `!dev runtime` : Host platform, Node.js runtime, & process uptime',
+    '↳ `!dev connection` : WhatsApp socket connection status',
     '',
-    'Owner control:',
-    '↳ `!dev enable <international-phone-or-jid> <observer|operator> <minutes> <reason>`',
+    '*Developer Mode Delegation (Legacy/Observer):*',
+    '↳ `!dev enable <phone-or-jid> <observer|operator> <minutes> <reason>`',
     '↳ `!dev disable <activation-id>`',
-    '↳ `!dev kill`',
-    '↳ `!dev resume`',
-    '',
-    'Developer Mode tidak menyediakan eval, exec, shell, raw logs, database dump, credential, logout, atau reconnect.',
+    '↳ `!dev kill` / `!dev resume`',
+    '↳ `!dev status`',
   ].join('\n')
 }
 
@@ -88,7 +90,7 @@ function safeError(error: unknown): string {
 
 export const developerModePlugin: Plugin = {
   name: 'developer-mode-commands',
-  version: '0.1.0',
+  version: '0.2.0',
   load(context) {
     context.commands.register({
       name: 'dev',
@@ -106,6 +108,154 @@ export const developerModePlugin: Plugin = {
 
         if (subcommand === 'help') {
           await commandContext.reply(helpText())
+          return
+        }
+
+        // 1. !dev db
+        if (subcommand === 'db') {
+          if (!owner) {
+            await commandContext.reply('Maaf, hanya Owner yang dapat mengakses inspeksi database.')
+            return
+          }
+          let redisClient: any
+          try {
+            if (commandContext.services.has('redis')) {
+              redisClient = commandContext.services.get('redis')
+            }
+          } catch {}
+
+          const matrix = await developerMode.inspectStorageMatrix(undefined, redisClient)
+          const lines = [
+            '🗄️ *Triple-DB Storage Matrix*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            '*[SQLite 3 Core]*',
+            `⡇╌ Size       : ${matrix.sqlite.sizeKb} KB (WAL: ${matrix.sqlite.walSizeKb} KB)`,
+            `⡇╌ Pages      : ${matrix.sqlite.pageCount} (Page size: ${matrix.sqlite.pageSize} B)`,
+            `⡇╌ Latency    : ${matrix.sqlite.latencyMs} ms`,
+            `⡇╌ Integrity  : ${matrix.sqlite.quickCheck}`,
+            `⡇╌ Official G : ${matrix.sqlite.groupsCount} groups`,
+            `⡇╌ Trial DMs  : ${matrix.sqlite.trialGuestsCount} guests`,
+            `⡇╌ Shadowbans : ${matrix.sqlite.shadowbanCount} targets`,
+            '─͜──͜──͜─  · ✦ ·  ─͜──͜──͜─',
+            '*[PostgreSQL 17]*',
+            matrix.postgres?.available
+              ? [
+                  `⡇╌ Status     : Connected (${matrix.postgres.latencyMs} ms)`,
+                  `⡇╌ Characters : ${matrix.postgres.characterCount} active profiles`,
+                  `⡇╌ Economy    : ${matrix.postgres.economyAccounts} wallets (${matrix.postgres.economyTotalVela} Vela)`,
+                ].join('\n')
+              : `⡇╌ Status     : ${matrix.postgres?.error ? `Offline (${matrix.postgres.error})` : 'Standalone (SQLite Fallback)'}`,
+            '─͜──͜──͜─  · ✦ ·  ─͜──͜──͜─',
+            '*[Redis 8 Cache]*',
+            matrix.redis?.available
+              ? [
+                  `⡇╌ Status     : Connected (${matrix.redis.latencyMs} ms)`,
+                  `⡇╌ Memory     : ${matrix.redis.usedMemoryHuman}`,
+                  `⡇╌ Keys       : ${matrix.redis.keysCount} keys`,
+                ].join('\n')
+              : `⡇╌ Status     : ${matrix.redis?.error ? `Offline (${matrix.redis.error})` : 'Not configured'}`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Core Infrastructure*',
+          ]
+          await commandContext.reply(lines.join('\n'))
+          return
+        }
+
+        // 2. !dev ai
+        if (subcommand === 'ai') {
+          if (!owner) {
+            await commandContext.reply('Maaf, hanya Owner yang dapat memeriksa sidecar AI.')
+            return
+          }
+          const aiStatus = await developerMode.pingAiSidecar()
+          const lines = [
+            '🤖 *9Router AI Sidecar Telemetry*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ Endpoint   : http://127.0.0.1:20128/v1/models`,
+            `⡇╌ Status     : ${aiStatus.reachable ? `Online (${aiStatus.statusCode})` : 'Offline / Unreachable'}`,
+            `⡇╌ Latency    : ${aiStatus.latencyMs} ms`,
+            `⡇╌ Models Reg : ${aiStatus.modelCount !== undefined ? `${aiStatus.modelCount} models` : 'N/A'}`,
+            aiStatus.error ? `⡇╌ Error      : ${aiStatus.error}` : '⡇╌ Health     : Nominal (unlimited_token proxy)',
+            '━━━━━━━━━━━━━━━━━━━━',
+            '*© Allyssea Neural Fabric*',
+          ]
+          await commandContext.reply(lines.join('\n'))
+          return
+        }
+
+        // 3. !dev logs [n]
+        if (subcommand === 'logs') {
+          if (!owner) {
+            await commandContext.reply('Maaf, hanya Owner yang dapat membaca log sistem.')
+            return
+          }
+          const count = Number(args[0]) || 10
+          const logs = await developerMode.collectLogs(count)
+          const text = [
+            `📋 *Systemd Error Logs (Last ${logs.length} entries)*`,
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            ...logs.map((l) => `\`\`\`${l}\`\`\``),
+            '━━━━━━━━━━━━━━━━━━━━',
+            '🔒 _Sensitive secrets & PII are automatically redacted._',
+          ].join('\n')
+          await commandContext.reply(text)
+          return
+        }
+
+        // 4. !dev mem
+        if (subcommand === 'mem') {
+          const mem = developerMode.collectMemoryAndOptionalGc(false)
+          const lines = [
+            '🧠 *V8 Process Memory Footprint*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ Resident Set (RSS) : ${mem.rssMb} MiB`,
+            `⡇╌ Heap Used          : ${mem.heapUsedMb} MiB`,
+            `⡇╌ Heap Total         : ${mem.heapTotalMb} MiB`,
+            `⡇╌ External (C++)     : ${mem.externalMb} MiB`,
+            `⡇╌ ArrayBuffers       : ${mem.arrayBuffersMb} MiB`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '💡 _Gunakan `!dev gc` untuk memicu manual garbage collector._',
+          ]
+          await commandContext.reply(lines.join('\n'))
+          return
+        }
+
+        // 5. !dev gc
+        if (subcommand === 'gc') {
+          if (!owner) {
+            await commandContext.reply('Maaf, hanya Owner yang dapat memicu Garbage Collection.')
+            return
+          }
+          const mem = developerMode.collectMemoryAndOptionalGc(true)
+          if (!mem.gcExecuted) {
+            await commandContext.reply('⚠️ `global.gc()` tidak aktif pada runtime Node.js ini (butuh flag `--expose-gc`).')
+            return
+          }
+          const lines = [
+            '🧹 *Manual Garbage Collection Triggered*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ Heap Dibebaskan   : ${mem.freedHeapMb ?? 0} MiB`,
+            `⡇╌ Heap Terpakai Kini: ${mem.heapUsedMb} MiB / ${mem.heapTotalMb} MiB`,
+            `⡇╌ RSS Sekarang      : ${mem.rssMb} MiB`,
+            '━━━━━━━━━━━━━━━━━━━━',
+            '✅ _V8 memory sweep selesai._',
+          ]
+          await commandContext.reply(lines.join('\n'))
+          return
+        }
+
+        // 6. !dev plugins
+        if (subcommand === 'plugins') {
+          const totalCommands = context.commands.list().length
+          const lines = [
+            '🧩 *Allybot Framework Plugins & Commands*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            `⡇╌ Active Commands Surface : ${totalCommands} commands registered`,
+            `⡇╌ Core Architecture      : Ports & Adapters (Hexagonal)`,
+            `⡇╌ Gatekeeper Mode        : Walled-Garden Active`,
+            '━━━━━━━━━━━━━━━━━━━━',
+          ]
+          await commandContext.reply(lines.join('\n'))
           return
         }
 

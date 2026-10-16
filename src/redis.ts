@@ -167,6 +167,10 @@ export class RedisService implements Service {
     }
   }
 
+  get rawClient(): RedisClientInterface | undefined {
+    return this.client
+  }
+
   getHealth(): RedisHealth {
     return this.lastHealth
   }

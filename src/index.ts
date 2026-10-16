@@ -59,6 +59,8 @@ import { createCharacterGuidePlugin } from './framework/plugins/character-guide.
 import { WebCompanionService } from './services/web-companion-service.js'
 import { DownloaderService } from "./services/downloader-service.js"
 import { QuotaService } from './services/quota-service.js'
+import { GatekeeperService } from './services/gatekeeper-service.js'
+import { RemoteOpsService } from './services/remote-ops-service.js'
 
 import { downloaderPlugin } from "./framework/plugins/downloader.js"
 
@@ -152,6 +154,8 @@ async function main(): Promise<void> {
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
   framework.registerService(new DownloaderService())
   framework.registerService(new QuotaService(config.DATABASE_PATH, logger, { botOwnerJid: config.BOT_OWNER_JID }))
+  framework.registerService(new GatekeeperService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, { whatsapp, redis }))
+  framework.registerService(new RemoteOpsService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, whatsapp))
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
   if (config.AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))

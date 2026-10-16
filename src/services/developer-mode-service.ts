@@ -1,3 +1,7 @@
+import { execFile } from 'node:child_process'
+import { statSync } from 'node:fs'
+import { performance } from 'node:perf_hooks'
+import http from 'node:http'
 import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
@@ -404,5 +408,283 @@ export class DeveloperModeService implements Service {
   private database(): DatabaseInstance {
     if (!this.db?.open) throw new Error('Developer Mode service is not initialized')
     return this.db
+  }
+
+  public async inspectStorageMatrix(pgClient?: any, redisClient?: any): Promise<{
+    sqlite: {
+      path: string
+      sizeKb: number
+      walSizeKb: number
+      pageSize: number
+      pageCount: number
+      quickCheck: string
+      latencyMs: number
+      groupsCount: number
+      trialGuestsCount: number
+      shadowbanCount: number
+    }
+    postgres?: {
+      available: boolean
+      latencyMs?: number
+      characterCount?: number
+      economyAccounts?: number
+      economyTotalVela?: string
+      error?: string
+    }
+    redis?: {
+      available: boolean
+      latencyMs?: number
+      usedMemoryHuman?: string
+      keysCount?: number
+      error?: string
+    }
+  }> {
+    const db = this.database()
+    const startSqlite = performance.now()
+    db.prepare('SELECT 1').get()
+    const latencySqlite = performance.now() - startSqlite
+
+    let sizeKb = 0
+    let walSizeKb = 0
+    try {
+      if (this.databasePath !== ':memory:') {
+        sizeKb = Math.round(statSync(this.databasePath).size / 1024)
+        try {
+          walSizeKb = Math.round(statSync(`${this.databasePath}-wal`).size / 1024)
+        } catch {}
+      }
+    } catch {}
+
+    const pageSize = (db.prepare('PRAGMA page_size').get() as { page_size: number })?.page_size ?? 0
+    const pageCount = (db.prepare('PRAGMA page_count').get() as { page_count: number })?.page_count ?? 0
+    const quickCheckRow = db.prepare('PRAGMA quick_check(1)').get() as Record<string, string> | undefined
+    const quickCheck = quickCheckRow ? Object.values(quickCheckRow)[0] : 'unknown'
+
+    let groupsCount = 0
+    let trialGuestsCount = 0
+    let shadowbanCount = 0
+    try {
+      groupsCount = (db.prepare('SELECT count(*) as count FROM community_groups').get() as { count: number })?.count ?? 0
+    } catch {}
+    try {
+      trialGuestsCount = (db.prepare('SELECT count(*) as count FROM trial_guests').get() as { count: number })?.count ?? 0
+    } catch {}
+    try {
+      shadowbanCount = (db.prepare('SELECT count(*) as count FROM shadowbanned_users').get() as { count: number })?.count ?? 0
+    } catch {}
+
+    const result: any = {
+      sqlite: {
+        path: this.databasePath,
+        sizeKb,
+        walSizeKb,
+        pageSize,
+        pageCount,
+        quickCheck,
+        latencyMs: Math.round(latencySqlite * 100) / 100,
+        groupsCount,
+        trialGuestsCount,
+        shadowbanCount,
+      },
+    }
+
+    if (pgClient) {
+      try {
+        const startPg = performance.now()
+        await pgClient`SELECT 1`
+        const latencyPg = performance.now() - startPg
+
+        let characterCount = 0
+        let economyAccounts = 0
+        let economyTotalVela = '0'
+
+        try {
+          const charRows = await pgClient`SELECT count(*)::int as count FROM character_profiles`
+          characterCount = charRows[0]?.count ?? 0
+        } catch {}
+
+        try {
+          const econRows = await pgClient`SELECT count(*)::int as count, coalesce(sum(balance), 0)::text as total FROM economy_accounts`
+          economyAccounts = econRows[0]?.count ?? 0
+          economyTotalVela = econRows[0]?.total ?? '0'
+        } catch {}
+
+        result.postgres = {
+          available: true,
+          latencyMs: Math.round(latencyPg * 100) / 100,
+          characterCount,
+          economyAccounts,
+          economyTotalVela,
+        }
+      } catch (err: any) {
+        result.postgres = {
+          available: false,
+          error: err.message,
+        }
+      }
+    }
+
+    if (redisClient) {
+      try {
+        const startRedis = performance.now()
+        await redisClient.ping()
+        const latencyRedis = performance.now() - startRedis
+
+        let usedMemoryHuman = 'unknown'
+        let keysCount = 0
+
+        try {
+          const info = await redisClient.info('memory')
+          const match = info.match(/used_memory_human:([^\r\n]+)/)
+          if (match) usedMemoryHuman = match[1].trim()
+        } catch {}
+
+        try {
+          keysCount = await redisClient.dbsize()
+        } catch {}
+
+        result.redis = {
+          available: true,
+          latencyMs: Math.round(latencyRedis * 100) / 100,
+          usedMemoryHuman,
+          keysCount,
+        }
+      } catch (err: any) {
+        result.redis = {
+          available: false,
+          error: err.message,
+        }
+      }
+    }
+
+    return result
+  }
+
+  public async pingAiSidecar(
+    url: string = 'http://127.0.0.1:20128/v1/models',
+    timeoutMs: number = 4000,
+  ): Promise<{
+    reachable: boolean
+    statusCode?: number
+    latencyMs: number
+    modelCount?: number
+    error?: string
+  }> {
+    const start = performance.now()
+    return new Promise((resolve) => {
+      try {
+        const req = http.get(url, { timeout: timeoutMs }, (res) => {
+          let data = ''
+          res.on('data', (chunk) => {
+            data += chunk
+          })
+          res.on('end', () => {
+            const latencyMs = Math.round((performance.now() - start) * 100) / 100
+            let modelCount: number | undefined
+            try {
+              const parsed = JSON.parse(data)
+              if (Array.isArray(parsed.data)) {
+                modelCount = parsed.data.length
+              }
+            } catch {}
+            resolve({
+              reachable: res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 400,
+              statusCode: res.statusCode,
+              latencyMs,
+              modelCount,
+            })
+          })
+        })
+        req.on('timeout', () => {
+          req.destroy()
+          resolve({
+            reachable: false,
+            latencyMs: Math.round((performance.now() - start) * 100) / 100,
+            error: 'Connection timed out',
+          })
+        })
+        req.on('error', (err) => {
+          resolve({
+            reachable: false,
+            latencyMs: Math.round((performance.now() - start) * 100) / 100,
+            error: err.message,
+          })
+        })
+      } catch (err: any) {
+        resolve({
+          reachable: false,
+          latencyMs: Math.round((performance.now() - start) * 100) / 100,
+          error: err.message,
+        })
+      }
+    })
+  }
+
+  public async collectLogs(lines: number = 10): Promise<string[]> {
+    const clamped = Math.max(1, Math.min(30, lines))
+    return new Promise((resolve) => {
+      execFile(
+        'journalctl',
+        ['-u', 'allybot.service', '-p', 'warning..emerg', '-n', String(clamped), '--no-pager', '-o', 'short-iso'],
+        { timeout: 3000 },
+        (error, stdout) => {
+          if (error || !stdout) {
+            resolve(['[Tidak ada log warning/error dari journalctl]'])
+            return
+          }
+          const rawLines = stdout.trim().split('\n').filter(Boolean)
+          const redacted = rawLines.map((line) => LogRedactor.redact(line))
+          resolve(redacted)
+        },
+      )
+    })
+  }
+
+  public collectMemoryAndOptionalGc(runGc: boolean = false): {
+    rssMb: number
+    heapUsedMb: number
+    heapTotalMb: number
+    externalMb: number
+    arrayBuffersMb: number
+    gcExecuted: boolean
+    freedHeapMb?: number
+  } {
+    const before = process.memoryUsage()
+    let freedHeapMb: number | undefined
+    let gcExecuted = false
+
+    if (runGc && typeof (global as any).gc === 'function') {
+      ;(global as any).gc()
+      gcExecuted = true
+      const after = process.memoryUsage()
+      freedHeapMb = Math.round(((before.heapUsed - after.heapUsed) / (1024 * 1024)) * 100) / 100
+    }
+
+    const current = process.memoryUsage()
+    return {
+      rssMb: Math.round((current.rss / (1024 * 1024)) * 100) / 100,
+      heapUsedMb: Math.round((current.heapUsed / (1024 * 1024)) * 100) / 100,
+      heapTotalMb: Math.round((current.heapTotal / (1024 * 1024)) * 100) / 100,
+      externalMb: Math.round((current.external / (1024 * 1024)) * 100) / 100,
+      arrayBuffersMb: Math.round((current.arrayBuffers / (1024 * 1024)) * 100) / 100,
+      gcExecuted,
+      freedHeapMb,
+    }
+  }
+
+  static redact(text: string): string {
+    return LogRedactor.redact(text)
+  }
+
+}
+
+
+export class LogRedactor {
+  static redact(text: string): string {
+    return text
+      .replace(/Bearer\s+[A-Za-z0-9_.-]{20,}/gi, 'Bearer [REDACTED_TOKEN]')
+      .replace(/(?:sk-|key-|gsk_|ai-|hf_)[A-Za-z0-9_.-]{16,}/gi, '[REDACTED_API_KEY]')
+      .replace(/(?:postgres|postgresql|redis|mongodb):\/\/[^\s"']+/gi, '[REDACTED_DB_URI]')
+      .replace(/\b\d{10,15}\b/g, '[REDACTED_PHONE]')
   }
 }
