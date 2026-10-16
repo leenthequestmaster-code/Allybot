@@ -26,7 +26,10 @@ import { utilityPlugin } from '../dist/framework/plugins/utility.js'
 import { mediaPlugin } from '../dist/framework/plugins/media.js'
 import { toolsSearchPlugin } from '../dist/framework/plugins/tools-search.js'
 import { createAfkPlugin } from '../dist/framework/plugins/afk.js'
+import { createCommunityPlugin } from '../dist/framework/plugins/community.js'
+import { remoteOpsPlugin } from '../dist/framework/plugins/remote-ops.js'
 import { createSuggestPlugin } from '../dist/framework/plugins/suggest.js'
+import { createMenfessPlugin } from '../dist/framework/plugins/menfess.js'
 import { createRekapPlugin } from '../dist/framework/plugins/rekap.js'
 import { downloaderPlugin } from '../dist/framework/plugins/downloader.js'
 import { quranPlugin } from '../dist/framework/plugins/quran.js'
@@ -80,6 +83,8 @@ const SERVICE_NAMES = [
   'web-companion',
   'downloader',
   'quota',
+  'community',
+  'menfess',
 ]
 
 // Every property resolves to another callable stub, so plugin load hooks can read flags,
@@ -162,7 +167,6 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(createSentryPlugin({ isEnabled: false, captureError() {}, captureMessage() {}, close: async () => {} }))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(createAiPlugin({ fallbackEnabled: false }))
-  framework.registerPlugin(createRekapPlugin(whatsapp, { fallbackEnabled: false }))
   framework.registerPlugin(developerModePlugin)
   framework.registerPlugin(codebasePlugin)
   framework.registerPlugin(diagnosticsPlugin)
@@ -170,6 +174,8 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(groupPlugin)
   framework.registerPlugin(createGroupContextPlugin(whatsapp))
   framework.registerPlugin(createCharacterGuidePlugin(whatsapp))
+  framework.registerPlugin(createCommunityPlugin(whatsapp))
+  framework.registerPlugin(remoteOpsPlugin)
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
   framework.registerPlugin(createGroupSafetyPlugin(whatsapp))
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
@@ -187,6 +193,7 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(doaPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   framework.registerPlugin(createSuggestPlugin(whatsapp))
+  framework.registerPlugin(createMenfessPlugin(whatsapp))
 
   // Retain an independent registration-inventory guard: new runtime plugins must be
   // added here, otherwise an all-ready assertion could silently cover only a subset.

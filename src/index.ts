@@ -13,6 +13,7 @@ import { sholatPlugin } from './framework/plugins/sholat.js'
 import { doaPlugin } from './framework/plugins/doa.js'
 import { createAfkPlugin } from './framework/plugins/afk.js'
 import { createSuggestPlugin } from './framework/plugins/suggest.js'
+import { createMenfessPlugin } from './framework/plugins/menfess.js'
 import { menuPlugin } from './framework/plugins/menu.js'
 import { createWelcomeLeavePlugin } from './framework/plugins/welcome-leave.js'
 import { groupPlugin } from './framework/plugins/group.js'
@@ -36,6 +37,7 @@ import { isGroupJid } from './framework/validation.js'
 import { SqliteStorage } from './storage.js'
 import { AfkService } from './services/afk-service.js'
 import { SuggestionService } from './services/suggestion-service.js'
+import { MenfessService } from './services/menfess-service.js'
 import { GroupConfigurationService } from './services/group-configuration-service.js'
 import { DeveloperModeService } from './services/developer-mode-service.js'
 import { CommunityService } from './services/community-service.js'
@@ -109,6 +111,9 @@ async function main(): Promise<void> {
   )
   framework.registerService(new AfkService(config.DATABASE_PATH, logger))
   framework.registerService(new SuggestionService(config.DATABASE_PATH, logger, { secret: config.SUGGEST_SECRET }))
+  if (config.MENFESS_ENABLED) {
+    framework.registerService(new MenfessService(config.DATABASE_PATH, logger, { secret: config.MENFESS_SECRET, maxPerDay: config.MENFESS_DAILY_LIMIT }))
+  }
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
   framework.registerService(new CommunityService(config.DATABASE_PATH, logger))
@@ -176,6 +181,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(doaPlugin)
   framework.registerPlugin(createAfkPlugin(whatsapp))
   if (config.SUGGEST_ENABLED) framework.registerPlugin(createSuggestPlugin(whatsapp))
+  if (config.MENFESS_ENABLED) framework.registerPlugin(createMenfessPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework, sentry)
   
   startScheduler(whatsapp)
