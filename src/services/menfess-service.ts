@@ -28,7 +28,15 @@ export interface ActiveMenfessSession {
 export interface CreateThreadResult {
   readonly success: boolean
   readonly thread?: MenfessThreadRecord
-  readonly reason?: 'RATE_LIMITED' | 'RECIPIENT_BLOCKED' | 'SENDER_BUSY' | 'RECIPIENT_BUSY' | 'SELF_TARGET' | 'INVALID_TARGET'
+  readonly reason?:
+    | 'RATE_LIMITED'
+    | 'RECIPIENT_BLOCKED'
+    | 'RECIPIENT_OPTED_OUT'
+    | 'SENDER_OPTED_OUT'
+    | 'SENDER_BUSY'
+    | 'RECIPIENT_BUSY'
+    | 'SELF_TARGET'
+    | 'INVALID_TARGET'
   readonly remainingDailyQuota?: number
 }
 
@@ -183,6 +191,11 @@ export class MenfessService implements Service {
         created_at INTEGER NOT NULL,
         PRIMARY KEY (receiver_hmac, blocked_sender_hmac)
       );
+
+      CREATE TABLE IF NOT EXISTS menfess_optouts (
+        recipient_hmac TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL
+      );
     `)
   }
 
@@ -228,6 +241,87 @@ export class MenfessService implements Service {
       } catch (error) {
         this.logger.warn({ error, threadId: row.thread_id }, 'Failed to rehydrate menfess thread')
       }
+    }
+  }
+
+  async isOptedOut(jid: string): Promise<boolean> {
+    const clean = bareJid(jid)
+    const hmac = this.crypto.hashJid(clean)
+
+    if (this.redis) {
+      try {
+        const cached = await this.redis.cacheGet<boolean>('menfess:optout', hmac)
+        if (cached !== null && cached !== undefined) {
+          return Boolean(cached)
+        }
+      } catch {
+        // Fall back to sqlite
+      }
+    }
+
+    const db = this.database()
+    const row = db
+      .prepare('SELECT 1 FROM menfess_optouts WHERE recipient_hmac = ? LIMIT 1')
+      .get(hmac)
+    const optedOut = Boolean(row)
+
+    if (this.redis) {
+      try {
+        await this.redis.cacheSet('menfess:optout', hmac, optedOut, 7 * 86_400)
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    return optedOut
+  }
+
+  async setOptOut(
+    jid: string,
+    optOut: boolean,
+  ): Promise<{ optedOut: boolean; closedThreadId?: string; peerJid?: string }> {
+    const clean = bareJid(jid)
+    const hmac = this.crypto.hashJid(clean)
+    const db = this.database()
+    const now = this.clock()
+
+    let closedThreadId: string | undefined
+    let peerJid: string | undefined
+
+    if (optOut) {
+      const activeSession = await this.getActiveSession(clean)
+      if (activeSession) {
+        const closeRes = await this.closeThread(clean)
+        if (closeRes.closed) {
+          closedThreadId = closeRes.threadId
+          peerJid = closeRes.peerJid
+        }
+      }
+
+      db.prepare(`
+        INSERT OR IGNORE INTO menfess_optouts (recipient_hmac, created_at)
+        VALUES (?, ?)
+      `).run(hmac, now)
+
+      if (this.redis) {
+        try {
+          await this.redis.cacheSet('menfess:optout', hmac, true, 7 * 86_400)
+        } catch {
+          // Non-blocking
+        }
+      }
+      return { optedOut: true, closedThreadId, peerJid }
+    } else {
+      db.prepare('DELETE FROM menfess_optouts WHERE recipient_hmac = ?').run(hmac)
+
+      if (this.redis) {
+        try {
+          await this.redis.cacheDelete('menfess:optout', hmac)
+        } catch {
+          // Non-blocking
+        }
+      }
+      return { optedOut: false }
     }
   }
 
@@ -321,6 +415,14 @@ export class MenfessService implements Service {
     }
     if (cleanSender === cleanReceiver) {
       return { success: false, reason: 'SELF_TARGET' }
+    }
+
+    if (await this.isOptedOut(cleanSender)) {
+      return { success: false, reason: 'SENDER_OPTED_OUT' }
+    }
+
+    if (await this.isOptedOut(cleanReceiver)) {
+      return { success: false, reason: 'RECIPIENT_OPTED_OUT' }
     }
 
     if (this.isBlacklisted(cleanReceiver, cleanSender)) {

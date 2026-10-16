@@ -282,6 +282,69 @@ test('MenfessService image sanitization strips metadata and caps 1024px', async 
   }
 })
 
+test('MenfessService opt-out persistence, session termination, and rejection', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'menfess-optout-service-'))
+  const dbPath = join(dir, 'test-menfess-optout.sqlite')
+
+  try {
+    const service = new MenfessService(dbPath, logger, {
+      secret: 'unit-test-secret',
+      maxPerDay: 5,
+    })
+    service.initialize({
+      services: {
+        get: () => {
+          throw new Error('No redis in unit test')
+        },
+      },
+    })
+
+    const sender = '628111111111@s.whatsapp.net'
+    const recipient = '628222222222@s.whatsapp.net'
+
+    // Initially recipient is NOT opted out
+    assert.equal(await service.isOptedOut(recipient), false)
+
+    // Recipient opts out
+    const optRes = await service.setOptOut(recipient, true)
+    assert.equal(optRes.optedOut, true)
+    assert.equal(await service.isOptedOut(recipient), true)
+
+    // Sender tries to send menfess to opted-out recipient -> rejected RECIPIENT_OPTED_OUT
+    const createRes = await service.createThread(sender, recipient)
+    assert.equal(createRes.success, false)
+    assert.equal(createRes.reason, 'RECIPIENT_OPTED_OUT')
+
+    // Opted out user tries to send menfess -> rejected SENDER_OPTED_OUT
+    const senderOptRes = await service.createThread(recipient, sender)
+    assert.equal(senderOptRes.success, false)
+    assert.equal(senderOptRes.reason, 'SENDER_OPTED_OUT')
+
+    // Recipient opts back in
+    const onRes = await service.setOptOut(recipient, false)
+    assert.equal(onRes.optedOut, false)
+    assert.equal(await service.isOptedOut(recipient), false)
+
+    // Now creation succeeds
+    const successRes = await service.createThread(sender, recipient)
+    assert.equal(successRes.success, true)
+
+    // Opt-out while in active session should automatically terminate the session
+    const optWhileActive = await service.setOptOut(recipient, true)
+    assert.equal(optWhileActive.optedOut, true)
+    assert.equal(optWhileActive.closedThreadId, successRes.thread?.threadId)
+    assert.equal(optWhileActive.peerJid, sender)
+
+    // Sessions are purged
+    assert.equal(await service.getActiveSession(sender), undefined)
+    assert.equal(await service.getActiveSession(recipient), undefined)
+
+    service.shutdown({})
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('Menfess End-to-End Plugin: free media types (video, sticker, doc, audio, image) and single-party !stopmenfess termination', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'menfess-e2e-test-'))
   const dbPath = join(dir, 'test-menfess-e2e.sqlite')
@@ -432,6 +495,112 @@ test('Menfess End-to-End Plugin: free media types (video, sticker, doc, audio, i
       (s) => s.remoteJid === senderJid && s.text?.includes('sudah resmi ditutup sebelumnya'),
     )
     assert.ok(senderAlreadyClosed)
+
+    await framework.stop()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('Menfess Plugin E2E: !offmenfess and !onmenfess flow', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'menfess-optout-e2e-'))
+  const dbPath = join(dir, 'test-menfess-optout-e2e.sqlite')
+
+  try {
+    const fakeWA = createFakeWhatsApp()
+    const botOwnerJid = '6283197859955@s.whatsapp.net'
+    const framework = new ApplicationFramework(
+      {
+        commandPrefix: '!',
+        defaultCooldownMs: 0,
+        botOwnerJid,
+        databasePath: dbPath,
+      },
+      logger,
+      fakeWA,
+      {
+        permissionResolver: createPermissionResolver(fakeWA, botOwnerJid),
+      },
+    )
+
+    const service = new MenfessService(dbPath, logger, { secret: 'e2e-secret', maxPerDay: 5 })
+    framework.registerService(service)
+    framework.registerPlugin(createMenfessPlugin(fakeWA))
+
+    await framework.start()
+
+    const senderJid = '628111222333@s.whatsapp.net'
+    const recipientJid = '628999888777@s.whatsapp.net'
+
+    // Step 1: Recipient activates DND via !offmenfess
+    await framework.commands.dispatch({
+      id: 'opt1',
+      remoteJid: recipientJid,
+      senderJid: recipientJid,
+      text: '!offmenfess',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    const offReply = fakeWA.sent.find(
+      (s) => s.remoteJid === recipientJid && s.text?.includes('Penerimaan Menfess Dinonaktifkan'),
+    )
+    assert.ok(offReply)
+    assert.match(offReply.text, /!onmenfess/)
+
+    // Step 2: Sender attempts to send menfess to recipient -> must be rejected
+    const beforeCount = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'opt2',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!menfess 08999888777 Halo mau kenalan dong',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    const senderRejection = fakeWA.sent.slice(beforeCount).find((s) => s.remoteJid === senderJid)
+    assert.ok(senderRejection)
+    assert.match(senderRejection.text, /menonaktifkan fitur penerimaan Menfess/)
+
+    // Recipient must NOT receive any message
+    const recipientLeaked = fakeWA.sent.slice(beforeCount).filter((s) => s.remoteJid === recipientJid)
+    assert.equal(recipientLeaked.length, 0)
+
+    // Step 3: Recipient re-enables menfess via !onmenfess
+    await framework.commands.dispatch({
+      id: 'opt3',
+      remoteJid: recipientJid,
+      senderJid: recipientJid,
+      text: '!onmenfess',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    const onReply = fakeWA.sent.find(
+      (s) => s.remoteJid === recipientJid && s.text?.includes('Penerimaan Menfess Diaktifkan'),
+    )
+    assert.ok(onReply)
+
+    // Step 4: Sender sends menfess again -> now succeeds!
+    await framework.commands.dispatch({
+      id: 'opt4',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!menfess 08999888777 Halo sekarang terkirim!',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    const senderSuccess = fakeWA.sent.find(
+      (s) => s.remoteJid === senderJid && s.text?.includes('Menfess Berhasil Terkirim'),
+    )
+    assert.ok(senderSuccess)
+
+    const recipientMessage = fakeWA.sent.find(
+      (s) => s.remoteJid === recipientJid && s.text?.includes('Halo sekarang terkirim!'),
+    )
+    assert.ok(recipientMessage)
 
     await framework.stop()
   } finally {

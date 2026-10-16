@@ -48,6 +48,7 @@ export function formatRecipientNotice(threadId: string, text?: string): string {
     '↳ Balas langsung (teks, foto, video, suara/VN, stiker, dokumen) di chat ini.',
     '↳ Ketik `!stopmenfess` untuk mengakhiri sesi untuk kedua belah pihak.',
     '↳ Ketik `!blockmenfess` untuk memblokir pengirim ini jika mengganggu.',
+    '↳ Ketik `!offmenfess` jika ingin menolak pesan menfess dari siapapun (DND).',
   ].join('\n')
 }
 
@@ -265,6 +266,7 @@ export function createMenfessPlugin(
           ) {
             const activeSession = await service.getActiveSession(senderJid)
             const rate = await service.checkRateLimit(senderJid)
+            const isOptedOut = await service.isOptedOut(senderJid)
 
             const lines = [
               '💌 *Layanan Menfess Anonim (Allybot)*',
@@ -276,6 +278,7 @@ export function createMenfessPlugin(
                   ? `🟢 *Aktif* (\`#${activeSession.threadId}\` sebagai ${activeSession.role === 'sender' ? 'Pengirim' : 'Penerima'})`
                   : '⚪ *Tidak Ada Sesi Aktif*'
               }`,
+              `*Penerimaan Menfess (DND):* ${isOptedOut ? '🔕 *Nonaktif (!offmenfess)*' : '🔔 *Aktif*'}` ,
               `*Sisa Kuota Harian:* *${rate.remaining} sesi*`,
               '',
               '*Cara Memulai:*',
@@ -287,8 +290,10 @@ export function createMenfessPlugin(
               '⡇╌ *Dukungan Media Penuh:* Kirim teks, gambar/foto, video, audio/VN, stiker, hingga dokumen.',
               '⡇╌ *Privasi Foto:* EXIF GPS/metadata foto otomatis dilucuti.',
               '⡇╌ *Sticky Session:* Balas langsung chat tanpa perintah khusus selama 24 jam.',
-              '⡇╌ Ketik `!stopmenfess` untuk mengakhiri sesi obrolan (salah satu berhenti, sesi tamat untuk keduanya).',
+              '⡇╌ Ketik `!stopmenfess` untuk mengakhiri sesi obrolan (satu pihak berhenti, sesi selesai sepenuhnya).',
               '⡇╌ Ketik `!blockmenfess` jika kamu menerima pesan spam/gangguan.',
+              '⡇╌ Ketik `!offmenfess` untuk menonaktifkan penerimaan pesan menfess dari siapapun (Do Not Disturb).',
+              '⡇╌ Ketik `!onmenfess` untuk mengaktifkan kembali penerimaan pesan menfess.',
             ]
 
             await commandContext.reply(lines.join('\n'))
@@ -344,6 +349,16 @@ export function createMenfessPlugin(
           const result = await service.createThread(senderJid, targetJid)
           if (!result.success || !result.thread) {
             switch (result.reason) {
+              case 'SENDER_OPTED_OUT':
+                await commandContext.reply(
+                  '⚠️ Kamu saat ini menonaktifkan fitur Menfess (!offmenfess). Ketik `!onmenfess` terlebih dahulu untuk mengaktifkan kembali sebelum mengirim pesan.',
+                )
+                return
+              case 'RECIPIENT_OPTED_OUT':
+                await commandContext.reply(
+                  '🚫 Nomor tujuan telah menonaktifkan fitur penerimaan Menfess (Do Not Disturb). Pesanmu tidak dapat dikirimkan.',
+                )
+                return
               case 'RATE_LIMITED':
                 await commandContext.reply(
                   '⏳ Kuota Menfess harian kamu telah habis (maksimal 5 sesi per 24 jam). Coba lagi besok!',
@@ -508,6 +523,77 @@ export function createMenfessPlugin(
               commandContext.logger.warn({ err, peerJid: res.peerJid }, 'Failed to notify peer of sender block')
             }
           }
+        },
+      })
+
+      // ==========================================
+      // COMMAND: offmenfess (aliases: menfessoff, offmenfes, menfesoff)
+      // ==========================================
+      context.commands.register({
+        name: 'offmenfess',
+        aliases: ['menfessoff', 'offmenfes', 'menfesoff'],
+        description: 'Nonaktifkan penerimaan pesan rahasia (Menfess) dari siapapun (Do Not Disturb).',
+        category: 'utility',
+        scope: 'private',
+        menuOrder: 19,
+        handler: async (commandContext) => {
+          const service = getService()
+          const currentJid = bareJid(commandContext.message.senderJid ?? commandContext.message.remoteJid)
+
+          const res = await service.setOptOut(currentJid, true)
+
+          const lines = [
+            '🔕 *Penerimaan Menfess Dinonaktifkan (DND)*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            'Kamu tidak akan menerima pesan anonim dari siapapun.',
+            'Pengirim yang mencoba mengirim Menfess ke nomormu akan otomatis ditolak oleh sistem tanpa mengganggumu.',
+            '',
+            '💡 Ketik `!onmenfess` kapan saja jika ingin mengaktifkannya kembali.',
+          ]
+
+          await commandContext.reply(lines.join('\n'))
+
+          if (res.peerJid && res.closedThreadId) {
+            try {
+              await whatsapp.sendText(
+                res.peerJid,
+                `🛑 Teman bicaramu telah menonaktifkan penerimaan Menfess. Sesi percakapan \`#${res.closedThreadId}\` resmi diakhiri.`,
+              )
+            } catch (err) {
+              commandContext.logger.warn(
+                { err, peerJid: res.peerJid },
+                'Failed to notify peer of session closure on optout',
+              )
+            }
+          }
+        },
+      })
+
+      // ==========================================
+      // COMMAND: onmenfess (aliases: menfesson, onmenfes, menfeson)
+      // ==========================================
+      context.commands.register({
+        name: 'onmenfess',
+        aliases: ['menfesson', 'onmenfes', 'menfeson'],
+        description: 'Aktifkan kembali penerimaan pesan rahasia (Menfess).',
+        category: 'utility',
+        scope: 'private',
+        menuOrder: 20,
+        handler: async (commandContext) => {
+          const service = getService()
+          const currentJid = bareJid(commandContext.message.senderJid ?? commandContext.message.remoteJid)
+
+          await service.setOptOut(currentJid, false)
+
+          const lines = [
+            '🔔 *Penerimaan Menfess Diaktifkan*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+            'Kamu sekarang dapat kembali menerima pesan anonim (Menfess) dari pengguna lain.',
+            '',
+            '💡 Ketik `!offmenfess` jika suatu saat ingin menolak pesan anonim lagi.',
+          ]
+
+          await commandContext.reply(lines.join('\n'))
         },
       })
     },
