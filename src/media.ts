@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import sharp from 'sharp'
 import type { CoreMediaKind } from './framework/contracts.js'
 
 export const MEDIA_TRANSFORM_TIMEOUT_MS = 15_000
@@ -199,7 +200,7 @@ export class FfmpegMediaTransformer implements MediaTransformer {
     private readonly timeoutMs = MEDIA_TRANSFORM_TIMEOUT_MS,
   ) {}
 
-  transform(input: Uint8Array, inputMimeType: string, inputKind: CoreMediaKind, target: MediaTransformKind): Promise<Uint8Array> {
+  async transform(input: Uint8Array, inputMimeType: string, inputKind: CoreMediaKind, target: MediaTransformKind): Promise<Uint8Array> {
     if (!input || input.byteLength === 0) {
       return Promise.reject(new MediaTransformError('process_failed', 'empty media input'))
     }
@@ -208,12 +209,44 @@ export class FfmpegMediaTransformer implements MediaTransformer {
       return this.runner(videoToStickerArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
     if (target === 'sticker' && inputKind === 'image' && inputMimeType.startsWith('image/')) {
+      if (this.runner === runFfmpeg) {
+        try {
+          const webp = await sharp(Buffer.from(input))
+            .resize(512, 512, {
+              fit: 'contain',
+              background: { r: 0, g: 0, b: 0, alpha: 0 },
+            })
+            .webp({ quality: 75, effort: 1 })
+            .toBuffer()
+          const limit = Math.min(this.maxOutputBytes, outputLimit)
+          if (webp.byteLength > limit) {
+            throw new MediaTransformError('output_limit', 'media output exceeded limit')
+          }
+          return new Uint8Array(webp)
+        } catch (err) {
+          if (err instanceof MediaTransformError) throw err
+        }
+      }
       return this.runner(imageToStickerArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
     if (target === 'sticker' && inputKind === 'sticker' && inputMimeType === 'image/webp') {
       return Promise.resolve(input)
     }
     if (target === 'image' && inputKind === 'sticker' && inputMimeType === 'image/webp') {
+      if (this.runner === runFfmpeg) {
+        try {
+          const png = await sharp(Buffer.from(input), { page: 0 })
+            .png()
+            .toBuffer()
+          const limit = Math.min(this.maxOutputBytes, outputLimit)
+          if (png.byteLength > limit) {
+            throw new MediaTransformError('output_limit', 'media output exceeded limit')
+          }
+          return new Uint8Array(png)
+        } catch (err) {
+          if (err instanceof MediaTransformError) throw err
+        }
+      }
       return this.runner(stickerToImageArgs(), input, Math.min(this.maxOutputBytes, outputLimit), this.timeoutMs)
     }
     if (target === 'image' && inputKind === 'image' && inputMimeType.startsWith('image/')) {
