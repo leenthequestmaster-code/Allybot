@@ -234,12 +234,26 @@ function formatCommand(command: CommandDefinition, prefix: string, position: num
   return `${position}. *${prefix}${command.name}*${aliasPart}`
 }
 
+function formatUptime(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const days = Math.floor(totalSeconds / 86_400)
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600)
+  const minutes = Math.floor((totalSeconds % 3_600) / 60)
+  const remainingSeconds = totalSeconds % 60
+  const parts: string[] = []
+  if (days) parts.push(`${days}d`)
+  if (hours || days) parts.push(`${hours}h`)
+  if (minutes || hours || days) parts.push(`${minutes}m`)
+  parts.push(`${remainingSeconds}s`)
+  return parts.join(' ')
+}
+
 function renderBotProfile(): string {
   return [
     '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
     '─֪──໋࣭─𝆭──꫶',
     `> ⟐┃ Nama : *${BOT_NAME}*`,
-    '> ⟐┃ Uptime : *-*',
+    `> ⟐┃ Uptime : *${formatUptime(process.uptime())}*`,
     '> ⟐┃ Owner : *6283197859955*',
     `> ⟐┃ Versi : *v${BOT_VERSION}*`,
     '*─┼────────────────┼─*',
@@ -255,8 +269,13 @@ function renderMainMenu(
 }
 
 function resolveCategory(categories: readonly MenuCategory[], identifier: string | undefined): MenuCategory | undefined {
-  if (!identifier || !/^\d+$/.test(identifier)) return undefined
-  return categories[Number(identifier) - 1]
+  if (!identifier) return undefined
+  const trimmed = identifier.trim().toLowerCase()
+  if (/^\d+$/.test(trimmed)) {
+    return categories[Number(trimmed) - 1]
+  }
+  const aliased = CATEGORY_ALIASES[trimmed] ?? trimmed
+  return categories.find((c) => c.name.toLowerCase() === aliased || c.name.toLowerCase() === trimmed)
 }
 
 type SubCategoryDef = {

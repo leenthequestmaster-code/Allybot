@@ -104,9 +104,9 @@ function imageToStickerArgs(): readonly string[] {
 
 function stickerToImageArgs(): readonly string[] {
   return [
-    '-f', 'webp',
     '-i', 'pipe:0',
     '-frames:v', '1',
+    '-update', '1',
     '-f', 'image2',
     '-vcodec', 'png',
     'pipe:1',
@@ -158,7 +158,6 @@ function videoToStickerArgs(): readonly string[] {
 
 function stickerToGifArgs(): readonly string[] {
   return [
-    '-f', 'webp',
     '-i', 'pipe:0',
     '-an',
     '-c:v', 'libx264',

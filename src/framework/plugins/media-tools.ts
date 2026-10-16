@@ -347,20 +347,34 @@ export function registerMediaToolCommands(context: PluginContext, transformer?: 
               maxBytes: 10 * 1024 * 1024,
               timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
             })
+            const ext = downloaded.mimeType.split('/')[1]?.split(';')[0] || 'bin'
             const formData = new FormData()
             formData.append('reqtype', 'fileupload')
-            formData.append('fileToUpload', new Blob([downloaded.data], { type: downloaded.mimeType }), 'upload.bin')
-            const res = await fetch('https://catbox.moe/user/api.php', {
+            formData.append('time', '72h')
+            formData.append('fileToUpload', new Blob([downloaded.data], { type: downloaded.mimeType }), `upload.${ext}`)
+            let res = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
               method: 'POST',
               body: formData,
               signal: AbortSignal.timeout(20_000),
             })
+            if (!res.ok) {
+              const fallbackForm = new FormData()
+              fallbackForm.append('reqtype', 'fileupload')
+              fallbackForm.append('fileToUpload', new Blob([downloaded.data], { type: downloaded.mimeType }), `upload.${ext}`)
+              res = await fetch('https://catbox.moe/user/api.php', {
+                method: 'POST',
+                body: fallbackForm,
+                signal: AbortSignal.timeout(20_000),
+              })
+            }
             if (res.ok) {
               const url = (await res.text()).trim()
-              await commandContext.reply(`🔗 *Tautan Media Berhasil Dibuat:*\n${url}`)
-            } else {
-              throw new Error(`Upload error: ${res.status}`)
+              if (url.startsWith('http')) {
+                await commandContext.reply(`🔗 *Tautan Media Berhasil Dibuat:*\n${url}`)
+                return
+              }
             }
+            throw new Error(`Upload error: ${res.status}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'tourl upload failed')
             await commandContext.reply('Upload gagal nih, coba file lebih kecil ya~ 📁')

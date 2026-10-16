@@ -117,6 +117,7 @@ export function createOpenAiCompatibleTransport(options: { apiKey: string; baseU
         { role: 'user', content: userMessage },
       ],
       max_tokens: maxTokens,
+      stream: false,
     })
     return { content: response.choices[0]?.message?.content }
   }
