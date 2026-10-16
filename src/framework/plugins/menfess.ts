@@ -57,8 +57,8 @@ export async function relayMedia(
   service: MenfessService,
   targetJid: string,
   downloaded: WhatsAppMediaPayload,
-  roleLabel: string,
-  threadId: string,
+  roleLabel?: string,
+  threadId?: string,
   userText?: string,
 ): Promise<void> {
   const cleanText = userText ? sanitizeMenfessText(userText) : ''
@@ -66,38 +66,27 @@ export async function relayMedia(
   switch (downloaded.kind) {
     case 'image': {
       const cleanBuffer = await service.sanitizeImage(Buffer.from(downloaded.data))
-      const caption = [
-        `📷 *Foto Anonim [${roleLabel}]* · \`#${threadId}\``,
-        ...(cleanText ? ['', cleanText] : []),
-      ].join('\n')
       await whatsapp.sendMedia?.(targetJid, {
         kind: 'image',
         data: cleanBuffer,
         mimeType: 'image/jpeg',
-        caption,
+        caption: cleanText || undefined,
       })
       break
     }
     case 'video': {
-      const caption = [
-        `🎥 *Video Anonim [${roleLabel}]* · \`#${threadId}\``,
-        ...(cleanText ? ['', cleanText] : []),
-      ].join('\n')
       await whatsapp.sendMedia?.(targetJid, {
         kind: 'video',
         data: downloaded.data,
         mimeType: downloaded.mimeType || 'video/mp4',
-        caption,
+        caption: cleanText || undefined,
         ...(downloaded.gifPlayback ? { gifPlayback: true } : {}),
       })
       break
     }
     case 'audio': {
       if (cleanText) {
-        await whatsapp.sendText(
-          targetJid,
-          `🎙️ *Pesan Suara [${roleLabel}]* · \`#${threadId}\`\n\n${cleanText}`,
-        )
+        await whatsapp.sendText(targetJid, cleanText)
       }
       await whatsapp.sendMedia?.(targetJid, {
         kind: 'audio',
@@ -109,10 +98,7 @@ export async function relayMedia(
     }
     case 'sticker': {
       if (cleanText) {
-        await whatsapp.sendText(
-          targetJid,
-          `🏷️ *Stiker Anonim [${roleLabel}]* · \`#${threadId}\`\n\n${cleanText}`,
-        )
+        await whatsapp.sendText(targetJid, cleanText)
       }
       await whatsapp.sendMedia?.(targetJid, {
         kind: 'sticker',
@@ -123,16 +109,12 @@ export async function relayMedia(
       break
     }
     case 'document': {
-      const caption = [
-        `📄 *Dokumen Anonim [${roleLabel}]* · \`#${threadId}\``,
-        ...(cleanText ? ['', cleanText] : []),
-      ].join('\n')
       await whatsapp.sendMedia?.(targetJid, {
         kind: 'document',
         data: downloaded.data,
         mimeType: downloaded.mimeType || 'application/octet-stream',
         fileName: downloaded.fileName || 'dokumen',
-        caption,
+        caption: cleanText || undefined,
       })
       break
     }
@@ -222,11 +204,7 @@ export function createMenfessPlugin(
           const clean = sanitizeMenfessText(text)
           if (!clean) return
 
-          const roleLabel = session.role === 'sender' ? 'Pengirim' : 'Penerima'
-          await whatsapp.sendText(
-            peerJid,
-            `📩 *[${roleLabel}]* · \`#${session.threadId}\`\n\n${clean}`,
-          )
+          await whatsapp.sendText(peerJid, clean)
         } else {
           return
         }
@@ -396,31 +374,17 @@ export function createMenfessPlugin(
           try {
             const recipientNotice = formatRecipientNotice(thread.threadId, sanitizedText)
 
+            await whatsapp.sendText(targetJid, recipientNotice)
             if (downloadedMedia) {
-              if (downloadedMedia.kind === 'audio' || downloadedMedia.kind === 'sticker') {
-                await whatsapp.sendText(targetJid, recipientNotice)
-                await relayMedia(
-                  whatsapp,
-                  service,
-                  targetJid,
-                  downloadedMedia,
-                  'Pengirim',
-                  thread.threadId,
-                  '',
-                )
-              } else {
-                await relayMedia(
-                  whatsapp,
-                  service,
-                  targetJid,
-                  downloadedMedia,
-                  'Pengirim',
-                  thread.threadId,
-                  sanitizedText ? `${sanitizedText}\n\n💡 Balas langsung di chat ini.` : '💡 Balas langsung di chat ini.',
-                )
-              }
-            } else {
-              await whatsapp.sendText(targetJid, recipientNotice)
+              await relayMedia(
+                whatsapp,
+                service,
+                targetJid,
+                downloadedMedia,
+                'Pengirim',
+                thread.threadId,
+                '',
+              )
             }
 
             // 7. Success confirmation to sender

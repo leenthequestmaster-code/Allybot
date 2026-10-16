@@ -403,7 +403,8 @@ test('Menfess End-to-End Plugin: free media types (video, sticker, doc, audio, i
 
     const senderVideos = fakeWA.sent.filter((s) => s.remoteJid === senderJid && s.type === 'video')
     assert.equal(senderVideos.length, 1)
-    assert.match(senderVideos[0].text, /Video Anonim \[Penerima\]/)
+    assert.equal(senderVideos[0].text, 'Ini video buatmu!')
+    assert.doesNotMatch(senderVideos[0].text, /Video Anonim|Penerima|#MF-/)
 
     // Step 3: Sticky reply from sender with STICKER
     await fakeWA.emitMessage({
@@ -432,7 +433,22 @@ test('Menfess End-to-End Plugin: free media types (video, sticker, doc, audio, i
 
     const senderDocs = fakeWA.sent.filter((s) => s.remoteJid === senderJid && s.type === 'document')
     assert.equal(senderDocs.length, 1)
-    assert.match(senderDocs[0].text, /Dokumen Anonim \[Penerima\]/)
+    assert.equal(senderDocs[0].text, 'Ini file dokumen penting')
+    assert.doesNotMatch(senderDocs[0].text, /Dokumen Anonim|Penerima|#MF-/)
+
+    // Step 4.5: Sticky pure text reply from sender
+    await fakeWA.emitMessage({
+      id: 'm4_text',
+      remoteJid: senderJid,
+      senderJid,
+      text: 'Boleh kenalan lebih lanjut?',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const recipientTexts = fakeWA.sent.filter((s) => s.remoteJid === recipientJid && s.type === 'text')
+    const pureText = recipientTexts.find((s) => s.text === 'Boleh kenalan lebih lanjut?')
+    assert.ok(pureText, 'Pure text must be relayed without robot tags')
+    assert.doesNotMatch(pureText.text, /Pengirim|Penerima|#MF-/)
 
     // Step 5: Stop conversation with single party !stopmenfess (initiated by recipient)
     await framework.commands.dispatch({
