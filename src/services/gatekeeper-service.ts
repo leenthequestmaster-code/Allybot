@@ -216,16 +216,29 @@ export class GatekeeperService implements Service {
 
   public isOwner(jid?: string): boolean {
     if (!jid || !this.ownerJid) return false
-    const bareOwner = this.ownerJid.split(':')[0]
-    const bareSender = jid.split(':')[0]
-    if (bareOwner === bareSender) return true
-
-    // Check mapped phone or LID
-    const mapped = this.lidToPhoneMap.get(jid) ?? this.phoneToLidMap.get(jid)
-    if (mapped) {
-      const bareMapped = mapped.split(':')[0]
-      if (bareOwner === bareMapped) return true
+    const cleanId = (val: string): string => {
+      const noDevice = val.split(':')[0] ?? val
+      const atIndex = noDevice.indexOf('@')
+      return atIndex >= 0 ? noDevice.slice(0, atIndex) : noDevice
     }
+
+    const cleanOwner = cleanId(this.ownerJid)
+    const cleanSender = cleanId(jid)
+    if (cleanOwner === cleanSender) return true
+
+    // Normalize JID lookups in identity maps
+    const candidates = [
+      jid,
+      jid.split(':')[0],
+      `${cleanSender}@lid`,
+      `${cleanSender}@s.whatsapp.net`,
+    ].filter((c): c is string => Boolean(c))
+
+    for (const cand of candidates) {
+      const mapped = this.lidToPhoneMap.get(cand) ?? this.phoneToLidMap.get(cand)
+      if (mapped && cleanId(mapped) === cleanOwner) return true
+    }
+
     return false
   }
 
