@@ -34,12 +34,24 @@ export function createPermissionResolver(
 ): (permission: string, context: CommandContext) => Promise<boolean> {
   const normalizedBotOwnerJid = normalizePhoneJid(botOwnerJid)
 
+  const checkIsOwner = (jid?: string, context?: CommandContext): boolean => {
+    if (!jid || !normalizedBotOwnerJid) return false
+    if (isSameJid(jid, normalizedBotOwnerJid)) return true
+    if (context?.services.has('gatekeeper')) {
+      try {
+        const gk = context.services.get<any>('gatekeeper')
+        if (typeof gk.isOwner === 'function' && gk.isOwner(jid)) return true
+      } catch {}
+    }
+    return false
+  }
+
   return async (permission, context) => {
     const senderJid = context.message.senderJid
     if (!senderJid) return false
 
     if (permission === permissionNames.botOwner) {
-      return isSameJid(senderJid, normalizedBotOwnerJid)
+      return checkIsOwner(senderJid, context)
     }
 
     if (permission === permissionNames.developerModeObserver || permission === permissionNames.developerModeGroupObserver) {
@@ -51,7 +63,7 @@ export function createPermissionResolver(
         return false
       }
       if (permission === permissionNames.developerModeGroupObserver && !isGroupChat) return false
-      if (isSameJid(senderJid, normalizedBotOwnerJid)) return true
+      if (checkIsOwner(senderJid, context)) return true
       if (!context.services.has('developer-mode')) return false
       const developerMode = context.services.get<DeveloperModeService>('developer-mode')
       try {
@@ -63,7 +75,7 @@ export function createPermissionResolver(
 
     if (!isGroupJid(context.message.remoteJid)) return false
 
-    if ((permission === permissionNames.groupAdmin || permission === permissionNames.groupAdminOrBotOwner) && isSameJid(senderJid, normalizedBotOwnerJid)) return true
+    if ((permission === permissionNames.groupAdmin || permission === permissionNames.groupAdminOrBotOwner) && checkIsOwner(senderJid, context)) return true
 
     const metadata = await whatsapp.getGroupMetadata(context.message.remoteJid)
     const sender = metadata.participants.find((participant) => isSameJid(participant.jid, senderJid))

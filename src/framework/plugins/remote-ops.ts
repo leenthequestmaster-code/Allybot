@@ -47,7 +47,14 @@ function bareJid(jid: string): string {
 
 function isOwner(context: CommandContext): boolean {
   if (!context.message.senderJid || !context.config.botOwnerJid) return false
-  return bareJid(context.message.senderJid) === bareJid(context.config.botOwnerJid)
+  if (bareJid(context.message.senderJid) === bareJid(context.config.botOwnerJid)) return true
+  if (context.services.has('gatekeeper')) {
+    try {
+      const gk = context.services.get<any>('gatekeeper')
+      if (typeof gk.isOwner === 'function' && gk.isOwner(context.message.senderJid)) return true
+    } catch {}
+  }
+  return false
 }
 
 export const remoteOpsPlugin: Plugin = {

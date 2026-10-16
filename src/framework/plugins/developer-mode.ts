@@ -31,10 +31,15 @@ function bareJid(jid: string): string {
 function isOwner(context: CommandContext): boolean {
   if (!context.message.senderJid || !context.config.botOwnerJid) return false
   try {
-    return bareJid(normalizeDeveloperJid(context.message.senderJid)) === bareJid(normalizeDeveloperJid(context.config.botOwnerJid))
-  } catch {
-    return false
+    if (bareJid(normalizeDeveloperJid(context.message.senderJid)) === bareJid(normalizeDeveloperJid(context.config.botOwnerJid))) return true
+  } catch {}
+  if (context.services.has('gatekeeper')) {
+    try {
+      const gk = context.services.get<any>('gatekeeper')
+      if (typeof gk.isOwner === 'function' && gk.isOwner(context.message.senderJid)) return true
+    } catch {}
   }
+  return false
 }
 
 function service(context: CommandContext): DeveloperModeService {

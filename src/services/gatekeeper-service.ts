@@ -218,7 +218,15 @@ export class GatekeeperService implements Service {
     if (!jid || !this.ownerJid) return false
     const bareOwner = this.ownerJid.split(':')[0]
     const bareSender = jid.split(':')[0]
-    return bareOwner === bareSender
+    if (bareOwner === bareSender) return true
+
+    // Check mapped phone or LID
+    const mapped = this.lidToPhoneMap.get(jid) ?? this.phoneToLidMap.get(jid)
+    if (mapped) {
+      const bareMapped = mapped.split(':')[0]
+      if (bareOwner === bareMapped) return true
+    }
+    return false
   }
 
   public isShadowbanned(jid?: string): boolean {
