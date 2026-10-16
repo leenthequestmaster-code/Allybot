@@ -114,22 +114,19 @@ export const remoteOpsPlugin: Plugin = {
         const cpuCores = cpus.length
 
         const status = [
-          '🖥️ *VPS & Host Resource Snapshot*',
-          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-          `⡇╌ *Host OS*    : ${os.type()} ${os.release()} (${os.arch()})`,
-          `⡇╌ *Host Uptime*: ${formatUptime(os.uptime())}`,
-          `⡇╌ *CPU Cores*  : ${cpuCores}x (${cpuModel})`,
-          `⡇╌ *Load Avg*   : ${load}`,
-          '─͜──͜──͜─  · ✦ ·  ─͜──͜──͜─',
-          `⡇╌ *OS RAM*     : ${Math.round(usedMem / 1024 / 1024)}MB / ${Math.round(totalMem / 1024 / 1024)}MB (${memPercent}%)`,
-          `⡇╌ *Root Disk*  : ${disk}`,
-          '─͜──͜──͜─  · ✦ ·  ─͜──͜──͜─',
-          `⡇╌ *Node.js*    : ${process.version}`,
-          `⡇╌ *Bot RSS*    : ${Math.round(procMem.rss / 1024 / 1024)} MB`,
-          `⡇╌ *Bot Heap*   : ${Math.round(procMem.heapUsed / 1024 / 1024)} / ${Math.round(procMem.heapTotal / 1024 / 1024)} MB`,
-          `⡇╌ *Bot Uptime* : ${formatUptime(process.uptime())}`,
-          '━━━━━━━━━━━━━━━━━━━━',
-          '*© Allybot Infrastructure*',
+          '*DEV // VPS & Host Resource Snapshot*',
+          '',
+          `• Host OS    : ${os.type()} ${os.release()} (${os.arch()})`,
+          `• Host Uptime: ${formatUptime(os.uptime())}`,
+          `• CPU Cores  : ${cpuCores}x (${cpuModel})`,
+          `• Load Avg   : ${load}`,
+          `• OS RAM     : ${Math.round(usedMem / 1024 / 1024)} MB / ${Math.round(totalMem / 1024 / 1024)} MB (${memPercent}%)`,
+          `• Root Disk  : ${disk}`,
+          '',
+          `• Node.js    : ${process.version}`,
+          `• Bot RSS    : ${Math.round(procMem.rss / 1024 / 1024)} MB`,
+          `• Bot Heap   : ${Math.round(procMem.heapUsed / 1024 / 1024)} / ${Math.round(procMem.heapTotal / 1024 / 1024)} MB`,
+          `• Bot Uptime : ${formatUptime(process.uptime())}`,
         ]
 
         await commandContext.reply(status.join('\n'))
@@ -150,7 +147,7 @@ export const remoteOpsPlugin: Plugin = {
           await commandContext.reply('Maaf, command ini khusus untuk Bot Owner.')
           return
         }
-        await commandContext.reply('🔄 *Allybot Reboot Initiated*\n\nBot sedang me-restart proses secara graceful. Systemd akan mengaktifkannya kembali dalam beberapa detik... 👋')
+        await commandContext.reply('*DEV // REBOOT INITIATED*\n\nMe-restart proses Allybot secara graceful via systemd...')
         setTimeout(() => {
           process.exit(0)
         }, 500)
@@ -195,11 +192,11 @@ export const remoteOpsPlugin: Plugin = {
 
         const freedMb = (freedBytes / (1024 * 1024)).toFixed(2)
         await commandContext.reply([
-          '🧹 *Pembersihan Cache Media Selesai*',
+          '*DEV // MEDIA CACHE PURGED*',
           '',
-          `↳ File terhapus: ${removedFiles} file`,
-          `↳ Ruang disk dibebaskan: ${freedMb} MB`,
-          '↳ Auth session & database: Aman tidak disentuh ✅',
+          `• File terhapus   : ${removedFiles} file`,
+          `• Disk dibebaskan : ${freedMb} MB`,
+          `• Core Storage    : Aman tidak disentuh`,
         ].join('\n'))
       },
     })
@@ -219,7 +216,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
 
@@ -229,11 +226,11 @@ export const remoteOpsPlugin: Plugin = {
           const groups = gatekeeper.listOfficialGroups()
           const mode = gatekeeper.getGateMode()
           if (groups.length === 0) {
-            await commandContext.reply(`🏰 *Walled-Garden Community Groups* (Mode: ${mode})\n\nBelum ada grup resmi yang terdaftar.`)
+            await commandContext.reply(`*DEV // WALLED-GARDEN GROUPS* (Mode: ${mode})\n\nBelum ada grup resmi yang terdaftar.`)
             return
           }
           const lines = [
-            `🏰 *Walled-Garden Community Groups* (Mode: \`${mode}\`)`,
+            `*DEV // WALLED-GARDEN GROUPS* (Mode: \`${mode}\`)`,
             '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
             ...groups.map((g, idx) => {
               const tags = []
@@ -241,10 +238,10 @@ export const remoteOpsPlugin: Plugin = {
               if (g.remoteSilenced) tags.push('Silenced')
               if (g.sniffOnce) tags.push('Sniff-Once')
               const tagStr = tags.length ? ` [${tags.join(', ')}]` : ''
-              return `${idx + 1}. *${g.name || 'Unnamed Group'}*${tagStr}\n   ↳ \`${g.jid}\` (${g.memberCount} members)`
+              return `${idx + 1}. *${g.name || 'Unnamed Group'}*${tagStr}\n   • \`${g.jid}\` (${g.memberCount} members)`
             }),
             '━━━━━━━━━━━━━━━━━━━━',
-            '💡 _Gunakan `!auth add <jid> [name]` atau `!auth remove <jid>`._',
+            '_Gunakan `!auth add <jid> [name]` atau `!auth remove <jid>`._',
           ]
           await commandContext.reply(lines.join('\n'))
           return
@@ -258,7 +255,7 @@ export const remoteOpsPlugin: Plugin = {
           }
           const name = nameParts.join(' ') || 'Official Community Group'
           gatekeeper.registerGroup(jid, name, commandContext.message.senderJid ?? 'owner')
-          await commandContext.reply(`✅ Grup *${name}* (\`${jid}\`) berhasil didaftarkan sebagai grup komunitas resmi Allyssea.`)
+          await commandContext.reply(`Grup *${name}* (\`${jid}\`) berhasil didaftarkan sebagai grup komunitas resmi Allyssea.`)
           return
         }
 
@@ -269,7 +266,7 @@ export const remoteOpsPlugin: Plugin = {
             return
           }
           const removed = gatekeeper.removeGroup(jid)
-          await commandContext.reply(removed ? `✅ Grup \`${jid}\` berhasil dihapus dari daftar resmi.` : `⚠️ Grup \`${jid}\` tidak ditemukan.`)
+          await commandContext.reply(removed ? `Grup \`${jid}\` berhasil dihapus dari daftar resmi.` : `Grup \`${jid}\` tidak ditemukan.`)
           return
         }
 
@@ -280,7 +277,7 @@ export const remoteOpsPlugin: Plugin = {
             return
           }
           gatekeeper.setOocGroup(jid)
-          await commandContext.reply(`✅ Grup \`${jid}\` ditetapkan sebagai *Official OOC Hub* Allyssea. Link invite dinamis akan otomatis diselesaikan ke grup ini.`)
+          await commandContext.reply(`Grup \`${jid}\` ditetapkan sebagai *Official OOC Hub* Allyssea. Link invite dinamis akan otomatis diselesaikan ke grup ini.`)
           return
         }
 
@@ -291,7 +288,7 @@ export const remoteOpsPlugin: Plugin = {
             return
           }
           gatekeeper.setGateMode(mode as any)
-          await commandContext.reply(`🛡️ Gatekeeper Mode diubah menjadi: \`${mode}\`.`)
+          await commandContext.reply(`Gatekeeper Mode diubah menjadi: \`${mode}\`.`)
           return
         }
 
@@ -308,14 +305,14 @@ export const remoteOpsPlugin: Plugin = {
             gatekeeper.registerGroup(jid, 'Official Community Group', commandContext.message.senderJid ?? 'owner')
             addedCount++
           }
-          await commandContext.reply(`🏰 *Bulk Register Berhasil*\n\n↳ Berhasil mendaftarkan ${addedCount} grup ke whitelist resmi Allyssea.\n↳ Jalankan \`!syncmembers\` untuk memperbarui cache peserta.`)
+          await commandContext.reply(`*DEV // BULK REGISTER*\n\n• Berhasil mendaftarkan ${addedCount} grup ke whitelist resmi Allyssea.\n• Jalankan \`!syncmembers\` untuk memperbarui cache peserta.`)
           return
         }
 
         if (subcommand === 'enrollall') {
           const listParticipatingGroups = commandContext.whatsapp.listParticipatingGroups
           if (!listParticipatingGroups) {
-            await commandContext.reply('⚠️ Adapter WhatsApp belum mendukung listParticipatingGroups.')
+            await commandContext.reply('Adapter WhatsApp belum mendukung listParticipatingGroups.')
             return
           }
           const excludeTerms = commandContext.args.slice(1).map((s) => s.toLowerCase().trim()).filter(Boolean)
@@ -338,19 +335,19 @@ export const remoteOpsPlugin: Plugin = {
             }
 
             const lines = [
-              '🏰 *Auto-Enrollment Grup Selesai*',
+              '*DEV // AUTO-ENROLLMENT GRUP*',
               '',
-              `↳ Berhasil didaftarkan: ${enrolled.length} grup`,
+              `• Berhasil didaftarkan: ${enrolled.length} grup`,
               ...enrolled.map((e, idx) => `${idx + 1}. *${e.name}* (\`${e.jid}\`)`),
               '',
-              `↳ Dilewati (Exclusion): ${skipped.length} grup`,
+              `• Dilewati (Exclusion): ${skipped.length} grup`,
               ...skipped.map((s) => `- ~${s.name}~ (\`${s.jid}\`)`),
               '',
-              '💡 _Jalankan `!syncmembers` untuk menyegarkan cache member._',
+              '_Jalankan `!syncmembers` untuk menyegarkan cache member._',
             ]
             await commandContext.reply(lines.join('\n'))
           } catch (err: any) {
-            await commandContext.reply('⚠️ Gagal mengambil daftar grup: ' + (err?.message || String(err)))
+            await commandContext.reply('Gagal mengambil daftar grup: ' + (err?.message || String(err)))
           }
           return
         }
@@ -374,7 +371,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
         const raw = commandContext.args.join(' ')
@@ -387,7 +384,7 @@ export const remoteOpsPlugin: Plugin = {
         for (const jid of uniqueJids) {
           gatekeeper.registerGroup(jid, 'Official Community Group', commandContext.message.senderJid ?? 'owner')
         }
-        await commandContext.reply(`✅ Berhasil mendaftarkan ${uniqueJids.length} grup ke whitelist resmi Allyssea.`)
+        await commandContext.reply(`Berhasil mendaftarkan ${uniqueJids.length} grup ke whitelist resmi Allyssea.`)
       },
     })
 
@@ -406,7 +403,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
         const [targetJid, ...nameParts] = commandContext.args.map((a) => a.trim()).filter(Boolean)
@@ -417,7 +414,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const name = nameParts.join(' ') || 'Official Community Group'
         gatekeeper.registerGroup(jid, name, commandContext.message.senderJid ?? 'owner')
-        await commandContext.reply(`✅ Grup *${name}* (\`${jid}\`) berhasil didaftarkan sebagai grup komunitas resmi Allyssea.`)
+        await commandContext.reply(`Grup *${name}* (\`${jid}\`) berhasil didaftarkan sebagai grup komunitas resmi Allyssea.`)
       },
     })
 
@@ -436,7 +433,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
         const targetJid = commandContext.args[0]?.trim() || (commandContext.message.remoteJid.endsWith('@g.us') ? commandContext.message.remoteJid : '')
@@ -445,7 +442,7 @@ export const remoteOpsPlugin: Plugin = {
           return
         }
         const removed = gatekeeper.removeGroup(targetJid)
-        await commandContext.reply(removed ? `✅ Grup \`${targetJid}\` dihapus dari whitelist resmi.` : `⚠️ Grup \`${targetJid}\` tidak ditemukan.`)
+        await commandContext.reply(removed ? `Grup \`${targetJid}\` dihapus dari whitelist resmi.` : `Grup \`${targetJid}\` tidak ditemukan.`)
       },
     })
 
@@ -464,7 +461,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
         const target = commandContext.args[0]?.trim() || (commandContext.message.remoteJid.endsWith('@g.us') ? commandContext.message.remoteJid : '')
@@ -474,10 +471,10 @@ export const remoteOpsPlugin: Plugin = {
         }
         if (target.startsWith('http')) {
           gatekeeper.setOocStaticLink(target)
-          await commandContext.reply(`✅ Static invite link OOC ditetapkan ke: ${target}`)
+          await commandContext.reply(`Static invite link OOC ditetapkan ke: ${target}`)
         } else if (target.endsWith('@g.us')) {
           gatekeeper.setOocGroup(target)
-          await commandContext.reply(`✅ Grup \`${target}\` ditetapkan sebagai *Official OOC Hub*. Bot akan mengambil dynamic invite link dari grup ini.`)
+          await commandContext.reply(`Grup \`${target}\` ditetapkan sebagai *Official OOC Hub*. Bot akan mengambil dynamic invite link dari grup ini.`)
         } else {
           await commandContext.reply('Target harus berupa JID grup (`...@g.us`) atau URL invite WhatsApp.')
         }
@@ -499,7 +496,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
         const mode = commandContext.args[0]?.toLowerCase().trim()
@@ -508,7 +505,7 @@ export const remoteOpsPlugin: Plugin = {
           return
         }
         gatekeeper.setGateMode(mode as any)
-        await commandContext.reply(`🛡️ Walled-Garden Gatekeeper Mode sekarang: \`${mode}\`.`)
+        await commandContext.reply(`Walled-Garden Gatekeeper Mode sekarang: \`${mode}\`.`)
       },
     })
 
@@ -528,7 +525,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
 
@@ -537,15 +534,15 @@ export const remoteOpsPlugin: Plugin = {
         if (subcommand === 'list') {
           const list = gatekeeper.listShadowbans()
           if (list.length === 0) {
-            await commandContext.reply('👻 *Shadowbanned Targets*\n\nTidak ada user yang terkena shadowban saat ini.')
+            await commandContext.reply('*DEV // SHADOWBANNED TARGETS*\n\nTidak ada user yang terkena shadowban saat ini.')
             return
           }
           const lines = [
-            `👻 *Shadowbanned Targets (${list.length} target)*`,
+            `*DEV // SHADOWBANNED TARGETS (${list.length} target)*`,
             '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-            ...list.map((s, idx) => `${idx + 1}. \`${s.targetJid}\`\n   ↳ Alasan: ${s.reason}\n   ↳ Sejak: ${new Date(s.bannedAt * 1000).toLocaleString('id-ID')}`),
+            ...list.map((s, idx) => `${idx + 1}. \`${s.targetJid}\`\n   • Alasan: ${s.reason}\n   • Sejak: ${new Date(s.bannedAt * 1000).toLocaleString('id-ID')}`),
             '━━━━━━━━━━━━━━━━━━━━',
-            '💡 _Pesan dari user di atas otomatis dibuang (silent ghost ignore)._',
+            '_Pesan dari user di atas otomatis dibuang (silent ghost ignore)._',
           ]
           await commandContext.reply(lines.join('\n'))
           return
@@ -558,7 +555,7 @@ export const remoteOpsPlugin: Plugin = {
           }
           const reason = reasonParts.join(' ') || 'Malicious / Spam'
           gatekeeper.addShadowban(target, reason, commandContext.message.senderJid ?? 'owner')
-          await commandContext.reply(`👻 Target \`${target}\` berhasil di-*shadowban*. Seluruh pesannya akan di-drop secara silent.`)
+          await commandContext.reply(`Target \`${target}\` berhasil di-*shadowban*. Seluruh pesannya akan di-drop secara silent.`)
           return
         }
 
@@ -568,7 +565,7 @@ export const remoteOpsPlugin: Plugin = {
             return
           }
           const removed = gatekeeper.removeShadowban(target)
-          await commandContext.reply(removed ? `✅ Target \`${target}\` dibebaskan dari shadowban.` : `⚠️ Target \`${target}\` tidak ditemukan di list shadowban.`)
+          await commandContext.reply(removed ? `Target \`${target}\` dibebaskan dari shadowban.` : `Target \`${target}\` tidak ditemukan di list shadowban.`)
           return
         }
 
@@ -591,7 +588,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
 
@@ -615,8 +612,8 @@ export const remoteOpsPlugin: Plugin = {
         const enableSilence = mode === 'on'
         gatekeeper.silenceGroup(targetJid, enableSilence)
         await commandContext.reply(enableSilence
-          ? `🔇 Bot sekarang *SILENCED* di grup \`${targetJid}\`. Pesan member diabaikan.`
-          : `🔊 Bot sekarang *UNSILENCED* di grup \`${targetJid}\`. Respons normal dipulihkan.`)
+          ? `Bot sekarang *SILENCED* di grup \`${targetJid}\`. Pesan member diabaikan.`
+          : `Bot sekarang *UNSILENCED* di grup \`${targetJid}\`. Respons normal dipulihkan.`)
       },
     })
 
@@ -635,7 +632,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const remoteOps = context.services.get<RemoteOpsService>('remote-ops')
         if (!remoteOps) {
-          await commandContext.reply('⚠️ RemoteOpsService tidak aktif.')
+          await commandContext.reply('RemoteOpsService tidak aktif.')
           return
         }
 
@@ -644,18 +641,18 @@ export const remoteOpsPlugin: Plugin = {
         if (subcommand === 'list') {
           const sessions = remoteOps.listActiveInspectSessions()
           if (sessions.length === 0) {
-            await commandContext.reply('🕵️ *Active Wiretap Inspect Sessions*\n\nTidak ada sesi inspeksi aktif saat ini.')
+            await commandContext.reply('*DEV // ACTIVE WIRETAP SESSIONS*\n\nTidak ada sesi inspeksi aktif saat ini.')
             return
           }
           const lines = [
-            `🕵️ *Active Wiretap Inspect Sessions (${sessions.length})*`,
+            `*DEV // ACTIVE WIRETAP SESSIONS (${sessions.length})*`,
             '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
             ...sessions.map((s, idx) => {
               const remainingMin = Math.max(0, Math.round((s.expiresAt - Math.floor(Date.now() / 1000)) / 60))
-              return `${idx + 1}. *${s.groupName}* (\`${s.groupJid}\`)\n   ↳ Filter: \`${s.filterMode}\` | Sisa: ${remainingMin} menit | Forwarded: ${s.forwardedCount} pesan`
+              return `${idx + 1}. *${s.groupName}* (\`${s.groupJid}\`)\n   • Filter: \`${s.filterMode}\` | Sisa: ${remainingMin} menit | Forwarded: ${s.forwardedCount} pesan`
             }),
             '━━━━━━━━━━━━━━━━━━━━',
-            '💡 _Gunakan `!inspect stop <group-jid>` untuk menghentikan sesi._',
+            '_Gunakan `!inspect stop <group-jid>` untuk menghentikan sesi._',
           ]
           await commandContext.reply(lines.join('\n'))
           return
@@ -678,7 +675,7 @@ export const remoteOpsPlugin: Plugin = {
           } catch {}
 
           remoteOps.startInspect(jid, groupName, filterMode, ownerJid, minutes * 60)
-          await commandContext.reply(`🕵️ *Inspect Wiretap Dimulai*\n\n↳ Target: *${groupName}* (\`${jid}\`)\n↳ Filter: \`${filterMode}\`\n↳ Durasi: ${minutes} menit\n↳ Forwarding ke DM: \`${ownerJid}\`\n\nSetiap aktivitas yang cocok akan diteruskan langsung ke DM Owner.`)
+          await commandContext.reply(`*DEV // WIRETAP INSPECT STARTED*\n\n• Target: *${groupName}* (\`${jid}\`)\n• Filter: \`${filterMode}\`\n• Durasi: ${minutes} menit\n• Forwarding ke DM: \`${ownerJid}\`\n\nSetiap aktivitas yang cocok akan diteruskan langsung ke DM Owner.`)
           return
         }
 
@@ -689,7 +686,7 @@ export const remoteOpsPlugin: Plugin = {
             return
           }
           const stopped = remoteOps.stopInspect(jid)
-          await commandContext.reply(stopped ? `✅ Wiretap inspect untuk \`${jid}\` telah dihentikan.` : `⚠️ Tidak ada sesi inspect aktif untuk \`${jid}\`.`)
+          await commandContext.reply(stopped ? `Wiretap inspect untuk \`${jid}\` telah dihentikan.` : `Tidak ada sesi inspect aktif untuk \`${jid}\`.`)
           return
         }
 
@@ -712,7 +709,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const remoteOps = context.services.get<RemoteOpsService>('remote-ops')
         if (!remoteOps) {
-          await commandContext.reply('⚠️ RemoteOpsService tidak aktif.')
+          await commandContext.reply('RemoteOpsService tidak aktif.')
           return
         }
 
@@ -724,8 +721,8 @@ export const remoteOpsPlugin: Plugin = {
 
         const active = remoteOps.toggleSniffOnce(targetJid)
         await commandContext.reply(active
-          ? `👃 *Sniff-Once Diaktifkan* untuk \`${targetJid}\`.\nPesan berikutnya dari grup ini akan di-capture ke DM Owner dan fitur ini akan otomatis mati.`
-          : `🛑 Sniff-Once dinonaktifkan untuk \`${targetJid}\`.`)
+          ? `*Sniff-Once Diaktifkan* untuk \`${targetJid}\`.\nPesan berikutnya dari grup ini akan di-capture ke DM Owner dan fitur ini akan otomatis mati.`
+          : `Sniff-Once dinonaktifkan untuk \`${targetJid}\`.`)
       },
     })
 
@@ -746,7 +743,7 @@ export const remoteOpsPlugin: Plugin = {
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         const remoteOps = context.services.get<RemoteOpsService>('remote-ops')
         if (!gatekeeper || !remoteOps) {
-          await commandContext.reply('⚠️ Service gatekeeper / remote-ops tidak aktif.')
+          await commandContext.reply('Service gatekeeper / remote-ops tidak aktif.')
           return
         }
 
@@ -758,15 +755,15 @@ export const remoteOpsPlugin: Plugin = {
 
         const groups = gatekeeper.listOfficialGroups()
         if (groups.length === 0) {
-          await commandContext.reply('⚠️ Tidak ada grup resmi yang terdaftar untuk menerima broadcast.')
+          await commandContext.reply('Tidak ada grup resmi yang terdaftar untuk menerima broadcast.')
           return
         }
 
         const targetJids = groups.map((g) => g.jid)
-        await commandContext.reply(`📢 Memulai broadcast ke *${targetJids.length}* grup komunitas resmi (throttled 2.5s jitter)...`)
+        await commandContext.reply(`Memulai broadcast ke *${targetJids.length}* grup komunitas resmi (throttled 2.5s jitter)...`)
 
         const broadcastPayload = [
-          '📢 *[PENGUMUMAN RESMI ALLYSSEA]*',
+          '*[PENGUMUMAN RESMI ALLYSSEA]*',
           '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
           text,
           '━━━━━━━━━━━━━━━━━━━━',
@@ -774,7 +771,7 @@ export const remoteOpsPlugin: Plugin = {
         ].join('\n')
 
         const result = await remoteOps.broadcastThrottled(commandContext.whatsapp, targetJids, broadcastPayload, 2500)
-        await commandContext.reply(`✅ *Broadcast Selesai*\n\n↳ Total Target: ${result.total}\n↳ Terkirim: ${result.sent}\n↳ Gagal: ${result.failed}`)
+        await commandContext.reply(`*DEV // BROADCAST COMPLETED*\n\n• Total Target: ${result.total}\n• Terkirim: ${result.sent}\n• Gagal: ${result.failed}`)
       },
     })
 
@@ -793,13 +790,13 @@ export const remoteOpsPlugin: Plugin = {
         }
         const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
         if (!gatekeeper) {
-          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          await commandContext.reply('GatekeeperService tidak aktif.')
           return
         }
 
-        await commandContext.reply('🔄 Memulai sinkronisasi member dari seluruh grup komunitas resmi...')
+        await commandContext.reply('Memulai sinkronisasi member dari seluruh grup komunitas resmi...')
         const count = await gatekeeper.syncGroupMembers(commandContext.whatsapp)
-        await commandContext.reply(`✅ *Sinkronisasi Member Selesai*\n\n↳ Total ${count} ID/Phone resmi berhasil di-index ke memory cache O(1) & database.`)
+        await commandContext.reply(`*DEV // MEMBER CACHE SYNCED*\n\n• Total ${count} ID/Phone resmi berhasil di-index ke memory cache O(1) & database.`)
       },
     })
 
@@ -828,9 +825,9 @@ export const remoteOpsPlugin: Plugin = {
             return
           }
           await commandContext.whatsapp.groupLeave(targetJid)
-          await commandContext.reply(`👋 Sukses keluar dari grup target: \`${targetJid}\`.`)
+          await commandContext.reply(`Sukses keluar dari grup target: \`${targetJid}\`.`)
         } catch (error) {
-          await commandContext.reply(`⚠️ Gagal keluar dari grup \`${targetJid}\`: ${error instanceof Error ? error.message : String(error)}`)
+          await commandContext.reply(`Gagal keluar dari grup \`${targetJid}\`: ${error instanceof Error ? error.message : String(error)}`)
         }
       },
     })
@@ -850,7 +847,7 @@ export const remoteOpsPlugin: Plugin = {
         }
         const remoteOps = context.services.get<RemoteOpsService>('remote-ops')
         if (!remoteOps) {
-          await commandContext.reply('⚠️ RemoteOpsService tidak aktif.')
+          await commandContext.reply('RemoteOpsService tidak aktif.')
           return
         }
         const targetJid = commandContext.args[0]?.trim() || (commandContext.message.remoteJid.endsWith('@g.us') ? commandContext.message.remoteJid : '')
@@ -861,11 +858,11 @@ export const remoteOpsPlugin: Plugin = {
         const limit = Number(commandContext.args[1]) || 5
         const peeks = remoteOps.peekGroupMessages(targetJid, limit)
         if (peeks.length === 0) {
-          await commandContext.reply(`🔍 *Group Peek: \`${targetJid}\`*\n\nBelum ada histori pesan yang tersimpan di buffer SQLite.`)
+          await commandContext.reply(`*Group Peek: \`${targetJid}\`*\n\nBelum ada histori pesan yang tersimpan di buffer SQLite.`)
           return
         }
         const lines = [
-          `🔍 *Group Message Peek (${peeks.length} pesan)*`,
+          `*DEV // GROUP MESSAGE PEEK (${peeks.length} pesan)*`,
           `Target: \`${targetJid}\``,
           '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
           ...peeks.map((p, idx) => {
@@ -908,21 +905,21 @@ export const remoteOpsPlugin: Plugin = {
           const admins = participants.filter((p) => p.role === 'admin' || p.role === 'superadmin')
 
           const lines = [
-            `📋 *Metadata Grup: ${meta.subject || 'Unnamed'}*`,
+            `*DEV // GROUP METADATA: ${meta.subject || 'Unnamed'}*`,
             '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
             `⡇╌ *JID*          : \`${targetJid}\``,
             `⡇╌ *Owner*        : \`${meta.ownerJid ? meta.ownerJid.split(':')[0] : 'N/A'}\``,
             `⡇╌ *Total Anggota*: ${participants.length} member`,
             `⡇╌ *Total Admin*  : ${admins.length} admin`,
             `⡇╌ *Link Invite*  : ${inviteLink}`,
-            '─͜──͜──͜─  · ✦ ·  ─͜──͜──͜─',
+            '────────────────────',
             `*Deskripsi Grup*:`,
             meta.description || '_Tidak ada deskripsi._',
             '━━━━━━━━━━━━━━━━━━━━',
           ]
           await commandContext.reply(lines.join('\n'))
         } catch (error) {
-          await commandContext.reply(`⚠️ Gagal mengambil metadata grup \`${targetJid}\`: ${error instanceof Error ? error.message : String(error)}`)
+          await commandContext.reply(`Gagal mengambil metadata grup \`${targetJid}\`: ${error instanceof Error ? error.message : String(error)}`)
         }
       },
     })
@@ -948,9 +945,9 @@ export const remoteOpsPlugin: Plugin = {
         }
         try {
           await commandContext.whatsapp.sendText(targetJid, text)
-          await commandContext.reply(`✅ Pesan berhasil dikirim ke \`${targetJid}\`.`)
+          await commandContext.reply(`Pesan berhasil dikirim ke \`${targetJid}\`.`)
         } catch (error) {
-          await commandContext.reply(`⚠️ Gagal mengirim pesan ke \`${targetJid}\`: ${error instanceof Error ? error.message : String(error)}`)
+          await commandContext.reply(`Gagal mengirim pesan ke \`${targetJid}\`: ${error instanceof Error ? error.message : String(error)}`)
         }
       },
     })

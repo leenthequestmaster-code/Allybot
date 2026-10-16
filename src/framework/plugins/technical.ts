@@ -36,10 +36,9 @@ function groupIdText(context: CommandContext): string {
     return 'Command `!groupid` hanya dapat digunakan di dalam grup.'
   }
   return [
-    '🆔 *JID Grup Saat Ini*',
+    '*DEV // JID Grup Saat Ini*',
     '',
-    `↳ Group JID: \`${context.message.remoteJid}\``,
-    '↳ Gunakan JID ini untuk allowlist Neon setelah consent grup ditetapkan.',
+    `• Group JID: \`${context.message.remoteJid}\``,
   ].join('\n')
 }
 
@@ -67,15 +66,15 @@ async function allGroupIdsText(context: CommandContext): Promise<string> {
       return `${index + 1}. \`${group.jid}\` — ${safeGroupSubject(group.subject)}${tag}`
     })
     const truncationNote = groups.length > limitedGroups.length
-      ? `\n\n⚠️ Daftar dibatasi hingga ${MAX_GROUP_LIST_ITEMS} grup untuk menjaga ukuran pesan.`
+      ? `\n\nCatatan: Daftar dibatasi hingga ${MAX_GROUP_LIST_ITEMS} grup untuk menjaga ukuran pesan.`
       : ''
     return [
-      '📚 *Semua JID Grup Allybot*',
+      '*DEV // Semua JID Grup Allybot*',
+      `Total: ${groups.length} grup terdeteksi`,
       '',
-      `↳ Total terdeteksi: ${groups.length}`,
-      ...(lines.length > 0 ? ['', ...lines] : ['', 'Tidak ada grup yang terdeteksi.']),
+      ...(lines.length > 0 ? lines : ['Tidak ada grup yang terdeteksi.']),
       truncationNote,
-    ].join('\n')
+    ].filter(Boolean).join('\n')
   } catch (error) {
     context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'participating group lookup failed')
     return 'Daftar JID grup belum dapat diambil. Pastikan koneksi WhatsApp aktif lalu coba lagi.'
@@ -89,15 +88,15 @@ function formatLatency(context: CommandContext): number {
 
 function ownerProfileText(photoStatus: string): string {
   return [
-    '👤 *Allybot Owner Profile*',
+    '*Allybot Owner Profile*',
     '',
-    '↳ Nama: Vallen',
-    '↳ Status: Owner',
-    '↳ Kontak owner: tidak dipublikasikan di command umum',
-    '↳ Control plane: protected',
-    `↳ Foto profil: ${photoStatus}`,
+    '• Nama: Vallen',
+    '• Status: Owner',
+    '• Kontak owner: tidak dipublikasikan di command umum',
+    '• Control plane: protected',
+    `• Foto profil: ${photoStatus}`,
     '',
-    'Profile ini dipublikasikan sesuai otorisasi Owner. Credential, database, session, dan JID internal tetap tidak ditampilkan.',
+    '_Profile ini dipublikasikan sesuai otorisasi Owner. Credential, database, session, dan JID internal tetap tidak ditampilkan._',
   ].join('\n')
 }
 
@@ -105,17 +104,15 @@ function profileText(context: CommandContext): string {
   const ownerJid = context.config.botOwnerJid
   const ownerDisplay = ownerJid ? ownerJid.split('@')[0] : '6283197859955'
   return [
-    '𓏼 *Allybot Profile*',
-    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-    'Allybot adalah sebuah entitas asisten digital cerdas dan pendamping interaktif serbabisa yang dikembangkan dengan penuh dedikasi oleh Cyrus. Diciptakan khusus untuk memenuhi kebutuhan tata kelola komunitas, petualangan dunia roleplay fantasi Allyssea, eksplorasi kecerdasan buatan, hingga studio media dan stiker kreatif tanpa batas.',
-    '─͜──͜──͜─  · ✦ ·  ─͜──͜──͜─',
-    `⡇╌ *Nama*    : Allybot`,
-    `⡇╌ *Creator* : Cyrus (+${ownerDisplay})`,
-    `⡇╌ *Runtime* : Node.js ${process.versions.node}`,
-    `⡇╌ *Versi*   : v0.1.0`,
-    `⡇╌ *Prefix*  : ${context.prefix}`,
-    '━━━━━━━━━━━━━━━━━━━━',
-    '*© Allyssea Roleplay Community*',
+    '*Allybot Profile*',
+    '',
+    'Allybot adalah asisten digital dan pendamping interaktif untuk tata kelola komunitas, petualangan roleplay Allyssea, eksplorasi kecerdasan buatan, hingga studio media.',
+    '',
+    `• Nama    : Allybot`,
+    `• Creator : Cyrus (+${ownerDisplay})`,
+    `• Runtime : Node.js ${process.versions.node}`,
+    `• Versi   : v0.1.0`,
+    `• Prefix  : ${context.prefix}`,
   ].join('\n')
 }
 
@@ -131,14 +128,12 @@ export const technicalPlugin: Plugin = {
       cooldownMs: 3000,
       handler: async (commandContext) => {
         await commandContext.reply([
-          '𓏼 *`𝐒𝘆𝘀𝘁𝗲𝗺 𝐏𝗶𝗻𝗴`*',
-          '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-          `⡇╌ Status: Pong — Allybot aktif 🏓`,
-          `⡇╌ Latency: ${formatLatency(commandContext)} ms`,
-          `⡇╌ Koneksi: ${connectionStatus(commandContext)}`,
-          `⡇╌ Uptime: ${formatUptime(process.uptime())}`,
-          '━━━━━━━━━━━━━━━━━━━━',
-          '*© Allyssea Roleplay Community*',
+          '*SYSTEM PING*',
+          '',
+          `• Status: Pong — Allybot aktif`,
+          `• Latency: ${formatLatency(commandContext)} ms`,
+          `• Koneksi: ${connectionStatus(commandContext)}`,
+          `• Uptime: ${formatUptime(process.uptime())}`,
         ].join('\n'))
       },
     })
@@ -221,12 +216,12 @@ export const technicalPlugin: Plugin = {
           return
         }
         await commandContext.reply([
-          '✅ *Runtime cache berhasil dibersihkan.*',
+          '*DEV // RUNTIME CACHE PURGED*',
           '',
-          `↳ Duplicate-message cache: ${result.duplicateMessages} entry`,
-          `↳ Group-name cache: ${result.groupNames} entry`,
-          `↳ Retry-counter cache: ${result.retryCounters} entry`,
-          '↳ Auth/session/database: tidak disentuh',
+          `• Duplicate-message cache: ${result.duplicateMessages} entry`,
+          `• Group-name cache: ${result.groupNames} entry`,
+          `• Retry-counter cache: ${result.retryCounters} entry`,
+          '• Auth/session/database: tidak disentuh',
         ].join('\n'))
       },
     })
