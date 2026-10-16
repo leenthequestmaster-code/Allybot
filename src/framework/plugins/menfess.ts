@@ -279,7 +279,7 @@ export function createMenfessPlugin(
                   : '⚪ *Tidak Ada Sesi Aktif*'
               }`,
               `*Penerimaan Menfess (DND):* ${isOptedOut ? '🔕 *Nonaktif (!offmenfess)*' : '🔔 *Aktif*'}` ,
-              `*Sisa Kuota Harian:* *${rate.remaining} sesi*`,
+              `*Sisa Kuota Harian:* *${rate.remaining >= 999999 ? 'Unlimited (Tanpa Batas)' : `${rate.remaining} sesi`}*`,
               '',
               '*Cara Memulai:*',
               `↳ \`${commandContext.prefix}menfess <nomor_tujuan> <pesan>\``,
@@ -359,11 +359,13 @@ export function createMenfessPlugin(
                   '🚫 Nomor tujuan telah menonaktifkan fitur penerimaan Menfess (Do Not Disturb). Pesanmu tidak dapat dikirimkan.',
                 )
                 return
-              case 'RATE_LIMITED':
+              case 'RATE_LIMITED': {
+                const limit = await service.getUserLimit(senderJid)
                 await commandContext.reply(
-                  '⏳ Kuota Menfess harian kamu telah habis (maksimal 5 sesi per 24 jam). Coba lagi besok!',
+                  `⏳ Kuota Menfess harian kamu telah habis (maksimal ${limit} sesi per 24 jam). Coba lagi besok!`,
                 )
                 return
+              }
               case 'RECIPIENT_BLOCKED':
                 await commandContext.reply('🚫 Kamu tidak dapat mengirimkan Menfess ke nomor ini.')
                 return
@@ -426,7 +428,7 @@ export function createMenfessPlugin(
               '✅ *Menfess Berhasil Terkirim!*',
               '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
               `ID Percakapan: \`#${thread.threadId}\``,
-              `Sisa Kuota Harian: *${result.remainingDailyQuota ?? 0} sesi*`,
+              `Sisa Kuota Harian: *${result.remainingDailyQuota !== undefined && result.remainingDailyQuota >= 999999 ? 'Unlimited' : `${result.remainingDailyQuota ?? 0} sesi`}*`,
               '',
               '💡 *Sesi Terhubung:*',
               '↳ Kamu sekarang berada dalam sesi aktif.',
@@ -596,6 +598,136 @@ export function createMenfessPlugin(
           await commandContext.reply(lines.join('\n'))
         },
       })
+
+      // ==========================================
+      // COMMAND: setmenfess (Owner only)
+      // ==========================================
+      context.commands.register({
+        name: 'setmenfess',
+        aliases: ['setmenfes', 'setkuotamenfess', 'menfessquota'],
+        description: 'Atur kuota harian Menfess untuk pengguna tertentu (Owner only).',
+        category: 'utility',
+        permission: 'bot.owner',
+        scope: 'both',
+        hidden: true,
+        handler: async (commandContext) => {
+          const service = getService()
+          const targetArg = commandContext.args[0]
+          const quotaArg = commandContext.args[1]
+
+          const mention = commandContext.message.mentionedJids?.[0]
+          const rawTarget = mention ?? targetArg
+
+          if (!rawTarget) {
+            await commandContext.reply(
+              [
+                '⚙️ *Format Pengaturan Kuota Menfess (Owner Only)*',
+                '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+                `• *Atur kuota:* \`${commandContext.prefix}setmenfess <@user|nomor> <jumlah>\``,
+                `• *Tambah kuota:* \`${commandContext.prefix}setmenfess <@user|nomor> +<jumlah>\``,
+                `• *Tanpa batas:* \`${commandContext.prefix}setmenfess <@user|nomor> unlimited\``,
+                `• *Reset standar:* \`${commandContext.prefix}setmenfess <@user|nomor> reset\``,
+                `• *Cek kuota:* \`${commandContext.prefix}setmenfess <@user|nomor> check\``,
+                '',
+                `_Contoh: \`${commandContext.prefix}setmenfess 628123456789 25\`_`,
+              ].join('\n'),
+            )
+            return
+          }
+
+          const targetJid = parseTargetJid(rawTarget)
+          if (!targetJid) {
+            await commandContext.reply('❌ Nomor atau target pengguna tidak valid. Masukkan nomor WhatsApp yang valid (contoh: `08123456789` atau `628123456789`).')
+            return
+          }
+          const cleanPhone = targetJid.replace('@s.whatsapp.net', '')
+
+          // Mode 1: Check Quota
+          if (!quotaArg || quotaArg.toLowerCase() === 'check' || quotaArg.toLowerCase() === 'status') {
+            const quotaInfo = await service.getUserQuota(targetJid)
+            const limitStr = quotaInfo.isUnlimited
+              ? 'Unlimited (Tanpa Batas)'
+              : `${quotaInfo.limit} sesi/hari`
+            const remainingStr = quotaInfo.isUnlimited
+              ? 'Unlimited'
+              : `${quotaInfo.remaining} sesi`
+
+            const lines = [
+              '📊 *Informasi Kuota Menfess Pengguna*',
+              '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+              `• *Pengguna:* @${cleanPhone}`,
+              `• *Tipe Kuota:* ${quotaInfo.isCustom ? '⭐ Kustom (Owner Set)' : 'Standar'}`,
+              `• *Limit Harian:* *${limitStr}*`,
+              `• *Terpakai (24 Jam):* ${quotaInfo.used} sesi`,
+              `• *Sisa Kuota:* *${remainingStr}*`,
+            ]
+            await commandContext.reply(lines.join('\n'), { mentions: [targetJid] })
+            return
+          }
+
+          const lowerArg = quotaArg.toLowerCase()
+
+          // Mode 2: Reset Quota
+          if (lowerArg === 'reset' || lowerArg === 'default' || lowerArg === '0') {
+            await service.setUserQuota(targetJid, null)
+            const info = await service.getUserQuota(targetJid)
+            await commandContext.reply(
+              `✅ Kuota Menfess untuk @${cleanPhone} berhasil direset ke standar (*${info.limit} sesi/hari*).`,
+              { mentions: [targetJid] },
+            )
+            return
+          }
+
+          // Mode 3: Unlimited Quota
+          if (lowerArg === 'unlimited' || lowerArg === 'unli' || lowerArg === 'inf' || lowerArg === 'infinity') {
+            await service.setUserQuota(targetJid, -1)
+            await commandContext.reply(
+              `✅ Kuota Menfess untuk @${cleanPhone} berhasil diatur menjadi *UNLIMITED* (tanpa batas).`,
+              { mentions: [targetJid] },
+            )
+            return
+          }
+
+          // Mode 4: Increment (+N)
+          if (quotaArg.startsWith('+')) {
+            const addAmount = parseInt(quotaArg.slice(1), 10)
+            if (isNaN(addAmount) || addAmount <= 0) {
+              await commandContext.reply('❌ Jumlah tambahan kuota harus berupa angka positif (contoh: `+10`).')
+              return
+            }
+            const currentLimit = await service.getUserLimit(targetJid)
+            if (currentLimit === Infinity) {
+              await commandContext.reply(`ℹ️ Pengguna @${cleanPhone} sudah memiliki kuota *UNLIMITED*.`, {
+                mentions: [targetJid],
+              })
+              return
+            }
+            const newLimit = currentLimit + addAmount
+            await service.setUserQuota(targetJid, newLimit)
+            await commandContext.reply(
+              `✅ Berhasil menambahkan *+${addAmount}* kuota. Kuota harian @${cleanPhone} sekarang menjadi *${newLimit} sesi/hari*.`,
+              { mentions: [targetJid] },
+            )
+            return
+          }
+
+          // Mode 5: Set Absolute Number
+          const newQuota = parseInt(quotaArg, 10)
+          if (isNaN(newQuota) || newQuota <= 0) {
+            await commandContext.reply(
+              '❌ Jumlah kuota harus berupa angka positif lebih dari 0, `unlimited`, atau `reset`.',
+            )
+            return
+          }
+
+          await service.setUserQuota(targetJid, newQuota)
+          await commandContext.reply(
+            `✅ Kuota Menfess harian untuk @${cleanPhone} berhasil diatur menjadi *${newQuota} sesi/hari*.`,
+            { mentions: [targetJid] },
+          )
+        },
+      })
     },
   }
 }
+

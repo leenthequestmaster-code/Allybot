@@ -607,3 +607,229 @@ test('Menfess Plugin E2E: !offmenfess and !onmenfess flow', async () => {
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('Menfess Plugin E2E: Owner-only !setmenfess quota management and enforcement', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'menfess-quota-e2e-'))
+  const dbPath = join(dir, 'test-menfess-quota-e2e.sqlite')
+
+  try {
+    const fakeWA = createFakeWhatsApp()
+    const botOwnerJid = '6283197859955@s.whatsapp.net'
+    const framework = new ApplicationFramework(
+      {
+        commandPrefix: '!',
+        defaultCooldownMs: 0,
+        botOwnerJid,
+        databasePath: dbPath,
+      },
+      logger,
+      fakeWA,
+      {
+        permissionResolver: createPermissionResolver(fakeWA, botOwnerJid),
+      },
+    )
+
+    const service = new MenfessService(dbPath, logger, {
+      secret: 'e2e-secret',
+      maxPerDay: 5,
+      botOwnerJid,
+    })
+    framework.registerService(service)
+    framework.registerPlugin(createMenfessPlugin(fakeWA))
+
+    await framework.start()
+
+    const senderJid = '628111222333@s.whatsapp.net'
+    const recipientJid = '628999888777@s.whatsapp.net'
+
+    // 1. Non-owner tries !setmenfess -> permission denied
+    const beforeCount1 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq1',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!setmenfess 08999888777 20',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const nonOwnerDenied = fakeWA.sent.slice(beforeCount1).find((s) => s.remoteJid === senderJid)
+    assert.ok(nonOwnerDenied)
+    assert.match(nonOwnerDenied.text, /izin|tidak memiliki izin|owner/i)
+
+    // 2. Owner checks format with empty args
+    const beforeCount2 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq2',
+      remoteJid: botOwnerJid,
+      senderJid: botOwnerJid,
+      text: '!setmenfess',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const formatHelp = fakeWA.sent.slice(beforeCount2).find((s) => s.remoteJid === botOwnerJid)
+    assert.ok(formatHelp)
+    assert.match(formatHelp.text, /Format Pengaturan Kuota Menfess/i)
+
+    // 3. Owner sets sender's quota to 1
+    const beforeCount3 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq3',
+      remoteJid: botOwnerJid,
+      senderJid: botOwnerJid,
+      text: '!setmenfess 08111222333 1',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const setReply = fakeWA.sent.slice(beforeCount3).find((s) => s.remoteJid === botOwnerJid)
+    assert.ok(setReply)
+    assert.match(setReply.text, /berhasil diatur menjadi \*1 sesi\/hari\*/)
+
+    // 4. Sender checks status -> sees 1 sesi
+    const beforeCount4 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq4',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!menfess status',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const statusReply = fakeWA.sent.slice(beforeCount4).find((s) => s.remoteJid === senderJid)
+    assert.ok(statusReply)
+    assert.match(statusReply.text, /Sisa Kuota Harian:\* \*1 sesi\*/)
+
+    // 5. Sender sends 1st menfess -> succeeds
+    const beforeCount5 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq5',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!menfess 08999888777 Pesan pertama',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const sendSuccess = fakeWA.sent.slice(beforeCount5).find((s) => s.remoteJid === senderJid && s.text?.includes('Menfess Berhasil Terkirim'))
+    assert.ok(sendSuccess)
+
+    // Close session to test next menfess quota
+    await framework.commands.dispatch({
+      id: 'sq5_stop',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!stopmenfess',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    // 6. Sender tries 2nd menfess -> rejected (quota exhausted)
+    const beforeCount6 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq6',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!menfess 08999888777 Pesan kedua harusnya ditolak',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const quotaExhausted = fakeWA.sent.slice(beforeCount6).find((s) => s.remoteJid === senderJid)
+    assert.ok(quotaExhausted)
+    assert.match(quotaExhausted.text, /Kuota Menfess harian kamu telah habis/)
+
+    // 7. Owner adds quota: +2
+    const beforeCount7 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq7',
+      remoteJid: botOwnerJid,
+      senderJid: botOwnerJid,
+      text: '!setmenfess 08111222333 +2',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const addReply = fakeWA.sent.slice(beforeCount7).find((s) => s.remoteJid === botOwnerJid)
+    assert.ok(addReply)
+    assert.match(addReply.text, /Berhasil menambahkan \*\+2\* kuota.*sekarang menjadi \*3 sesi\/hari\*/)
+
+    // 8. Sender can send 2nd menfess now
+    const beforeCount8 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq8',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!menfess 08999888777 Pesan kedua sekarang berhasil',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const sendSuccess2 = fakeWA.sent.slice(beforeCount8).find((s) => s.remoteJid === senderJid && s.text?.includes('Menfess Berhasil Terkirim'))
+    assert.ok(sendSuccess2)
+
+    await framework.commands.dispatch({
+      id: 'sq8_stop',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!stopmenfess',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+
+    // 9. Owner sets sender to unlimited
+    const beforeCount9 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq9',
+      remoteJid: botOwnerJid,
+      senderJid: botOwnerJid,
+      text: '!setmenfess 08111222333 unlimited',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const unliReply = fakeWA.sent.slice(beforeCount9).find((s) => s.remoteJid === botOwnerJid)
+    assert.ok(unliReply)
+    assert.match(unliReply.text, /UNLIMITED/)
+
+    // 10. Sender status reflects unlimited
+    const beforeCount10 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq10',
+      remoteJid: senderJid,
+      senderJid,
+      text: '!menfess status',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const unliStatus = fakeWA.sent.slice(beforeCount10).find((s) => s.remoteJid === senderJid)
+    assert.ok(unliStatus)
+    assert.match(unliStatus.text, /Unlimited \(Tanpa Batas\)/)
+
+    // 11. Owner checks quota info for sender
+    const beforeCount11 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq11',
+      remoteJid: botOwnerJid,
+      senderJid: botOwnerJid,
+      text: '!setmenfess 08111222333 check',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const checkInfo = fakeWA.sent.slice(beforeCount11).find((s) => s.remoteJid === botOwnerJid)
+    assert.ok(checkInfo)
+    assert.match(checkInfo.text, /Informasi Kuota Menfess Pengguna/)
+    assert.match(checkInfo.text, /Kustom \(Owner Set\)/)
+
+    // 12. Owner resets quota back to default
+    const beforeCount12 = fakeWA.sent.length
+    await framework.commands.dispatch({
+      id: 'sq12',
+      remoteJid: botOwnerJid,
+      senderJid: botOwnerJid,
+      text: '!setmenfess 08111222333 reset',
+      timestamp: Date.now(),
+      fromMe: false,
+    })
+    const resetReply = fakeWA.sent.slice(beforeCount12).find((s) => s.remoteJid === botOwnerJid)
+    assert.ok(resetReply)
+    assert.match(resetReply.text, /direset ke standar \(\*5 sesi\/hari\*\)/)
+
+    await framework.stop()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

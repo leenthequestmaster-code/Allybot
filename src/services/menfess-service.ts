@@ -4,6 +4,7 @@ import sharp from 'sharp'
 import type { Service, ServiceContext } from '../framework/contracts.js'
 import { bareJid, isSameJid } from '../permissions.js'
 import type { RedisService } from '../redis.js'
+import type { QuotaService } from './quota-service.js'
 import { initSqliteDatabase, requireDatabase, type DatabaseInstance } from '../storage-helpers.js'
 
 export interface MenfessThreadRecord {
@@ -45,6 +46,7 @@ export interface MenfessServiceOptions {
   readonly clock?: () => number
   readonly maxPerDay?: number
   readonly sessionTtlSeconds?: number
+  readonly botOwnerJid?: string
 }
 
 const CROCKFORD_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
@@ -116,6 +118,8 @@ export class MenfessService implements Service {
   readonly crypto: MenfessCrypto
 
   private redis: RedisService | undefined
+  private readonly botOwnerJid?: string
+  private quotaService: QuotaService | undefined
 
   private readonly memorySessions = new Map<string, ActiveMenfessSession>()
   private readonly memoryThreads = new Map<string, { senderJid: string; receiverJid: string; status: 'active' | 'closed' | 'blocked' }>()
@@ -132,6 +136,7 @@ export class MenfessService implements Service {
     this.clock = options.clock ?? (() => Date.now())
     this.maxPerDay = options.maxPerDay ?? MENFESS_DEFAULT_MAX_PER_DAY
     this.sessionTtlSeconds = options.sessionTtlSeconds ?? MENFESS_DEFAULT_SESSION_TTL_SECONDS
+    this.botOwnerJid = options.botOwnerJid
     this.crypto = new MenfessCrypto(options.secret)
   }
 
@@ -143,6 +148,11 @@ export class MenfessService implements Service {
       this.redis = context.services.get<RedisService>('redis')
     } catch {
       this.redis = undefined
+    }
+    try {
+      this.quotaService = context.services.get<QuotaService>('quota')
+    } catch {
+      this.quotaService = undefined
     }
 
     this.rehydrateActiveSessions()
@@ -195,6 +205,12 @@ export class MenfessService implements Service {
       CREATE TABLE IF NOT EXISTS menfess_optouts (
         recipient_hmac TEXT PRIMARY KEY,
         created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS menfess_quotas (
+        user_hmac TEXT PRIMARY KEY,
+        daily_quota INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
       );
     `)
   }
@@ -325,8 +341,151 @@ export class MenfessService implements Service {
     }
   }
 
+  isOwner(jid: string): boolean {
+    if (!jid) return false
+    return isSameJid(jid, this.botOwnerJid)
+  }
+
+  async setUserQuota(jid: string, dailyQuota: number | null): Promise<void> {
+    const cleanJid = bareJid(jid)
+    const userHmac = this.crypto.hashJid(cleanJid)
+    const db = this.database()
+    const now = this.clock()
+
+    if (dailyQuota === null || dailyQuota === 0) {
+      db.prepare('DELETE FROM menfess_quotas WHERE user_hmac = ?').run(userHmac)
+      if (this.redis) {
+        try {
+          await this.redis.cacheDelete('menfess:quota', userHmac)
+        } catch (err) {
+          this.logger.warn({ err }, 'Failed to delete menfess quota from Redis')
+        }
+      }
+    } else {
+      db.prepare(`
+        INSERT INTO menfess_quotas (user_hmac, daily_quota, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_hmac) DO UPDATE SET
+          daily_quota = excluded.daily_quota,
+          updated_at = excluded.updated_at
+      `).run(userHmac, dailyQuota, now)
+
+      if (this.redis) {
+        try {
+          await this.redis.cacheSet('menfess:quota', userHmac, dailyQuota, 7 * 24 * 3600)
+        } catch (err) {
+          this.logger.warn({ err }, 'Failed to cache menfess quota in Redis')
+        }
+      }
+    }
+  }
+
+  async getUserLimit(jid: string): Promise<number> {
+    const cleanJid = bareJid(jid)
+    if (this.isOwner(cleanJid)) {
+      return Infinity
+    }
+
+    const userHmac = this.crypto.hashJid(cleanJid)
+
+    if (this.redis) {
+      try {
+        const cached = await this.redis.cacheGet<number>('menfess:quota', userHmac)
+        if (cached !== undefined && cached !== null) {
+          return cached === -1 ? Infinity : cached
+        }
+      } catch {
+        // Fall back to sqlite
+      }
+    }
+
+    const db = this.database()
+    const row = db
+      .prepare('SELECT daily_quota FROM menfess_quotas WHERE user_hmac = ?')
+      .get(userHmac) as { daily_quota: number } | undefined
+
+    if (row) {
+      if (this.redis) {
+        try {
+          await this.redis.cacheSet('menfess:quota', userHmac, row.daily_quota, 7 * 24 * 3600)
+        } catch {
+          // ignore
+        }
+      }
+      return row.daily_quota === -1 ? Infinity : row.daily_quota
+    }
+
+    if (this.quotaService?.isDonator(cleanJid)) {
+      return 50
+    }
+
+    return this.maxPerDay
+  }
+
+  async getUserQuota(jid: string): Promise<{
+    limit: number
+    used: number
+    remaining: number
+    isCustom: boolean
+    isUnlimited: boolean
+  }> {
+    const cleanJid = bareJid(jid)
+    const isOwner = this.isOwner(cleanJid)
+    const userHmac = this.crypto.hashJid(cleanJid)
+
+    const db = this.database()
+    const row = db
+      .prepare('SELECT daily_quota FROM menfess_quotas WHERE user_hmac = ?')
+      .get(userHmac) as { daily_quota: number } | undefined
+
+    const windowStart = this.clock() - 24 * 60 * 60 * 1_000
+    const countRow = db
+      .prepare('SELECT count(*) as count FROM menfess_threads WHERE sender_hmac = ? AND created_at >= ?')
+      .get(userHmac, windowStart) as { count: number } | undefined
+    const used = countRow?.count ?? 0
+
+    if (isOwner) {
+      return {
+        limit: Infinity,
+        used,
+        remaining: Infinity,
+        isCustom: false,
+        isUnlimited: true,
+      }
+    }
+
+    if (row) {
+      const isUnlimited = row.daily_quota === -1
+      const limit = isUnlimited ? Infinity : row.daily_quota
+      const remaining = isUnlimited ? Infinity : Math.max(0, limit - used)
+      return {
+        limit,
+        used,
+        remaining,
+        isCustom: true,
+        isUnlimited,
+      }
+    }
+
+    const defaultLimit = this.quotaService?.isDonator(cleanJid) ? 50 : this.maxPerDay
+    return {
+      limit: defaultLimit,
+      used,
+      remaining: Math.max(0, defaultLimit - used),
+      isCustom: false,
+      isUnlimited: false,
+    }
+  }
+
   async checkRateLimit(senderJid: string): Promise<{ allowed: boolean; remaining: number }> {
-    const senderHmac = this.crypto.hashJid(senderJid)
+    const cleanSender = bareJid(senderJid)
+    const limit = await this.getUserLimit(cleanSender)
+
+    if (limit === Infinity) {
+      return { allowed: true, remaining: 999999 }
+    }
+
+    const senderHmac = this.crypto.hashJid(cleanSender)
     const windowStart = this.clock() - 24 * 60 * 60 * 1_000
 
     const db = this.database()
@@ -335,8 +494,8 @@ export class MenfessService implements Service {
       .get(senderHmac, windowStart) as { count: number } | undefined
 
     const count = row?.count ?? 0
-    const allowed = count < this.maxPerDay
-    const remaining = Math.max(0, this.maxPerDay - count)
+    const allowed = count < limit
+    const remaining = Math.max(0, limit - count)
     return { allowed, remaining }
   }
 
@@ -505,7 +664,7 @@ export class MenfessService implements Service {
     return {
       success: true,
       thread: threadRecord,
-      remainingDailyQuota: rate.remaining - 1,
+      remainingDailyQuota: rate.remaining >= 999999 ? 999999 : Math.max(0, rate.remaining - 1),
     }
   }
 

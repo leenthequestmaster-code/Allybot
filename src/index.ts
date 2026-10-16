@@ -112,7 +112,7 @@ async function main(): Promise<void> {
   framework.registerService(new AfkService(config.DATABASE_PATH, logger))
   framework.registerService(new SuggestionService(config.DATABASE_PATH, logger, { secret: config.SUGGEST_SECRET }))
   if (config.MENFESS_ENABLED) {
-    framework.registerService(new MenfessService(config.DATABASE_PATH, logger, { secret: config.MENFESS_SECRET, maxPerDay: config.MENFESS_DAILY_LIMIT }))
+    framework.registerService(new MenfessService(config.DATABASE_PATH, logger, { secret: config.MENFESS_SECRET, maxPerDay: config.MENFESS_DAILY_LIMIT, botOwnerJid: config.BOT_OWNER_JID }))
   }
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
