@@ -295,7 +295,99 @@ export const remoteOpsPlugin: Plugin = {
           return
         }
 
-        await commandContext.reply('Subcommand `!auth` tidak dikenal. Pilihan: `list`, `add`, `remove`, `ooc`, `mode`.')
+        if (subcommand === 'bulk') {
+          const raw = commandContext.args.slice(1).join(' ')
+          const matches = raw.match(/[0-9]{15,25}@g\.us/g)
+          if (!matches || matches.length === 0) {
+            await commandContext.reply('Usage: `!auth bulk <jid1@g.us> <jid2@g.us> ...`\n\nKirim daftar JID grup yang dipisahkan spasi atau baris baru.')
+            return
+          }
+          const uniqueJids = Array.from(new Set(matches))
+          let addedCount = 0
+          for (const jid of uniqueJids) {
+            gatekeeper.registerGroup(jid, 'Official Community Group', commandContext.message.senderJid ?? 'owner')
+            addedCount++
+          }
+          await commandContext.reply(`🏰 *Bulk Register Berhasil*\n\n↳ Berhasil mendaftarkan ${addedCount} grup ke whitelist resmi Allyssea.\n↳ Jalankan \`!syncmembers\` untuk memperbarui cache peserta.`)
+          return
+        }
+
+        if (subcommand === 'enrollall') {
+          const listParticipatingGroups = commandContext.whatsapp.listParticipatingGroups
+          if (!listParticipatingGroups) {
+            await commandContext.reply('⚠️ Adapter WhatsApp belum mendukung listParticipatingGroups.')
+            return
+          }
+          const excludeTerms = commandContext.args.slice(1).map((s) => s.toLowerCase().trim()).filter(Boolean)
+          const filters = excludeTerms.length > 0 ? excludeTerms : ['s.e.n.t.r.y', 'sentry', 'unnamed', 'althara', 'garden of memories', 'star paradise', 'paradise']
+
+          try {
+            const allGroups = await listParticipatingGroups.call(commandContext.whatsapp)
+            const enrolled: Array<{ jid: string; name: string }> = []
+            const skipped: Array<{ jid: string; name: string; reason: string }> = []
+
+            for (const g of allGroups) {
+              const nameLower = (g.subject || '').toLowerCase()
+              const isExcluded = filters.some((term) => nameLower.includes(term) || g.jid.toLowerCase().includes(term))
+              if (isExcluded) {
+                skipped.push({ jid: g.jid, name: g.subject, reason: 'Match exclusion filter' })
+              } else {
+                gatekeeper.registerGroup(g.jid, g.subject || 'Official Community Group', commandContext.message.senderJid ?? 'owner')
+                enrolled.push({ jid: g.jid, name: g.subject })
+              }
+            }
+
+            const lines = [
+              '🏰 *Auto-Enrollment Grup Selesai*',
+              '',
+              `↳ Berhasil didaftarkan: ${enrolled.length} grup`,
+              ...enrolled.map((e, idx) => `${idx + 1}. *${e.name}* (\`${e.jid}\`)`),
+              '',
+              `↳ Dilewati (Exclusion): ${skipped.length} grup`,
+              ...skipped.map((s) => `- ~${s.name}~ (\`${s.jid}\`)`),
+              '',
+              '💡 _Jalankan `!syncmembers` untuk menyegarkan cache member._',
+            ]
+            await commandContext.reply(lines.join('\n'))
+          } catch (err: any) {
+            await commandContext.reply('⚠️ Gagal mengambil daftar grup: ' + (err?.message || String(err)))
+          }
+          return
+        }
+
+        await commandContext.reply('Subcommand `!auth` tidak dikenal. Pilihan: `list`, `add`, `bulk`, `enrollall`, `remove`, `ooc`, `mode`.')
+      },
+    })
+
+    // Shortcut: !addjidbulk <groupJid...>
+    context.commands.register({
+      name: 'addjidbulk',
+      description: 'Shortcut daftarkan banyak grup sekaligus ke whitelist (Owner only)',
+      category: 'developer',
+      hidden: true,
+      scope: 'both',
+      permission: permissionNames.botOwner,
+      handler: async (commandContext: CommandContext) => {
+        if (!isOwner(commandContext)) {
+          await commandContext.reply('Maaf, command ini khusus untuk Bot Owner.')
+          return
+        }
+        const gatekeeper = context.services.get<GatekeeperService>('gatekeeper')
+        if (!gatekeeper) {
+          await commandContext.reply('⚠️ GatekeeperService tidak aktif.')
+          return
+        }
+        const raw = commandContext.args.join(' ')
+        const matches = raw.match(/[0-9]{15,25}@g\.us/g)
+        if (!matches || matches.length === 0) {
+          await commandContext.reply('Usage: `!addjidbulk <jid1@g.us> <jid2@g.us> ...`')
+          return
+        }
+        const uniqueJids = Array.from(new Set(matches))
+        for (const jid of uniqueJids) {
+          gatekeeper.registerGroup(jid, 'Official Community Group', commandContext.message.senderJid ?? 'owner')
+        }
+        await commandContext.reply(`✅ Berhasil mendaftarkan ${uniqueJids.length} grup ke whitelist resmi Allyssea.`)
       },
     })
 
