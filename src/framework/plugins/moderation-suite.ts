@@ -1070,7 +1070,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           suite.mute(group, sender, whatsapp.userJid ?? 'system', 5 * 60 * 1000)
           if (whatsapp.deleteMessage) {
             try {
-              await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
+              await whatsapp.deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
             } catch (err) {
               context.logger.warn({ err, groupJid: group }, 'failed to delete spam message')
             }
@@ -1088,7 +1088,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         if (isLinkForbidden) {
           if (whatsapp.deleteMessage) {
             try {
-              await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
+              await whatsapp.deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
             } catch (err) {
               context.logger.warn({ err, groupJid: group }, 'failed to delete link message')
             }
@@ -1107,7 +1107,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           context.logger.info({ groupJid: group, senderJid: sender }, 'toxic message deleted silently by automod')
           try {
             if (whatsapp.deleteMessage) {
-              await whatsapp.deleteMessage(group, { id: message.id, remoteJid: group, participant: sender })
+              await whatsapp.deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
             }
           } catch (err) {
             context.logger.warn({ err, groupJid: group }, 'failed to delete toxic message')

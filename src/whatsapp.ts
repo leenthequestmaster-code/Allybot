@@ -33,6 +33,7 @@ import type {
   WhatsAppGroupSummary,
   WhatsAppPollOptions,
   WhatsAppPort,
+  CoreMessageKey,
   WhatsAppMediaLimits,
   WhatsAppMediaPayload,
   WhatsAppSendOptions,
@@ -825,20 +826,31 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   async deleteMessage(remoteJid: string, key: { readonly id: string; readonly remoteJid?: string; readonly fromMe?: boolean; readonly participant?: string }): Promise<void> {
     const socket = this.requireSocket()
     try {
+      const isGroup = isGroupJid(remoteJid)
+      let targetParticipant: string | undefined
+      if (isGroup) {
+        targetParticipant = key.participant
+        if (targetParticipant && !targetParticipant.endsWith('@lid') && (socket as any).signalRepository?.lidMapping?.getLIDForPN) {
+          try {
+            const mappedLid = await (socket as any).signalRepository.lidMapping.getLIDForPN(targetParticipant)
+            if (mappedLid) targetParticipant = mappedLid
+          } catch {}
+        }
+      }
       await withTimeout(
         socket.sendMessage(remoteJid, {
           delete: {
             id: key.id,
             remoteJid: key.remoteJid ?? remoteJid,
             fromMe: key.fromMe ?? false,
-            ...(key.participant ? { participant: key.participant } : {}),
+            ...(targetParticipant ? { participant: targetParticipant } : {}),
           },
         }),
         20_000,
         'delete message',
       )
     } catch (error) {
-      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'delete message failed')
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', remoteJid, messageId: key.id }, 'delete message failed')
       throw error
     }
   }
@@ -855,6 +867,17 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const socket = this.socket
     if (!socket || !this.isConnected) return
     try {
+      const isGroup = isGroupJid(remoteJid)
+      let targetParticipant: string | undefined
+      if (isGroup) {
+        targetParticipant = key.participant
+        if (targetParticipant && !targetParticipant.endsWith('@lid') && (socket as any).signalRepository?.lidMapping?.getLIDForPN) {
+          try {
+            const mappedLid = await (socket as any).signalRepository.lidMapping.getLIDForPN(targetParticipant)
+            if (mappedLid) targetParticipant = mappedLid
+          } catch {}
+        }
+      }
       await withTimeout(
         socket.sendMessage(remoteJid, {
           react: {
@@ -863,7 +886,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
               id: key.id,
               remoteJid: key.remoteJid ?? remoteJid,
               fromMe: key.fromMe ?? false,
-              ...(key.participant ? { participant: key.participant } : {}),
+              ...(targetParticipant ? { participant: targetParticipant } : {}),
             },
           },
         }),
@@ -871,7 +894,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         'send reaction',
       )
     } catch (error) {
-      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'send reaction failed')
+      this.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError', remoteJid, messageId: key.id }, 'send reaction failed')
     }
   }
 
@@ -1183,9 +1206,17 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       const groupName = mentionedJids.length > 0 || quotedSenderJid
         ? await this.resolveGroupName(remoteJid)
         : undefined
+      const rawKey: CoreMessageKey = {
+        id,
+        remoteJid,
+        fromMe: Boolean(message.key.fromMe),
+        ...(message.key.participant ? { participant: message.key.participant } : {}),
+      }
       return {
         id,
         remoteJid,
+        rawKey,
+        ...(rawQuotedSenderJid ? { rawQuotedSenderJid } : {}),
         ...(message.pushName ? { pushName: message.pushName } : {}),
         ...(senderJid ? { senderJid } : {}),
         ...(mentionedJids.length > 0 ? { mentionedJids } : {}),

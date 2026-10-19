@@ -200,14 +200,16 @@ export class CommandRegistry implements CommandRegistryLike {
       },
       react: async (emoji: string) => {
         if (this.whatsapp.sendReaction) {
+          const isGroup = isGroupJid(message.remoteJid)
+          const key = message.rawKey ?? {
+            id: message.id,
+            remoteJid: message.remoteJid,
+            fromMe: message.fromMe,
+            ...(isGroup && message.senderJid ? { participant: message.senderJid } : {}),
+          }
           await this.whatsapp.sendReaction(
             message.remoteJid,
-            {
-              id: message.id,
-              remoteJid: message.remoteJid,
-              fromMe: message.fromMe,
-              ...(message.senderJid ? { participant: message.senderJid } : {}),
-            },
+            key,
             emoji,
           )
         }

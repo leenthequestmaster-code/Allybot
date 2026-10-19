@@ -19,7 +19,16 @@ export interface CoreMediaDescriptor {
   readonly durationSeconds?: number
   readonly quoted?: boolean
 }
+export interface CoreMessageKey {
+  readonly id: string
+  readonly remoteJid?: string
+  readonly fromMe?: boolean
+  readonly participant?: string
+}
+
 export interface CoreMessage {
+  readonly rawKey?: CoreMessageKey
+  readonly rawQuotedSenderJid?: string
   readonly id: string
   readonly remoteJid: string
   readonly senderJid?: string
