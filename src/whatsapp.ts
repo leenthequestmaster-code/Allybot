@@ -359,6 +359,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private readonly retryCounterCache: CacheStore
   private watchdogTimer: NodeJS.Timeout | undefined
   private lastActivityAt = Date.now()
+  private lastKeepAliveAt = Date.now()
   private readonly seenMessages = new Map<string, number>()
   private readonly groupNameCache = new Map<string, { name: string; expiresAt: number }>()
   private readonly groupMetadataCache = new Map<string, { metadata: WhatsAppGroupMetadata; expiresAt: number }>()
@@ -1081,7 +1082,11 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     if (connection === 'open') {
       this.status = 'connected'
       this.failures = 0
+      this.lastKeepAliveAt = Date.now()
       logger.info({ userJid: socket.user?.id }, 'WhatsApp connection opened')
+      socket.sendPresenceUpdate('available').catch((err) => {
+        logger.warn({ err }, 'failed to send initial presence keep-alive')
+      })
       return
     }
 
@@ -1295,16 +1300,29 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private async watchdogTick(): Promise<void> {
     const socket = this.socket
     if (this.stopping || !socket || this.status !== 'connected') return
-    if (socket.ws.isOpen) return
 
-    this.logger.warn({ lastActivityAgeMs: Date.now() - this.lastActivityAt }, 'watchdog found a closed socket')
-    this.socket = undefined
-    try {
-      await socket.ws.close()
-    } catch (error) {
-      this.logger.debug({ err: error }, 'watchdog socket close returned an error')
+    if (!socket.ws.isOpen) {
+      this.logger.warn({ lastActivityAgeMs: Date.now() - this.lastActivityAt }, 'watchdog found a closed socket')
+      this.socket = undefined
+      try {
+        await socket.ws.close()
+      } catch (error) {
+        this.logger.debug({ err: error }, 'watchdog socket close returned an error')
+      }
+      this.scheduleReconnect('watchdog_closed_socket')
+      return
     }
-    this.scheduleReconnect('watchdog_closed_socket')
+
+    // Periodic presence keep-alive ping (every 4 hours)
+    const now = Date.now()
+    const KEEP_ALIVE_INTERVAL_MS = 4 * 60 * 60 * 1000
+    if (now - this.lastKeepAliveAt >= KEEP_ALIVE_INTERVAL_MS) {
+      this.lastKeepAliveAt = now
+      socket.sendPresenceUpdate('available').catch((err) => {
+        this.logger.warn({ err }, 'failed to send periodic presence keep-alive')
+      })
+      this.logger.info('WhatsApp presence keep-alive sent')
+    }
   }
 
   private async isDuplicate(key: string): Promise<boolean> {

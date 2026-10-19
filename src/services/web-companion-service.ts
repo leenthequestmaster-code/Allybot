@@ -153,6 +153,24 @@ export class WebCompanionService implements Service {
       return
     }
 
+    // Health check endpoint for monitoring & watchdog
+    if (pathname === '/health' || pathname === '/api/health') {
+      const isConnected = this.whatsapp?.isConnected ?? false
+      const status = (this.whatsapp as { currentStatus?: string } | undefined)?.currentStatus ?? (isConnected ? 'connected' : 'unknown')
+      const ok = isConnected
+      res.writeHead(ok ? 200 : 503, { 'Content-Type': 'application/json' })
+      res.end(
+        JSON.stringify({
+          ok,
+          status,
+          uptime: Math.round(process.uptime()),
+          memoryRssMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+          timestamp: new Date().toISOString(),
+        }),
+      )
+      return
+    }
+
     // Static SPA routes: / or /c/:token or /daftar/:token
     if (pathname === '/' || pathname.startsWith('/c/') || pathname.startsWith('/daftar/')) {
       await this.serveSpa(res)
