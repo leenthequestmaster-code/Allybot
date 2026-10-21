@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomBytes } from 'node:crypto'
+import { tmpdir } from 'node:os'
 
 export interface StatusCardPayload {
   name: string
@@ -35,7 +36,7 @@ function resolveScriptPath(): string {
   const fromCwd = join(process.cwd(), 'scripts', 'generate-status-card.py')
   if (existsSync(fromCwd)) return fromCwd
 
-  return '/opt/Allybot/scripts/generate-status-card.py'
+  return join(process.cwd(), 'scripts', 'generate-status-card.py')
 }
 
 export async function renderStatusCardImage(
@@ -44,14 +45,14 @@ export async function renderStatusCardImage(
   logger?: { warn: (obj: unknown, msg: string) => void },
 ): Promise<Buffer | null> {
   const nonce = randomBytes(8).toString('hex')
-  const inPath = `/tmp/status_card_in_${nonce}.json`
-  const outPath = `/tmp/status_card_out_${nonce}.png`
+  const inPath = join(tmpdir(), `status_card_in_${nonce}.json`)
+  const outPath = join(tmpdir(), `status_card_out_${nonce}.png`)
   const scriptPath = resolveScriptPath()
 
   try {
     await writeFile(inPath, JSON.stringify(payload), 'utf8')
     await new Promise<void>((resolve, reject) => {
-      const py = spawn('python3', [scriptPath, '--mode', mode, '--input', inPath, '--output', outPath])
+      const py = spawn(process.env.PYTHON_PATH || 'python3', [scriptPath, '--mode', mode, '--input', inPath, '--output', outPath])
       let stderr = ''
       let settled = false
       const timer = setTimeout(() => {

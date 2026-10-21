@@ -134,11 +134,12 @@ export function registerMediaCardCommands(context: PluginContext): void {
           try {
             const ext = wantsVideo ? 'mp4' : 'webp'
             const tmpId = `bvid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-            const outPath = `/tmp/${tmpId}.${ext}`
+            const { tmpdir } = await import('node:os')
+            const { join } = await import('node:path')
+            const outPath = join(tmpdir(), `${tmpId}.${ext}`)
 
             const { spawn } = await import('node:child_process')
             const { readFile, unlink } = await import('node:fs/promises')
-            const { join } = await import('node:path')
 
             const scriptPath = join(process.cwd(), 'scripts', 'generate-bratvid.py')
             await runPythonScript(scriptPath, [outPath, ...commandContext.args], { timeoutMs: 45_000 })

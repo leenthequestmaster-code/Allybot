@@ -160,7 +160,8 @@ export function registerMediaToolCommands(context: PluginContext, transformer?: 
             }
             const { readdir } = await import('node:fs/promises')
             const { join } = await import('node:path')
-            const dir = join('/tmp', `spack_${remoteJid.replace(/[^a-zA-Z0-9_-]/g, '_')}`)
+            const { tmpdir } = await import('node:os')
+            const dir = join(tmpdir(), `spack_${remoteJid.replace(/[^a-zA-Z0-9_-]/g, '_')}`)
             const files = (await readdir(dir).catch(() => [])).filter((f) => f.startsWith('img_'))
             await commandContext.reply(`📦 Pack: *${active.packName}*\nTotal terkumpul: *${files.length}/30* stiker\n\nKirim atau balas gambar dengan *${commandContext.prefix}spack add* untuk menambah, atau *${commandContext.prefix}spack done* jika sudah selesai.`)
             return
@@ -239,12 +240,44 @@ export function registerMediaToolCommands(context: PluginContext, transformer?: 
             await commandContext.reply(`Balas gambar lalu ketik ${commandContext.prefix}removebg.`)
             return
           }
-          const apiKey = process.env.REMOVEBG_API_KEY
+          const apiKey = process.env.REMOVEBG_API_KEY?.trim()
           if (!apiKey) {
             await commandContext.reply('Fitur hapus background belum disetel nih, colek owner ya~ 🙏')
             return
           }
+          if (!commandContext.whatsapp.downloadMedia || !commandContext.whatsapp.sendMedia) {
+            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+            return
+          }
           await commandContext.react('⏳')
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: MEDIA_INPUT_MAX_BYTES,
+              timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
+            })
+            const form = new FormData()
+            form.append('size', 'auto')
+            form.append('image_file', new Blob([downloaded.data], { type: downloaded.mimeType }), 'image.png')
+            const res = await fetch('https://api.remove.bg/v1.0/removebg', {
+              method: 'POST',
+              headers: { 'X-Api-Key': apiKey },
+              body: form,
+              signal: AbortSignal.timeout(25_000),
+            })
+            if (!res.ok) {
+              throw new Error(`RemoveBG HTTP ${res.status}`)
+            }
+            const outBuf = new Uint8Array(await res.arrayBuffer())
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'image',
+              data: outBuf,
+              mimeType: 'image/png',
+              caption: '✨ Background berhasil dihapus!',
+            })
+          } catch (error) {
+            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'removebg command failed')
+            await commandContext.reply('Gagal menghapus background gambar nih, coba gambar lain ya~ 🙏')
+          }
         },
       })
 

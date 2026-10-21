@@ -34,7 +34,7 @@ const DEFAULTS: Omit<Config, 'deezer_arl'> = {
   timezone_offset: 7,
 }
 
-const CONFIG_PATH = resolve('/opt/Allybot/data/config.json')
+const CONFIG_PATH = resolve(process.cwd(), 'data/config.json')
 
 let _config: Config | null = null
 

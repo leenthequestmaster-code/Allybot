@@ -3,11 +3,75 @@ import sys
 import os
 import tempfile
 import subprocess
-import importlib
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
-# Add script directory to sys.path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-gen_brat = importlib.import_module("generate-brat")
+def _load_brat_font(size: int):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(script_dir, "..", "assets", "fonts", "Arimo-Regular.ttf"),
+        os.path.join(script_dir, "..", "assets", "fonts", "Inter.ttf"),
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            try:
+                return ImageFont.truetype(p, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+def render_brat_image(text: str, theme: str = "white") -> Image.Image:
+    themes = {
+        "white": ((255, 255, 255), (0, 0, 0)),
+        "green": ((138, 206, 0), (0, 0, 0)),
+        "black": ((0, 0, 0), (255, 255, 255)),
+    }
+    bg_color, fg_color = themes.get(theme.lower(), themes["white"])
+    W, H, pad = 512, 512, 36
+    max_w, max_h = W - pad * 2, H - pad * 2
+    words = text.lower().split() or ["brat"]
+
+    best_size = 24
+    best_lines = [words]
+    img = Image.new("RGB", (W, H), bg_color)
+    draw = ImageDraw.Draw(img)
+
+    for size in range(160, 18, -4):
+        font = _load_brat_font(size)
+        lines, cur = [], []
+        possible = True
+        for w in words:
+            test = " ".join(cur + [w])
+            bbox = draw.textbbox((0, 0), test, font=font)
+            if bbox[2] - bbox[0] <= max_w:
+                cur.append(w)
+            else:
+                wb = draw.textbbox((0, 0), w, font=font)
+                if wb[2] - wb[0] > max_w:
+                    possible = False
+                    break
+                if cur:
+                    lines.append(cur)
+                cur = [w]
+        if not possible:
+            continue
+        if cur:
+            lines.append(cur)
+        total_h = len(lines) * int(size * 1.05)
+        if total_h <= max_h:
+            best_size = size
+            best_lines = lines
+            break
+
+    font = _load_brat_font(best_size)
+    line_h = int(best_size * 1.05)
+    y = (H - len(best_lines) * line_h) // 2
+    for idx, line_words in enumerate(best_lines):
+        line_str = " ".join(line_words)
+        draw.text((pad, y), line_str, font=font, fill=fg_color)
+        y += line_h
+
+    return img.filter(ImageFilter.GaussianBlur(radius=1.6))
 
 def make_bratvid(text: str, out_path: str, theme: str = "white"):
     words = text.strip().split()
@@ -20,7 +84,7 @@ def make_bratvid(text: str, out_path: str, theme: str = "white"):
         # 1. Render frame per progressive word
         for i in range(1, len(words) + 1):
             sub_text = " ".join(words[:i])
-            frame_img = gen_brat.render_brat_image(sub_text, theme)
+            frame_img = render_brat_image(sub_text, theme)
             frame_path = os.path.join(td, f"f{frame_idx:04d}.png")
             frame_img.save(frame_path, "PNG")
             frame_idx += 1

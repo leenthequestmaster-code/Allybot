@@ -63,7 +63,7 @@ export function notifyOwner(
   const msg =
     '⚠️ *[MusicBot]* Deezer ARL kemungkinan expired atau diblokir.\n' +
     'Circuit breaker OPEN — bot tidak bisa download musik untuk sementara.\n' +
-    'Update `deezer_arl` di `/opt/Allybot/data/config.json` lalu restart bot.'
+    'Update `deezer_arl` di `data/config.json` lalu restart bot.'
 
   for (const jid of ownerJids) {
     try {

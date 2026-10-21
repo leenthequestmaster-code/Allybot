@@ -3,7 +3,7 @@ import { resolve } from 'path'
 import type { Config } from './music-config.js'
 import type { Tier } from './music-tiers.js'
 
-const LIMITS_PATH = resolve('/opt/Allybot/data/limits.json')
+const LIMITS_PATH = resolve(process.cwd(), 'data/limits.json')
 
 interface UserRecord {
   used: number

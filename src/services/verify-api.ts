@@ -2,7 +2,7 @@ import { readFileSync, existsSync } from 'fs'
 import { tripOnRateLimit, isRateLimited, rateLimitingFor, rateLimitTripsThisHour } from './amprem-rate-limit.js'
 import { resolve } from 'path'
 
-const CONFIG_PATH = resolve('/opt/Allybot/data/config.json')
+const CONFIG_PATH = resolve(process.cwd(), 'data/config.json')
 
 interface VerifyConfig {
   verify_api_url: string

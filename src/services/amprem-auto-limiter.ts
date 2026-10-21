@@ -5,7 +5,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
-const AUTO_LIMITS_PATH = resolve('/opt/Allybot/data/amprem_auto_limits.json')
+const AUTO_LIMITS_PATH = resolve(process.cwd(), 'data/amprem_auto_limits.json')
 
 interface AutoRecord {
   used: number

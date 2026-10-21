@@ -400,9 +400,9 @@ export const downloaderPlugin: Plugin = {
     context.commands.register({
       name: 'dlstats',
       description: 'Downloader metrics & circuit states',
-      category: 'admin',
+      category: 'developer',
       hidden: true,
-      permission: 'developer',
+      permission: 'bot.owner',
       cooldownMs: 3_000,
 
       async handler(ctx: CommandContext): Promise<void> {

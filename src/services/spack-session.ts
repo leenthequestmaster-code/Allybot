@@ -6,6 +6,7 @@
 import { mkdir, writeFile, readdir, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { spawn } from 'node:child_process'
+import { tmpdir } from 'node:os'
 
 export interface SpackSession {
   readonly id: string
@@ -24,7 +25,7 @@ const _sessions = new Map<string, SpackSession>()
 
 function getSessionDir(remoteJid: string): string {
   const safeJid = remoteJid.replace(/[^a-zA-Z0-9_-]/g, '_')
-  return join('/tmp', `spack_${safeJid}`)
+  return join(tmpdir(), `spack_${safeJid}`)
 }
 
 export function startSpackSession(remoteJid: string, actorJid: string, packName: string): SpackSession {
@@ -100,7 +101,7 @@ export async function finishSpackSession(
   // Run python script to build .wastickers
   const scriptPath = join(process.cwd(), 'scripts', 'generate-spack.py')
   await new Promise<void>((resolve, reject) => {
-    const py = spawn('python3', [scriptPath, outZipPath, session.packName, ...filePaths])
+    const py = spawn(process.env.PYTHON_PATH || 'python3', [scriptPath, outZipPath, session.packName, ...filePaths])
     let stderr = ''
     let settled = false
     const timer = setTimeout(() => {

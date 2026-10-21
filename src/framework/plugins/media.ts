@@ -143,9 +143,10 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             const { writeFile, unlink, readFile } = await import('node:fs/promises')
             const { spawn } = await import('node:child_process')
             const { join } = await import('node:path')
+            const { tmpdir } = await import('node:os')
 
             const tmpId = `smeme_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-            const outPath = `/tmp/${tmpId}_out.webp`
+            const outPath = join(tmpdir(), `${tmpId}_out.webp`)
             const scriptPath = join(process.cwd(), 'scripts', 'generate-smeme.py')
 
             const isAnimated =
@@ -158,12 +159,12 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
 
             try {
               if (isAnimated) {
-                const overlayPath = `/tmp/${tmpId}_overlay.png`
+                const overlayPath = join(tmpdir(), `${tmpId}_overlay.png`)
                 try {
                   await runPythonScript(scriptPath, ['--overlay', overlayPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
 
                   const ext = downloaded.kind === 'video' ? 'mp4' : (downloaded.mimeType === 'image/gif' ? 'gif' : 'webp')
-                  const animInPath = `/tmp/${tmpId}_in.${ext}`
+                  const animInPath = join(tmpdir(), `${tmpId}_in.${ext}`)
                   await writeFile(animInPath, downloaded.data)
                   try {
                     await new Promise<void>((resolve, reject) => {
@@ -220,7 +221,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
                 }
               } else {
                 // Static image
-                const inPath = `/tmp/${tmpId}_in.png`
+                const inPath = join(tmpdir(), `${tmpId}_in.png`)
                 try {
                   await writeFile(inPath, downloaded.data)
                   await runPythonScript(scriptPath, [inPath, outPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
@@ -336,13 +337,14 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
             const { writeFile, unlink, readFile } = await import('node:fs/promises')
             const { spawn } = await import('node:child_process')
             const { join } = await import('node:path')
+            const { tmpdir } = await import('node:os')
 
             const isVid = downloaded.kind === 'video'
             const inExt = isVid ? 'mp4' : 'png'
             const outExt = isVid ? 'mp4' : 'jpg'
             const tmpId = `comp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-            const inPath = `/tmp/${tmpId}_in.${inExt}`
-            const outPath = `/tmp/${tmpId}_out.${outExt}`
+            const inPath = join(tmpdir(), `${tmpId}_in.${inExt}`)
+            const outPath = join(tmpdir(), `${tmpId}_out.${outExt}`)
 
             let compressed: Uint8Array | null = null
             let savedPct = percent
@@ -350,7 +352,7 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               await writeFile(inPath, downloaded.data)
               const scriptPath = join(process.cwd(), 'scripts', 'compress-media.py')
               await new Promise<void>((resolve, reject) => {
-                const py = spawn('python3', [scriptPath, inPath, outPath, String(percent)])
+                const py = spawn(process.env.PYTHON_PATH || 'python3', [scriptPath, inPath, outPath, String(percent)])
                 let stderr = ''
                 py.stderr.on('data', (d) => { stderr += d.toString() })
                 py.on('error', reject)

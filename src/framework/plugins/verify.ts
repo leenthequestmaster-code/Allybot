@@ -43,7 +43,7 @@ import type { QuotaService } from '../../services/quota-service.js'
 
 const EMAIL_REGEX = /^\S+@\S+\.\S+$/
 const URL_REGEX = /^https?:\/\/\S+$/
-const CONFIG_PATH = resolve('/opt/Allybot/data/config.json')
+const CONFIG_PATH = resolve(process.cwd(), 'data/config.json')
 
 interface BotConfig {
   owners: string[]
@@ -908,7 +908,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         try {
           const fsMod = await import('fs')
           const pathMod = await import('path')
-          const filePath = pathMod.resolve('/opt/Allybot/data/amprem_sessions.json')
+          const filePath = pathMod.resolve(process.cwd(), 'data/amprem_sessions.json')
           if (!fsMod.existsSync(filePath)) {
             l.error({}, 'backup cron: session file tidak ada')
             return
@@ -984,7 +984,7 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         try {
           const fsMod = await import('fs')
           const pathMod = await import('path')
-          const filePath = pathMod.resolve('/opt/Allybot/data/amprem_sessions.json')
+          const filePath = pathMod.resolve(process.cwd(), 'data/amprem_sessions.json')
           if (!fsMod.existsSync(filePath)) {
             await ctx.reply('Session file belum ada.')
             return

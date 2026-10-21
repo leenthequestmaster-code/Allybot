@@ -9,10 +9,12 @@ type trackType = Awaited<ReturnType<typeof _gti>>
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 
-const AUDIO_DIR = resolve('/opt/Allybot/data/cache/audio')
-const META_PATH = resolve('/opt/Allybot/data/cache/meta.json')
+const AUDIO_DIR = resolve(process.cwd(), 'data/cache/audio')
+const META_PATH = resolve(process.cwd(), 'data/cache/meta.json')
 
-mkdirSync(AUDIO_DIR, { recursive: true })
+try {
+  mkdirSync(AUDIO_DIR, { recursive: true })
+} catch {}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
-const STATE_PATH = resolve('/opt/Allybot/data/amprem_backup_state.json')
+const STATE_PATH = resolve(process.cwd(), 'data/amprem_backup_state.json')
 
 interface SchedulerState {
   lastBackupDate: string

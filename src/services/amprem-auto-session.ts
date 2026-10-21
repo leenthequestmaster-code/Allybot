@@ -7,7 +7,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 
-const SESSIONS_PATH = resolve('/opt/Allybot/data/amprem_sessions.json')
+const SESSIONS_PATH = resolve(process.cwd(), 'data/amprem_sessions.json')
 const TEMP_TTL_MS = 30 * 60 * 1000
 
 export interface StoredAccount {

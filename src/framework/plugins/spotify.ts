@@ -1,6 +1,7 @@
 import type { Plugin, PluginContext, CommandContext } from '../contracts.js'
 import { statSync, readFileSync, unlinkSync, copyFileSync, mkdirSync } from 'fs'
 import { resolve } from 'path'
+import { tmpdir } from 'os'
 import { randomUUID } from 'crypto'
 import { loadConfig } from '../../services/music-config.js'
 import { getTier } from '../../services/music-tiers.js'
@@ -154,8 +155,8 @@ export const spotifyPlugin: Plugin = {
 
           statusSent = true
 
-          // Copy ke /tmp sebelum kirim (cache file immutable)
-          const tmpDir = '/tmp/allybot-music'
+          // Copy ke tmpdir sebelum kirim (cache file immutable)
+          const tmpDir = resolve(tmpdir(), 'allybot-music')
           mkdirSync(tmpDir, { recursive: true })
           tmpPath = resolve(tmpDir, `${randomUUID()}.mp3`)
           copyFileSync(result.filePath, tmpPath)
@@ -246,7 +247,7 @@ export const spotifyPlugin: Plugin = {
         }
 
         const qs = queueStats()
-        const audioDir = '/opt/Allybot/data/cache/audio'
+        const audioDir = resolve(process.cwd(), 'data/cache/audio')
         const diskBytes = await getDirSize(audioDir)
 
         const report =

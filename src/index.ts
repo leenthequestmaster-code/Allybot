@@ -61,6 +61,8 @@ import { DownloaderService } from "./services/downloader-service.js"
 import { QuotaService } from './services/quota-service.js'
 import { GatekeeperService } from './services/gatekeeper-service.js'
 import { RemoteOpsService } from './services/remote-ops-service.js'
+import { ChatHistoryService } from './services/chat-history-service.js'
+import { createRekapPlugin } from './framework/plugins/rekap.js'
 
 import { downloaderPlugin } from "./framework/plugins/downloader.js"
 
@@ -154,11 +156,19 @@ async function main(): Promise<void> {
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
   framework.registerService(new DownloaderService())
   framework.registerService(new QuotaService(config.DATABASE_PATH, logger, { botOwnerJid: config.BOT_OWNER_JID }))
+  const chatHistoryService = new ChatHistoryService(logger, { redis })
+  framework.registerService(chatHistoryService)
+  whatsapp.onMessage(async (msg) => {
+    await chatHistoryService.recordMessage(msg)
+  })
   framework.registerService(new GatekeeperService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, { whatsapp, redis }))
   framework.registerService(new RemoteOpsService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, whatsapp))
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
-  if (config.AI_ENABLED) framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))
+  if (config.AI_ENABLED) {
+    framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))
+    framework.registerPlugin(createRekapPlugin(whatsapp, { fallbackEnabled: config.AI_FALLBACK_ENABLED }))
+  }
   framework.registerPlugin(developerModePlugin)
   if (config.CODEBASE_EXPORT_ENABLED) framework.registerPlugin(codebasePlugin)
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)

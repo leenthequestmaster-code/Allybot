@@ -12,6 +12,7 @@ import {
 import { Client as LrclibClient } from 'lrclib-api'
 import { existsSync, writeFileSync } from 'fs'
 import { mkdirSync } from 'fs'
+import { resolve } from 'path'
 import type { Config } from './music-config.js'
 import * as cache from './music-cache.js'
 import * as circuit from './music-circuit.js'
@@ -28,7 +29,7 @@ export async function initMusic(config: Config): Promise<void> {
   _initialized = true
 
   // Ensure dirs
-  mkdirSync('/opt/Allybot/data/cache/audio', { recursive: true })
+  mkdirSync(resolve(process.cwd(), 'data/cache/audio'), { recursive: true })
 
   // Restore cache metadata
   cache.restoreMeta()
