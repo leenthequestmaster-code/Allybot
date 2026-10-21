@@ -149,6 +149,9 @@ export function createAiHandler(options: AiHandlerOptions = {}): (message: strin
       if (primary) return primary
       primaryError = new Error('EmptyProviderResponse')
     } catch (error) {
+      if (error instanceof AiHandlerError && error.code === 'invalid_input') {
+        throw error
+      }
       primaryError = error
     }
     options.logger?.warn({ attempt: 'primary' satisfies AiAttempt, errorName: safeErrorName(primaryError), status: safeErrorStatus(primaryError) }, 'AI provider attempt failed')

@@ -504,7 +504,7 @@ export class DeveloperModeService implements Service {
         } catch {}
 
         try {
-          const econRows = await pgClient`SELECT count(*)::int as count, coalesce(sum(balance), 0)::text as total FROM economy_accounts`
+          const econRows = await pgClient`SELECT count(*)::int as count, coalesce(sum(wallet_balance + safe_balance), 0)::text as total FROM economy_accounts`
           economyAccounts = econRows[0]?.count ?? 0
           economyTotalVela = econRows[0]?.total ?? '0'
         } catch {}

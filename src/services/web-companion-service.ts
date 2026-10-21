@@ -44,7 +44,7 @@ export class WebCompanionService implements Service {
   ) {
     this.port = options.port ?? (process.env.WEB_COMPANION_PORT ? Number(process.env.WEB_COMPANION_PORT) : 18088)
     this.host = options.host ?? '0.0.0.0'
-    this.publicUrl = options.publicUrl ?? process.env.WEB_COMPANION_URL ?? `http://38.102.126.42:${this.port}`
+    this.publicUrl = options.publicUrl ?? process.env.WEB_PUBLIC_URL ?? process.env.WEB_COMPANION_URL ?? `http://127.0.0.1:${this.port}`
     this.tokenTtlSeconds = options.tokenTtlSeconds ?? 1800 // 30 mins
     this.whatsapp = options.whatsapp
   }
@@ -100,11 +100,14 @@ export class WebCompanionService implements Service {
   async createSession(ownerJid: string, groupJid?: string): Promise<{ token: string; url: string; expiresAt: number }> {
     const token = randomBytes(16).toString('hex')
     const now = Date.now()
+    for (const [k, v] of this.memorySessions) {
+      if (now > v.expiresAt) this.memorySessions.delete(k)
+    }
     const expiresAt = now + this.tokenTtlSeconds * 1000
     const session: WebSessionData = { ownerJid, groupJid, createdAt: now, expiresAt }
 
     if (this.redis?.isEnabled) {
-      await this.redis.set(`allybot:v1:web-token:${token}`, session, this.tokenTtlSeconds)
+      await this.redis.set(`web-token:${token}`, session, this.tokenTtlSeconds)
     }
     this.memorySessions.set(token, session)
 
@@ -116,7 +119,7 @@ export class WebCompanionService implements Service {
     if (!token || !/^[a-f0-9]{32}$/i.test(token)) return undefined
 
     if (this.redis?.isEnabled) {
-      const stored = await this.redis.get<WebSessionData>(`allybot:v1:web-token:${token}`)
+      const stored = await this.redis.get<WebSessionData>(`web-token:${token}`)
       if (stored) return stored
     }
 
@@ -134,7 +137,7 @@ export class WebCompanionService implements Service {
   async deleteSession(token: string): Promise<void> {
     this.memorySessions.delete(token)
     if (this.redis?.isEnabled) {
-      await this.redis.del(`allybot:v1:web-token:${token}`)
+      await this.redis.del(`web-token:${token}`)
     }
   }
 
@@ -264,7 +267,7 @@ export class WebCompanionService implements Service {
       const phone = session.ownerJid.split('@')[0]?.replace(/\D/g, '') ?? ''
       const phoneDisplay = phone.length > 6 ? `${phone.slice(0, 4)}••••${phone.slice(-4)}` : phone
       const timeRp = calculateTimeRp(Date.now())
-      const stats = character ? calculateCharacterStats(character.race, character.level, character.allocatedStats ?? {}) : null
+      const stats = character ? calculateCharacterStats(character.race, character.level, character.allocatedStats ?? {}, character.bonusTokens ?? 0) : null
 
       res.writeHead(200)
       res.end(JSON.stringify({

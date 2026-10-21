@@ -409,7 +409,7 @@ export class MsgBuilder {
     const onUpdate = (updates: { key: proto.IMessageKey; update: Partial<proto.IWebMessageInfo> }[]) => {
       for (const { key, update } of updates) {
         const s = (update as any).status
-        if (key.id === messageId && (s === 0 || s === 5 /* WAMessageStatus.ERROR */)) {
+        if (key.id === messageId && s === 0 /* WAMessageStatus.ERROR */) {
           if (!fallbackSent) {
             fallbackSent = true
             socket.logger?.warn?.({ jid, messageId }, 'interactive relay rejected by server (479), sending fallback text')

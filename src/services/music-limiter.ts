@@ -70,9 +70,11 @@ function checkRollover(tzOffset: number): void {
 
 export function startRolloverInterval(config: Config): NodeJS.Timeout {
   _lastTzOffset = config.timezone_offset
-  return setInterval(() => {
+  const timer = setInterval(() => {
     checkRollover(config.timezone_offset)
   }, 60_000)
+  timer.unref?.()
+  return timer
 }
 
 // ─── Quota logic ──────────────────────────────────────────────────────────────

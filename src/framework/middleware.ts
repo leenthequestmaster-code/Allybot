@@ -68,31 +68,35 @@ export function createPermissionMiddleware(
 export function createCooldownMiddleware(
   now: () => number = () => Date.now(),
 ): CommandMiddleware {
-  const lastRun = new Map<string, number>()
-  const lastNotice = new Map<string, number>()
+  const lastRun = new Map<string, { runAt: number; expiresAt: number }>()
+  const lastNotice = new Map<string, { noticeAt: number; expiresAt: number }>()
+
   return async ({ command, context }, next) => {
     const cooldown = command.cooldownMs ?? context.config.defaultCooldownMs
     if (cooldown <= 0) return next()
-    const key = `${command.name}:${context.message.senderJid ?? context.message.remoteJid}`
+
+    const actor = context.message.senderJid ?? context.message.remoteJid
+    const key = `${command.name}:${actor}`
     const current = now()
-    const previous = lastRun.get(key) ?? 0
-    if (current - previous < cooldown) {
+    const previous = lastRun.get(key)
+    if (previous !== undefined && current - previous.runAt < cooldown) {
       context.logger.debug({ command: command.name }, 'command cooldown active')
-      const remainingMs = cooldown - (current - previous)
+      const remainingMs = cooldown - (current - previous.runAt)
       const remainingSec = Math.max(1, Math.ceil(remainingMs / 1000))
-      const previousNotice = lastNotice.get(key) ?? 0
+      const previousNotice = lastNotice.get(key)?.noticeAt ?? 0
       if (current - previousNotice >= 2500) {
-        lastNotice.set(key, current)
+        lastNotice.set(key, { noticeAt: current, expiresAt: current + Math.max(cooldown, 10 * 60 * 1000) })
         await context.reply(`⏳ Tunggu sebentar ya, command ini masih cooldown ${remainingSec} detik lagi~ 🙏`)
       }
       return
     }
-    lastRun.set(key, current)
-    for (const [oldKey, timestamp] of lastRun) {
-      if (current - timestamp > Math.max(cooldown, 10 * 60 * 1000)) lastRun.delete(oldKey)
+    const expiresAt = current + Math.max(cooldown, 10 * 60 * 1000)
+    lastRun.set(key, { runAt: current, expiresAt })
+    for (const [oldKey, entry] of lastRun) {
+      if (current > entry.expiresAt) lastRun.delete(oldKey)
     }
-    for (const [oldKey, timestamp] of lastNotice) {
-      if (current - timestamp > Math.max(cooldown, 10 * 60 * 1000)) lastNotice.delete(oldKey)
+    for (const [oldKey, entry] of lastNotice) {
+      if (current > entry.expiresAt) lastNotice.delete(oldKey)
     }
     await next()
   }
@@ -147,9 +151,9 @@ export function createUserRateLimitMiddleware(
     }
 
     if (context.config.botOwnerJid) {
-      const bareSender = sender.split(':')[0]
-      const bareOwner = context.config.botOwnerJid.split(':')[0]
-      if (bareSender === bareOwner || `${bareSender}@s.whatsapp.net` === bareOwner) {
+      const bareSender = sender.split('@')[0]?.split(':')[0]
+      const bareOwner = context.config.botOwnerJid.split('@')[0]?.split(':')[0]
+      if (bareSender && bareOwner && bareSender === bareOwner) {
         return next()
       }
     }

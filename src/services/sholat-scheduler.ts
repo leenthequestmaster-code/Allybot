@@ -20,7 +20,7 @@ function parseTime(timeStr: string): { h: number; m: number } | null {
   return { h: parseInt(h, 10), m: parseInt(m, 10) }
 }
 
-export function startScheduler(whatsapp: WhatsAppPort): void {
+export function startScheduler(whatsapp: WhatsAppPort): NodeJS.Timeout {
   if (intervalId) clearInterval(intervalId)
   
   // Run every 60 seconds
@@ -31,7 +31,7 @@ export function startScheduler(whatsapp: WhatsAppPort): void {
       const currentM = wib.getMinutes()
 
       const subs = await listAll()
-      const pendingGroups: Array<{ jid: string; sholat: string; kota: string; timeStr: string }> = []
+      const pendingGroups: Array<{ jid: string; sholat: string; kota: string; timeStr: string; cacheKey: string }> = []
 
       for (const [groupJid, sub] of Object.entries(subs)) {
         if (!sub.enabled) continue
@@ -60,13 +60,10 @@ export function startScheduler(whatsapp: WhatsAppPort): void {
           
           // Waktu sekarang sama persis dengan jadwal sholat (atau lewat maksimal 5 menit untuk catch-up)
           if (diffMinutes >= 0 && diffMinutes <= 5) {
-            // Kita perlu memastikan pesan ini belum dikirim hari ini untuk sholat ini.
-            // Biar gampang, kita gunakan Redis/in-memory set. 
-            // Karena tidak boleh modif file infra, pakai in-memory `Set`.
-            const cacheKey = `${groupJid}_${wib.getFullYear()}${wib.getMonth()}${wib.getDate()}_${t.name}`
+            const datePart = `${wib.getFullYear()}-${String(wib.getMonth() + 1).padStart(2, '0')}-${String(wib.getDate()).padStart(2, '0')}`
+            const cacheKey = `${groupJid}_${datePart}_${t.name}`
             if (!SENT_CACHE.has(cacheKey)) {
-               pendingGroups.push({ jid: groupJid, sholat: t.name, kota: sub.kota, timeStr: t.time })
-               SENT_CACHE.add(cacheKey)
+               pendingGroups.push({ jid: groupJid, sholat: t.name, kota: sub.kota, timeStr: t.time, cacheKey })
             }
           }
         }
@@ -75,8 +72,8 @@ export function startScheduler(whatsapp: WhatsAppPort): void {
       // Process pending groups with throttle (minimal 3 detik antar pesan, max 10/menit)
       let sentCount = 0
       for (const task of pendingGroups) {
-        if (sentCount >= 10) break // limit 10 per menit
-        
+        if (sentCount >= 10) break // limit 10 per menit — remaining groups will be processed next tick
+        SENT_CACHE.add(task.cacheKey)
         await sendReminder(whatsapp, task.jid, task.sholat, task.kota, task.timeStr)
         sentCount++
         
@@ -85,8 +82,8 @@ export function startScheduler(whatsapp: WhatsAppPort): void {
         }
       }
 
-      // Bersihkan cache yang udah beda hari (opsional, tapi biar memory nggak bocor)
-      if (currentH === 0 && currentM === 0) {
+      // Bersihkan cache jika ukuran melebihi 2000 entri atau saat pergantian hari
+      if (SENT_CACHE.size > 2000 || (currentH === 0 && currentM <= 1)) {
          SENT_CACHE.clear()
       }
 
@@ -94,6 +91,8 @@ export function startScheduler(whatsapp: WhatsAppPort): void {
       console.error('[sholat-scheduler] Error:', e)
     }
   }, 60000)
+  intervalId.unref?.()
+  return intervalId
 }
 
 const SENT_CACHE = new Set<string>()
