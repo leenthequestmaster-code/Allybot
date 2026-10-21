@@ -870,6 +870,19 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     }
   }
 
+  async sendPresenceUpdate(
+    remoteJid: string,
+    type: 'composing' | 'recording' | 'paused',
+  ): Promise<void> {
+    const socket = this.socket
+    if (!socket || !this.isConnected) return
+    try {
+      await socket.sendPresenceUpdate(type, remoteJid)
+    } catch (error) {
+      this.logger.debug({ errorName: error instanceof Error ? error.name : 'UnknownError', remoteJid, type }, 'failed to send presence update')
+    }
+  }
+
   private async resolveGroupName(remoteJid: string): Promise<string | undefined> {
     if (!isGroupJid(remoteJid)) return undefined
 
@@ -1007,8 +1020,12 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
 
       const messageUpsert = events['messages.upsert']
       if (messageUpsert) {
-        await this.handleMessages(socket, messageUpsert, logger)
-        if (messageUpsert.type === 'notify') await this.emitMessages(messageUpsert.messages)
+        if (messageUpsert.type === 'notify') {
+          void this.handleMessages(socket, messageUpsert, logger)
+          await this.emitMessages(messageUpsert.messages)
+        } else {
+          await this.handleMessages(socket, messageUpsert, logger)
+        }
       }
 
       const participantUpdate = events['group-participants.update']

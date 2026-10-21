@@ -199,6 +199,11 @@ export class CommandRegistry implements CommandRegistryLike {
           )
         }
       },
+      sendPresence: async (type) => {
+        if (this.whatsapp.sendPresenceUpdate) {
+          await this.whatsapp.sendPresenceUpdate(message.remoteJid, type)
+        }
+      },
     }
 
     await this.events.emit('command.before', { command: command.name, context })

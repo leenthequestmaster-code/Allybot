@@ -14,4 +14,5 @@ export * from './mission.js'
 export * from './group-setup.js'
 export * from './interaction.js'
 export * from './msg-builder.js'
+export * from './typing-helper.js'
 
