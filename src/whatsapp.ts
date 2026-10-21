@@ -293,20 +293,26 @@ export class SendGate {
   }
 
   async acquireMediaSlot(): Promise<() => void> {
-    if (this.activeMediaCount < this.maxMediaInFlight) {
-      this.activeMediaCount += 1
+    const createRelease = (): (() => void) => {
       let released = false
       return () => {
         if (!released) {
           released = true
-          this.activeMediaCount -= 1
           const next = this.mediaWaiters.shift()
           if (next) {
             clearTimeout(next.timer)
+            // Transfer slot ownership directly to next waiter without dropping activeMediaCount
             next.resolve()
+          } else {
+            this.activeMediaCount -= 1
           }
         }
       }
+    }
+
+    if (this.activeMediaCount < this.maxMediaInFlight) {
+      this.activeMediaCount += 1
+      return createRelease()
     }
 
     if (this.mediaWaiters.length >= this.maxMediaWaiters) {
@@ -333,19 +339,7 @@ export class SendGate {
       this.mediaWaiters.push(waiterEntry)
     })
 
-    this.activeMediaCount += 1
-    let released = false
-    return () => {
-      if (!released) {
-        released = true
-        this.activeMediaCount -= 1
-        const next = this.mediaWaiters.shift()
-        if (next) {
-          clearTimeout(next.timer)
-          next.resolve()
-        }
-      }
-    }
+    return createRelease()
   }
 }
 
@@ -1072,10 +1066,14 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
           }
         }
         if (messageUpsert.type === 'notify') {
-          void this.handleMessages(socket, messageUpsert, logger)
+          void this.handleMessages(socket, messageUpsert, logger).catch((err) => {
+            logger.warn({ err }, 'background handleMessages persistence failed')
+          })
           await this.emitMessages(messageUpsert.messages)
         } else {
-          await this.handleMessages(socket, messageUpsert, logger)
+          await this.handleMessages(socket, messageUpsert, logger).catch((err) => {
+            logger.warn({ err }, 'handleMessages persistence failed')
+          })
         }
       }
 
@@ -1143,9 +1141,9 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       return
     }
 
-    if (statusCode === 408) {
+    if (statusCode === 408 && !creds.registered) {
       this.status = 'failed'
-      logger.error('WhatsApp connection timed out (408); re-authentication is paused to avoid repeated attempts')
+      logger.error('WhatsApp QR/pairing timed out (408) before registration; pausing automatic reconnect')
       return
     }
 
@@ -1263,20 +1261,28 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private async emitGroupParticipantUpdate(
     update: BaileysEventMap['group-participants.update'],
   ): Promise<void> {
-    const participantJids = update.participants
+    const rawParticipantJids = update.participants
       .map((participant) => participant.phoneNumber ?? participant.id)
       .filter((jid): jid is string => Boolean(jid))
 
-    if (!update.id || participantJids.length === 0) return
+    if (!update.id || rawParticipantJids.length === 0) return
     this.groupMetadataCache.delete(update.id)
+
+    const participantJids = (
+      await Promise.all(rawParticipantJids.map((jid) => normalizeContactJid(jid, this.resolvePnForLid)))
+    ).filter((jid): jid is string => Boolean(jid))
+    if (participantJids.length === 0) return
 
     // Collect display names from Baileys Contact.notify / Contact.name
     const participantNames = new Map<string, string>()
-    for (const participant of update.participants) {
-      const jid = participant.phoneNumber ?? participant.id
+    for (let i = 0; i < update.participants.length; i++) {
+      const participant = update.participants[i]!
+      const rawJid = participant.phoneNumber ?? participant.id
+      const normalizedJid = (rawJid ? await normalizeContactJid(rawJid, this.resolvePnForLid) : undefined) ?? rawJid
       const displayName = (participant.notify ?? participant.name ?? '').trim()
-      if (jid && displayName && !/^[+0-9@:._\s-]+$/.test(displayName)) {
-        participantNames.set(jid, displayName.slice(0, 50))
+      if (normalizedJid && displayName && !/^[+0-9@:._\s-]+$/.test(displayName)) {
+        participantNames.set(normalizedJid, displayName.slice(0, 50))
+        this.storage.saveContactName(normalizedJid, displayName.slice(0, 50))
       }
     }
     for (const jid of participantJids) {

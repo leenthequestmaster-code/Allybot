@@ -58,6 +58,7 @@ export class SqliteStorage {
   private readonly messageCacheMaxBytes: number
   private readonly messagePruneTimer: NodeJS.Timeout
   private readonly contactNamesCache = new Map<string, string>()
+  private writesSinceLastPrune = 0
 
   constructor(config: AppConfig, logger: AppLogger) {
     this.db = initSqliteDatabase(config.DATABASE_PATH, { foreignKeys: true })
@@ -113,6 +114,9 @@ export class SqliteStorage {
 
       CREATE INDEX IF NOT EXISTS idx_messages_account_time
         ON messages (account_id, timestamp);
+
+      CREATE INDEX IF NOT EXISTS messages_account_updated_idx
+        ON messages (account_id, updated_at DESC);
 
       CREATE TABLE IF NOT EXISTS contact_names (
         jid TEXT PRIMARY KEY,
@@ -276,7 +280,11 @@ export class SqliteStorage {
           updated_at: now,
         })
       }
-      this.pruneMessageCacheWithinTransaction(new Date(now).getTime())
+      this.writesSinceLastPrune += incoming.length
+      if (this.writesSinceLastPrune >= 200 || this.messageCacheMaxRows < 200) {
+        this.writesSinceLastPrune = 0
+        this.pruneMessageCacheWithinTransaction(new Date(now).getTime())
+      }
     })
     persistMessages(messages)
   }
