@@ -13,6 +13,7 @@ import { Client as LrclibClient } from 'lrclib-api'
 import { existsSync, writeFileSync } from 'fs'
 import { mkdirSync } from 'fs'
 import { resolve } from 'path'
+import { createHash } from 'crypto'
 import type { Config } from './music-config.js'
 import * as cache from './music-cache.js'
 import * as circuit from './music-circuit.js'
@@ -131,16 +132,147 @@ export interface SearchResult {
   durationMs: number
 }
 
+async function downloadSoundCloudFallback(
+  query: string,
+): Promise<{ buffer: Buffer; title: string; artist: string; durationMs: number } | null> {
+  try {
+    const { default: SoundCloud } = await import('@zibot/scdl')
+    const sc = new SoundCloud()
+    await sc.init()
+    const tracks = await sc.search({ query, limit: 3, type: 'tracks' })
+    if (!Array.isArray(tracks) || tracks.length === 0) return null
+
+    const top: any = tracks.find((t: any) => t.streamable && t.permalink_url) ?? tracks[0]
+    if (!top || !top.permalink_url) return null
+
+    const stream = await sc.downloadTrack(top.permalink_url)
+    const chunks: Buffer[] = []
+    for await (const chunk of stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    }
+    const buffer = Buffer.concat(chunks)
+    if (buffer.length < 1000) return null
+
+    return {
+      buffer,
+      title: String(top.title || query),
+      artist: String(top.user?.username || 'SoundCloud'),
+      durationMs: typeof top.duration === 'number' ? top.duration : 180_000,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function downloadYouTubeFallback(
+  query: string,
+): Promise<{ buffer: Buffer; title: string; artist: string; durationMs: number } | null> {
+  try {
+    const { searchYouTube } = await import('./downloader/adapters/youtube-search.js')
+    const { defaultDownloadYouTubeMedia } = await import('../framework/plugins/media-common.js')
+    const results = await searchYouTube(query)
+    if (!Array.isArray(results) || results.length === 0 || !results[0]?.url) return null
+
+    const top = results[0]
+    const downloaded = await defaultDownloadYouTubeMedia(top.url, 'audio')
+    if (!downloaded || downloaded.data.length < 1000) return null
+
+    let durationMs = 180_000
+    if (top.duration && typeof top.duration === 'string') {
+      const parts = top.duration.split(':').map(Number)
+      if (parts.length === 2 && !isNaN(parts[0]!) && !isNaN(parts[1]!)) {
+        durationMs = (parts[0]! * 60 + parts[1]!) * 1000
+      }
+    }
+
+    return {
+      buffer: Buffer.from(downloaded.data),
+      title: top.title,
+      artist: top.channel || 'YouTube',
+      durationMs,
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function fallbackSecondaryAudio(
+  query: string,
+  _config: Config,
+): Promise<SearchResult | null> {
+  const q = query?.trim()
+  if (!q) return null
+
+  // 1. Prioritize SoundCloud (fast in-process stream)
+  let result = await downloadSoundCloudFallback(q)
+  let source = 'SoundCloud'
+
+  // 2. Fall back to YouTube (yt-dlp)
+  if (!result) {
+    result = await downloadYouTubeFallback(q)
+    source = 'YouTube'
+  }
+
+  if (!result) return null
+
+  const trackId = `fb_${createHash('sha1').update(`${source}:${result.title}`).digest('hex').slice(0, 12)}`
+  const filePath = cache.audioPathFor(trackId)
+  writeFileSync(filePath, result.buffer)
+
+  let plainLyrics: string | undefined
+  let syncedLyrics: string | undefined
+  try {
+    const lrcResult = await fetchLrclibLyrics(result.artist, result.title)
+    if (lrcResult) {
+      plainLyrics = lrcResult.plainLyrics
+      syncedLyrics = lrcResult.syncedLyrics ?? undefined
+    }
+  } catch {}
+
+  const pseudoTrack = {
+    SNG_ID: trackId,
+    SNG_TITLE: result.title,
+    ART_NAME: result.artist,
+    ALB_TITLE: source,
+    DURATION: String(Math.round(result.durationMs / 1000)),
+  } as any
+
+  cache.setCachedById(trackId, {
+    track: pseudoTrack,
+    lyrics: plainLyrics,
+    syncedLyrics,
+    filePath,
+  })
+  cache.setCachedTrack(query, pseudoTrack)
+  cache.persistMeta()
+
+  return {
+    trackName: result.title,
+    artist: result.artist,
+    album: source,
+    filePath,
+    lyrics: plainLyrics,
+    syncedLyrics,
+    durationMs: result.durationMs,
+  }
+}
+
 export async function searchAndDownload(
   query: string,
   _tier: string,
   config: Config,
 ): Promise<SearchResult> {
   // Ensure Deezer session initialized (lazy init if ARL was invalid at startup)
-  await ensureDeezerReady(config)
+  try {
+    await ensureDeezerReady(config)
+  } catch {
+    // If Deezer init fails, fallback will handle it
+  }
 
   // Circuit breaker check
   if (circuit.isOpen()) {
+    const fallback = await fallbackSecondaryAudio(query, config)
+    if (fallback) return fallback
     throw new MusicError('CIRCUIT_OPEN', 'Deezer sementara tidak bisa dijangkau. Coba lagi dalam beberapa menit.')
   }
 
@@ -164,7 +296,7 @@ export async function searchAndDownload(
   }
 
   // ── Search ────────────────────────────────────────────────────────────────
-  let searchResult: Awaited<ReturnType<typeof searchMusic>>
+  let searchResult: Awaited<ReturnType<typeof searchMusic>> | undefined
   try {
     searchResult = await searchMusic(query, ['TRACK'], 5)
     circuit.probe()
@@ -174,6 +306,8 @@ export async function searchAndDownload(
     if (me.code === 'ARL_EXPIRED') {
       circuit.notifyOwner(config.owners, () => {})
     }
+    const fallback = await fallbackSecondaryAudio(query, config)
+    if (fallback) return fallback
     throw me
   }
 
@@ -192,8 +326,10 @@ export async function searchAndDownload(
   }
 
   if (!tracks || tracks.length === 0) {
+    const fallback = await fallbackSecondaryAudio(query, config)
+    if (fallback) return fallback
     cache.setNegative(query)
-    throw new MusicError('NOT_FOUND', `Lagu "${query}" tidak ditemukan di Deezer.`)
+    throw new MusicError('NOT_FOUND', `Lagu "${query}" tidak ditemukan di Deezer maupun fallback.`)
   }
 
   // Iterate through top candidate tracks (up to 3) in case the first has licensing/regional blocks
@@ -259,10 +395,12 @@ export async function searchAndDownload(
   }
 
   if (!audioBuffer || !fullTrack || !chosenTrack) {
+    const fallback = await fallbackSecondaryAudio(query, config)
+    if (fallback) return fallback
     if (lastDownloadError && String(lastDownloadError).includes('WrongLicense')) {
       throw new MusicError('DOWNLOAD_FAILED', 'Akun Deezer tidak memiliki lisensi stream untuk track ini. Coba judul/versi lain.')
     }
-    throw new MusicError('DOWNLOAD_FAILED', 'Tidak bisa download audio dari Deezer.')
+    throw new MusicError('DOWNLOAD_FAILED', 'Tidak bisa download audio dari Deezer maupun fallback.')
   }
 
   const trackId = String(chosenTrack.SNG_ID)

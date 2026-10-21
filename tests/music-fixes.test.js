@@ -9,3 +9,11 @@ test('normalizeQuery preserves hyphens, apostrophes, and parentheses for title i
   // Strips emojis and special symbols but keeps clean single whitespace
   assert.equal(normalizeQuery('Anti ✨ Hero !!!'), 'anti hero')
 })
+
+test('fallbackSecondaryAudio is exported and handles invalid queries gracefully without throwing', async () => {
+  const { fallbackSecondaryAudio } = await import('../dist/services/music-service.js')
+  assert.equal(typeof fallbackSecondaryAudio, 'function')
+  // Empty query returns null without throwing unhandled error
+  const res = await fallbackSecondaryAudio('', {})
+  assert.equal(res, null)
+})
