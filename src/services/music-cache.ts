@@ -48,9 +48,9 @@ const state: MetaStore = {
 export function normalizeQuery(q: string): string {
   return q
     .toLowerCase()
-    .trim()
+    .replace(/[^\w\s()'-]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/[^a-z0-9 ]/g, '')
+    .trim()
 }
 
 function tokenSort(s: string): string {

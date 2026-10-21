@@ -8,9 +8,33 @@ import { checkCooldown, markCall } from '../../services/music-cooldown.js'
 import { checkQuota, consumeQuota, restoreLimits, startRolloverInterval } from '../../services/music-limiter.js'
 import { runOnce, stats as queueStats } from '../../services/music-queue.js'
 import { initMusic, searchAndDownload, MusicError } from '../../services/music-service.js'
+import { withTyping } from '../typing-helper.js'
 import type { QuotaService } from '../../services/quota-service.js'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function resolveSpotifyTrackQuery(rawQuery: string): Promise<string> {
+  const match = rawQuery.match(/spotify\.com\/track\/([a-zA-Z0-9]+)/i)
+  if (!match) return rawQuery
+  const trackId = match[1]
+  try {
+    const resp = await fetch(`https://open.spotify.com/track/${trackId}`, {
+      headers: {
+        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+      },
+      signal: AbortSignal.timeout(5_000),
+    })
+    if (!resp.ok) return rawQuery
+    const html = await resp.text()
+    const ogTitle = html.match(/<meta property="og:title" content="([^"]+)"/i)?.[1]
+    const ogDesc = html.match(/<meta property="og:description" content="([^"]+)"/i)?.[1]
+    if (!ogTitle) return rawQuery
+    const artist = ogDesc ? ogDesc.split(' · ')[0] : ''
+    return artist ? `${ogTitle} ${artist}` : ogTitle
+  } catch {
+    return rawQuery
+  }
+}
 
 function formatMs(ms: number): string {
   const s = Math.floor(ms / 1000)
@@ -73,10 +97,17 @@ export const spotifyPlugin: Plugin = {
       handler: async (ctx: CommandContext) => {
         config = loadConfig()
 
-        const query = ctx.args.join(' ').trim()
+        let query = ctx.args.join(' ').trim()
         if (!query) {
           await ctx.reply('Kirim judul lagunya. Contoh: !play duka last child')
           return
+        }
+
+        if (query.includes('spotify.com/track/')) {
+          const resolved = await resolveSpotifyTrackQuery(query)
+          if (resolved !== query) {
+            query = resolved
+          }
         }
 
         const remoteJid = ctx.message.remoteJid
@@ -110,10 +141,15 @@ export const spotifyPlugin: Plugin = {
         let statusSent = false
 
         try {
-          const result = await runOnce(
-            `music:${query.toLowerCase()}`,
-            () => searchAndDownload(query, tier, config),
-            config,
+          const result = await withTyping(
+            ctx,
+            () =>
+              runOnce(
+                `music:${query.toLowerCase()}`,
+                () => searchAndDownload(query, tier, config),
+                config,
+              ),
+            { type: 'recording' },
           )
 
           statusSent = true

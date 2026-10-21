@@ -185,6 +185,37 @@ export class CommandRegistry implements CommandRegistryLike {
     }
 
     let replyDelivered = false
+    let typingTimer: NodeJS.Timeout | null = null
+    let heartbeatTimer: NodeJS.Timeout | null = null
+    let isTyping = false
+
+    const cleanupTyping = () => {
+      if (typingTimer) {
+        clearTimeout(typingTimer)
+        typingTimer = null
+      }
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer)
+        heartbeatTimer = null
+      }
+      if (isTyping && this.whatsapp.sendPresenceUpdate) {
+        isTyping = false
+        void this.whatsapp.sendPresenceUpdate(message.remoteJid, 'paused')
+      }
+    }
+
+    if (this.whatsapp.sendPresenceUpdate) {
+      typingTimer = setTimeout(() => {
+        isTyping = true
+        void this.whatsapp.sendPresenceUpdate?.(message.remoteJid, 'composing')
+        heartbeatTimer = setInterval(() => {
+          void this.whatsapp.sendPresenceUpdate?.(message.remoteJid, 'composing')
+        }, 8_000)
+        heartbeatTimer.unref?.()
+      }, 250)
+      typingTimer.unref?.()
+    }
+
     const context: CommandContext = {
       message,
       args,
@@ -195,6 +226,7 @@ export class CommandRegistry implements CommandRegistryLike {
       services: this.services,
       whatsapp: this.whatsapp,
       reply: async (replyText, options?: WhatsAppSendOptions) => {
+        cleanupTyping()
         await this.whatsapp.sendText(message.remoteJid, replyText, options)
         replyDelivered = true
       },
@@ -236,6 +268,8 @@ export class CommandRegistry implements CommandRegistryLike {
       }
       await this.events.emit('command.failed', { command: command.name, context, error })
       await this.events.emit('framework.error', { source: `command:${command.name}`, error })
+    } finally {
+      cleanupTyping()
     }
     return true
   }

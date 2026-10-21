@@ -176,76 +176,98 @@ export async function searchAndDownload(
     throw me
   }
 
-  const tracks = searchResult?.TRACK?.data
+  let tracks = searchResult?.TRACK?.data
+  if (!tracks || tracks.length === 0) {
+    // Secondary fallback: strip parentheses and hyphens for broader search
+    const cleanFallback = query.replace(/[()[\]{}"'\\/-]/g, ' ').replace(/\s+/g, ' ').trim()
+    if (cleanFallback && cleanFallback !== query) {
+      try {
+        const fallbackRes = await searchMusic(cleanFallback, ['TRACK'], 5)
+        tracks = fallbackRes?.TRACK?.data
+      } catch {
+        // best-effort fallback
+      }
+    }
+  }
+
   if (!tracks || tracks.length === 0) {
     cache.setNegative(query)
     throw new MusicError('NOT_FOUND', `Lagu "${query}" tidak ditemukan di Deezer.`)
   }
 
-  const topTrack = tracks[0]!
-  const trackId = String(topTrack.SNG_ID)
-
-  // Cache the query → track mapping
-  cache.setCachedTrack(query, topTrack)
-
-  // ── Check Layer B (cached audio already on disk) ───────────────────────────
-  const existingMeta = cache.getCachedById(trackId, config)
-  if (existingMeta && existsSync(existingMeta.filePath)) {
-    return {
-      trackName: topTrack.SNG_TITLE,
-      artist: topTrack.ART_NAME,
-      album: topTrack.ALB_TITLE,
-      filePath: existingMeta.filePath,
-      lyrics: existingMeta.lyrics,
-      syncedLyrics: existingMeta.syncedLyrics,
-      durationMs: Number(topTrack.DURATION) * 1000,
-    }
-  }
-
-  // ── Get full track info ───────────────────────────────────────────────────
-  let fullTrack: Awaited<ReturnType<typeof getTrackInfo>>
-  try {
-    fullTrack = await getTrackInfo(trackId)
-    circuit.probe()
-  } catch (e) {
-    circuit.trip()
-    throw classifyDeezerError(e)
-  }
-
-  // ── Download audio buffer ─────────────────────────────────────────────────
-  // Try qualities in descending order; WrongLicense = skip to next, other errors = fatal
+  // Iterate through top candidate tracks (up to 3) in case the first has licensing/regional blocks
+  let chosenTrack: (typeof tracks)[0] | null = null
+  let fullTrack: Awaited<ReturnType<typeof getTrackInfo>> | null = null
   let audioBuffer: Buffer | null = null
   let lastDownloadError: unknown = null
-  for (const quality of [9, 3, 1]) {
+
+  for (const candidate of tracks.slice(0, 3)) {
+    const candidateId = String(candidate.SNG_ID)
+
+    // Check if candidate is already cached on disk
+    const existing = cache.getCachedById(candidateId, config)
+    if (existing && existsSync(existing.filePath)) {
+      cache.setCachedTrack(query, candidate)
+      return {
+        trackName: candidate.SNG_TITLE,
+        artist: candidate.ART_NAME,
+        album: candidate.ALB_TITLE,
+        filePath: existing.filePath,
+        lyrics: existing.lyrics,
+        syncedLyrics: existing.syncedLyrics,
+        durationMs: Number(candidate.DURATION) * 1000,
+      }
+    }
+
     try {
-      audioBuffer = await downloadTrackBuffer(fullTrack, quality)
-      if (audioBuffer) {
-        circuit.probe()
+      const info = await getTrackInfo(candidateId)
+      circuit.probe()
+
+      let buf: Buffer | null = null
+      for (const quality of [9, 3, 1]) {
+        try {
+          buf = await downloadTrackBuffer(info, quality)
+          if (buf) {
+            circuit.probe()
+            break
+          }
+        } catch (e) {
+          const name = (e as Error)?.name || (e as Error)?.constructor?.name || ''
+          const msg = String(e)
+          if (name === 'WrongLicense' || msg.includes('WrongLicense') || msg.includes('stream')) {
+            lastDownloadError = e
+            continue
+          }
+          if (name === 'GeoBlocked' || msg.includes('GeoBlocked')) {
+            lastDownloadError = e
+            continue
+          }
+          lastDownloadError = e
+        }
+      }
+
+      if (buf) {
+        audioBuffer = buf
+        fullTrack = info
+        chosenTrack = candidate
         break
       }
-      // null return = unavailable at this quality, try next
     } catch (e) {
-      const name = (e as Error)?.constructor?.name ?? ''
-      // WrongLicense / GeoBlocked at this quality — try lower, don't trip circuit
-      if (name === 'WrongLicense') {
-        lastDownloadError = e
-        continue
-      }
-      if (name === 'GeoBlocked') {
-        throw new MusicError('REGION_LOCKED', 'Track tidak tersedia di region server.')
-      }
-      // Real Deezer/network error — trip circuit and bail
-      circuit.trip()
-      throw classifyDeezerError(e)
+      lastDownloadError = e
     }
   }
 
-  if (!audioBuffer) {
-    if (lastDownloadError && (lastDownloadError as Error)?.constructor?.name === 'WrongLicense') {
-      throw new MusicError('DOWNLOAD_FAILED', 'Akun Deezer tidak memiliki lisensi stream untuk track ini.')
+  if (!audioBuffer || !fullTrack || !chosenTrack) {
+    if (lastDownloadError && String(lastDownloadError).includes('WrongLicense')) {
+      throw new MusicError('DOWNLOAD_FAILED', 'Akun Deezer tidak memiliki lisensi stream untuk track ini. Coba judul/versi lain.')
     }
     throw new MusicError('DOWNLOAD_FAILED', 'Tidak bisa download audio dari Deezer.')
   }
+
+  const trackId = String(chosenTrack.SNG_ID)
+
+  // Cache the query → track mapping
+  cache.setCachedTrack(query, chosenTrack)
 
   // ── Tag the audio ─────────────────────────────────────────────────────────
   let taggedBuffer: Buffer
@@ -287,9 +309,9 @@ export async function searchAndDownload(
   // Fallback to lrclib if no lyrics from Deezer
   if (!plainLyrics) {
     const lrcResult = await fetchLrclibLyrics(
-      topTrack.ART_NAME,
-      topTrack.SNG_TITLE,
-      topTrack.ALB_TITLE,
+      chosenTrack.ART_NAME,
+      chosenTrack.SNG_TITLE,
+      chosenTrack.ALB_TITLE,
     )
     if (lrcResult) {
       plainLyrics = lrcResult.plainLyrics
@@ -299,7 +321,7 @@ export async function searchAndDownload(
 
   // ── Cache the result ──────────────────────────────────────────────────────
   cache.setCachedById(trackId, {
-    track: topTrack,
+    track: chosenTrack,
     lyrics: plainLyrics,
     syncedLyrics,
     filePath,
@@ -307,12 +329,12 @@ export async function searchAndDownload(
   cache.persistMeta()
 
   return {
-    trackName: topTrack.SNG_TITLE,
-    artist: topTrack.ART_NAME,
-    album: topTrack.ALB_TITLE,
+    trackName: chosenTrack.SNG_TITLE,
+    artist: chosenTrack.ART_NAME,
+    album: chosenTrack.ALB_TITLE,
     filePath,
     lyrics: plainLyrics,
     syncedLyrics,
-    durationMs: Number(topTrack.DURATION) * 1000,
+    durationMs: Number(chosenTrack.DURATION) * 1000,
   }
 }

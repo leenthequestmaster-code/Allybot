@@ -905,6 +905,9 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const socket = this.socket
     if (!socket || !this.isConnected) return
     try {
+      if (type !== 'paused' && typeof socket.presenceSubscribe === 'function') {
+        await socket.presenceSubscribe(remoteJid).catch(() => {})
+      }
       await socket.sendPresenceUpdate(type, remoteJid)
     } catch (error) {
       this.logger.debug({ errorName: error instanceof Error ? error.name : 'UnknownError', remoteJid, type }, 'failed to send presence update')
