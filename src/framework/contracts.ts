@@ -126,6 +126,8 @@ export interface RuntimeCacheClearResult {
   readonly retryCounters: number
 }
 
+export type WhatsAppPresenceType = 'composing' | 'recording' | 'paused'
+
 export interface WhatsAppPort {
   readonly isConnected: boolean
   readonly currentStatus?: CoreConnectionStatus
@@ -181,6 +183,7 @@ export interface WhatsAppPort {
     key: { readonly id: string; readonly remoteJid?: string; readonly fromMe?: boolean; readonly participant?: string },
     emoji: string,
   ): Promise<void>
+  sendPresenceUpdate?(remoteJid: string, type: WhatsAppPresenceType): Promise<void>
   start(): Promise<void>
   close(): Promise<void>
 }
@@ -213,6 +216,7 @@ export interface CommandContext {
   readonly whatsapp: WhatsAppPort
   reply(text: string, options?: WhatsAppSendOptions): Promise<void>
   react(emoji: string): Promise<void>
+  sendPresence?(type: WhatsAppPresenceType): Promise<void>
 }
 
 export interface FreshnessPolicy {
