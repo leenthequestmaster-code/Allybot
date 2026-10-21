@@ -163,8 +163,8 @@ export class GroupModerationSuiteService implements Service {
   recordAudit(groupJid: string, actorJid: string, action: string, targetJid?: string, payload?: string): string {
     const now = Date.now()
     const lastRow = this.db
-      .prepare('SELECT current_hash FROM moderation_audit_chain ORDER BY id DESC LIMIT 1')
-      .get() as { current_hash: string } | undefined
+      .prepare('SELECT current_hash FROM moderation_audit_chain WHERE group_jid = ? ORDER BY id DESC LIMIT 1')
+      .get(groupJid) as { current_hash: string } | undefined
 
     const prevHash = lastRow?.current_hash ?? '0000000000000000000000000000000000000000000000000000000000000000'
     const targetStr = targetJid ?? ''
@@ -267,12 +267,22 @@ export class GroupModerationSuiteService implements Service {
   }
 
   unban(groupJid: string, targetJidOrPhone: string): boolean {
-    const aliases = this.resolveAliases(targetJidOrPhone)
+    const trimmed = targetJidOrPhone.trim()
+    if (!trimmed) return false
+    const aliases = this.resolveAliases(trimmed)
     const placeholders = aliases.map(() => '?').join(',')
-    const normalized = targetJidOrPhone.replace(/[^0-9]/g, '')
-    const row = this.db
-      .prepare(`SELECT target_jid FROM group_blacklist WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
-      .get(groupJid, ...aliases, `%${normalized}%`) as { target_jid: string } | undefined
+    const normalized = trimmed.replace(/[^0-9]/g, '')
+    
+    let row: { target_jid: string } | undefined
+    if (normalized.length >= 7) {
+      row = this.db
+        .prepare(`SELECT target_jid FROM group_blacklist WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
+        .get(groupJid, ...aliases, `%${normalized}%`) as { target_jid: string } | undefined
+    } else {
+      row = this.db
+        .prepare(`SELECT target_jid FROM group_blacklist WHERE group_jid = ? AND target_jid IN (${placeholders}) LIMIT 1`)
+        .get(groupJid, ...aliases) as { target_jid: string } | undefined
+    }
 
     if (!row) return false
     const result = this.db
@@ -284,11 +294,32 @@ export class GroupModerationSuiteService implements Service {
   isBanned(groupJid: string, targetJid: string): boolean {
     const aliases = this.resolveAliases(targetJid)
     const placeholders = aliases.map(() => '?').join(',')
-    const normalized = targetJid.split(':')[0]
-    const row = this.db
-      .prepare(`SELECT 1 FROM group_blacklist WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
-      .get(groupJid, ...aliases, `${normalized}%`)
+    const bare = targetJid.split('@')[0]?.split(':')[0]?.replace(/[^0-9]/g, '') ?? ''
+    
+    let row: unknown
+    if (bare.length >= 7) {
+      row = this.db
+        .prepare(`SELECT 1 FROM group_blacklist WHERE group_jid = ? AND (target_jid IN (${placeholders}) OR target_jid LIKE ?) LIMIT 1`)
+        .get(groupJid, ...aliases, `%${bare}%`)
+    } else {
+      row = this.db
+        .prepare(`SELECT 1 FROM group_blacklist WHERE group_jid = ? AND target_jid IN (${placeholders}) LIMIT 1`)
+        .get(groupJid, ...aliases)
+    }
     return Boolean(row)
+  }
+
+  getRecentGroupMessageIds(groupJid: string, limit: number): string[] {
+    const rows = this.db
+      .prepare('SELECT message_id FROM messages WHERE remote_jid = ? ORDER BY timestamp DESC LIMIT ?')
+      .all(groupJid, limit) as Array<{ message_id: string }>
+    return rows.map((r) => r.message_id)
+  }
+
+  shutdown(): void {
+    try {
+      this.db.close()
+    } catch {}
   }
 
   listBanned(groupJid: string): BannedRecord[] {

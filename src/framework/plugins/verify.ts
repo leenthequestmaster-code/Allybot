@@ -1035,12 +1035,18 @@ export function createVerifyPlugin(whatsapp: WhatsAppPort): Plugin {
         if (!URL_REGEX.test(text)) return
 
         const senderJid = message.senderJid ?? message.remoteJid
-        const cfg = loadConfig()
-
-        if (!cfg.owners.includes(senderJid)) return
-
         const sessionEmail = getSession(senderJid)
         if (sessionEmail === null) return
+
+        const cfg = loadConfig()
+        const quotaService = context.services.has('quota')
+          ? context.services.get<QuotaService>('quota')
+          : undefined
+        const isOwner =
+          cfg.owners.includes(senderJid) ||
+          (Boolean(context.config.botOwnerJid) && isSameJid(senderJid, context.config.botOwnerJid!))
+        const isDonator = quotaService?.isDonator(senderJid) ?? false
+        if (!isOwner && !isDonator) return
 
         const linkEmail = emailFromLink(text)
         if (linkEmail !== null && linkEmail !== sessionEmail) {

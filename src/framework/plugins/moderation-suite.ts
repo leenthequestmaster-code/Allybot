@@ -12,7 +12,6 @@ import type {
 import { isGroupJid } from '../validation.js'
 import { GroupModerationSuiteService } from '../../services/group-moderation-suite-service.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
-import { initSqliteDatabase } from '../../storage-helpers.js'
 
 import { normalizeForToxicDetection } from '../../utils/text-normalizer.js'
 import { evaluateMessageLinks } from '../../utils/link-matcher.js'
@@ -273,7 +272,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         handler: async (commandContext) => {
           const group = requireGroup(commandContext)
           if (!group) return
-          const input = commandContext.args[0]?.trim()
+          const input = resolveTargetJid(commandContext) ?? commandContext.args[0]?.trim()
           if (!input) {
             await commandContext.reply(`Format: ${commandContext.prefix}unban <nomor|@user>`)
             return
@@ -603,14 +602,12 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
 
           let deleted = 0
           try {
-            const db = initSqliteDatabase(commandContext.config.databasePath || './data/allyssea.sqlite')
-            const rows = db
-              .prepare('SELECT message_id FROM messages WHERE remote_jid = ? ORDER BY timestamp DESC LIMIT ?')
-              .all(group, count) as Array<{ message_id: string }>
+            const suite = getSuiteService(commandContext.services)
+            const messageIds = suite.getRecentGroupMessageIds(group, count)
 
-            for (const r of rows) {
+            for (const msgId of messageIds) {
               try {
-                await commandContext.whatsapp.deleteMessage(group, { id: r.message_id, remoteJid: group })
+                await commandContext.whatsapp.deleteMessage(group, { id: msgId, remoteJid: group })
                 deleted++
                 await new Promise((resolve) => setTimeout(resolve, 300))
               } catch {}

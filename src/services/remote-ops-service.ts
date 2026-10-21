@@ -297,21 +297,28 @@ export class RemoteOpsService implements Service {
         LIMIT ?
       `).all(groupJid, clamped) as Array<{ value: string; timestamp: number }>
 
-      const results: Array<{ senderJid: string; pushName?: string; text: string; timestamp: number }> = []
-      for (const row of rows) {
+      return rows.reverse().map((r) => {
         try {
-          const parsed = JSON.parse(row.value)
-          const senderJid = parsed.key?.participant || parsed.key?.remoteJid || 'unknown'
-          const pushName = parsed.pushName
-          const text = parsed.message?.conversation ||
-                       parsed.message?.extendedTextMessage?.text ||
-                       (parsed.message ? Object.keys(parsed.message)[0] : '')
-          results.push({ senderJid, pushName, text: text || '[non-text]', timestamp: row.timestamp })
+          const parsed = JSON.parse(r.value)
+          const isEnvelope = Boolean(parsed?.message || parsed?.key)
+          const msgObj = isEnvelope ? (parsed?.message ?? {}) : (parsed ?? {})
+          const senderJid =
+            parsed?.key?.participant ||
+            msgObj?.extendedTextMessage?.contextInfo?.participant ||
+            parsed?.key?.remoteJid ||
+            'member'
+          const pushName = parsed?.pushName || ''
+          const text =
+            msgObj.conversation ||
+            msgObj.extendedTextMessage?.text ||
+            msgObj.imageMessage?.caption ||
+            msgObj.videoMessage?.caption ||
+            '[non-text]'
+          return { senderJid, pushName, text, timestamp: r.timestamp || 0 }
         } catch {
-          results.push({ senderJid: 'unknown', text: '[unparseable]', timestamp: row.timestamp })
+          return { senderJid: 'unknown', pushName: '', text: '[unparseable]', timestamp: r.timestamp || 0 }
         }
-      }
-      return results
+      })
     } catch {
       return []
     }
