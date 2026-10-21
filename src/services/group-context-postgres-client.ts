@@ -169,15 +169,17 @@ export function createPostgresGroupContextClient(options: GroupContextPostgresCl
         const memberKey = String(args.p_member_key ?? '')
         const role = String(args.p_role ?? 'narrator')
         const reasonCode = String(args.p_reason_code ?? 'narrator_access')
-        const addedByKey = String(args.p_added_by_key ?? '')
+        const addedByKey = String(args.p_actor_key ?? args.p_added_by_key ?? '')
+        const expiresAt = typeof args.p_expires_at === 'string' && args.p_expires_at.trim() ? args.p_expires_at.trim() : null
 
         await sql`
-          INSERT INTO group_ooc_allowlist (group_key, member_key, role, reason_code, added_by_key, updated_at)
-          VALUES (${groupKey}, ${memberKey}, ${role}, ${reasonCode}, ${addedByKey}, now())
+          INSERT INTO group_ooc_allowlist (group_key, member_key, role, reason_code, added_by_key, expires_at, updated_at)
+          VALUES (${groupKey}, ${memberKey}, ${role}, ${reasonCode}, ${addedByKey}, ${expiresAt}, now())
           ON CONFLICT (group_key, member_key) DO UPDATE SET
             role = ${role},
             reason_code = ${reasonCode},
             added_by_key = ${addedByKey},
+            expires_at = ${expiresAt},
             updated_at = now()
         `
 

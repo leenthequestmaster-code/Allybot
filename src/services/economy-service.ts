@@ -82,6 +82,7 @@ export interface EconomyRpcClient {
     data: unknown
     error: EconomyRpcError | null
   }>
+  close?(): void
 }
 
 export interface EconomyRedisCache {
@@ -483,6 +484,9 @@ export class EconomyService implements Service {
       clearInterval(this.outboxTimer)
       this.outboxTimer = undefined
     }
+    if (this.client && typeof (this.client as any).close === 'function') {
+      try { (this.client as any).close() } catch {}
+    }
     this.client = undefined
     this.redis = undefined
     this.enabled = false
@@ -605,14 +609,24 @@ export class EconomyService implements Service {
 
     const snapshotResult = await this.getAccountSnapshot(groupJid, subjectJid)
     const wealth = snapshotResult.snapshot.walletBalance + snapshotResult.snapshot.safeBalance
-    const weekNumber = this.getCurrentTaxWeek()
-    const taxCalc = this.calculateTaxWithPenalty(wealth, weekNumber)
-
     const now = this.clock()
+    const weekNumber = this.getCurrentTaxWeek(now)
+
+    const history = await this.getHistory(groupJid, subjectJid, 25).catch(() => [])
+    const paidThisWeek = history.some(
+      (entry: EconomyHistoryEntry) => entry.entryType === 'tax' && entry.reason.includes(`W${weekNumber}`),
+    )
+
     const wibMs = now + 7 * 60 * 60 * 1000
     const wibDate = new Date(wibMs)
     const dayOfWeek = wibDate.getUTCDay()
-    const isOverdue = dayOfWeek > 1 || (dayOfWeek === 1 && wibDate.getUTCHours() >= EconomyService.TAX_DUE_HOUR_WIB)
+    const isOverdue = !paidThisWeek && (dayOfWeek > 1 || dayOfWeek === 0 || (dayOfWeek === 1 && wibDate.getUTCHours() >= EconomyService.TAX_DUE_HOUR_WIB))
+    const overdueWeeks = paidThisWeek ? 0 : (isOverdue ? 1 : 0)
+    const taxCalc = paidThisWeek
+      ? { baseTax: 0, totalTax: 0, penaltyRate: 0, status: 'current' as TaxStatus, frozenScope: 'none' as TaxFrozenScope }
+      : this.calculateTaxWithPenalty(wealth, overdueWeeks)
+
+    const daysUntilNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek
 
     return {
       totalWealth: wealth,
@@ -623,7 +637,7 @@ export class EconomyService implements Service {
       status: taxCalc.status,
       frozenScope: taxCalc.frozenScope,
       weekNumber,
-      dueAt: new Date(now + (8 - dayOfWeek) * 24 * 60 * 60 * 1000).toISOString(),
+      dueAt: new Date(now + daysUntilNextMonday * 24 * 60 * 60 * 1000).toISOString(),
       isOverdue,
     }
   }
@@ -650,7 +664,7 @@ export class EconomyService implements Service {
       p_amount: summary.totalDue,
       p_operation_key: operationKey,
       p_actor_key: hashIdentity(canonicalJid(actorJid)),
-      p_reason: reason,
+      p_reason: `${reason} [W${summary.weekNumber}]`,
     })
 
     await this.invalidateAccount(groupJid, subjectJid)

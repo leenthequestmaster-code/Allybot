@@ -27,8 +27,9 @@ test('SQLite Economy Client initializes, creates account snapshot, and handles d
   const groupJid = '1203630123456789@g.us'
   const userJid = '6281234567890@s.whatsapp.net'
 
+  let service
   try {
-    const service = new EconomyService(logger, {
+    service = new EconomyService(logger, {
       env: { ECONOMY_ENABLED: 'true' },
       createClient: () => createSqliteEconomyClient(dbPath),
     })
@@ -67,6 +68,7 @@ test('SQLite Economy Client initializes, creates account snapshot, and handles d
     assert.equal(rewardedSnapshot.walletBalance, 1000)
     assert.equal(rewardedSnapshot.safeBalance, 300)
   } finally {
+    await service.shutdown()
     rmSync(root, { recursive: true, force: true })
   }
 })
@@ -139,6 +141,7 @@ test('Economy Outbox handles atomic transfer commit, local wakeup drain, and fai
     const claimedBeforeBackoff = await client.rpc('economy_outbox_claim', { p_limit: 10 })
     assert.equal(claimedBeforeBackoff.data.jobs.length, 0)
 
+    if (client && typeof client.close === 'function') client.close()
     await service.shutdown()
   } finally {
     rmSync(root, { recursive: true, force: true })

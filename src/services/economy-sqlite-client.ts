@@ -159,13 +159,22 @@ export function createSqliteEconomyClient(databasePath: string): EconomyRpcClien
           ? (typeof args.p_outbox_payload === 'string' ? args.p_outbox_payload : JSON.stringify(args.p_outbox_payload))
           : ''
         const acc = getOrCreateAccount(scopeKey, subjectKey)
+        const WALLET_LIMIT = 20_000
+        const currentSpendable = Math.max(
+          0,
+          Number(acc.wallet_balance) - Number(acc.restricted_wallet_balance ?? 0) - Number(acc.reserved_wallet_balance ?? 0),
+        )
+        const overflow = Math.max(0, currentSpendable + amount - WALLET_LIMIT)
 
         const grantTx = db.transaction(() => {
           db.prepare(`
             UPDATE economy_accounts
-            SET wallet_balance = wallet_balance + ?, revision = revision + 1, updated_at = ?
+            SET wallet_balance = wallet_balance + ?,
+                restricted_wallet_balance = restricted_wallet_balance + ?,
+                revision = revision + 1,
+                updated_at = ?
             WHERE scope_key = ? AND subject_key = ?
-          `).run(amount, now, scopeKey, subjectKey)
+          `).run(amount, overflow, now, scopeKey, subjectKey)
 
           db.prepare(`
             INSERT INTO economy_history (entry_id, scope_key, subject_key, entry_type, amount, wallet_delta, safe_delta, reserved_wallet_delta, reason, created_at)
@@ -229,6 +238,13 @@ export function createSqliteEconomyClient(databasePath: string): EconomyRpcClien
         if (acc.safe_balance < amount) {
           return { data: null, error: { message: 'insufficient safe balance' } }
         }
+        const currentSpendable = Math.max(
+          0,
+          Number(acc.wallet_balance) - Number(acc.restricted_wallet_balance ?? 0) - Number(acc.reserved_wallet_balance ?? 0),
+        )
+        if (currentSpendable + amount > 20_000) {
+          return { data: null, error: { message: 'capacity limit exceeded for wallet' } }
+        }
 
         db.prepare(`
           UPDATE economy_accounts
@@ -247,17 +263,17 @@ export function createSqliteEconomyClient(databasePath: string): EconomyRpcClien
       if (functionName === 'economy_upgrade_membership') {
         const scopeKey = String(args.p_scope_key ?? '')
         const subjectKey = String(args.p_subject_key ?? '')
-        const tier = String(args.p_tier ?? 'bronze')
+        const tier = String(args.p_target_tier ?? args.p_tier ?? 'bronze').toLowerCase()
         getOrCreateAccount(scopeKey, subjectKey)
 
         const limits: Record<string, number> = {
-          basic: 50000,
-          bronze: 100000,
-          silver: 250000,
-          gold: 500000,
-          star: 1000000,
+          basic: 50_000,
+          bronze: 100_000,
+          silver: 250_000,
+          gold: 500_000,
+          star: 2_000_000,
         }
-        const limit = limits[tier] ?? 50000
+        const limit = Number(args.p_new_safe_limit ?? limits[tier] ?? 50_000)
 
         db.prepare(`
           UPDATE economy_accounts
@@ -294,11 +310,19 @@ export function createSqliteEconomyClient(databasePath: string): EconomyRpcClien
             WHERE scope_key = ? AND subject_key = ?
           `).run(amount, now, scopeKey, sourceKey)
 
+          const targetSpendable = Math.max(
+            0,
+            Number(target.wallet_balance) - Number(target.restricted_wallet_balance ?? 0) - Number(target.reserved_wallet_balance ?? 0),
+          )
+          const targetOverflow = Math.max(0, targetSpendable + amount - 20_000)
           db.prepare(`
             UPDATE economy_accounts
-            SET wallet_balance = wallet_balance + ?, revision = revision + 1, updated_at = ?
+            SET wallet_balance = wallet_balance + ?,
+                restricted_wallet_balance = restricted_wallet_balance + ?,
+                revision = revision + 1,
+                updated_at = ?
             WHERE scope_key = ? AND subject_key = ?
-          `).run(amount, now, scopeKey, targetKey)
+          `).run(amount, targetOverflow, now, scopeKey, targetKey)
 
           db.prepare(`
             INSERT INTO economy_transfers (transfer_id, scope_key, source_key, target_key, amount, status, created_at)
@@ -432,17 +456,31 @@ export function createSqliteEconomyClient(databasePath: string): EconomyRpcClien
           return { data: null, error: { message: 'insufficient funds for tax payment' } }
         }
 
-        db.prepare(`
-          UPDATE economy_accounts
-          SET wallet_balance = wallet_balance - ?, revision = revision + 1, updated_at = ?
-          WHERE scope_key = ? AND subject_key = ?
-        `).run(amount, now, scopeKey, subjectKey)
+        const reason = String(args.p_reason ?? 'Tax payment')
+        const payTx = db.transaction(() => {
+          db.prepare(`
+            UPDATE economy_accounts
+            SET wallet_balance = wallet_balance - ?, revision = revision + 1, updated_at = ?
+            WHERE scope_key = ? AND subject_key = ?
+          `).run(amount, now, scopeKey, subjectKey)
+
+          db.prepare(`
+            INSERT INTO economy_history (entry_id, scope_key, subject_key, entry_type, amount, wallet_delta, safe_delta, reserved_wallet_delta, reason, created_at)
+            VALUES (?, ?, ?, 'tax', ?, ?, 0, 0, ?, ?)
+          `).run(randomUUID(), scopeKey, subjectKey, amount, -amount, reason, now)
+        })
+        payTx()
 
         return { data: { ok: true, code: 'paid' }, error: null }
       }
 
       // Default fallback for any other RPC function
       return { data: { ok: true }, error: null }
+    },
+    close: () => {
+      try {
+        db.close()
+      } catch {}
     },
   }
 }

@@ -225,8 +225,8 @@ export class GroupContextService implements Service {
     if (!this.client) return []
     const result = await this.call('group_ooc_allowlist_list', { p_group_key: hashIdentity(groupJid) })
     const raw = asRecord(result)
-    if (!Array.isArray(raw?.entries)) return []
-    return raw.entries.flatMap((candidate): GroupAllowlistEntry[] => {
+    const entries = Array.isArray(result) ? result : Array.isArray(raw?.entries) ? raw.entries : []
+    return entries.flatMap((candidate): GroupAllowlistEntry[] => {
       const entry = asRecord(candidate)
       const memberKey = typeof entry?.member_key === 'string' ? entry.member_key : undefined
       const role = typeof entry?.role === 'string' && ['narrator', 'moderator', 'admin', 'custom'].includes(entry.role)

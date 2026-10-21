@@ -192,12 +192,20 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
         const outboxPayload = args.p_outbox_payload
           ? (typeof args.p_outbox_payload === 'string' ? args.p_outbox_payload : JSON.stringify(args.p_outbox_payload))
           : ''
-        await getOrCreateAccount(scopeKey, subjectKey)
+        const acc = await getOrCreateAccount(scopeKey, subjectKey)
+        const currentSpendable = Math.max(
+          0,
+          Number(acc.wallet_balance) - Number(acc.restricted_wallet_balance ?? 0) - Number(acc.reserved_wallet_balance ?? 0),
+        )
+        const overflow = Math.max(0, currentSpendable + amount - 20_000)
 
         await sql.begin(async (tx) => {
           await tx`
             UPDATE economy_accounts
-            SET wallet_balance = wallet_balance + ${amount}, revision = revision + 1, updated_at = now()
+            SET wallet_balance = wallet_balance + ${amount},
+                restricted_wallet_balance = restricted_wallet_balance + ${overflow},
+                revision = revision + 1,
+                updated_at = now()
             WHERE scope_key = ${scopeKey} AND subject_key = ${subjectKey}
           `
           await tx`
@@ -257,6 +265,13 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
         if (Number(acc.safe_balance) < amount) {
           return { data: null, error: { message: 'insufficient safe balance' } }
         }
+        const currentSpendable = Math.max(
+          0,
+          Number(acc.wallet_balance) - Number(acc.restricted_wallet_balance ?? 0) - Number(acc.reserved_wallet_balance ?? 0),
+        )
+        if (currentSpendable + amount > 20_000) {
+          return { data: null, error: { message: 'capacity limit exceeded for wallet' } }
+        }
 
         await sql`
           UPDATE economy_accounts
@@ -275,17 +290,17 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
       if (functionName === 'economy_upgrade_membership') {
         const scopeKey = String(args.p_scope_key ?? '')
         const subjectKey = String(args.p_subject_key ?? '')
-        const tier = String(args.p_tier ?? 'bronze')
+        const tier = String(args.p_target_tier ?? args.p_tier ?? 'bronze').toLowerCase()
         await getOrCreateAccount(scopeKey, subjectKey)
 
         const limits: Record<string, number> = {
-          basic: 50000,
-          bronze: 100000,
-          silver: 250000,
-          gold: 500000,
-          star: 1000000,
+          basic: 50_000,
+          bronze: 100_000,
+          silver: 250_000,
+          gold: 500_000,
+          star: 2_000_000,
         }
-        const limit = limits[tier] ?? 50000
+        const limit = Number(args.p_new_safe_limit ?? limits[tier] ?? 50_000)
 
         await sql`
           UPDATE economy_accounts
@@ -307,11 +322,16 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
           : ''
 
         const source = await getOrCreateAccount(scopeKey, sourceKey)
-        await getOrCreateAccount(scopeKey, targetKey)
+        const target = await getOrCreateAccount(scopeKey, targetKey)
 
         if (Number(source.wallet_balance) < amount) {
           return { data: null, error: { message: 'insufficient funds for transfer' } }
         }
+        const targetSpendable = Math.max(
+          0,
+          Number(target.wallet_balance) - Number(target.restricted_wallet_balance ?? 0) - Number(target.reserved_wallet_balance ?? 0),
+        )
+        const targetOverflow = Math.max(0, targetSpendable + amount - 20_000)
 
         const transferId = randomUUID()
 
@@ -323,7 +343,10 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
           `
           await tx`
             UPDATE economy_accounts
-            SET wallet_balance = wallet_balance + ${amount}, revision = revision + 1, updated_at = now()
+            SET wallet_balance = wallet_balance + ${amount},
+                restricted_wallet_balance = restricted_wallet_balance + ${targetOverflow},
+                revision = revision + 1,
+                updated_at = now()
             WHERE scope_key = ${scopeKey} AND subject_key = ${targetKey}
           `
           await tx`
@@ -463,11 +486,18 @@ export function createPostgresEconomyClient(options: EconomyPostgresClientOption
           return { data: null, error: { message: 'insufficient funds for tax payment' } }
         }
 
-        await sql`
-          UPDATE economy_accounts
-          SET wallet_balance = wallet_balance - ${amount}, revision = revision + 1, updated_at = now()
-          WHERE scope_key = ${scopeKey} AND subject_key = ${subjectKey}
-        `
+        const reason = String(args.p_reason ?? 'Tax payment')
+        await sql.begin(async (tx) => {
+          await tx`
+            UPDATE economy_accounts
+            SET wallet_balance = wallet_balance - ${amount}, revision = revision + 1, updated_at = now()
+            WHERE scope_key = ${scopeKey} AND subject_key = ${subjectKey}
+          `
+          await tx`
+            INSERT INTO economy_history (scope_key, subject_key, entry_type, amount, wallet_delta, safe_delta, reserved_wallet_delta, reason)
+            VALUES (${scopeKey}, ${subjectKey}, 'tax', ${amount}, ${-amount}, 0, 0, ${reason})
+          `
+        })
 
         return { data: { ok: true, code: 'paid' }, error: null }
       }
