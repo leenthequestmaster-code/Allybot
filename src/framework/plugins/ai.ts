@@ -1,3 +1,4 @@
+import { transcribeAudioBuffer } from "../../services/stt-service.js"
 import type {
   CommandContext,
   CommandDefinition,
@@ -250,9 +251,9 @@ function buildPublicMenuCatalogPrompt(context: PluginContext, message: CoreMessa
 function detectBotMentionOrReply(
   message: CoreMessage,
   whatsapp: WhatsAppPort | undefined,
-): { triggered: boolean; cleanText: string; triggerKind: 'mention' | 'reply' | 'none' } {
+): { triggered: boolean; cleanText: string; triggerKind: 'mention' | 'reply' | 'audio' | 'none' } {
   const rawText = message.text?.trim() ?? ''
-  if (!rawText) return { triggered: false, cleanText: '', triggerKind: 'none' }
+  const isAudio = message.media?.kind === 'audio'
 
   const botJid = whatsapp?.userJid
   const botLid = whatsapp?.userLid
@@ -290,8 +291,14 @@ function detectBotMentionOrReply(
   )
 
   if (repliedToBotJid || (!quotedSender && quotedLooksLikeAi)) {
-    return { triggered: true, cleanText: rawText, triggerKind: 'reply' }
+    return { triggered: true, cleanText: rawText, triggerKind: isAudio ? 'audio' : 'reply' }
   }
+
+  if (isAudio && !isGroupJid(message.remoteJid)) {
+    return { triggered: true, cleanText: '', triggerKind: 'audio' }
+  }
+
+  if (!rawText) return { triggered: false, cleanText: '', triggerKind: 'none' }
 
   return { triggered: false, cleanText: rawText, triggerKind: 'none' }
 }
@@ -504,11 +511,12 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         if (!whatsapp) return
 
         const prefix = resolvePrefix(message)
+        const isAudio = message.media?.kind === 'audio'
         const rawText = (message.text ?? '').trim()
-        if (!rawText) return
+        if (!rawText && !isAudio) return
 
         // Ignore explicit prefixed commands (!menu, .ai, etc.) because CommandRegistry handles them
-        if (rawText.startsWith(prefix) || rawText.startsWith(context.config.commandPrefix)) {
+        if (rawText && (rawText.startsWith(prefix) || rawText.startsWith(context.config.commandPrefix))) {
           return
         }
 
@@ -516,7 +524,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         if (!detection.triggered) return
 
         const senderJid = message.senderJid ?? message.remoteJid
-        const instruction = detection.cleanText
+        let instruction = detection.cleanText
         const memory = getMemoryService()
 
         const sendPresence = async (presence: 'composing' | 'paused') => {
@@ -526,6 +534,27 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             }
           } catch {
             // fail-soft
+          }
+        }
+
+        if (isAudio && whatsapp.downloadMedia) {
+          await sendPresence('composing')
+          try {
+            const downloaded = await whatsapp.downloadMedia(message, 'direct', {
+              maxBytes: 15 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const transcript = await transcribeAudioBuffer(Buffer.from(downloaded.data))
+            if (transcript && transcript.length > 0) {
+              instruction = transcript
+            } else {
+              await whatsapp.sendText(message.remoteJid, 'Suara di pesan suaramu kurang jelas nih, bisa tolong diulangi lagi? 🎙️😅')
+              return
+            }
+          } catch (err) {
+            context.logger.warn({ err }, 'failed to transcribe voice note in mention handler')
+            await whatsapp.sendText(message.remoteJid, 'Waduh, gagal mendengarkan pesan suara kamu nih. Coba lagi ya~ 🎙️')
+            return
           }
         }
 
