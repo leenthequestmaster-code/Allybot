@@ -525,6 +525,30 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         if (!detection.triggered) return
 
         const senderJid = message.senderJid ?? message.remoteJid
+
+        // Guard: If user is replying to a chess board or playing in an active chess game, do NOT hijack with AI Chlona
+        if (detection.triggerKind === 'reply') {
+          const quotedText = message.quotedText ?? ''
+          const isQuotingChess =
+            /[♟♞♝♜♛♚]/u.test(quotedText) ||
+            /\b(?:catur|chess|skak|skakmat|giliran jalan|langkah terakhir|game review)\b/i.test(quotedText)
+
+          const chessService = context.services.has('chess')
+            ? (context.services.get('chess') as any)
+            : undefined
+
+          const activeGame = chessService?.getActiveGame?.(message.remoteJid)
+          const isPlayerInActiveGame =
+            activeGame &&
+            !activeGame.gameOver &&
+            senderJid &&
+            (isSameJid(senderJid, activeGame.whiteJid) || isSameJid(senderJid, activeGame.blackJid))
+
+          if (isQuotingChess || isPlayerInActiveGame) {
+            return
+          }
+        }
+
         let instruction = detection.cleanText
         const memory = getMemoryService()
 

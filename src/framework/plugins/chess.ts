@@ -17,6 +17,7 @@ import {
 } from '../../services/chess-service.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
 import { isGroupJid } from '../validation.js'
+import { isSameJid } from '../../permissions.js'
 
 interface OpenChallenge {
   readonly chatJid: string
@@ -690,13 +691,22 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
 
         const senderJid = jidNormalizedUser(message.senderJid)
         const expectedJid = active.turn === 'w' ? active.whiteJid : active.blackJid
-        if (senderJid !== expectedJid) return
+        if (!isSameJid(senderJid, expectedJid)) return
 
-        // Quick regex pre-filter so normal chat sentences aren't treated as chess moves
+        const isReplyingToBoard = Boolean(
+          message.quotedMessageId &&
+            (/[♟♞♝♜♛♚]/u.test(message.quotedText || '') ||
+              /\b(?:catur|chess|giliran jalan|skak|langkah)\b/i.test(message.quotedText || '')),
+        )
+
+        // Pre-filter: allow direct board replies, Indonesian piece names, or standard SAN/UCI
         const looksLikeChessMove =
+          isReplyingToBoard ||
           /^(O-O(-O)?|0-0(-0)?|[KQRBNPkqrbnp]?[a-h]?[1-8]?x?[a-h][1-8](=[QRBNqrbn])?[+#!?]*|[a-h][1-8][\s\-:x]*[a-h][1-8][qrbnQRBN]?)$/i.test(
             rawText,
-          )
+          ) ||
+          /^(?:kuda|gajah|benteng|menteri|ratu|raja|pion|rokade)\b/i.test(rawText)
+
         if (!looksLikeChessMove) return
 
         const result = chess.executeMove(message.remoteJid, rawText)
