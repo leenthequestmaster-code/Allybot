@@ -899,10 +899,28 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const socket = this.socket
     if (!socket || !this.isConnected) return
     try {
-      if (type !== 'paused' && typeof socket.presenceSubscribe === 'function') {
-        await socket.presenceSubscribe(remoteJid).catch(() => {})
+      const me = socket.user as { id?: string; lid?: string } | undefined
+      const isLid = remoteJid.endsWith('@lid')
+      const rawFrom = isLid ? (me?.lid ?? me?.id) : me?.id
+      const normalizedFrom = rawFrom ? jidNormalizedUser(rawFrom) : rawFrom
+
+      if (typeof (socket as any).sendNode === 'function' && normalizedFrom) {
+        await (socket as any).sendNode({
+          tag: 'chatstate',
+          attrs: {
+            from: normalizedFrom,
+            to: remoteJid,
+          },
+          content: [
+            {
+              tag: type === 'recording' ? 'composing' : type,
+              attrs: type === 'recording' ? { media: 'audio' } : {},
+            },
+          ],
+        })
+      } else {
+        await socket.sendPresenceUpdate(type, remoteJid)
       }
-      await socket.sendPresenceUpdate(type, remoteJid)
     } catch (error) {
       this.logger.debug({ errorName: error instanceof Error ? error.name : 'UnknownError', remoteJid, type }, 'failed to send presence update')
     }

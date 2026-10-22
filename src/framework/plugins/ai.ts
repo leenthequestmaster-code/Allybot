@@ -782,7 +782,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             try {
               const { spawn } = await import('node:child_process')
               const opus = await new Promise<Buffer>((resolve, reject) => {
-                const ff = spawn('ffmpeg', ['-y', '-i', 'pipe:0', '-c:a', 'libopus', '-b:a', '32k', '-f', 'ogg', 'pipe:1'])
+                const ff = spawn('ffmpeg', ['-y', '-i', 'pipe:0', '-vn', '-ar', '48000', '-ac', '1', '-c:a', 'libopus', '-b:a', '48k', '-application', 'voip', '-avoid_negative_ts', 'make_zero', '-f', 'ogg', 'pipe:1'])
                 const chunks: Buffer[] = []
                 ff.stdout.on('data', (d: Buffer) => chunks.push(d))
                 ff.on('error', reject)

@@ -247,6 +247,14 @@ export class CommandRegistry implements CommandRegistryLike {
         }
       },
       sendPresence: async (type) => {
+        if (typingTimer) {
+          clearTimeout(typingTimer)
+          typingTimer = null
+        }
+        if (heartbeatTimer) {
+          clearInterval(heartbeatTimer)
+          heartbeatTimer = null
+        }
         if (this.whatsapp.sendPresenceUpdate) {
           await this.whatsapp.sendPresenceUpdate(message.remoteJid, type)
         }
