@@ -75,7 +75,8 @@ test('Omni-AI dispatches plain text prompt to AI handler', async () => {
   await harness.commands.dispatch(message('!ai siapa penemu lampu?'))
   assert.equal(harness.prompts.length, 1)
   assert.equal(harness.prompts[0].userMessage, 'siapa penemu lampu?')
-  assert.match(harness.sent.at(-1)?.text ?? '', /Allybot AI/)
+  assert.match(harness.sent.at(-1)?.text ?? '', /AI response for/)
+  assert.equal(harness.sent.at(-1)?.text.includes('🤖 *Allybot AI*'), false)
 })
 
 test('Omni-AI merges quotedText into context when user provides instructions', async () => {

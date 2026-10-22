@@ -340,3 +340,54 @@ test('@Chlona mention and plain Chlona trigger natural response with WhatsApp fo
 
   await app.stop()
 })
+
+test('!ai command has full parity with @Chlona: no robot headers, WhatsApp formatting, and Chlona persona', async () => {
+  const wa = new FakeWhatsApp()
+  const app = new ApplicationFramework({ commandPrefix: '!', defaultCooldownMs: 0 }, logger, wa)
+  const aiCalls = []
+
+  app.registerService(new AiMemoryService())
+  app.registerPlugin(
+    createAiPlugin({
+      whatsapp: wa,
+      transport: async (req) => {
+        aiCalls.push(req)
+        return { content: 'Halo! Aku **Chlona**, asisten buatan *Cyrus*. Ini teks dengan [link](https://example.com).' }
+      },
+    }),
+  )
+  await app.start()
+
+  // Run !ai
+  await wa.emitMessage({
+    id: 'msg-cmd-ai',
+    remoteJid: '120363000000000001@g.us',
+    senderJid: '6281200000001@s.whatsapp.net',
+    text: '!ai kamu siapa?',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+
+  assert.equal(aiCalls.length, 1)
+  assert.equal(aiCalls[0].userMessage, 'kamu siapa?')
+  assert.match(aiCalls[0].systemPrompt, /Chlona/)
+  assert.match(aiCalls[0].systemPrompt, /Cyrus/)
+  // Verify response formatting: WhatsApp bold, link conversion, and no robotic headers
+  assert.equal(wa.sent.at(-1).text, 'Halo! Aku *Chlona*, asisten buatan *Cyrus*. Ini teks dengan link (https://example.com).')
+  assert.equal(wa.sent.at(-1).text.includes('🤖 *Allybot AI*'), false)
+
+  // Run via alias !chlona (different user to avoid cooldown)
+  await wa.emitMessage({
+    id: 'msg-cmd-chlona',
+    remoteJid: '120363000000000001@g.us',
+    senderJid: '6281200000002@s.whatsapp.net',
+    text: '!chlona apa kabar?',
+    timestamp: Date.now() + 5000,
+    fromMe: false,
+  })
+
+  assert.equal(aiCalls.length, 2)
+  assert.equal(aiCalls[1].userMessage, 'apa kabar?')
+
+  await app.stop()
+})

@@ -64,15 +64,15 @@ const PRIVILEGED_CATEGORIES = new Set(['moderation', 'admin', 'admin-tools', 'ad
 
 function usage(context: CommandContext): string {
   return [
-    "𓏼 *`𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐀𝐈 (𝐎𝗺𝗻𝗶)`*",
+    "𓏼 *`𝐂𝗵𝗹𝗼𝗻𝗮 (𝐎𝗺𝗻𝐢)`*",
     "─꯭──꯭──    .  .  .    ▭▬▭▬▭",
     `Format: ${context.prefix}ai <pertanyaan atau instruksi>`,
-    `Atau tag *@Allybot <pesan>* / reply balasan AI secara langsung`,
+    `Atau tag *@Chlona <pesan>* / ketik *Chlona <pesan>* / reply langsung`,
     "─͜──͜──͜─  · • ·  ─͜──͜──͜─",
     "Semua fungsi AI & Smart Router sudah disatukan di sini:",
-    "• Ngobrol Natural : `@Allybot Halo bot, hari ini hari apa?`",
-    "• Panggil Fitur   : `@Allybot tolong ubah gambar ini jadi stiker`",
-    "• Putar Musik     : `@Allybot play Duka Last Child`",
+    "• Ngobrol Natural : `Chlona hari ini hari apa?`",
+    "• Panggil Fitur   : `Chlona tolong ubah gambar ini jadi stiker`",
+    "• Putar Musik     : `Chlona play Duka Last Child`",
     "• Reset Ingatan   : `!ai reset`",
     "• Terjemahan      : `!ai terjemahkan ke Jepang: Halo`",
     "• Ringkas         : reply pesan + `!ai ringkas intinya`",
@@ -342,8 +342,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
       // 1. Omni-AI: Single entry point for general chat, contextual reply, multi-turn memory, and vision
       context.commands.register({
         name: 'ai',
-        aliases: ['ally', 'tanya'],
-        description: 'Tanya atau ngobrol bareng Allybot AI secara serbaguna',
+        aliases: ['chlona', 'ally', 'tanya'],
+        description: 'Tanya atau ngobrol bareng Chlona secara serbaguna',
         category: 'tools',
         menuOrder: 1,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
@@ -357,8 +357,40 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           // Subcommand: !ai reset / !ai clear
           if (/^(?:reset|clear|hapus|lupakan)$/i.test(rawPrompt) && !quotedText && !imageSource) {
             await memory?.clearHistory(commandContext.message.remoteJid, senderJid)
-            await commandContext.reply('🧹 Sip, ingatan obrolan kita udah di-reset ya! Yuk mulai topik baru~')
+            await commandContext.reply('🧹 Oke, ingatan obrolan kita udah di-reset ya! Yuk mulai topik baru~')
             return
+          }
+
+          // Guardrail: Block automatic execution of Vela transfers / Bank / Tax mutations
+          if (isManualOnlyTransactionIntent(rawPrompt)) {
+            await commandContext.reply(
+              `🛡️ Demi keamanan saldo Vela kamu, transaksi seperti transfer, bank, atau pembayaran pajak tetap wajib diketik manual pakai command ya (misalnya *${commandContext.prefix}pay @user nominal* atau *${commandContext.prefix}bank*)~`,
+            )
+            return
+          }
+
+          // Stage 1: Fast-Path Direct Command/Alias Match (e.g. "!ai play Duka Last Child")
+          const [firstWord, ...restTokens] = rawPrompt.split(/\s+/)
+          if (firstWord && !quotedText && !imageSource) {
+            const directCmd = context.commands.get(firstWord.toLowerCase())
+            if (directCmd && isAllowedPublicMenuCommand(directCmd) && directCmd.name !== 'ai') {
+              const syntheticText = `${commandContext.prefix}${directCmd.name}${restTokens.length > 0 ? ` ${restTokens.join(' ')}` : ''}`
+              await context.commands.dispatch({ ...commandContext.message, text: syntheticText })
+              return
+            }
+          }
+
+          // Stage 2: Deterministic Natural Language Command Matcher (e.g. "!ai tolong jadikan stiker")
+          if (rawPrompt && !quotedText && !imageSource) {
+            const matchedNlu = matchNaturalLanguageCommand(rawPrompt, commandContext.message)
+            if (matchedNlu && matchedNlu.commandName !== 'ai') {
+              const targetCmd = context.commands.get(matchedNlu.commandName)
+              if (targetCmd && isAllowedPublicMenuCommand(targetCmd)) {
+                const syntheticText = `${commandContext.prefix}${targetCmd.name}${matchedNlu.argsText ? ` ${matchedNlu.argsText}` : ''}`
+                await context.commands.dispatch({ ...commandContext.message, text: syntheticText })
+                return
+              }
+            }
           }
 
           // 1A. Multimodal Vision Handling (Direct Image or Quoted Image)
@@ -378,8 +410,9 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
               const prompt = rawPrompt || (quotedText ? `Perhatikan gambar ini berdasarkan konteks berikut:\n"${quotedText}"` : undefined)
               const result = await describeImageWithAi(dataUrl, prompt)
-              await memory?.appendExchange(commandContext.message.remoteJid, senderJid, prompt ?? '[Kirim Gambar]', result)
-              await commandContext.reply(`🤖 *Allybot AI:*\n\n${result}`)
+              const formattedResult = formatToWhatsApp(result)
+              await memory?.appendExchange(commandContext.message.remoteJid, senderJid, prompt ?? '[Kirim Gambar]', formattedResult)
+              await commandContext.reply(formattedResult)
             } catch (error) {
               commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'ai vision failed')
               await commandContext.reply('Gambarnya kurang jelas atau lagi gagal diproses nih, coba foto yang lebih terang ya~ 🔍📷')
@@ -409,11 +442,54 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
           try {
             const history = await memory?.getHistory(commandContext.message.remoteJid, senderJid)
-            const response = history && history.length > 0
-              ? await handler(finalPrompt, { history })
-              : await handler(finalPrompt)
-            await memory?.appendExchange(commandContext.message.remoteJid, senderJid, finalPrompt, response)
-            await commandContext.reply(`🤖 *Allybot AI*\n\n${response}`)
+            const personaPrompt =
+              buildPersonaSystemPrompt(
+                {
+                  senderName: commandContext.message.pushName,
+                  isGroup: isGroupJid(commandContext.message.remoteJid),
+                  groupName: commandContext.message.groupName,
+                },
+                options.persona ?? DEFAULT_CHLONA_PERSONA,
+              ) + buildPublicMenuCatalogPrompt(context, commandContext.message)
+
+            const rawReply = await handler(finalPrompt, {
+              history,
+              systemPrompt: personaPrompt,
+            })
+
+            // Check if the LLM routed the request to a public !menu command: [RUN_CMD: <name> <args>]
+            const cmdMatch = rawReply.trim().match(/^\[RUN_CMD:\s*([a-z0-9_-]+)(?:\s+([^\]]*))?\]$/i)
+            if (cmdMatch?.[1]) {
+              const cmdName = cmdMatch[1].toLowerCase()
+              const cmdArgs = (cmdMatch[2] ?? '').trim()
+              if (isManualOnlyTransactionIntent(`${cmdName} ${cmdArgs}`)) {
+                await commandContext.reply(
+                  `🛡️ Demi keamanan saldo Vela kamu, transaksi seperti *${commandContext.prefix}${cmdName}* wajib diketik manual pakai command ya~`,
+                )
+                return
+              }
+              const targetCmd = context.commands.get(cmdName)
+              if (targetCmd && isAllowedPublicMenuCommand(targetCmd) && targetCmd.name !== 'ai') {
+                const syntheticText = `${commandContext.prefix}${targetCmd.name}${cmdArgs ? ` ${cmdArgs}` : ''}`
+                await context.commands.dispatch({ ...commandContext.message, text: syntheticText })
+                return
+              }
+            }
+
+            const formattedReply = formatToWhatsApp(rawReply)
+            const typingDelayMs =
+              options.humanTypingDelayMs !== undefined
+                ? options.humanTypingDelayMs
+                : process.env.NODE_ENV === 'test'
+                  ? 0
+                  : Math.min(1200, Math.max(300, Math.round(formattedReply.length * 8)))
+
+            if (typingDelayMs > 0) {
+              await new Promise((resolve) => setTimeout(resolve, typingDelayMs))
+            }
+
+            await memory?.appendExchange(commandContext.message.remoteJid, senderJid, finalPrompt, formattedReply)
+            await commandContext.reply(formattedReply)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI command failed safely')
             await commandContext.reply(safeFailureMessage(error))
@@ -613,7 +689,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
           try {
             const response = await handler(`Terjemahkan teks berikut ke bahasa ${input.target}. Pertahankan makna dan jangan menambahkan penjelasan:\n${input.text}`)
-            await commandContext.reply(`🌐 *Terjemahan*\n${response}`)
+            await commandContext.reply(`🌐 *Terjemahan*\n${formatToWhatsApp(response)}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'translate command failed safely')
             await commandContext.reply(safeFailureMessage(error))
@@ -638,7 +714,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
           try {
             const response = await handler(`Ringkas teks berikut menjadi beberapa kalimat singkat dalam bahasa Indonesia. Jangan menambahkan fakta baru:\n${text}`)
-            await commandContext.reply(`📝 *Ringkasan*\n${response}`)
+            await commandContext.reply(`📝 *Ringkasan*\n${formatToWhatsApp(response)}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'summarize command failed safely')
             await commandContext.reply(safeFailureMessage(error))
@@ -667,7 +743,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
           try {
             const response = await handler(`Analisis teks berikut dan tentukan apakah ditulis oleh AI atau manusia. Berikan skor kepercayaan 0-100% dan alasan singkat:\n\n${text}`)
-            await commandContext.reply(`🔍 *AI Detection*\n${response}`)
+            await commandContext.reply(`🔍 *AI Detection*\n${formatToWhatsApp(response)}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI detection failed safely')
             await commandContext.reply(safeFailureMessage(error))
