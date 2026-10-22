@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { readFileSync, existsSync } from 'node:fs'
 import { readFile, unlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -1317,6 +1318,29 @@ export function analyzeGameHistory(state: ChessGameState, whiteElo: number, blac
 // ============================================================================
 // 4. CHESS SERVICE (SQLITE ELO + SATORI RENDERERS + FFMPEG MP4 REVIEW)
 // ============================================================================
+export interface BoardRenderOptions {
+  whiteAvatarBuffer?: Buffer
+  blackAvatarBuffer?: Buffer
+}
+
+async function toAvatarDataUrl(buf?: Buffer, fallbackName?: string, size = 32): Promise<string> {
+  if (buf && buf.length > 0) {
+    try {
+      const resized = await sharp(buf)
+        .resize(size, size, { fit: 'cover' })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      return `data:image/jpeg;base64,${resized.toString('base64')}`;
+    } catch {}
+  }
+  const initial = (fallbackName || 'U').trim().charAt(0).toUpperCase();
+  const svg = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+    <rect width="${size}" height="${size}" rx="4" fill="#363431"/>
+    <text x="50%" y="55%" font-family="sans-serif" font-weight="bold" font-size="${Math.floor(size * 0.52)}" fill="#eaedd1" dominant-baseline="middle" text-anchor="middle">${initial}</text>
+  </svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
 export class ChessService implements Service {
   readonly name = 'chess'
 
@@ -1830,7 +1854,7 @@ export class ChessService implements Service {
   // --------------------------------------------------------------------------
   // SATORI + RESVG 1:1 BOARD IMAGE RENDERER
   // --------------------------------------------------------------------------
-  async renderBoardPng(state: ChessGameState): Promise<Buffer> {
+  async renderBoardPng(state: ChessGameState, options?: BoardRenderOptions): Promise<Buffer> {
     const fonts = loadSatoriFonts()
     const wProfile = this.getPlayerElo(state.whiteJid, state.whiteName)
     const bProfile = this.getPlayerElo(state.blackJid, state.blackName)
@@ -1975,9 +1999,15 @@ export class ChessService implements Service {
     const topAdv = topColor === 'w' ? mat.whiteAdv : mat.blackAdv
     const bottomAdv = bottomColor === 'w' ? mat.whiteAdv : mat.blackAdv
 
+    const topAvatar = topColor === 'w' ? options?.whiteAvatarBuffer : options?.blackAvatarBuffer
+    const bottomAvatar = bottomColor === 'w' ? options?.whiteAvatarBuffer : options?.blackAvatarBuffer
+    const topAvatarUrl = await toAvatarDataUrl(topAvatar, topName, 32)
+    const bottomAvatarUrl = await toAvatarDataUrl(bottomAvatar, bottomName, 32)
+
     const makePlayerBar = (
       color: PieceColor,
       name: string,
+      avatarUrl: string,
       elo: number,
       tierLabel: string,
       adv: number,
@@ -2015,10 +2045,23 @@ export class ChessService implements Service {
                   },
                 },
                 {
+                  type: 'img',
+                  props: {
+                    src: avatarUrl,
+                    style: {
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '4px',
+                      objectFit: 'cover',
+                      border: '1px solid #3d3a34',
+                    },
+                  },
+                },
+                {
                   type: 'span',
                   props: {
                     style: { fontSize: '16px', fontWeight: 700, color: '#eaedd1' },
-                    children: name.slice(0, 20),
+                    children: name.slice(0, 18),
                   },
                 },
                 {
@@ -2080,7 +2123,7 @@ export class ChessService implements Service {
           fontFamily: 'Inter',
         },
         children: [
-          makePlayerBar(topColor, topName, topElo, topTier.title, topAdv, !state.gameOver && state.turn === topColor),
+          makePlayerBar(topColor, topName, topAvatarUrl, topElo, topTier.title, topAdv, !state.gameOver && state.turn === topColor),
           {
             type: 'div',
             props: {
@@ -2095,7 +2138,7 @@ export class ChessService implements Service {
               children: squareNodes,
             },
           },
-          makePlayerBar(bottomColor, bottomName, bottomElo, bottomTier.title, bottomAdv, !state.gameOver && state.turn === bottomColor),
+          makePlayerBar(bottomColor, bottomName, bottomAvatarUrl, bottomElo, bottomTier.title, bottomAdv, !state.gameOver && state.turn === bottomColor),
         ],
       },
     }
@@ -2112,7 +2155,9 @@ export class ChessService implements Service {
     state: ChessGameState,
     summary: GameReviewSummary,
     step: EvaluatedMoveStep | null,
+    options?: BoardRenderOptions,
   ): Promise<Buffer> {
+    const whiteAvatarUrl = await toAvatarDataUrl(options?.whiteAvatarBuffer, summary.whiteName, 24)
     const fonts = loadSatoriFonts()
     const parsed = step ? parseFen(step.fenAfter) : parseFen(toFen(createInitialBoard(), 'w', { wK: true, wQ: true, bK: true, bQ: true }, null))
     const board = 'error' in parsed ? createInitialBoard() : parsed.board
@@ -2347,10 +2392,25 @@ export class ChessService implements Service {
                     style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
                     children: [
                       {
-                        type: 'span',
+                        type: 'div',
                         props: {
-                          style: { fontSize: '15px', fontWeight: 700 },
-                          children: `⬜ ${summary.whiteName.slice(0, 18)} (${summary.whiteElo}) • Akurasi: ${summary.whiteAccuracy}%`,
+                          style: { display: 'flex', alignItems: 'center', gap: '8px' },
+                          children: [
+                            {
+                              type: 'img',
+                              props: {
+                                src: whiteAvatarUrl,
+                                style: { width: '24px', height: '24px', borderRadius: '4px', objectFit: 'cover' },
+                              },
+                            },
+                            {
+                              type: 'span',
+                              props: {
+                                style: { fontSize: '14px', fontWeight: 700 },
+                                children: `⬜ ${summary.whiteName.slice(0, 16)} (${summary.whiteElo}) • ${summary.whiteAccuracy}%`,
+                              },
+                            },
+                          ],
                         },
                       },
                       step
@@ -2399,7 +2459,9 @@ export class ChessService implements Service {
     return Buffer.from(resvg.render().asPng())
   }
 
-  private async renderReviewSummaryFramePng(summary: GameReviewSummary): Promise<Buffer> {
+  private async renderReviewSummaryFramePng(summary: GameReviewSummary, options?: BoardRenderOptions): Promise<Buffer> {
+    const whiteAvatarUrl = await toAvatarDataUrl(options?.whiteAvatarBuffer, summary.whiteName, 44)
+    const blackAvatarUrl = await toAvatarDataUrl(options?.blackAvatarBuffer, summary.blackName, 44)
     const fonts = loadSatoriFonts()
     const rowItems: { label: MoveClassification; symbol: string; color: string }[] = [
       { label: 'Brilliant', symbol: '!!', color: '#1baca6' },
@@ -2525,22 +2587,37 @@ export class ChessService implements Service {
                 display: 'flex',
                 justifyContent: 'space-between',
                 backgroundColor: '#262421',
-                padding: '14px 24px',
+                padding: '14px 20px',
                 borderRadius: '8px',
               },
               children: [
                 {
                   type: 'div',
                   props: {
-                    style: { display: 'flex', flexDirection: 'column', gap: '4px' },
+                    style: { display: 'flex', alignItems: 'center', gap: '12px' },
                     children: [
                       {
-                        type: 'span',
-                        props: { style: { fontSize: '16px', fontWeight: 700 }, children: `⬜ ${summary.whiteName.slice(0, 16)}` },
+                        type: 'img',
+                        props: {
+                          src: whiteAvatarUrl,
+                          style: { width: '44px', height: '44px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #4a4843' },
+                        },
                       },
                       {
-                        type: 'span',
-                        props: { style: { fontSize: '24px', fontWeight: 700, color: '#81b64c' }, children: `${summary.whiteAccuracy}% Akurasi` },
+                        type: 'div',
+                        props: {
+                          style: { display: 'flex', flexDirection: 'column', gap: '2px' },
+                          children: [
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: '15px', fontWeight: 700 }, children: `⬜ ${summary.whiteName.slice(0, 14)}` },
+                            },
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: '22px', fontWeight: 700, color: '#81b64c' }, children: `${summary.whiteAccuracy}% Akurasi` },
+                            },
+                          ],
+                        },
                       },
                     ],
                   },
@@ -2548,15 +2625,30 @@ export class ChessService implements Service {
                 {
                   type: 'div',
                   props: {
-                    style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' },
+                    style: { display: 'flex', alignItems: 'center', gap: '12px', flexDirection: 'row-reverse' },
                     children: [
                       {
-                        type: 'span',
-                        props: { style: { fontSize: '16px', fontWeight: 700 }, children: `⬛ ${summary.blackName.slice(0, 16)}` },
+                        type: 'img',
+                        props: {
+                          src: blackAvatarUrl,
+                          style: { width: '44px', height: '44px', borderRadius: '6px', objectFit: 'cover', border: '1px solid #4a4843' },
+                        },
                       },
                       {
-                        type: 'span',
-                        props: { style: { fontSize: '24px', fontWeight: 700, color: '#81b64c' }, children: `${summary.blackAccuracy}% Akurasi` },
+                        type: 'div',
+                        props: {
+                          style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' },
+                          children: [
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: '15px', fontWeight: 700 }, children: `⬛ ${summary.blackName.slice(0, 14)}` },
+                            },
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: '22px', fontWeight: 700, color: '#81b64c' }, children: `${summary.blackAccuracy}% Akurasi` },
+                            },
+                          ],
+                        },
                       },
                     ],
                   },
@@ -2588,14 +2680,14 @@ export class ChessService implements Service {
     return Buffer.from(resvg.render().asPng())
   }
 
-  async renderReviewVideoMp4(state: ChessGameState): Promise<{ mp4Buffer: Buffer; summary: GameReviewSummary }> {
+  async renderReviewVideoMp4(state: ChessGameState, options?: BoardRenderOptions): Promise<{ mp4Buffer: Buffer; summary: GameReviewSummary }> {
     const wProfile = this.getPlayerElo(state.whiteJid, state.whiteName)
     const bProfile = this.getPlayerElo(state.blackJid, state.blackName)
     const summary = analyzeGameHistory(state, wProfile.elo, bProfile.elo)
 
     const frames: Buffer[] = []
     // Initial frame
-    frames.push(await this.renderReviewFramePng(state, summary, null))
+    frames.push(await this.renderReviewFramePng(state, summary, null, options))
 
     // Cap to max 60 frames so rendering stays fast in WhatsApp
     const stepsToRender = summary.steps.length > 60
@@ -2603,11 +2695,11 @@ export class ChessService implements Service {
       : summary.steps
 
     for (const step of stepsToRender) {
-      frames.push(await this.renderReviewFramePng(state, summary, step))
+      frames.push(await this.renderReviewFramePng(state, summary, step, options))
     }
 
     // Hold final summary scorecard for 3 frames (3 seconds)
-    const summaryPng = await this.renderReviewSummaryFramePng(summary)
+    const summaryPng = await this.renderReviewSummaryFramePng(summary, options)
     frames.push(summaryPng, summaryPng, summaryPng)
 
     const outPath = join(tmpdir(), `allybot_chess_review_${Date.now()}_${randomBytes(4).toString('hex')}.mp4`)

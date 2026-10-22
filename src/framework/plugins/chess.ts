@@ -28,6 +28,34 @@ interface OpenChallenge {
 }
 
 const openChallenges = new Map<string, OpenChallenge>()
+const avatarCache = new Map<string, { buf?: Buffer; expiresAt: number }>()
+
+async function resolveAvatar(whatsapp: WhatsAppPort, jid?: string): Promise<Buffer | undefined> {
+  if (!jid || !whatsapp.getProfilePictureUrl) return undefined
+  const normJid = jidNormalizedUser(jid)
+  const cached = avatarCache.get(normJid)
+  if (cached && cached.expiresAt > Date.now()) return cached.buf
+
+  try {
+    const url = await whatsapp.getProfilePictureUrl(normJid, 'preview', 3000)
+    if (!url) {
+      avatarCache.set(normJid, { buf: undefined, expiresAt: Date.now() + 5 * 60 * 1000 })
+      return undefined
+    }
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
+    if (!res.ok) {
+      avatarCache.set(normJid, { buf: undefined, expiresAt: Date.now() + 5 * 60 * 1000 })
+      return undefined
+    }
+    const arr = await res.arrayBuffer()
+    const buf = Buffer.from(arr)
+    avatarCache.set(normJid, { buf, expiresAt: Date.now() + 15 * 60 * 1000 })
+    return buf
+  } catch {
+    avatarCache.set(normJid, { buf: undefined, expiresAt: Date.now() + 5 * 60 * 1000 })
+    return undefined
+  }
+}
 
 function userTag(jid: string): string {
   const user = jid.split('@')[0]?.split(':')[0] ?? jid
@@ -60,69 +88,64 @@ function formatMoveCaption(
   const lines: string[] = []
 
   if (state.gameOver) {
-    lines.push(`🏁 *${state.resultTitle}*`)
-    lines.push(`↳ ${state.resultReason}`)
-    lines.push('')
-    lines.push(`⬜ *Putih* : ${userTag(state.whiteJid)} (${state.whiteName})`)
-    lines.push(`⬛ *Hitam* : ${userTag(state.blackJid)} (${state.blackName})`)
+    lines.push('*CATUR // PERTANDINGAN SELESAI*')
+    lines.push('─꯭──꯭──    .  .  .    ▭▬▭▬▭')
+    lines.push(`• Hasil : *${state.resultTitle}* (${state.resultReason})`)
+    lines.push(`• Putih : ${userTag(state.whiteJid)} (${state.whiteName})`)
+    lines.push(`• Hitam : ${userTag(state.blackJid)} (${state.blackName})`)
     if (eloResult) {
-      lines.push('')
       if (eloResult.applied) {
-        lines.push('📈 *Perubahan Rating ELO*')
-        lines.push(
-          `• Putih: *${eloResult.whiteBefore}* → *${eloResult.whiteAfter}* (${formatEloDelta(eloResult.whiteDelta)})`,
-        )
-        lines.push(
-          `• Hitam: *${eloResult.blackBefore}* → *${eloResult.blackAfter}* (${formatEloDelta(eloResult.blackDelta)})`,
-        )
+        lines.push('')
+        lines.push('*Perubahan Rating ELO:*')
+        lines.push(`• Putih : *${eloResult.whiteBefore}* → *${eloResult.whiteAfter}* (${formatEloDelta(eloResult.whiteDelta)})`)
+        lines.push(`• Hitam : *${eloResult.blackBefore}* → *${eloResult.blackAfter}* (${formatEloDelta(eloResult.blackDelta)})`)
       } else if (eloResult.reason) {
-        lines.push(`ℹ️ _${eloResult.reason}_`)
+        lines.push(`• Rating: _${eloResult.reason}_`)
       }
     }
-    lines.push('')
-    lines.push(`🎬 Ketik *${prefix}review* untuk menonton video analisis langkah (.mp4) *Blunder ↔ Brilliant*!`)
-    lines.push(`🏆 Ketik *${prefix}leaderboardchess* untuk melihat klasemen ELO.`)
+    lines.push('━━━━━━━━━━━━━━━━━━━━')
+    lines.push(`_Ketik \`${prefix}review\` untuk analisis langkah (.mp4) atau \`${prefix}lbchess\` untuk klasemen._`)
     return lines.join('\n')
   }
 
   const turnTag = state.turn === 'w' ? userTag(state.whiteJid) : userTag(state.blackJid)
-  const turnLabel = state.turn === 'w' ? 'Putih ⬜' : 'Hitam ⬛'
+  const turnLabel = state.turn === 'w' ? 'Putih' : 'Hitam'
   const inCheck = isInCheck(state.board, state.turn)
 
-  lines.push(`♟️ *CATUR P2P ALLYBOT* — Match \`${state.matchId}\``)
+  lines.push(`*CATUR // MATCH ${state.matchId}*`)
+  lines.push('─꯭──꯭──    .  .  .    ▭▬▭▬▭')
+  lines.push(`• Putih : ${userTag(state.whiteJid)} (${state.whiteName})`)
+  lines.push(`• Hitam : ${userTag(state.blackJid)} (${state.blackName})`)
   if (lastSan) {
     const prevColor = state.turn === 'w' ? 'Hitam' : 'Putih'
-    lines.push(`✅ Langkah Terakhir (${prevColor}): *${lastSan}*`)
+    lines.push(`• Langkah Terakhir (${prevColor}) : *${lastSan}*`)
   }
   if (inCheck) {
-    lines.push(`⚠️ *SKAK!* Raja ${turnLabel} sedang terancam!`)
+    lines.push(`• Peringatan : *SKAK* pada Raja ${turnLabel}!`)
   }
-  lines.push(`👉 *Giliran Jalan* : ${turnLabel} (${turnTag})`)
-  lines.push('')
-  lines.push(
-    `_Ketik langsung notasi langkah (contoh: \`e4\`, \`Nf3\`, \`e2e4\`, \`O-O\`) atau gunakan \`${prefix}catur <langkah>\`._`,
-  )
+  lines.push(`• Giliran Jalan : *${turnLabel}* (${turnTag})`)
+  lines.push('━━━━━━━━━━━━━━━━━━━━')
+  lines.push(`_Balas foto ini atau ketik langkah (contoh: \`e4\`, \`Nf3\`, \`kuda f3\`)._`)
   return lines.join('\n')
 }
 
 function formatReviewSummaryCaption(summary: GameReviewSummary): string {
   const lines: string[] = [
-    `🎬 *LAPORAN GAME REVIEW CATUR (${summary.matchId})*`,
-    `🏁 *Hasil* : ${summary.resultTitle}`,
-    `↳ _${summary.resultReason}_`,
+    `*CATUR // GAME REVIEW (${summary.matchId})*`,
+    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+    `• Hasil : *${summary.resultTitle}* (${summary.resultReason})`,
+    `• Putih : ${summary.whiteName} (${summary.whiteElo} ELO) • Akurasi ${summary.whiteAccuracy}%`,
+    `• Hitam : ${summary.blackName} (${summary.blackElo} ELO) • Akurasi ${summary.blackAccuracy}%`,
     '',
-    `⬜ *${summary.whiteName}* (${summary.whiteElo} ELO) — 🎯 Akurasi: *${summary.whiteAccuracy}%*`,
-    `⬛ *${summary.blackName}* (${summary.blackElo} ELO) — 🎯 Akurasi: *${summary.blackAccuracy}%*`,
-    '',
-    '📊 *Klasifikasi Langkah (Putih vs Hitam)*',
-    `• !! Brilliant : *${summary.counts.w.Brilliant}* | *${summary.counts.b.Brilliant}*`,
-    `• ! Great Move : *${summary.counts.w.Great}* | *${summary.counts.b.Great}*`,
-    `• ★ Best Move  : *${summary.counts.w.Best}* | *${summary.counts.b.Best}*`,
-    `• ✓ Good Move  : *${summary.counts.w.Good}* | *${summary.counts.b.Good}*`,
-    `• 📖 Book Move  : *${summary.counts.w.Book}* | *${summary.counts.b.Book}*`,
-    `• ?! Inaccuracy : *${summary.counts.w.Inaccuracy}* | *${summary.counts.b.Inaccuracy}*`,
-    `• ? Mistake     : *${summary.counts.w.Mistake}* | *${summary.counts.b.Mistake}*`,
-    `• ?? Blunder    : *${summary.counts.w.Blunder}* | *${summary.counts.b.Blunder}*`,
+    '*Klasifikasi Langkah (Putih / Hitam):*',
+    `• Brilliant  : ${summary.counts.w.Brilliant} / ${summary.counts.b.Brilliant}`,
+    `• Great Move : ${summary.counts.w.Great} / ${summary.counts.b.Great}`,
+    `• Best Move  : ${summary.counts.w.Best} / ${summary.counts.b.Best}`,
+    `• Good       : ${summary.counts.w.Good} / ${summary.counts.b.Good}`,
+    `• Book       : ${summary.counts.w.Book} / ${summary.counts.b.Book}`,
+    `• Inaccuracy : ${summary.counts.w.Inaccuracy} / ${summary.counts.b.Inaccuracy}`,
+    `• Mistake    : ${summary.counts.w.Mistake} / ${summary.counts.b.Mistake}`,
+    `• Blunder    : ${summary.counts.w.Blunder} / ${summary.counts.b.Blunder}`,
   ]
 
   if (summary.turningPoint) {
@@ -130,11 +153,11 @@ function formatReviewSummaryCaption(summary: GameReviewSummary): string {
     const side = tp.color === 'w' ? 'Putih' : 'Hitam'
     lines.push(
       '',
-      `🔥 *Momen Kunci (Turning Point)* :`,
-      `Langkah #${tp.moveNumber} (${side}: *${tp.san}*) terdeteksi sebagai *${tp.classification.toUpperCase()} (${tp.symbol})* (-${(tp.cpLoss / 100).toFixed(1)} poin evaluasi). Langkah terbaik seharusnya *${tp.bestMoveSan}*.`,
+      `• Turning Point: Langkah #${tp.moveNumber} (${side} *${tp.san}*) → ${tp.classification} (-${(tp.cpLoss / 100).toFixed(1)}). Solusi: *${tp.bestMoveSan}*.`,
     )
   }
 
+  lines.push('━━━━━━━━━━━━━━━━━━━━')
   return lines.join('\n')
 }
 
@@ -144,7 +167,16 @@ async function sendBoardImage(
   state: ChessGameState,
   caption: string,
 ): Promise<void> {
-  const pngBuffer = await chess.renderBoardPng(state)
+  const [whiteAvatarBuffer, blackAvatarBuffer] = await Promise.all([
+    resolveAvatar(whatsapp, state.whiteJid),
+    resolveAvatar(whatsapp, state.blackJid),
+  ])
+
+  const pngBuffer = await chess.renderBoardPng(state, {
+    whiteAvatarBuffer,
+    blackAvatarBuffer,
+  })
+
   if (whatsapp.sendMedia) {
     await whatsapp.sendMedia(state.chatJid, {
       kind: 'image',
@@ -181,7 +213,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
 
         if (!targetState) {
           await ctx.reply(
-            `Belum ada riwayat pertandingan catur yang selesai di obrolan ini untuk di-review.\nMulai main dengan *${ctx.prefix}catur @lawan* atau *${ctx.prefix}catur open*!`,
+            `*CATUR // GAME REVIEW*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\nBelum ada riwayat pertandingan selesai di obrolan ini.\nMulai bermain dengan \`${ctx.prefix}catur @lawan\` atau \`${ctx.prefix}catur open\`!\n━━━━━━━━━━━━━━━━━━━━`,
           )
           return
         }
@@ -193,11 +225,19 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
 
         await ctx.react('🎬')
         await ctx.reply(
-          `⏳ Sedang menganalisis *${targetState.moveHistory.length} langkah* (Alpha-Beta + Quiescence Tactical Engine) dan merender video MP4 *Game Review*...`,
+          `⏳ Menganalisis *${targetState.moveHistory.length} langkah* dan merender video Game Review MP4...`,
         )
 
         try {
-          const { mp4Buffer, summary } = await chess.renderReviewVideoMp4(targetState)
+          const [whiteAvatarBuffer, blackAvatarBuffer] = await Promise.all([
+            resolveAvatar(whatsapp, targetState.whiteJid),
+            resolveAvatar(whatsapp, targetState.blackJid),
+          ])
+
+          const { mp4Buffer, summary } = await chess.renderReviewVideoMp4(targetState, {
+            whiteAvatarBuffer,
+            blackAvatarBuffer,
+          })
           const caption = formatReviewSummaryCaption(summary)
           if (ctx.whatsapp.sendMedia) {
             await ctx.whatsapp.sendMedia(chatJid, {
@@ -228,7 +268,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'catur',
         aliases: ['chess'],
-        description: 'Main catur P2P interaktif bergaya Chess.com dengan sistem ELO & Game Review MP4',
+        description: 'Main catur P2P interaktif dengan sistem rating ELO & Game Review MP4',
         category: 'fun',
         menuOrder: 3,
         cooldownMs: 1500,
@@ -251,29 +291,25 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
 
             await ctx.reply(
               [
-                '♟️ *CATUR P2P INTERAKTIF ALLYBOT*',
+                '*CATUR // PANDUAN PERTANDINGAN*',
+                '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+                `• \`${ctx.prefix}catur @lawan\` : Tantang pemain lain bermain`,
+                `• \`${ctx.prefix}catur open\` : Buka tantangan publik di grup`,
+                `• \`${ctx.prefix}catur join\` : Masuk ke tantangan terbuka`,
+                `• \`${ctx.prefix}catur solo\` : Mode latihan mandiri`,
                 '',
-                '*Cara Bermain:*',
-                `• \`${ctx.prefix}catur @lawan\` — Tantang temanmu duel P2P (Putih vs Hitam)`,
-                `• \`${ctx.prefix}catur open\` — Buka tantangan terbuka di grup`,
-                `• \`${ctx.prefix}catur join\` — Terima tantangan terbuka`,
-                `• \`${ctx.prefix}catur solo\` — Mode latihan / analisis mandiri`,
+                '*Kontrol Langkah:*',
+                '• Balas foto papan atau ketik langkah (`e4`, `Nf3`, `kuda f3`, `e2e4`)',
+                `• \`${ctx.prefix}catur board\` : Tampilkan papan terkini`,
+                `• \`${ctx.prefix}catur flip\` : Balik sudut pandang papan`,
+                `• \`${ctx.prefix}catur menyerah\` : Menyerah dari pertandingan`,
+                `• \`${ctx.prefix}catur remis\` : Ajukan atau terima tawaran seri`,
                 '',
-                '*Kontrol Saat Pertandingan:*',
-                `• \`${ctx.prefix}catur <langkah>\` — Jalan (contoh: \`e4\`, \`Nf3\`, \`e2e4\`, \`O-O\`)`,
-                '  _(Atau cukup ketik langkah langsung di chat saat giliranmu!)_',
-                `• \`${ctx.prefix}catur board\` — Tampilkan papan saat ini`,
-                `• \`${ctx.prefix}catur pure\` — Toggle tampilan papan murni 1:1`,
-                `• \`${ctx.prefix}catur flip\` — Putar orientasi papan (Putih/Hitam)`,
-                `• \`${ctx.prefix}catur fen [kode_fen]\` — Lihat atau muat posisi FEN`,
-                `• \`${ctx.prefix}catur pgn\` — Ekspor riwayat langkah format PGN`,
-                `• \`${ctx.prefix}catur remis\` — Tawarkan / terima kesepakatan seri`,
-                `• \`${ctx.prefix}catur menyerah\` — Menyerah (Resign)`,
-                '',
-                '*Analisis & Peringkat ELO:*',
-                `• \`${ctx.prefix}review\` — Render video MP4 Analisis Pertandingan (Blunder ↔ Brilliant)`,
-                `• \`${ctx.prefix}leaderboardchess\` — Klasemen Top 10 ELO Catur Visual`,
-                `• \`${ctx.prefix}elochess [@user]\` — Cek kartu profil ELO & statistik pemain`,
+                '*Analisis & Peringkat:*',
+                `• \`${ctx.prefix}review\` : Video analisis langkah MP4 (Blunder hingga Brilliant)`,
+                `• \`${ctx.prefix}lbchess\` : Klasemen Top 10 rating ELO`,
+                `• \`${ctx.prefix}elochess\` : Profil rating dan riwayat tanding`,
+                '━━━━━━━━━━━━━━━━━━━━',
               ].join('\n'),
             )
             return
@@ -288,7 +324,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
           // Subcommand: open challenge
           if (sub === 'open' || sub === 'buat') {
             if (chess.getActiveGame(chatJid)) {
-              await ctx.reply('Masih ada pertandingan catur yang sedang berlangsung di obrolan ini!')
+              await ctx.reply('Masih ada pertandingan catur yang sedang berlangsung di obrolan ini.')
               return
             }
             const hostColor = ctx.args[1]?.toLowerCase() === 'hitam' || ctx.args[1]?.toLowerCase() === 'b' ? 'b' : 'w'
@@ -302,12 +338,12 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
             const eloProfile = chess.getPlayerElo(senderJid, senderName)
             await ctx.reply(
               [
-                '📢 *TANTANGAN CATUR P2P TERBUKA!*',
-                '',
-                `👤 *Penantang* : ${userTag(senderJid)} (${eloProfile.elo} ELO)`,
-                `♟️ *Warna Pilihan Host* : ${hostColor === 'w' ? 'Putih ⬜' : 'Hitam ⬛'}`,
-                '',
-                `Ketik *${ctx.prefix}catur join* untuk menerima tantangan dan mulai bermain!`,
+                '*CATUR // TANTANGAN TERBUKA*',
+                '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+                `• Penantang   : ${userTag(senderJid)} (${eloProfile.elo} ELO)`,
+                `• Pilihan Sisi: ${hostColor === 'w' ? 'Putih' : 'Hitam'}`,
+                '━━━━━━━━━━━━━━━━━━━━',
+                `_Ketik \`${ctx.prefix}catur join\` untuk menerima tantangan._`,
               ].join('\n'),
               mentionOpts([senderJid]),
             )
@@ -317,12 +353,12 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
           // Subcommand: join open challenge
           if (sub === 'join' || sub === 'gabung' || sub === 'terima') {
             if (chess.getActiveGame(chatJid)) {
-              await ctx.reply('Pertandingan sudah dimulai di obrolan ini!')
+              await ctx.reply('Pertandingan sudah dimulai di obrolan ini.')
               return
             }
             const chal = openChallenges.get(chatJid)
             if (!chal) {
-              await ctx.reply(`Tidak ada tantangan terbuka. Ketik *${ctx.prefix}catur open* atau *${ctx.prefix}catur @lawan*.`)
+              await ctx.reply(`Tidak ada tantangan terbuka. Buka dengan \`${ctx.prefix}catur open\` atau \`${ctx.prefix}catur @lawan\`.`)
               return
             }
             openChallenges.delete(chatJid)
@@ -378,7 +414,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
             }
             if (!mentionedJid) {
               await ctx.reply(
-                `Tag lawan yang ingin kamu tantang! Contoh: *${ctx.prefix}catur @lawan* atau ketik *${ctx.prefix}catur open*.`,
+                `Tag lawan yang ingin kamu tantang. Contoh: \`${ctx.prefix}catur @lawan\` atau \`${ctx.prefix}catur open\`.`,
               )
               return
             }
@@ -409,13 +445,13 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
               await ctx.reply('Belum ada data PGN pertandingan di obrolan ini.')
               return
             }
-            await ctx.reply(`📋 *PGN Pertandingan (${target.matchId})*\n\n\`\`\`${chess.toPgn(target)}\`\`\``)
+            await ctx.reply(`*CATUR // PGN (${target.matchId})*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\n\`\`\`${chess.toPgn(target)}\`\`\`\n━━━━━━━━━━━━━━━━━━━━`)
             return
           }
 
           if (!active) {
             await ctx.reply(
-              `Belum ada pertandingan catur yang aktif. Mulai dengan *${ctx.prefix}catur @lawan* atau *${ctx.prefix}catur open*!`,
+              `Belum ada pertandingan catur aktif. Mulai dengan \`${ctx.prefix}catur @lawan\` atau \`${ctx.prefix}catur open\`!`,
             )
             return
           }
@@ -431,7 +467,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
               whatsapp,
               chess,
               active,
-              `🖼️ Mode Papan Murni 1:1 (Persis Gambar): *${active.pureMode ? 'AKTIF' : 'NONAKTIF'}*\n\n${formatMoveCaption(active, undefined, undefined, ctx.prefix)}`,
+              `*CATUR // TAMPILAN MURNI 1:1*: *${active.pureMode ? 'AKTIF' : 'NONAKTIF'}*\n\n${formatMoveCaption(active, undefined, undefined, ctx.prefix)}`,
             )
             return
           }
@@ -453,10 +489,10 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
                 active.halfMoveClock,
                 active.fullMoveNumber,
               )
-              await ctx.reply(`📌 *FEN Saat Ini:*\n\`${currentFen}\``)
+              await ctx.reply(`*CATUR // FEN SAAT INI*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\n\`${currentFen}\`\n━━━━━━━━━━━━━━━━━━━━`)
               return
             }
-            if (senderJid !== active.whiteJid && senderJid !== active.blackJid) {
+            if (!isSameJid(senderJid, active.whiteJid) && !isSameJid(senderJid, active.blackJid)) {
               await ctx.reply('Hanya pemain dalam pertandingan ini yang dapat memuat posisi FEN.')
               return
             }
@@ -477,30 +513,30 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
           }
 
           if (sub === 'stop' || sub === 'batal' || sub === 'abort') {
-            if (senderJid !== active.whiteJid && senderJid !== active.blackJid) {
-              await ctx.reply('Hanya pemain yang sedang bertanding yang bisa membatalkan sesi ini.')
+            if (!isSameJid(senderJid, active.whiteJid) && !isSameJid(senderJid, active.blackJid)) {
+              await ctx.reply('Hanya pemain yang sedang bertanding yang dapat membatalkan sesi.')
               return
             }
             if (active.moveHistory.length >= 4) {
               await ctx.reply(
-                `Pertandingan sudah berjalan lebih dari 4 langkah. Gunakan *${ctx.prefix}catur menyerah* atau *${ctx.prefix}catur remis*.`,
+                `Pertandingan sudah berjalan ${active.moveHistory.length} langkah. Gunakan \`${ctx.prefix}catur menyerah\` atau \`${ctx.prefix}catur remis\`.`,
               )
               return
             }
             chess.abortGame(chatJid)
-            await ctx.reply('🛑 Pertandingan catur dibatalkan tanpa perubahan ELO.')
+            await ctx.reply('*CATUR // PERTANDINGAN DIBATALKAN*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\n_Sesi pertandingan dibatalkan tanpa perubahan rating ELO._\n━━━━━━━━━━━━━━━━━━━━')
             return
           }
 
           if (sub === 'menyerah' || sub === 'resign' || sub === 'nyerah') {
-            if (senderJid !== active.whiteJid && senderJid !== active.blackJid) {
-              await ctx.reply('Hanya pemain dalam pertandingan ini yang bisa menyerah.')
+            if (!isSameJid(senderJid, active.whiteJid) && !isSameJid(senderJid, active.blackJid)) {
+              await ctx.reply('Hanya pemain dalam pertandingan ini yang dapat menyerah.')
               return
             }
             const resignColor =
-              active.whiteJid === active.blackJid
+              isSameJid(active.whiteJid, active.blackJid)
                 ? active.turn
-                : senderJid === active.whiteJid
+                : isSameJid(senderJid, active.whiteJid)
                   ? 'w'
                   : 'b'
             const res = chess.resignGame(chatJid, resignColor)
@@ -516,18 +552,18 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
           }
 
           if (sub === 'remis' || sub === 'draw' || sub === 'seri') {
-            if (senderJid !== active.whiteJid && senderJid !== active.blackJid) {
+            if (!isSameJid(senderJid, active.whiteJid) && !isSameJid(senderJid, active.blackJid)) {
               await ctx.reply('Hanya pemain dalam pertandingan ini yang dapat menawarkan atau menerima remis.')
               return
             }
             const callerColor =
-              active.whiteJid === active.blackJid
+              isSameJid(active.whiteJid, active.blackJid)
                 ? active.turn
-                : senderJid === active.whiteJid
+                : isSameJid(senderJid, active.whiteJid)
                   ? 'w'
                   : 'b'
 
-            if (active.whiteJid === active.blackJid || (active.drawOfferedBy && active.drawOfferedBy !== callerColor)) {
+            if (isSameJid(active.whiteJid, active.blackJid) || (active.drawOfferedBy && active.drawOfferedBy !== callerColor)) {
               const res = chess.agreeDraw(chatJid)
               if (res) {
                 await sendBoardImage(
@@ -543,7 +579,14 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
             active.drawOfferedBy = callerColor
             const otherJid = callerColor === 'w' ? active.blackJid : active.whiteJid
             await ctx.reply(
-              `🤝 ${userTag(senderJid)} menawarkan *REMIS (Seri)* kepada ${userTag(otherJid)}.\nKetik *${ctx.prefix}catur remis* untuk menerima tawaran seri, atau lanjutkan melangkah untuk menolak.`,
+              [
+                '*CATUR // TAWARAN REMIS*',
+                '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+                `• Dari   : ${userTag(senderJid)}`,
+                `• Kepada : ${userTag(otherJid)}`,
+                '━━━━━━━━━━━━━━━━━━━━',
+                `_Ketik \`${ctx.prefix}catur remis\` untuk menerima tawaran seri, atau lanjutkan langkah untuk menolak._`,
+              ].join('\n'),
               mentionOpts([senderJid, otherJid]),
             )
             return
@@ -551,9 +594,9 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
 
           // Otherwise treat args as a move input (e.g. !catur e4, !catur Nf3, !catur Kuda f3)
           const expectedJid = active.turn === 'w' ? active.whiteJid : active.blackJid
-          if (senderJid !== expectedJid) {
+          if (!isSameJid(senderJid, expectedJid)) {
             await ctx.reply(
-              `⏳ Sekarang adalah giliran *${active.turn === 'w' ? 'Putih ⬜' : 'Hitam ⬛'}* (${userTag(expectedJid)}) untuk melangkah!`,
+              `Giliran saat ini: *${active.turn === 'w' ? 'Putih' : 'Hitam'}* (${userTag(expectedJid)}).`,
               mentionOpts([expectedJid]),
             )
             return
@@ -579,7 +622,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'review',
         aliases: ['chessreview', 'analisiscatur'],
-        description: 'Analisis pertandingan catur selesai menjadi video MP4 lengkap evaluasi Blunder hingga Brilliant',
+        description: 'Analisis pertandingan catur selesai menjadi video MP4 lengkap evaluasi langkah',
         category: 'fun',
         menuOrder: 4,
         cooldownMs: 5000,
@@ -599,24 +642,24 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
           const topList = chess.getLeaderboard(10)
           const cardPng = await chess.renderLeaderboardCardPng(topList)
 
-          const medals = ['🥇', '🥈', '🥉']
           const lines: string[] = [
-            '🏆 *KLASEMEN TOP 10 ELO CATUR ALLYBOT*',
-            '',
+            '*CATUR // KLASEMEN ELO TOP 10*',
+            '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
           ]
 
           if (topList.length === 0) {
-            lines.push('_Belum ada pemain yang menyelesaikan pertandingan berperingkat._')
+            lines.push('_Belum ada data pertandingan berperingkat._')
           } else {
             for (let i = 0; i < topList.length; i++) {
               const p = topList[i]
               const tier = getEloTier(p.elo)
               const wr = p.gamesPlayed > 0 ? Math.round((p.wins / p.gamesPlayed) * 100) : 0
               lines.push(
-                `${medals[i] ?? `#${i + 1}`} ${userTag(p.userJid)} — *${p.elo} ELO* (${tier.badge}) • ${p.wins}W/${p.losses}L/${p.draws}D (${wr}%)`,
+                `${i + 1}. *${p.displayName}* (${p.elo} ELO) • ${tier.title}\n   ↳ Menang: ${p.wins} | Kalah: ${p.losses} | Seri: ${p.draws} (${wr}%)`,
               )
             }
           }
+          lines.push('━━━━━━━━━━━━━━━━━━━━')
 
           const caption = lines.join('\n')
           if (ctx.whatsapp.sendMedia) {
@@ -636,7 +679,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'elochess',
         aliases: ['chesselo', 'chessprofile', 'statscatur'],
-        description: 'Cek rating ELO, gelar catur, dan statistik rekor menang/kalah pemain',
+        description: 'Cek rating ELO, gelar catur, dan statistik rekor pemain',
         category: 'fun',
         menuOrder: 6,
         cooldownMs: 2000,
@@ -656,18 +699,15 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
 
           await ctx.reply(
             [
-              '♟️ *PROFIL ELO CATUR ALLYBOT*',
-              '',
-              `👤 *Pemain* : ${userTag(profile.userJid)} (${profile.displayName})`,
-              `🏅 *Gelar* : ${tier.badge} — *${tier.title}*`,
-              `📈 *Rating Saat Ini* : *${profile.elo} ELO*`,
-              `🏔️ *Peak Rating* : *${profile.peakElo} ELO*`,
-              '',
-              '📊 *Rekor Pertandingan*',
-              `• Total Main : *${profile.gamesPlayed}* match`,
-              `• Menang / Kalah / Seri : *${profile.wins}W* / *${profile.losses}L* / *${profile.draws}D*`,
-              `• Winrate : *${winrate}%*`,
-              `• Win Streak : *${profile.winStreak}* (Terbaik: *${profile.bestStreak}*)`,
+              `*CATUR // PROFIL PEMAIN: ${profile.displayName}*`,
+              '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
+              `• Pemain          : ${userTag(profile.userJid)}`,
+              `• Gelar & Tier    : *${tier.title}* (${tier.badge})`,
+              `• Rating ELO      : *${profile.elo}* (Puncak: ${profile.peakElo})`,
+              `• Total Match     : ${profile.gamesPlayed} pertandingan`,
+              `• Statistik       : ${profile.wins} Menang | ${profile.losses} Kalah | ${profile.draws} Seri`,
+              `• Rasio Kemenangan: *${winrate}%* (Streak: ${profile.winStreak})`,
+              '━━━━━━━━━━━━━━━━━━━━',
             ].join('\n'),
             mentionOpts([profile.userJid]),
           )
