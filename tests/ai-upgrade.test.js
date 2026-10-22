@@ -4,7 +4,12 @@ import pino from 'pino'
 import { ApplicationFramework } from '../dist/framework/application.js'
 import { createAiPlugin, isAllowedPublicMenuCommand, matchNaturalLanguageCommand } from '../dist/framework/plugins/ai.js'
 import { AiMemoryService } from '../dist/services/ai-memory-service.js'
-import { buildPersonaSystemPrompt, formatWibDateTime } from '../dist/services/ai-persona-engine.js'
+import {
+  buildPersonaSystemPrompt,
+  formatWibDateTime,
+  formatToWhatsApp,
+  DEFAULT_CHLONA_PERSONA,
+} from '../dist/services/ai-persona-engine.js'
 
 const logger = pino({ level: 'silent' })
 
@@ -13,6 +18,7 @@ class FakeWhatsApp {
   userJid = '628999999999@s.whatsapp.net'
   userLid = '999888777@lid'
   sent = []
+  presences = []
   messages = new Set()
   groupParticipantListeners = new Set()
   connections = new Set()
@@ -31,6 +37,9 @@ class FakeWhatsApp {
   }
   async sendText(remoteJid, text, options) {
     this.sent.push({ remoteJid, text, options })
+  }
+  async sendPresenceUpdate(remoteJid, type) {
+    this.presences.push({ remoteJid, type })
   }
   async start() {
     this.isConnected = true
@@ -56,10 +65,34 @@ test('AiPersonaEngine injects real-time WIB day/date/time and natural human pers
     groupName: 'Allyssea OOC',
     now: fixedDate,
   })
+  assert.match(systemPrompt, /Chlona/)
+  assert.match(systemPrompt, /Cyrus/)
   assert.match(systemPrompt, /Budi/)
   assert.match(systemPrompt, /Allyssea OOC/)
   assert.match(systemPrompt, /Rabu/i)
   assert.match(systemPrompt, /DILARANG KERAS/i)
+  assert.match(systemPrompt, /Memori & Pengetahuan Sistem Chlona/i)
+})
+
+test('formatToWhatsApp converts Markdown slop to native WhatsApp styling', () => {
+  const rawMarkdown = `### Catatan Penting
+Halo **Cyrus**! Ini pesan dengan **bold**, ~~strikethrough~~, dan [Google](https://google.com).
+* Poin pertama
+* Poin kedua
+
+\`\`\`javascript
+const x = 10
+\`\`\`
+`
+  const formatted = formatToWhatsApp(rawMarkdown)
+  assert.equal(formatted.includes('###'), false)
+  assert.match(formatted, /\*Catatan Penting\*/)
+  assert.match(formatted, /\*Cyrus\*/)
+  assert.match(formatted, /\*bold\*/)
+  assert.match(formatted, /~strikethrough~/)
+  assert.match(formatted, /Google \(https:\/\/google\.com\)/)
+  assert.match(formatted, /• Poin pertama/)
+  assert.match(formatted, /```\nconst x = 10\n```/)
 })
 
 test('AiMemoryService stores multi-turn sliding window and supports reset', async () => {
@@ -113,6 +146,11 @@ test('@Allybot mention triggers natural conversational AI with multi-turn memory
   assert.equal(aiCalls.length, 1)
   assert.equal(aiCalls[0].userMessage, 'Halo bot, hari ini hari apa?')
   assert.match(wa.sent.at(-1).text, /Hari ini hari Rabu nih/)
+  // Verify robotic headers are removed
+  assert.equal(wa.sent.at(-1).text.includes('🤖 *Allybot AI*'), false)
+  // Verify typing presence was sent and cleared
+  assert.equal(wa.presences.some((p) => p.type === 'composing'), true)
+  assert.equal(wa.presences.at(-1).type, 'paused')
 
   // Turn 2: User replies directly to Allybot's AI message without typing !ai or @Allybot
   await wa.emitMessage({
@@ -250,6 +288,55 @@ test('@Allybot Smart Command Router executes public !menu commands via fast-path
     }),
     false,
   )
+
+  await app.stop()
+})
+
+test('@Chlona mention and plain Chlona trigger natural response with WhatsApp formatting and no robot headers', async () => {
+  const wa = new FakeWhatsApp()
+  const app = new ApplicationFramework({ commandPrefix: '!', defaultCooldownMs: 0 }, logger, wa)
+  const aiCalls = []
+
+  app.registerService(new AiMemoryService())
+  app.registerPlugin(
+    createAiPlugin({
+      whatsapp: wa,
+      transport: async (req) => {
+        aiCalls.push(req)
+        return { content: 'Halo juga! Aku **Chlona**, asisten buatan *Cyrus*.' }
+      },
+    }),
+  )
+  await app.start()
+
+  // Tag with @Chlona
+  await wa.emitMessage({
+    id: 'msg-chlona-1',
+    remoteJid: '120363000000000001@g.us',
+    senderJid: '6281200000001@s.whatsapp.net',
+    text: '@Chlona kamu siapa?',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+
+  assert.equal(aiCalls.length, 1)
+  assert.equal(aiCalls[0].userMessage, 'kamu siapa?')
+  // Output is formatted to WhatsApp bold and has no robotic headers
+  assert.equal(wa.sent.at(-1).text, 'Halo juga! Aku *Chlona*, asisten buatan *Cyrus*.')
+  assert.equal(wa.sent.at(-1).text.includes('🤖'), false)
+
+  // Plain Chlona in text
+  await wa.emitMessage({
+    id: 'msg-chlona-2',
+    remoteJid: '120363000000000001@g.us',
+    senderJid: '6281200000001@s.whatsapp.net',
+    text: 'Chlona tolong bantu jelaskan ini',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+
+  assert.equal(aiCalls.length, 2)
+  assert.equal(aiCalls[1].userMessage, 'tolong bantu jelaskan ini')
 
   await app.stop()
 })

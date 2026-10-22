@@ -17,7 +17,13 @@ import { isSameJid } from '../../permissions.js'
 import { isGroupJid } from '../validation.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
 import { AiMemoryService } from '../../services/ai-memory-service.js'
-import { buildPersonaSystemPrompt, type PersonaProfile, DEFAULT_ALLY_PERSONA } from '../../services/ai-persona-engine.js'
+import {
+  buildPersonaSystemPrompt,
+  type PersonaProfile,
+  DEFAULT_CHLONA_PERSONA,
+  DEFAULT_ALLY_PERSONA,
+  formatToWhatsApp,
+} from '../../services/ai-persona-engine.js'
 
 const AI_COMMAND_COOLDOWN_MS = 3_000
 
@@ -233,7 +239,7 @@ function buildPublicMenuCatalogPrompt(context: PluginContext, message: CoreMessa
     'Jika pengguna secara eksplisit meminta kamu menjalankan salah satu fitur/command bot dari daftar di bawah ini (misalnya membuat stiker, memutar lagu, cek cuaca, cek jadwal sholat, cek karakter/vela, kalkulator, dll.), balas HANYA dengan satu baris persis dalam format:',
     '[RUN_CMD: <nama_command> <argumen_jika_ada>]',
     'Contoh: [RUN_CMD: sticker] atau [RUN_CMD: play Duka Last Child] atau [RUN_CMD: cuaca Medan].',
-    'PENTING: Jika pengguna hanya menyapa, bertanya kabar/hari/pengetahuan umum, curhat, atau mengobrol biasa (seperti "Halo bot, hari ini hari apa?"), JANGAN gunakan [RUN_CMD:...], melainkan balas langsung dengan obrolan natural sebagai Ally.',
+    'PENTING: Jika pengguna hanya menyapa, bertanya kabar/hari/pengetahuan umum, curhat, atau mengobrol biasa (seperti "Halo Chlona, hari ini hari apa?"), JANGAN gunakan [RUN_CMD:...], melainkan balas langsung dengan obrolan natural sebagai Chlona.',
     mediaHints.length > 0 ? `Konteks media pesan saat ini: ${mediaHints.join(', ')}.` : '',
     'Daftar fitur publik yang tersedia:\n' + compactList,
   ]
@@ -258,30 +264,32 @@ function detectBotMentionOrReply(
     (jid) => (botJid && isSameJid(jid, botJid)) || (botLid && isSameJid(jid, botLid)),
   )
 
-  // 2. Check text @Allybot / @ally / @<botPhone> / @<botLid>
+  // 2. Check text @Chlona / Chlona / @Allybot / @ally / @<botPhone> / @<botLid>
   const textMentionRegex = new RegExp(
-    `(?:^|\\s)@(?:allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b`,
+    `(?:^|\\s)@?(?:chlona|allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b`,
     'i',
   )
   const mentionedInText = textMentionRegex.test(rawText)
 
   if (mentionedBotNatively || mentionedInText) {
     const stripRegex = new RegExp(
-      `@(?:allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b[,:!\\s]*`,
+      `(?:^|\\s)@?(?:chlona|allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b[,:!\\s]*`,
       'gi',
     )
     const cleaned = rawText.replace(stripRegex, ' ').replace(/\s+/g, ' ').trim()
     return { triggered: true, cleanText: cleaned, triggerKind: 'mention' }
   }
 
-  // 3. Check direct reply to Allybot's own AI message
+  // 3. Check direct reply to bot's own message
   const quotedSender = message.quotedSenderJid ?? message.rawQuotedSenderJid
   const repliedToBotJid =
     Boolean(quotedSender) &&
     ((Boolean(botJid) && isSameJid(quotedSender, botJid)) || (Boolean(botLid) && isSameJid(quotedSender, botLid)))
-  const quotedLooksLikeAi = Boolean(message.quotedText && /Allybot AI|^🤖/i.test(message.quotedText.trim()))
+  const quotedLooksLikeAi = Boolean(
+    message.quotedText && /(?:Chlona|Allybot|\bAI\b|^🤖)/i.test(message.quotedText.trim()),
+  )
 
-  if ((repliedToBotJid && quotedLooksLikeAi) || (!quotedSender && quotedLooksLikeAi)) {
+  if (repliedToBotJid || (!quotedSender && quotedLooksLikeAi)) {
     return { triggered: true, cleanText: rawText, triggerKind: 'reply' }
   }
 
@@ -293,6 +301,7 @@ export interface AiPluginOptions {
   readonly fallbackEnabled?: boolean
   readonly whatsapp?: WhatsAppPort
   readonly persona?: PersonaProfile
+  readonly humanTypingDelayMs?: number
 }
 
 export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
@@ -434,19 +443,29 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         const instruction = detection.cleanText
         const memory = getMemoryService()
 
-        // If user just tagged @Allybot with no text and no media
+        const sendPresence = async (presence: 'composing' | 'paused') => {
+          try {
+            if (whatsapp.sendPresenceUpdate) {
+              await whatsapp.sendPresenceUpdate(message.remoteJid, presence)
+            }
+          } catch {
+            // fail-soft
+          }
+        }
+
+        // If user just tagged @Chlona with no text and no media
         if (!instruction && !extractImageSourceFromMessage(message)) {
           await whatsapp.sendText(
             message.remoteJid,
-            `Halo${message.pushName ? ` *${message.pushName}*` : ''}! 👋 Ada yang bisa kubantu? Kamu bisa langsung ngobrol sama aku atau minta jalankan fitur (contoh: *@Allybot play Duka Last Child* atau kirim foto sambil ketik *@Allybot ubah jadi stiker*).`,
+            `Halo${message.pushName ? ` *${message.pushName}*` : ''}! 👋 Ada yang bisa kubantu? Kamu bisa langsung ngobrol sama aku atau minta jalankan fitur (contoh: *Chlona play Duka Last Child* atau kirim foto sambil ketik *Chlona ubah jadi stiker*).`,
           )
           return
         }
 
-        // Reset memory via @Allybot reset
+        // Reset memory via Chlona reset
         if (/^(?:reset|clear|reset\s+ingatan|lupakan\s+obrolan)$/i.test(instruction)) {
           await memory?.clearHistory(message.remoteJid, senderJid)
-          await whatsapp.sendText(message.remoteJid, '🧹 Oke, ingatan obrolan kita udah kuhapus. Mau bahas apa nih sekarang?')
+          await whatsapp.sendText(message.remoteJid, '🧹 Oke, ingatan obrolan kita udah kuhapus ya. Mau bahas apa nih sekarang?')
           return
         }
 
@@ -459,7 +478,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           return
         }
 
-        // Stage 1: Fast-Path Direct Command/Alias Match (e.g. "@Allybot play Duka Last Child")
+        // Stage 1: Fast-Path Direct Command/Alias Match (e.g. "@Chlona play Duka Last Child")
         const [firstWord, ...restTokens] = instruction.split(/\s+/)
         if (firstWord) {
           const directCmd = context.commands.get(firstWord.toLowerCase())
@@ -481,36 +500,43 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
         }
 
-        // Stage 3: Multimodal Image Vision on @Allybot mention (when not a sticker/hd/nobg command)
-        const imageSource = extractImageSourceFromMessage(message)
-        if (imageSource && whatsapp.downloadMedia) {
-          try {
-            const downloaded = await whatsapp.downloadMedia(message, imageSource.source, {
-              maxBytes: 10 * 1024 * 1024,
-              timeoutMs: 25_000,
-            })
-            const base64 = Buffer.from(downloaded.data).toString('base64')
-            const mime = downloaded.mimeType || 'image/jpeg'
-            const dataUrl = `data:${mime};base64,${base64}`
-            const visionPrompt = instruction || (message.quotedText ? `Perhatikan gambar ini berdasarkan konteks: "${message.quotedText}"` : undefined)
-            const result = await describeImageWithAi(dataUrl, visionPrompt)
-            await memory?.appendExchange(message.remoteJid, senderJid, visionPrompt ?? '[Gambar]', result)
-            await whatsapp.sendText(message.remoteJid, `🤖 *Allybot AI*\n\n${result}`)
-          } catch (error) {
-            context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'mention vision failed')
-            await whatsapp.sendText(message.remoteJid, 'Gambarnya kurang jelas atau gagal diproses nih, coba kirim ulang ya~ 🔍📷')
-          }
-          return
-        }
-
-        // Stage 4: Single-Call Conversational Persona + Smart LLM Command Router
-        const boundedInstruction = instruction.slice(0, MAX_AI_INPUT_LENGTH)
-        const promptWithQuote =
-          message.quotedText && detection.triggerKind === 'mention'
-            ? `Rujukan pesan yang dibalas:\n"${message.quotedText.trim()}"\n\nPesan pengguna:\n${boundedInstruction}`
-            : boundedInstruction
+        // Wrap LLM, Vision, and Conversational synthesis in active composing presence + heartbeat
+        await sendPresence('composing')
+        const presenceHeartbeat = setInterval(() => {
+          void sendPresence('composing')
+        }, 8_000)
 
         try {
+          // Stage 3: Multimodal Image Vision on mention (when not a sticker/hd/nobg command)
+          const imageSource = extractImageSourceFromMessage(message)
+          if (imageSource && whatsapp.downloadMedia) {
+            try {
+              const downloaded = await whatsapp.downloadMedia(message, imageSource.source, {
+                maxBytes: 10 * 1024 * 1024,
+                timeoutMs: 25_000,
+              })
+              const base64 = Buffer.from(downloaded.data).toString('base64')
+              const mime = downloaded.mimeType || 'image/jpeg'
+              const dataUrl = `data:${mime};base64,${base64}`
+              const visionPrompt = instruction || (message.quotedText ? `Perhatikan gambar ini berdasarkan konteks: "${message.quotedText}"` : undefined)
+              const result = await describeImageWithAi(dataUrl, visionPrompt)
+              const formattedResult = formatToWhatsApp(result)
+              await memory?.appendExchange(message.remoteJid, senderJid, visionPrompt ?? '[Gambar]', formattedResult)
+              await whatsapp.sendText(message.remoteJid, formattedResult)
+            } catch (error) {
+              context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'mention vision failed')
+              await whatsapp.sendText(message.remoteJid, 'Gambarnya kurang jelas atau gagal diproses nih, coba kirim ulang ya~ 🔍📷')
+            }
+            return
+          }
+
+          // Stage 4: Single-Call Conversational Persona + Smart LLM Command Router
+          const boundedInstruction = instruction.slice(0, MAX_AI_INPUT_LENGTH)
+          const promptWithQuote =
+            message.quotedText && detection.triggerKind === 'mention'
+              ? `Rujukan pesan yang dibalas:\n"${message.quotedText.trim()}"\n\nPesan pengguna:\n${boundedInstruction}`
+              : boundedInstruction
+
           const history = await memory?.getHistory(message.remoteJid, senderJid)
           const personaPrompt =
             buildPersonaSystemPrompt(
@@ -519,7 +545,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
                 isGroup: isGroupJid(message.remoteJid),
                 groupName: message.groupName,
               },
-              options.persona ?? DEFAULT_ALLY_PERSONA,
+              options.persona ?? DEFAULT_CHLONA_PERSONA,
             ) + buildPublicMenuCatalogPrompt(context, message)
 
           const rawReply = await handler(promptWithQuote.slice(0, MAX_AI_INPUT_LENGTH), {
@@ -547,11 +573,26 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             }
           }
 
-          await memory?.appendExchange(message.remoteJid, senderJid, boundedInstruction, rawReply)
-          await whatsapp.sendText(message.remoteJid, `🤖 *Allybot AI*\n\n${rawReply}`)
+          const formattedReply = formatToWhatsApp(rawReply)
+          const typingDelayMs =
+            options.humanTypingDelayMs !== undefined
+              ? options.humanTypingDelayMs
+              : process.env.NODE_ENV === 'test'
+                ? 0
+                : Math.min(1200, Math.max(300, Math.round(formattedReply.length * 8)))
+
+          if (typingDelayMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, typingDelayMs))
+          }
+
+          await memory?.appendExchange(message.remoteJid, senderJid, boundedInstruction, formattedReply)
+          await whatsapp.sendText(message.remoteJid, formattedReply)
         } catch (error) {
           context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI mention handler failed safely')
           await whatsapp.sendText(message.remoteJid, safeFailureMessage(error))
+        } finally {
+          clearInterval(presenceHeartbeat)
+          await sendPresence('paused')
         }
       })
 
