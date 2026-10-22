@@ -30,56 +30,6 @@ function safeMediaFailure(error: unknown): string {
   return 'Gagal diproses nih, coba lagi pakai file lain ya~ 🙏'
 }
 
-function runPythonScript(
-  scriptPath: string,
-  args: readonly string[],
-  options: { timeoutMs?: number } = {},
-): Promise<void> {
-  const timeoutMs = options.timeoutMs ?? 25_000
-  return new Promise<void>((resolve, reject) => {
-    import('node:child_process').then(({ spawn }) => {
-      const py = spawn(process.env.PYTHON_PATH || 'python3', [scriptPath, ...args])
-      let stderr = ''
-      let settled = false
-      let timer: NodeJS.Timeout | undefined
-
-      const cleanup = () => {
-        if (timer) clearTimeout(timer)
-        py.stderr?.removeAllListeners()
-        py.removeAllListeners('error')
-        py.removeAllListeners('close')
-      }
-
-      const fail = (err: Error) => {
-        if (settled) return
-        settled = true
-        cleanup()
-        py.kill('SIGKILL')
-        reject(err)
-      }
-
-      timer = setTimeout(() => {
-        fail(new Error(`Python script execution timed out after ${timeoutMs}ms: ${scriptPath}`))
-      }, timeoutMs)
-
-      py.stderr?.on('data', (d) => {
-        stderr = (stderr + d.toString()).slice(-4096)
-      })
-      py.once('error', (err) => {
-        fail(err)
-      })
-      py.once('close', (code) => {
-        if (settled) return
-        settled = true
-        cleanup()
-        if (code === 0) resolve()
-        else reject(new Error(`Python script exited with code ${code}: ${stderr}`))
-      })
-      py.stdin?.end()
-    }).catch(reject)
-  })
-}
-
 async function transformAndSend(
   context: CommandContext,
   transformer: MediaTransformer,
@@ -300,7 +250,6 @@ export {
   maxInputBytesFor,
   sourceFor,
   safeMediaFailure,
-  runPythonScript,
   transformAndSend,
   defaultDownloadYouTubeMedia,
 }

@@ -1318,6 +1318,385 @@ export class VisualCardService {
       .toBuffer()
   }
 
+  /**
+   * Render progressive Brat frame (512x512) with theme support (white | green | black)
+   */
+  static async renderBratFrame(rawText: string, theme: 'white' | 'green' | 'black' = 'white'): Promise<Buffer> {
+    const text = rawText.trim() || 'brat'
+    const { data: fontData, ot: otFont } = loadArimoFont()
+    const words = text.toLowerCase().split(/\s+/).filter(Boolean)
+
+    const themeColors: Record<'white' | 'green' | 'black', { bg: string; fg: string }> = {
+      white: { bg: '#ffffff', fg: '#000000' },
+      green: { bg: '#8ace00', fg: '#000000' },
+      black: { bg: '#000000', fg: '#ffffff' },
+    }
+    const { bg, fg } = themeColors[theme] ?? themeColors.white
+
+    function measureWord(word: string, fontSize: number): number {
+      let width = 0
+      for (const ch of word) {
+        if ((ch.codePointAt(0) ?? 0) > 0x2000) width += fontSize
+        else width += otFont.getAdvanceWidth(ch, fontSize) - 2
+      }
+      return width
+    }
+
+    function layoutLines(wordsList: readonly string[], fontSize: number, maxW: number): string[][] | null {
+      const lines: string[][] = []
+      let currentLine: string[] = []
+      let currentWidth = 0
+      const minSpace = otFont.getAdvanceWidth(' ', fontSize) - 2
+      for (const w of wordsList) {
+        const wWidth = measureWord(w, fontSize)
+        if (wWidth > maxW) return null
+        if (currentLine.length === 0) {
+          currentLine.push(w)
+          currentWidth = wWidth
+        } else if (currentWidth + minSpace + wWidth <= maxW) {
+          currentLine.push(w)
+          currentWidth += minSpace + wWidth
+        } else {
+          lines.push(currentLine)
+          currentLine = [w]
+          currentWidth = wWidth
+        }
+      }
+      if (currentLine.length > 0) lines.push(currentLine)
+      return lines
+    }
+
+    let low = 18
+    let high = 160
+    let bestSize = 24
+    let bestLines: string[][] = [words.slice()]
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2)
+      const candidateLines = layoutLines(words, mid, 440)
+      if (candidateLines && candidateLines.length * mid * 1.05 <= 440) {
+        bestSize = mid
+        bestLines = candidateLines
+        low = mid + 1
+      } else {
+        high = mid - 1
+      }
+    }
+
+    const vdom = {
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          width: 512,
+          height: 512,
+          backgroundColor: bg,
+          padding: '36px',
+          justifyContent: 'center',
+        },
+        children: bestLines.map((lineWords) => ({
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              flexDirection: 'row',
+              width: '100%',
+              justifyContent: 'flex-start',
+              gap: `${Math.round(bestSize * 0.25)}px`,
+              lineHeight: 1.05,
+            },
+            children: lineWords.map((w) => ({
+              type: 'span',
+              props: {
+                style: {
+                  fontSize: `${bestSize}px`,
+                  letterSpacing: '-1px',
+                  color: fg,
+                  lineHeight: 1.05,
+                },
+                children: w,
+              },
+            })),
+          },
+        })),
+      },
+    }
+
+    const svg = await satori(vdom as any, {
+      width: 512,
+      height: 512,
+      fonts: [{ name: 'Arimo', data: fontData, weight: 400, style: 'normal' }],
+      loadAdditionalAsset: loadEmojiAsset,
+    })
+    const resvg = new Resvg(svg, { fitTo: { mode: 'original' } })
+    const rawPng = resvg.render().asPng()
+    return sharp(rawPng).blur(1.6).png().toBuffer()
+  }
+
+  /**
+   * Render progressive Brat animated sticker (WebP) or video (MP4) in native TypeScript
+   */
+  static async renderBratVid(
+    rawText: string,
+    options: { theme?: 'white' | 'green' | 'black'; format?: 'webp' | 'mp4' } = {},
+  ): Promise<Buffer> {
+    const words = rawText.trim().split(/\s+/).filter(Boolean)
+    if (words.length === 0) words.push('brat')
+    const theme = options.theme ?? 'white'
+    const format = options.format ?? 'webp'
+
+    const { mkdtemp, writeFile, readFile, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const { spawn } = await import('node:child_process')
+
+    const tempDir = await mkdtemp(join(tmpdir(), 'allybot_bratvid_'))
+    try {
+      // Render all progressive word frames in parallel
+      const frames = await Promise.all(
+        words.map((_, idx) => VisualCardService.renderBratFrame(words.slice(0, idx + 1).join(' '), theme)),
+      )
+
+      let frameIdx = 1
+      const writes: Promise<void>[] = []
+      for (const frameBuf of frames) {
+        const framePath = join(tempDir, `f${String(frameIdx).padStart(4, '0')}.png`)
+        writes.push(writeFile(framePath, frameBuf))
+        frameIdx++
+      }
+
+      // Hold final frame (~4 extra frames at 2.8fps)
+      const lastFrame = frames[frames.length - 1]!
+      for (let h = 0; h < 4; h++) {
+        const holdPath = join(tempDir, `f${String(frameIdx).padStart(4, '0')}.png`)
+        writes.push(writeFile(holdPath, lastFrame))
+        frameIdx++
+      }
+      await Promise.all(writes)
+
+      const outPath = join(tempDir, `out.${format}`)
+      const ffmpegArgs =
+        format === 'webp'
+          ? [
+              '-y',
+              '-framerate', '2.8',
+              '-i', join(tempDir, 'f%04d.png'),
+              '-vcodec', 'libwebp',
+              '-lossless', '0',
+              '-compression_level', '4',
+              '-q:v', '70',
+              '-loop', '0',
+              '-an',
+              outPath,
+            ]
+          : [
+              '-y',
+              '-framerate', '2.8',
+              '-i', join(tempDir, 'f%04d.png'),
+              '-c:v', 'libx264',
+              '-pix_fmt', 'yuv420p',
+              '-crf', '23',
+              '-preset', 'veryfast',
+              '-movflags', '+faststart',
+              outPath,
+            ]
+
+      await new Promise<void>((resolve, reject) => {
+        const ff = spawn('ffmpeg', ffmpegArgs)
+        let settled = false
+        const timer = setTimeout(() => {
+          if (!settled) {
+            settled = true
+            ff.kill('SIGKILL')
+            reject(new Error('ffmpeg bratvid timeout'))
+          }
+        }, 30_000)
+        ff.once('error', (err) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            reject(err)
+          }
+        })
+        ff.once('close', (code) => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            if (code === 0) resolve()
+            else reject(new Error(`ffmpeg bratvid exited with code ${code}`))
+          }
+        })
+      })
+
+      return await readFile(outPath)
+    } finally {
+      await rm(tempDir, { recursive: true, force: true }).catch(() => {})
+    }
+  }
+
+  /**
+   * Render 512x512 transparent meme text overlay PNG (with thick black stroke + white fill) in native TypeScript
+   */
+  static async renderSmemeOverlay(
+    topText: string,
+    bottomText: string,
+    sizePercent = 50,
+    bounds: { offsetY?: number; height?: number } = {},
+  ): Promise<Buffer> {
+    const fonts = loadFonts()
+    const boldFont = fonts.find((f) => f.weight === 700)?.data ?? fonts[0]!.data
+    const otFont = opentype.parse(
+      boldFont.buffer.slice(boldFont.byteOffset, boldFont.byteOffset + boldFont.byteLength),
+    )
+
+    const targetSize = Math.max(16, Math.min(92, Math.round(sizePercent)))
+    const minSize = Math.max(14, Math.floor(targetSize * 0.45))
+
+    function measureLine(str: string, sz: number): number {
+      let w = 0
+      for (const ch of str) {
+        if ((ch.codePointAt(0) ?? 0) > 0x2000) w += sz + 4
+        else w += otFont.getAdvanceWidth(ch, sz)
+      }
+      return w
+    }
+
+    function fitLines(raw: string, maxW = 480, maxH = 180): { fontSize: number; stroke: number; lines: string[] } {
+      const cleaned = raw.trim()
+      if (!cleaned) return { fontSize: targetSize, stroke: 4, lines: [] }
+      const words = cleaned.split(/\s+/).filter(Boolean)
+
+      for (let sz = targetSize; sz >= minSize; sz -= 2) {
+        const stroke = Math.max(3, Math.floor(sz * 0.12))
+        const lines: string[] = []
+        let curr = ''
+        let valid = true
+
+        for (const w of words) {
+          const testLine = curr ? `${curr} ${w}` : w
+          if (measureLine(testLine, sz) <= maxW) {
+            curr = testLine
+          } else {
+            if (curr) lines.push(curr)
+            if (measureLine(w, sz) > maxW) {
+              valid = false
+              break
+            }
+            curr = w
+          }
+        }
+        if (!valid) continue
+        if (curr) lines.push(curr)
+        if (lines.length > 2 && sz > minSize) continue
+        const totalH = lines.length * (sz + 8)
+        if (totalH <= maxH || sz <= minSize) {
+          return { fontSize: sz, stroke, lines }
+        }
+      }
+      const fallbackStroke = Math.max(3, Math.floor(minSize * 0.12))
+      return { fontSize: minSize, stroke: fallbackStroke, lines: [cleaned] }
+    }
+
+    function escapeXml(s: string): string {
+      return s
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&apos;')
+    }
+
+    const offsetY = bounds.offsetY ?? 0
+    const imgH = bounds.height ?? 512
+    const svgElements: string[] = []
+    let topEndY = 0
+
+    if (topText.trim()) {
+      const { fontSize, stroke, lines } = fitLines(topText)
+      let currY = Math.max(8, offsetY + 4) + fontSize
+      for (const line of lines) {
+        svgElements.push(
+          `<text x="256" y="${currY}" text-anchor="middle" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="${fontSize}" fill="#ffffff" stroke="#000000" stroke-width="${stroke * 2}" stroke-linejoin="round" paint-order="stroke fill">${escapeXml(line)}</text>`,
+        )
+        currY += fontSize + 6
+      }
+      topEndY = currY - fontSize
+    }
+
+    if (bottomText.trim()) {
+      const { fontSize, stroke, lines } = fitLines(bottomText)
+      const totalH = lines.length * (fontSize + 6)
+      const bottomLimit = Math.min(504, offsetY + imgH - 4)
+      let currY = Math.max(topEndY + 8, bottomLimit - totalH) + fontSize
+      for (const line of lines) {
+        svgElements.push(
+          `<text x="256" y="${currY}" text-anchor="middle" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="${fontSize}" fill="#ffffff" stroke="#000000" stroke-width="${stroke * 2}" stroke-linejoin="round" paint-order="stroke fill">${escapeXml(line)}</text>`,
+        )
+        currY += fontSize + 6
+      }
+    }
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">${svgElements.join('')}</svg>`
+    const fontFiles = [
+      join(process.cwd(), 'assets', 'fonts', 'Inter-Bold.ttf'),
+      join(process.cwd(), 'assets', 'fonts', 'Inter.ttf'),
+      '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+    ].filter((p) => existsSync(p))
+
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: 'original' },
+      font: {
+        fontFiles,
+        loadSystemFonts: true,
+        defaultFontFamily: 'Inter',
+      },
+    })
+    return resvg.render().asPng()
+  }
+
+  /**
+   * Render static 512x512 WebP Meme Sticker (!smeme) in pure in-memory TypeScript
+   */
+  static async renderSmemeStatic(
+    imageBuffer: Buffer,
+    topText: string,
+    bottomText: string,
+    sizePercent = 50,
+  ): Promise<Buffer> {
+    const resized = await sharp(imageBuffer)
+      .resize(512, 512, {
+        fit: 'inside',
+        withoutEnlargement: false,
+      })
+      .png()
+      .toBuffer()
+
+    const meta = await sharp(resized).metadata()
+    const nw = meta.width ?? 512
+    const nh = meta.height ?? 512
+    const offsetX = Math.floor((512 - nw) / 2)
+    const offsetY = Math.floor((512 - nh) / 2)
+
+    const overlayPng = await VisualCardService.renderSmemeOverlay(topText, bottomText, sizePercent, {
+      offsetY,
+      height: nh,
+    })
+
+    return sharp({
+      create: {
+        width: 512,
+        height: 512,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([
+        { input: resized, left: offsetX, top: offsetY },
+        { input: overlayPng, left: 0, top: 0 },
+      ])
+      .webp({ quality: 85 })
+      .toBuffer()
+  }
+
   private static async createDefaultAvatar(width: number, height: number, isWelcome: boolean): Promise<Buffer> {
     const bgColor = isWelcome ? '#3b82f6' : '#64748b'
     return sharp({

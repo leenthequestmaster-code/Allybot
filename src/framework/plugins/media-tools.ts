@@ -136,7 +136,7 @@ export function registerMediaToolCommands(context: PluginContext, transformer?: 
                 mimeType: 'image/webp',
               })
               if (i < result.stickerBuffers.length - 1) {
-                await new Promise((r) => setTimeout(r, 600))
+                await new Promise((r) => setTimeout(r, 120))
               }
             }
             return
@@ -158,12 +158,7 @@ export function registerMediaToolCommands(context: PluginContext, transformer?: 
               await commandContext.reply('Nggak ada sesi sticker pack yang aktif.')
               return
             }
-            const { readdir } = await import('node:fs/promises')
-            const { join } = await import('node:path')
-            const { tmpdir } = await import('node:os')
-            const dir = join(tmpdir(), `spack_${remoteJid.replace(/[^a-zA-Z0-9_-]/g, '_')}`)
-            const files = (await readdir(dir).catch(() => [])).filter((f) => f.startsWith('img_'))
-            await commandContext.reply(`📦 Pack: *${active.packName}*\nTotal terkumpul: *${files.length}/30* stiker\n\nKirim atau balas gambar dengan *${commandContext.prefix}spack add* untuk menambah, atau *${commandContext.prefix}spack done* jika sudah selesai.`)
+            await commandContext.reply(`📦 Pack: *${active.packName}*\nTotal terkumpul: *${active.images.length}/30* stiker\n\nKirim atau balas gambar dengan *${commandContext.prefix}spack add* untuk menambah, atau *${commandContext.prefix}spack done* jika sudah selesai.`)
             return
           }
 

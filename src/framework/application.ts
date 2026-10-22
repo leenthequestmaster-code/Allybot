@@ -115,8 +115,10 @@ export class ApplicationFramework {
           this.logger.info({ reason: gateResult.reason }, 'message blocked by policy gate')
           return
         }
-        await this.events.emit('message.received', message)
-        await this.commands.dispatch(message)
+        await Promise.all([
+          this.events.emit('message.received', message),
+          this.commands.dispatch(message),
+        ])
       }),
       this.whatsapp.onGroupParticipantUpdate(async (event) => {
         await this.events.emit('group.participants.changed', event)

@@ -247,11 +247,11 @@ export class SendGate {
     maxMediaWaiters?: number
     mediaWaitTimeoutMs?: number
   } = {}) {
-    this.maxTokens = options.maxBurst ?? 5
+    this.maxTokens = options.maxBurst ?? 10
     this.tokens = this.maxTokens
-    this.refillIntervalMs = options.refillIntervalMs ?? 400
+    this.refillIntervalMs = options.refillIntervalMs ?? 120
     this.lastRefill = Date.now()
-    this.maxMediaInFlight = options.maxMediaInFlight ?? 1
+    this.maxMediaInFlight = options.maxMediaInFlight ?? 2
     this.maxMediaWaiters = options.maxMediaWaiters ?? 50
     this.mediaWaitTimeoutMs = options.mediaWaitTimeoutMs ?? 15_000
   }
@@ -356,6 +356,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private lastActivityAt = Date.now()
   private lastKeepAliveAt = Date.now()
   private readonly seenMessages = new Map<string, number>()
+  private readonly presenceSubscribedJids = new Set<string>()
   private readonly groupNameCache = new Map<string, { name: string; expiresAt: number }>()
   private readonly groupMetadataCache = new Map<string, { metadata: WhatsAppGroupMetadata; expiresAt: number }>()
   private readonly profilePictureCache = new Map<string, { url?: string; expiresAt: number }>()
@@ -365,7 +366,6 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private readonly connectionListeners = new Set<(event: CoreConnectionState) => Promise<void> | void>()
   private lastDedupCleanupAt = 0
   private readonly sendGate: SendGate
-  private readonly subscribedPresenceJids = new Set<string>()
 
   constructor(
     private readonly config: AppConfig,
@@ -374,7 +374,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     private readonly redis?: RedisService,
   ) {
     this.retryCounterCache = new NodeCache({ stdTTL: 300, useClones: false }) as unknown as CacheStore
-    this.sendGate = new SendGate({ maxBurst: 5, refillIntervalMs: 400, maxMediaInFlight: 1 })
+    this.sendGate = new SendGate({ maxBurst: 10, refillIntervalMs: 120, maxMediaInFlight: 2 })
   }
 
   private requireSocket(): WASocket {
@@ -900,11 +900,9 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const socket = this.socket
     if (!socket || !this.isConnected) return
     try {
-      if (type !== 'paused' && typeof socket.presenceSubscribe === 'function') {
-        if (!this.subscribedPresenceJids.has(remoteJid)) {
-          await socket.presenceSubscribe(remoteJid).catch(() => {})
-          this.subscribedPresenceJids.add(remoteJid)
-        }
+      if (type !== 'paused' && typeof socket.presenceSubscribe === 'function' && !this.presenceSubscribedJids.has(remoteJid)) {
+        this.presenceSubscribedJids.add(remoteJid)
+        void socket.presenceSubscribe(remoteJid).catch(() => {})
       }
       await socket.sendPresenceUpdate(type, remoteJid)
     } catch (error) {
@@ -1221,9 +1219,13 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       const quotedSenderJid = rawQuotedSenderJid
         ? await normalizeContactJid(rawQuotedSenderJid, this.resolvePnForLid)
         : undefined
-      const groupName = mentionedJids.length > 0 || quotedSenderJid
-        ? await this.resolveGroupName(remoteJid)
+      const cachedGroup = this.groupNameCache.get(remoteJid)
+      const groupName = cachedGroup && cachedGroup.expiresAt > Date.now()
+        ? cachedGroup.name
         : undefined
+      if (!groupName && (mentionedJids.length > 0 || quotedSenderJid)) {
+        void this.resolveGroupName(remoteJid)
+      }
       const rawKey: CoreMessageKey = {
         id,
         remoteJid,

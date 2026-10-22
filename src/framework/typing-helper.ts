@@ -31,8 +31,8 @@ export async function withTyping<T>(
     }
   }
 
-  // 1. Initial presence notification
-  await sendPresence(type)
+  // 1. Initial presence notification (non-blocking for fast response)
+  void sendPresence(type)
 
   // 2. Periodic heartbeat to prevent WhatsApp client TTL expiry (~10-12s)
   const timer = setInterval(() => {
@@ -43,6 +43,6 @@ export async function withTyping<T>(
     return await action()
   } finally {
     clearInterval(timer)
-    await sendPresence('paused')
+    void sendPresence('paused')
   }
 }

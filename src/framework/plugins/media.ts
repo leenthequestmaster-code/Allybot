@@ -1,6 +1,7 @@
 import type { CommandContext, Plugin } from '../contracts.js'
 import { FfmpegMediaTransformer, MediaTransformError, type MediaTransformer } from '../../media.js'
 import { setStickerExif } from '../../services/sticker-exif.js'
+import { VisualCardService } from '../../services/visual-card-service.js'
 import {
   MEDIA_INPUT_MAX_BYTES,
   MEDIA_DOWNLOAD_TIMEOUT_MS,
@@ -8,7 +9,6 @@ import {
   maxInputBytesFor,
   sourceFor,
   safeMediaFailure,
-  runPythonScript,
   transformAndSend,
   defaultDownloadYouTubeMedia,
 } from './media-common.js'
@@ -140,15 +140,6 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
             })
 
-            const { writeFile, unlink, readFile } = await import('node:fs/promises')
-            const { spawn } = await import('node:child_process')
-            const { join } = await import('node:path')
-            const { tmpdir } = await import('node:os')
-
-            const tmpId = `smeme_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-            const outPath = join(tmpdir(), `${tmpId}_out.webp`)
-            const scriptPath = join(process.cwd(), 'scripts', 'generate-smeme.py')
-
             const isAnimated =
               downloaded.kind === 'video' ||
               downloaded.mimeType === 'image/gif' ||
@@ -159,78 +150,83 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
 
             try {
               if (isAnimated) {
-                const overlayPath = join(tmpdir(), `${tmpId}_overlay.png`)
-                try {
-                  await runPythonScript(scriptPath, ['--overlay', overlayPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
+                const { writeFile, unlink, readFile } = await import('node:fs/promises')
+                const { spawn } = await import('node:child_process')
+                const { join } = await import('node:path')
+                const { tmpdir } = await import('node:os')
 
-                  const ext = downloaded.kind === 'video' ? 'mp4' : (downloaded.mimeType === 'image/gif' ? 'gif' : 'webp')
-                  const animInPath = join(tmpdir(), `${tmpId}_in.${ext}`)
-                  await writeFile(animInPath, downloaded.data)
-                  try {
-                    await new Promise<void>((resolve, reject) => {
-                      const ffmpeg = spawn('ffmpeg', [
-                        '-y',
-                        '-i', animInPath,
-                        '-loop', '1',
-                        '-i', overlayPath,
-                        '-t', '6',
-                        '-filter_complex',
-                        '[0:v]fps=10,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba[base];[base][1:v]overlay=0:0:shortest=1[v]',
-                        '-map', '[v]',
-                        '-an',
-                        '-c:v', 'libwebp',
-                        '-lossless', '0',
-                        '-compression_level', '4',
-                        '-q:v', '45',
-                        '-loop', '0',
-                        '-f', 'webp',
-                        outPath,
-                      ])
-                      let settled = false
-                      const timer = setTimeout(() => {
-                        if (!settled) {
-                          settled = true
-                          ffmpeg.kill('SIGKILL')
-                          reject(new Error('ffmpeg timeout'))
-                        }
-                      }, 25_000)
-                      ffmpeg.once('error', (err) => {
-                        if (!settled) {
-                          settled = true
-                          clearTimeout(timer)
-                          reject(err)
-                        }
-                      })
-                      ffmpeg.once('close', (code) => {
-                        if (!settled) {
-                          settled = true
-                          clearTimeout(timer)
-                          if (code === 0) resolve()
-                          else reject(new Error(`ffmpeg exited with code ${code}`))
-                        }
-                      })
+                const tmpId = `smeme_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+                const outPath = join(tmpdir(), `${tmpId}_out.webp`)
+                const overlayPath = join(tmpdir(), `${tmpId}_overlay.png`)
+                const ext = downloaded.kind === 'video' ? 'mp4' : (downloaded.mimeType === 'image/gif' ? 'gif' : 'webp')
+                const animInPath = join(tmpdir(), `${tmpId}_in.${ext}`)
+
+                try {
+                  const overlayPng = await VisualCardService.renderSmemeOverlay(topText, bottomText, sizePercent)
+                  await Promise.all([
+                    writeFile(overlayPath, overlayPng),
+                    writeFile(animInPath, downloaded.data),
+                  ])
+
+                  await new Promise<void>((resolve, reject) => {
+                    const ffmpeg = spawn('ffmpeg', [
+                      '-y',
+                      '-i', animInPath,
+                      '-loop', '1',
+                      '-i', overlayPath,
+                      '-t', '6',
+                      '-filter_complex',
+                      '[0:v]fps=10,scale=512:512:force_original_aspect_ratio=decrease,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=black@0.0,format=rgba[base];[base][1:v]overlay=0:0:shortest=1[v]',
+                      '-map', '[v]',
+                      '-an',
+                      '-c:v', 'libwebp',
+                      '-lossless', '0',
+                      '-compression_level', '4',
+                      '-q:v', '45',
+                      '-loop', '0',
+                      '-f', 'webp',
+                      outPath,
+                    ])
+                    let settled = false
+                    const timer = setTimeout(() => {
+                      if (!settled) {
+                        settled = true
+                        ffmpeg.kill('SIGKILL')
+                        reject(new Error('ffmpeg timeout'))
+                      }
+                    }, 25_000)
+                    ffmpeg.once('error', (err) => {
+                      if (!settled) {
+                        settled = true
+                        clearTimeout(timer)
+                        reject(err)
+                      }
                     })
-                    const rawData = await readFile(outPath)
-                    dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
-                  } finally {
-                    await unlink(animInPath).catch(() => {})
-                  }
+                    ffmpeg.once('close', (code) => {
+                      if (!settled) {
+                        settled = true
+                        clearTimeout(timer)
+                        if (code === 0) resolve()
+                        else reject(new Error(`ffmpeg exited with code ${code}`))
+                      }
+                    })
+                  })
+                  const rawData = await readFile(outPath)
+                  dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
                 } finally {
+                  await unlink(animInPath).catch(() => {})
                   await unlink(overlayPath).catch(() => {})
                   await unlink(outPath).catch(() => {})
                 }
               } else {
-                // Static image
-                const inPath = join(tmpdir(), `${tmpId}_in.png`)
-                try {
-                  await writeFile(inPath, downloaded.data)
-                  await runPythonScript(scriptPath, [inPath, outPath, topText, bottomText, String(sizePercent)], { timeoutMs: 25_000 })
-                  const rawData = await readFile(outPath)
-                  dataWithExif = setStickerExif(rawData, 'Meme Stickers', 'Allybot')
-                } finally {
-                  await unlink(inPath).catch(() => {})
-                  await unlink(outPath).catch(() => {})
-                }
+                // Static image: 100% in-memory via VisualCardService (Resvg + Sharp)
+                const rawWebp = await VisualCardService.renderSmemeStatic(
+                  Buffer.from(downloaded.data),
+                  topText,
+                  bottomText,
+                  sizePercent,
+                )
+                dataWithExif = setStickerExif(rawWebp, 'Meme Stickers', 'Allybot')
               }
             } catch {
               const rawData = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, 'sticker')
@@ -334,41 +330,89 @@ export function createMediaPlugin(options: MediaPluginOptions = {}): Plugin {
               timeoutMs: MEDIA_DOWNLOAD_TIMEOUT_MS,
             })
 
-            const { writeFile, unlink, readFile } = await import('node:fs/promises')
-            const { spawn } = await import('node:child_process')
-            const { join } = await import('node:path')
-            const { tmpdir } = await import('node:os')
-
             const isVid = downloaded.kind === 'video'
-            const inExt = isVid ? 'mp4' : 'png'
-            const outExt = isVid ? 'mp4' : 'jpg'
-            const tmpId = `comp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
-            const inPath = join(tmpdir(), `${tmpId}_in.${inExt}`)
-            const outPath = join(tmpdir(), `${tmpId}_out.${outExt}`)
-
             let compressed: Uint8Array | null = null
             let savedPct = percent
+
             try {
-              await writeFile(inPath, downloaded.data)
-              const scriptPath = join(process.cwd(), 'scripts', 'compress-media.py')
-              await new Promise<void>((resolve, reject) => {
-                const py = spawn(process.env.PYTHON_PATH || 'python3', [scriptPath, inPath, outPath, String(percent)])
-                let stderr = ''
-                py.stderr.on('data', (d) => { stderr += d.toString() })
-                py.on('error', reject)
-                py.on('close', (code) => {
-                  if (code === 0) resolve()
-                  else reject(new Error(`compress-media.py exited with ${code}: ${stderr}`))
-                })
-              })
-              const rawComp = await readFile(outPath)
-              compressed = new Uint8Array(rawComp)
+              if (isVid) {
+                const { writeFile, unlink, readFile } = await import('node:fs/promises')
+                const { spawn } = await import('node:child_process')
+                const { join } = await import('node:path')
+                const { tmpdir } = await import('node:os')
+
+                const tmpId = `comp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+                const inPath = join(tmpdir(), `${tmpId}_in.mp4`)
+                const outPath = join(tmpdir(), `${tmpId}_out.mp4`)
+                const scale = Math.max(0.3, 1.0 - percent / 160.0)
+                const crf = Math.min(42, 24 + Math.floor(percent * 0.18))
+
+                try {
+                  await writeFile(inPath, downloaded.data)
+                  await new Promise<void>((resolve, reject) => {
+                    const ff = spawn('ffmpeg', [
+                      '-y',
+                      '-i', inPath,
+                      '-vf', `scale=trunc(iw*${scale}/2)*2:trunc(ih*${scale}/2)*2`,
+                      '-c:v', 'libx264',
+                      '-crf', String(crf),
+                      '-preset', 'veryfast',
+                      '-c:a', 'aac',
+                      '-b:a', '64k',
+                      '-movflags', '+faststart',
+                      outPath,
+                    ])
+                    let settled = false
+                    const timer = setTimeout(() => {
+                      if (!settled) {
+                        settled = true
+                        ff.kill('SIGKILL')
+                        reject(new Error('ffmpeg compress timeout'))
+                      }
+                    }, 30_000)
+                    ff.once('error', (err) => {
+                      if (!settled) {
+                        settled = true
+                        clearTimeout(timer)
+                        reject(err)
+                      }
+                    })
+                    ff.once('close', (code) => {
+                      if (!settled) {
+                        settled = true
+                        clearTimeout(timer)
+                        if (code === 0) resolve()
+                        else reject(new Error(`ffmpeg compress exited with ${code}`))
+                      }
+                    })
+                  })
+                  const rawComp = await readFile(outPath)
+                  compressed = new Uint8Array(rawComp)
+                } finally {
+                  await unlink(inPath).catch(() => {})
+                  await unlink(outPath).catch(() => {})
+                }
+              } else {
+                // Pure in-memory image compression via sharp (zero disk I/O, zero Python)
+                const sharpMod = (await import('sharp')).default
+                const img = sharpMod(Buffer.from(downloaded.data))
+                const meta = await img.metadata()
+                const origW = meta.width ?? 512
+                const origH = meta.height ?? 512
+                const scale = Math.max(0.2, 1.0 - percent / 140.0)
+                const newW = Math.max(16, Math.floor(origW * scale))
+                const newH = Math.max(16, Math.floor(origH * scale))
+                const quality = Math.max(8, Math.floor(100 - percent))
+
+                const outBuf = await sharpMod(Buffer.from(downloaded.data))
+                  .resize(newW, newH, { fit: 'inside' })
+                  .jpeg({ quality, mozjpeg: true })
+                  .toBuffer()
+                compressed = new Uint8Array(outBuf)
+              }
               savedPct = Math.max(0, Math.round((1 - compressed.byteLength / downloaded.data.byteLength) * 100))
             } catch {
               compressed = await transformer.transform(downloaded.data, downloaded.mimeType, downloaded.kind, isVid ? 'gif' : 'image')
-            } finally {
-              await unlink(inPath).catch(() => {})
-              await unlink(outPath).catch(() => {})
             }
 
             const origKb = (downloaded.data.byteLength / 1024).toFixed(1)
