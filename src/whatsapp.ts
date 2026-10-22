@@ -365,6 +365,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private readonly connectionListeners = new Set<(event: CoreConnectionState) => Promise<void> | void>()
   private lastDedupCleanupAt = 0
   private readonly sendGate: SendGate
+  private readonly subscribedPresenceJids = new Set<string>()
 
   constructor(
     private readonly config: AppConfig,
@@ -900,7 +901,10 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     if (!socket || !this.isConnected) return
     try {
       if (type !== 'paused' && typeof socket.presenceSubscribe === 'function') {
-        void socket.presenceSubscribe(remoteJid).catch(() => {})
+        if (!this.subscribedPresenceJids.has(remoteJid)) {
+          await socket.presenceSubscribe(remoteJid).catch(() => {})
+          this.subscribedPresenceJids.add(remoteJid)
+        }
       }
       await socket.sendPresenceUpdate(type, remoteJid)
     } catch (error) {

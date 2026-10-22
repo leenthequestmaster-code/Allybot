@@ -448,6 +448,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
 
           try {
+            await commandContext.sendPresence?.('composing')
             const history = await memory?.getHistory(commandContext.message.remoteJid, senderJid)
             const personaPrompt =
               buildPersonaSystemPrompt(
