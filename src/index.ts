@@ -63,6 +63,8 @@ import { GatekeeperService } from './services/gatekeeper-service.js'
 import { RemoteOpsService } from './services/remote-ops-service.js'
 import { ChatHistoryService } from './services/chat-history-service.js'
 import { createRekapPlugin } from './framework/plugins/rekap.js'
+import { createChessPlugin } from './framework/plugins/chess.js'
+import { ChessService } from './services/chess-service.js'
 import { AiMemoryService } from './services/ai-memory-service.js'
 
 import { downloaderPlugin } from "./framework/plugins/downloader.js"
@@ -155,6 +157,7 @@ async function main(): Promise<void> {
   framework.registerService(new AiMemoryService({ redis }))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
+  framework.registerService(new ChessService(config.DATABASE_PATH, logger))
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
   framework.registerService(new DownloaderService())
   framework.registerService(new QuotaService(config.DATABASE_PATH, logger, { botOwnerJid: config.BOT_OWNER_JID }))
@@ -187,6 +190,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
+  framework.registerPlugin(createChessPlugin(whatsapp))
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(downloaderPlugin)
   framework.registerPlugin(spotifyPlugin)
