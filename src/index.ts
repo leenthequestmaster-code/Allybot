@@ -63,6 +63,7 @@ import { GatekeeperService } from './services/gatekeeper-service.js'
 import { RemoteOpsService } from './services/remote-ops-service.js'
 import { ChatHistoryService } from './services/chat-history-service.js'
 import { createRekapPlugin } from './framework/plugins/rekap.js'
+import { AiMemoryService } from './services/ai-memory-service.js'
 
 import { downloaderPlugin } from "./framework/plugins/downloader.js"
 
@@ -151,6 +152,7 @@ async function main(): Promise<void> {
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(redis)
+  framework.registerService(new AiMemoryService({ redis }))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
@@ -166,7 +168,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
   if (config.AI_ENABLED) {
-    framework.registerPlugin(createAiPlugin({ fallbackEnabled: config.AI_FALLBACK_ENABLED }))
+    framework.registerPlugin(createAiPlugin({ whatsapp, fallbackEnabled: config.AI_FALLBACK_ENABLED }))
     framework.registerPlugin(createRekapPlugin(whatsapp, { fallbackEnabled: config.AI_FALLBACK_ENABLED }))
   }
   framework.registerPlugin(developerModePlugin)

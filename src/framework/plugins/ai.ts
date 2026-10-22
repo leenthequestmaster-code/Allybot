@@ -1,4 +1,11 @@
-import type { CommandContext, Plugin } from '../contracts.js'
+import type {
+  CommandContext,
+  CommandDefinition,
+  CoreMessage,
+  Plugin,
+  PluginContext,
+  WhatsAppPort,
+} from '../contracts.js'
 import {
   AiHandlerError,
   MAX_AI_INPUT_LENGTH,
@@ -6,23 +13,64 @@ import {
   describeImageWithAi,
   type AiTransport,
 } from '../../ai-handler.js'
+import { isSameJid } from '../../permissions.js'
+import { isGroupJid } from '../validation.js'
+import { GroupConfigurationService } from '../../services/group-configuration-service.js'
+import { AiMemoryService } from '../../services/ai-memory-service.js'
+import { buildPersonaSystemPrompt, type PersonaProfile, DEFAULT_ALLY_PERSONA } from '../../services/ai-persona-engine.js'
 
 const AI_COMMAND_COOLDOWN_MS = 3_000
+
+/**
+ * Economy mutation and sensitive commands that MUST be typed manually with a prefix
+ * (e.g. `!pay`, `!bank`, `!taxbayar`) to prevent accidental transfers via natural language.
+ */
+export const LOCKED_MANUAL_ONLY_COMMANDS = new Set([
+  'pay',
+  'transfer',
+  'tf',
+  'bank',
+  'deposit',
+  'depo',
+  'withdraw',
+  'tarik',
+  'upgrade',
+  'tax',
+  'pajak',
+  'taxbayar',
+  'paytax',
+  'claim',
+  'klaim',
+  'menfess',
+  'confess',
+  'menfessquit',
+  'stopmenfess',
+  'suggest',
+  'saran',
+  'report',
+  'lapor',
+  'ai',
+  'ally',
+  'tanya',
+])
+
+const PRIVILEGED_CATEGORIES = new Set(['moderation', 'admin', 'admin-tools', 'admintools', 'governance', 'developer', 'owner'])
 
 function usage(context: CommandContext): string {
   return [
     "𓏼 *`𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐀𝐈 (𝐎𝗺𝗻𝗶)`*",
     "─꯭──꯭──    .  .  .    ▭▬▭▬▭",
     `Format: ${context.prefix}ai <pertanyaan atau instruksi>`,
-    `Atau reply pesan teks / foto lalu ketik ${context.prefix}ai`,
+    `Atau tag *@Allybot <pesan>* / reply balasan AI secara langsung`,
     "─͜──͜──͜─  · • ·  ─͜──͜──͜─",
-    "Semua fungsi AI sudah disatukan di sini:",
-    "• Tanya Jawab : `!ai apa itu black hole?`",
-    "• Terjemahan  : `!ai terjemahkan ke Jepang: Halo`",
-    "• Ringkas     : reply pesan + `!ai ringkas intinya`",
-    "• Ekstrak Teks: reply foto dokumen + `!ai salin teks ini`",
-    "• Analisis    : kirim foto + `!ai foto ini tentang apa?`",
-    "• Deteksi AI  : reply teks + `!ai apakah ini buatan AI?`",
+    "Semua fungsi AI & Smart Router sudah disatukan di sini:",
+    "• Ngobrol Natural : `@Allybot Halo bot, hari ini hari apa?`",
+    "• Panggil Fitur   : `@Allybot tolong ubah gambar ini jadi stiker`",
+    "• Putar Musik     : `@Allybot play Duka Last Child`",
+    "• Reset Ingatan   : `!ai reset`",
+    "• Terjemahan      : `!ai terjemahkan ke Jepang: Halo`",
+    "• Ringkas         : reply pesan + `!ai ringkas intinya`",
+    "• Analisis Foto   : kirim/reply foto + `!ai foto ini tentang apa?`",
     "━━━━━━━━━━━━━━━━━━━━",
     "*© Allyssea Roleplay Community*",
   ].join("\n")
@@ -42,25 +90,215 @@ function safeFailureMessage(error: unknown): string {
   return 'Lagi pusing nih, coba tanya lagi beberapa saat ya~ 🤖🙏'
 }
 
-function extractImageSource(context: CommandContext): { descriptor: any; source: 'direct' | 'quoted' } | undefined {
-  if (context.message.media?.kind === 'image') {
-    return { descriptor: context.message.media, source: 'direct' }
+function extractImageSourceFromMessage(message: CoreMessage): { descriptor: any; source: 'direct' | 'quoted' } | undefined {
+  if (message.media?.kind === 'image') {
+    return { descriptor: message.media, source: 'direct' }
   }
-  if (context.message.quotedMedia?.kind === 'image') {
-    return { descriptor: context.message.quotedMedia, source: 'quoted' }
+  if (message.quotedMedia?.kind === 'image') {
+    return { descriptor: message.quotedMedia, source: 'quoted' }
   }
   return undefined
+}
+
+function extractImageSource(context: CommandContext): { descriptor: any; source: 'direct' | 'quoted' } | undefined {
+  return extractImageSourceFromMessage(context.message)
+}
+
+export function isAllowedPublicMenuCommand(command: CommandDefinition): boolean {
+  if (command.hidden) return false
+  if (command.permission) return false
+  if (command.scope === 'internal') return false
+  const cat = command.category?.trim().toLowerCase() ?? ''
+  if (PRIVILEGED_CATEGORIES.has(cat)) return false
+  if (LOCKED_MANUAL_ONLY_COMMANDS.has(command.name.toLowerCase())) return false
+  if ((command.aliases ?? []).some((alias) => LOCKED_MANUAL_ONLY_COMMANDS.has(alias.toLowerCase()))) return false
+  return true
+}
+
+export function isManualOnlyTransactionIntent(text: string): boolean {
+  const normalized = text.trim().toLowerCase()
+  const firstToken = normalized.split(/\s+/)[0] ?? ''
+  if (
+    ['pay', 'transfer', 'tf', 'bank', 'deposit', 'depo', 'withdraw', 'tarik', 'taxbayar', 'paytax'].includes(firstToken)
+  ) {
+    return true
+  }
+  return /\b(?:transfer\s+vela|kirim\s+vela|bayar\s+pajak|tarik\s+vela|simpan\s+vela|deposit\s+vela|withdraw\s+vela)\b/i.test(normalized)
+}
+
+/**
+ * Deterministic natural-language command matcher for common Indonesian requests
+ * so they execute in 0ms without needing an extra LLM round-trip.
+ */
+export function matchNaturalLanguageCommand(
+  instruction: string,
+  message: CoreMessage,
+): { commandName: string; argsText: string } | undefined {
+  const trimmed = instruction.trim()
+  const lower = trimmed.toLowerCase()
+
+  const hasImageOrVideo =
+    message.media?.kind === 'image' ||
+    message.media?.kind === 'video' ||
+    message.quotedMedia?.kind === 'image' ||
+    message.quotedMedia?.kind === 'video'
+  const hasSticker = message.media?.kind === 'sticker' || message.quotedMedia?.kind === 'sticker'
+
+  // 1. Sticker creation ("tolong ubah gambar ini jadi stiker", "bikinin stiker", etc.)
+  if (
+    hasImageOrVideo &&
+    /\b(?:jadi(?:in|kan)?\s+stik?er|buat(?:in|kan)?\s+stik?er|bikin(?:in)?\s+stik?er|ubah\s+(?:gambar|foto|video)?\s*(?:ini\s+)?jadi\s+stik?er|stik?erin)\b/i.test(lower)
+  ) {
+    return { commandName: 'sticker', argsText: '' }
+  }
+
+  // 2. Sticker to image ("ubah stiker ini jadi gambar/foto")
+  if (hasSticker && /\b(?:jadi(?:in|kan)?\s+(?:gambar|foto)|ubah\s+(?:stik?er\s+)?(?:ini\s+)?jadi\s+(?:gambar|foto)|toimg)\b/i.test(lower)) {
+    return { commandName: 'toimg', argsText: '' }
+  }
+
+  // 3. Remove background ("hapus background gambar ini")
+  if (
+    (message.media?.kind === 'image' || message.quotedMedia?.kind === 'image') &&
+    /\b(?:hapus\s+(?:background|bg|latar(?:\s+belakang)?)|removebg|nobg)\b/i.test(lower)
+  ) {
+    return { commandName: 'removebg', argsText: '' }
+  }
+
+  // 4. HD / Enhance image ("jernihkan foto ini", "hd-in gambar ini")
+  if (
+    (message.media?.kind === 'image' || message.quotedMedia?.kind === 'image') &&
+    /\b(?:jernih(?:in|kan)|perjelas|hd(?:-?in|kan)?|remini)\b/i.test(lower)
+  ) {
+    return { commandName: 'hd', argsText: '' }
+  }
+
+  // 5. Play music ("play Duka Last Child", "puterin lagu Duka Last Child", "putar lagu ...")
+  const playMatch = trimmed.match(
+    /^(?:tolong\s+|coba\s+)?(?:play|putar(?:in|kan)?|puter(?:in|kan)?|stel(?:in)?|mainkan)\s+(?:lagu\s+|musik\s+)?(.+)$/i,
+  )
+  if (playMatch?.[1]) {
+    return { commandName: 'play', argsText: playMatch[1].trim() }
+  }
+
+  // 6. Brat sticker ("bikin brat lagi pusing", "stiker brat lagi pusing")
+  const bratMatch = trimmed.match(
+    /^(?:tolong\s+|coba\s+)?(?:bikin(?:in)?|buat(?:in|kan)?)\s+(?:stik?er\s+)?brat\s+(?:tulisan\s+|teks\s+)?(.+)$/i,
+  )
+  if (bratMatch?.[1]) {
+    return { commandName: 'brat', argsText: bratMatch[1].trim() }
+  }
+
+  // 7. Weather ("cek cuaca Jakarta", "cuaca di Medan")
+  const cuacaMatch = trimmed.match(/^(?:tolong\s+|coba\s+)?(?:cek\s+|info\s+)?cuaca\s+(?:di\s+|kota\s+)?(.+)$/i)
+  if (cuacaMatch?.[1]) {
+    return { commandName: 'cuaca', argsText: cuacaMatch[1].trim() }
+  }
+
+  // 8. Prayer schedule ("jadwal sholat Jakarta")
+  const sholatMatch = trimmed.match(/^(?:tolong\s+|coba\s+)?(?:cek\s+|info\s+)?(?:jadwal\s+)?sholat\s+(?:di\s+|kota\s+)?(.+)$/i)
+  if (sholatMatch?.[1]) {
+    return { commandName: 'sholat', argsText: sholatMatch[1].trim() }
+  }
+
+  // 9. Group chat recap ("rekap chat 50", "rangkum obrolan grup")
+  const rekapMatch = trimmed.match(/^(?:tolong\s+|coba\s+)?(?:rekap|rangkum(?:in|kan)?)\s+(?:obrolan|chat|pesan)(?:\s+grup)?(?:\s+(\d+))?/i)
+  if (rekapMatch) {
+    return { commandName: 'rekap', argsText: rekapMatch[1] ?? '' }
+  }
+
+  return undefined
+}
+
+function buildPublicMenuCatalogPrompt(context: PluginContext, message: CoreMessage): string {
+  const publicCommands = context.commands.list().filter(isAllowedPublicMenuCommand)
+  if (publicCommands.length === 0) return ''
+
+  const compactList = publicCommands
+    .slice(0, 60)
+    .map((cmd) => {
+      const aliases = cmd.aliases?.length ? ` (${cmd.aliases.slice(0, 2).join('/')})` : ''
+      const desc = cmd.description ? `: ${cmd.description}` : ''
+      return `- ${cmd.name}${aliases}${desc}`
+    })
+    .join('\n')
+
+  const mediaHints: string[] = []
+  if (message.media?.kind) mediaHints.push(`lampiran langsung=${message.media.kind}`)
+  if (message.quotedMedia?.kind) mediaHints.push(`reply media=${message.quotedMedia.kind}`)
+  if (message.quotedText) mediaHints.push(`reply teks="${message.quotedText.slice(0, 120)}"`)
+
+  return [
+    '\n[INSTRUKSI SMART ROUTER FITUR BOT]:',
+    'Jika pengguna secara eksplisit meminta kamu menjalankan salah satu fitur/command bot dari daftar di bawah ini (misalnya membuat stiker, memutar lagu, cek cuaca, cek jadwal sholat, cek karakter/vela, kalkulator, dll.), balas HANYA dengan satu baris persis dalam format:',
+    '[RUN_CMD: <nama_command> <argumen_jika_ada>]',
+    'Contoh: [RUN_CMD: sticker] atau [RUN_CMD: play Duka Last Child] atau [RUN_CMD: cuaca Medan].',
+    'PENTING: Jika pengguna hanya menyapa, bertanya kabar/hari/pengetahuan umum, curhat, atau mengobrol biasa (seperti "Halo bot, hari ini hari apa?"), JANGAN gunakan [RUN_CMD:...], melainkan balas langsung dengan obrolan natural sebagai Ally.',
+    mediaHints.length > 0 ? `Konteks media pesan saat ini: ${mediaHints.join(', ')}.` : '',
+    'Daftar fitur publik yang tersedia:\n' + compactList,
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+function detectBotMentionOrReply(
+  message: CoreMessage,
+  whatsapp: WhatsAppPort | undefined,
+): { triggered: boolean; cleanText: string; triggerKind: 'mention' | 'reply' | 'none' } {
+  const rawText = message.text?.trim() ?? ''
+  if (!rawText) return { triggered: false, cleanText: '', triggerKind: 'none' }
+
+  const botJid = whatsapp?.userJid
+  const botLid = whatsapp?.userLid
+  const botPhone = botJid?.split('@')[0]?.split(':')[0]
+  const botLidBare = botLid?.split('@')[0]?.split(':')[0]
+
+  // 1. Check native WhatsApp @mention in mentionedJids
+  const mentionedBotNatively = (message.mentionedJids ?? []).some(
+    (jid) => (botJid && isSameJid(jid, botJid)) || (botLid && isSameJid(jid, botLid)),
+  )
+
+  // 2. Check text @Allybot / @ally / @<botPhone> / @<botLid>
+  const textMentionRegex = new RegExp(
+    `(?:^|\\s)@(?:allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b`,
+    'i',
+  )
+  const mentionedInText = textMentionRegex.test(rawText)
+
+  if (mentionedBotNatively || mentionedInText) {
+    const stripRegex = new RegExp(
+      `@(?:allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b[,:!\\s]*`,
+      'gi',
+    )
+    const cleaned = rawText.replace(stripRegex, ' ').replace(/\s+/g, ' ').trim()
+    return { triggered: true, cleanText: cleaned, triggerKind: 'mention' }
+  }
+
+  // 3. Check direct reply to Allybot's own AI message
+  const quotedSender = message.quotedSenderJid ?? message.rawQuotedSenderJid
+  const repliedToBotJid =
+    Boolean(quotedSender) &&
+    ((Boolean(botJid) && isSameJid(quotedSender, botJid)) || (Boolean(botLid) && isSameJid(quotedSender, botLid)))
+  const quotedLooksLikeAi = Boolean(message.quotedText && /Allybot AI|^🤖/i.test(message.quotedText.trim()))
+
+  if ((repliedToBotJid && quotedLooksLikeAi) || (!quotedSender && quotedLooksLikeAi)) {
+    return { triggered: true, cleanText: rawText, triggerKind: 'reply' }
+  }
+
+  return { triggered: false, cleanText: rawText, triggerKind: 'none' }
 }
 
 export interface AiPluginOptions {
   readonly transport?: AiTransport
   readonly fallbackEnabled?: boolean
+  readonly whatsapp?: WhatsAppPort
+  readonly persona?: PersonaProfile
 }
 
 export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
   return {
     name: 'ai-commands',
-    version: '0.1.0',
+    version: '0.2.0',
     load(context) {
       const handler = createAiHandler({
         transport: options.transport,
@@ -68,11 +306,35 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         fallbackEnabled: options.fallbackEnabled,
       })
 
-      // 1. Omni-AI: Single entry point for general chat, contextual reply, and vision
+      const getMemoryService = (): AiMemoryService | undefined => {
+        if (typeof context.services?.has === 'function') {
+          if (!context.services.has('ai-memory')) return undefined
+          try {
+            return context.services.get<AiMemoryService>('ai-memory')
+          } catch {
+            return undefined
+          }
+        }
+        return undefined
+      }
+
+      const resolvePrefix = (message: CoreMessage): string => {
+        if (isGroupJid(message.remoteJid) && typeof context.services?.has === 'function' && context.services.has('group-configuration')) {
+          try {
+            const groupConfig = context.services.get<GroupConfigurationService>('group-configuration')
+            return groupConfig.resolvePrefix(message.remoteJid, context.config.commandPrefix)
+          } catch {
+            return context.config.commandPrefix
+          }
+        }
+        return context.config.commandPrefix
+      }
+
+      // 1. Omni-AI: Single entry point for general chat, contextual reply, multi-turn memory, and vision
       context.commands.register({
         name: 'ai',
         aliases: ['ally', 'tanya'],
-        description: 'Tanya atau perintahkan AI secara serbaguna',
+        description: 'Tanya atau ngobrol bareng Allybot AI secara serbaguna',
         category: 'tools',
         menuOrder: 1,
         cooldownMs: AI_COMMAND_COOLDOWN_MS,
@@ -80,6 +342,15 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           const rawPrompt = commandContext.args.join(' ').trim()
           const quotedText = commandContext.message.quotedText?.trim()
           const imageSource = extractImageSource(commandContext)
+          const senderJid = commandContext.message.senderJid ?? commandContext.message.remoteJid
+          const memory = getMemoryService()
+
+          // Subcommand: !ai reset / !ai clear
+          if (/^(?:reset|clear|hapus|lupakan)$/i.test(rawPrompt) && !quotedText && !imageSource) {
+            await memory?.clearHistory(commandContext.message.remoteJid, senderJid)
+            await commandContext.reply('🧹 Sip, ingatan obrolan kita udah di-reset ya! Yuk mulai topik baru~')
+            return
+          }
 
           // 1A. Multimodal Vision Handling (Direct Image or Quoted Image)
           if (imageSource) {
@@ -98,6 +369,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
               const prompt = rawPrompt || (quotedText ? `Perhatikan gambar ini berdasarkan konteks berikut:\n"${quotedText}"` : undefined)
               const result = await describeImageWithAi(dataUrl, prompt)
+              await memory?.appendExchange(commandContext.message.remoteJid, senderJid, prompt ?? '[Kirim Gambar]', result)
               await commandContext.reply(`🤖 *Allybot AI:*\n\n${result}`)
             } catch (error) {
               commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'ai vision failed')
@@ -127,13 +399,160 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
 
           try {
-            const response = await handler(finalPrompt)
+            const history = await memory?.getHistory(commandContext.message.remoteJid, senderJid)
+            const response = history && history.length > 0
+              ? await handler(finalPrompt, { history })
+              : await handler(finalPrompt)
+            await memory?.appendExchange(commandContext.message.remoteJid, senderJid, finalPrompt, response)
             await commandContext.reply(`🤖 *Allybot AI*\n\n${response}`)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI command failed safely')
             await commandContext.reply(safeFailureMessage(error))
           }
         },
+      })
+
+      // 1C. Natural @Allybot Mention, Reply-Chain & Smart !menu Command Router
+      context.events.on('message.received', async (message: CoreMessage) => {
+        if (message.fromMe) return
+        const whatsapp = options.whatsapp
+        if (!whatsapp) return
+
+        const prefix = resolvePrefix(message)
+        const rawText = (message.text ?? '').trim()
+        if (!rawText) return
+
+        // Ignore explicit prefixed commands (!menu, .ai, etc.) because CommandRegistry handles them
+        if (rawText.startsWith(prefix) || rawText.startsWith(context.config.commandPrefix)) {
+          return
+        }
+
+        const detection = detectBotMentionOrReply(message, whatsapp)
+        if (!detection.triggered) return
+
+        const senderJid = message.senderJid ?? message.remoteJid
+        const instruction = detection.cleanText
+        const memory = getMemoryService()
+
+        // If user just tagged @Allybot with no text and no media
+        if (!instruction && !extractImageSourceFromMessage(message)) {
+          await whatsapp.sendText(
+            message.remoteJid,
+            `Halo${message.pushName ? ` *${message.pushName}*` : ''}! 👋 Ada yang bisa kubantu? Kamu bisa langsung ngobrol sama aku atau minta jalankan fitur (contoh: *@Allybot play Duka Last Child* atau kirim foto sambil ketik *@Allybot ubah jadi stiker*).`,
+          )
+          return
+        }
+
+        // Reset memory via @Allybot reset
+        if (/^(?:reset|clear|reset\s+ingatan|lupakan\s+obrolan)$/i.test(instruction)) {
+          await memory?.clearHistory(message.remoteJid, senderJid)
+          await whatsapp.sendText(message.remoteJid, '🧹 Oke, ingatan obrolan kita udah kuhapus. Mau bahas apa nih sekarang?')
+          return
+        }
+
+        // Guardrail: Block automatic execution of Vela transfers / Bank / Tax mutations
+        if (isManualOnlyTransactionIntent(instruction)) {
+          await whatsapp.sendText(
+            message.remoteJid,
+            `🛡️ Demi keamanan saldo Vela kamu, transaksi seperti transfer, bank, atau pembayaran pajak tetap wajib diketik manual pakai command ya (misalnya *${prefix}pay @user nominal* atau *${prefix}bank*)~`,
+          )
+          return
+        }
+
+        // Stage 1: Fast-Path Direct Command/Alias Match (e.g. "@Allybot play Duka Last Child")
+        const [firstWord, ...restTokens] = instruction.split(/\s+/)
+        if (firstWord) {
+          const directCmd = context.commands.get(firstWord.toLowerCase())
+          if (directCmd && isAllowedPublicMenuCommand(directCmd)) {
+            const syntheticText = `${prefix}${directCmd.name}${restTokens.length > 0 ? ` ${restTokens.join(' ')}` : ''}`
+            await context.commands.dispatch({ ...message, text: syntheticText })
+            return
+          }
+        }
+
+        // Stage 2: Deterministic Natural Language Command Matcher (0ms)
+        const matchedNlu = matchNaturalLanguageCommand(instruction, message)
+        if (matchedNlu) {
+          const targetCmd = context.commands.get(matchedNlu.commandName)
+          if (targetCmd && isAllowedPublicMenuCommand(targetCmd)) {
+            const syntheticText = `${prefix}${targetCmd.name}${matchedNlu.argsText ? ` ${matchedNlu.argsText}` : ''}`
+            await context.commands.dispatch({ ...message, text: syntheticText })
+            return
+          }
+        }
+
+        // Stage 3: Multimodal Image Vision on @Allybot mention (when not a sticker/hd/nobg command)
+        const imageSource = extractImageSourceFromMessage(message)
+        if (imageSource && whatsapp.downloadMedia) {
+          try {
+            const downloaded = await whatsapp.downloadMedia(message, imageSource.source, {
+              maxBytes: 10 * 1024 * 1024,
+              timeoutMs: 25_000,
+            })
+            const base64 = Buffer.from(downloaded.data).toString('base64')
+            const mime = downloaded.mimeType || 'image/jpeg'
+            const dataUrl = `data:${mime};base64,${base64}`
+            const visionPrompt = instruction || (message.quotedText ? `Perhatikan gambar ini berdasarkan konteks: "${message.quotedText}"` : undefined)
+            const result = await describeImageWithAi(dataUrl, visionPrompt)
+            await memory?.appendExchange(message.remoteJid, senderJid, visionPrompt ?? '[Gambar]', result)
+            await whatsapp.sendText(message.remoteJid, `🤖 *Allybot AI*\n\n${result}`)
+          } catch (error) {
+            context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'mention vision failed')
+            await whatsapp.sendText(message.remoteJid, 'Gambarnya kurang jelas atau gagal diproses nih, coba kirim ulang ya~ 🔍📷')
+          }
+          return
+        }
+
+        // Stage 4: Single-Call Conversational Persona + Smart LLM Command Router
+        const boundedInstruction = instruction.slice(0, MAX_AI_INPUT_LENGTH)
+        const promptWithQuote =
+          message.quotedText && detection.triggerKind === 'mention'
+            ? `Rujukan pesan yang dibalas:\n"${message.quotedText.trim()}"\n\nPesan pengguna:\n${boundedInstruction}`
+            : boundedInstruction
+
+        try {
+          const history = await memory?.getHistory(message.remoteJid, senderJid)
+          const personaPrompt =
+            buildPersonaSystemPrompt(
+              {
+                senderName: message.pushName,
+                isGroup: isGroupJid(message.remoteJid),
+                groupName: message.groupName,
+              },
+              options.persona ?? DEFAULT_ALLY_PERSONA,
+            ) + buildPublicMenuCatalogPrompt(context, message)
+
+          const rawReply = await handler(promptWithQuote.slice(0, MAX_AI_INPUT_LENGTH), {
+            history,
+            systemPrompt: personaPrompt,
+          })
+
+          // Check if the LLM routed the request to a public !menu command: [RUN_CMD: <name> <args>]
+          const cmdMatch = rawReply.trim().match(/^\[RUN_CMD:\s*([a-z0-9_-]+)(?:\s+([^\]]*))?\]$/i)
+          if (cmdMatch?.[1]) {
+            const cmdName = cmdMatch[1].toLowerCase()
+            const cmdArgs = (cmdMatch[2] ?? '').trim()
+            if (isManualOnlyTransactionIntent(`${cmdName} ${cmdArgs}`)) {
+              await whatsapp.sendText(
+                message.remoteJid,
+                `🛡️ Demi keamanan saldo Vela kamu, transaksi seperti *${prefix}${cmdName}* wajib diketik manual pakai command ya~`,
+              )
+              return
+            }
+            const targetCmd = context.commands.get(cmdName)
+            if (targetCmd && isAllowedPublicMenuCommand(targetCmd)) {
+              const syntheticText = `${prefix}${targetCmd.name}${cmdArgs ? ` ${cmdArgs}` : ''}`
+              await context.commands.dispatch({ ...message, text: syntheticText })
+              return
+            }
+          }
+
+          await memory?.appendExchange(message.remoteJid, senderJid, boundedInstruction, rawReply)
+          await whatsapp.sendText(message.remoteJid, `🤖 *Allybot AI*\n\n${rawReply}`)
+        } catch (error) {
+          context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI mention handler failed safely')
+          await whatsapp.sendText(message.remoteJid, safeFailureMessage(error))
+        }
       })
 
       // 2. Shortcut: Translate
