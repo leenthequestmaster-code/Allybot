@@ -345,6 +345,7 @@ export class SendGate {
 
 export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTransport {
   socket: WASocket | undefined = undefined
+  lastSentMessageId?: string = undefined
   private reconnectTimer: NodeJS.Timeout | undefined
   private starting = false
   private stopping = false
@@ -450,7 +451,8 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     const content = options?.mentions?.length
       ? { text, mentions: [...options.mentions], linkPreview: null }
       : { text, linkPreview: null }
-    await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework text response')
+    const result = await withTimeout(socket.sendMessage(remoteJid, content), 20_000, 'framework text response')
+    this.lastSentMessageId = result?.key?.id ?? undefined
   }
 
   async groupLeave(groupJid: string): Promise<void> {
@@ -671,7 +673,8 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         default:
           throw new Error('Unsupported media kind')
       }
-      await withTimeout(socket.sendMessage(remoteJid, content), 120_000, 'framework media response')
+      const result = await withTimeout(socket.sendMessage(remoteJid, content), 120_000, 'framework media response')
+      this.lastSentMessageId = result?.key?.id ?? undefined
     } finally {
       releaseMediaSlot()
     }

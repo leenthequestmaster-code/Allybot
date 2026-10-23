@@ -66,6 +66,7 @@ import { createRekapPlugin } from './framework/plugins/rekap.js'
 import { createChessPlugin } from './framework/plugins/chess.js'
 import { ChessService } from './services/chess-service.js'
 import { AiMemoryService } from './services/ai-memory-service.js'
+import { AegisQueueService } from './services/aegis-queue/index.js'
 
 import { downloaderPlugin } from "./framework/plugins/downloader.js"
 
@@ -155,6 +156,7 @@ async function main(): Promise<void> {
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(redis)
   framework.registerService(new AiMemoryService({ redis }))
+  framework.registerService(new AegisQueueService(whatsapp, logger, { redis }))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new ChessService(config.DATABASE_PATH, logger))
