@@ -1,6 +1,7 @@
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import { commandDescription } from '../command-copy.js'
 import { registerUtilityFunCommands } from './utility-fun.js'
+import { TypoGuard } from '../typo-guard.js'
 import type { QuotaService } from '../../services/quota-service.js'
 
 const MAX_QUERY_LENGTH = 80
@@ -8,6 +9,7 @@ const MAX_REPLY_LENGTH = 3_500
 const MAX_SEARCH_RESULTS = 12
 const MAX_COMMAND_LIST = 60
 const UTILITY_COOLDOWN_MS = 1_000
+const utilityTypoGuard = new TypoGuard({ prefixes: ['!', '/', '.', '#'] })
 
 type UnitDefinition = {
   readonly group: 'length' | 'mass' | 'temperature' | 'time'
@@ -103,13 +105,26 @@ function renderCommandList(commands: readonly CommandDefinition[], prefix: strin
 
 function searchCommands(commands: readonly CommandDefinition[], query: string, prefix: string): string {
   const needle = query.toLowerCase()
-  const matches = visibleCommands(commands).filter((command) => {
+  const visible = visibleCommands(commands)
+  const matches = visible.filter((command) => {
     const haystack = [command.name, ...(command.aliases ?? []), commandDescription(command), command.category ?? '']
       .join(' ')
       .toLowerCase()
     return haystack.includes(needle)
   }).slice(0, MAX_SEARCH_RESULTS)
-  if (matches.length === 0) return `Tidak ada command yang cocok dengan “${query}”. Coba kata yang lebih umum.`
+  if (matches.length === 0) {
+    const candidates = visible.flatMap((command) => [command.name, ...(command.aliases ?? [])])
+    const suggestions = utilityTypoGuard.suggest(query, candidates, {
+      maxDistance: 2,
+      minSimilarity: 0.65,
+      limit: 3,
+    })
+    if (suggestions.length > 0) {
+      const suggestedCmds = suggestions.map((s) => `*${prefix}${s.candidate}*`).join(', ')
+      return `Tidak ada command yang persis cocok dengan “${query}”.\nMungkin maksud kamu: ${suggestedCmds}?`
+    }
+    return `Tidak ada command yang cocok dengan “${query}”. Coba kata yang lebih umum.`
+  }
   return safeReply([
     `🔎 *Hasil pencarian: ${query}*`,
     '',

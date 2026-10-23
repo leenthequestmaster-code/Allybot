@@ -15,6 +15,7 @@ import type {
 } from './contracts.js'
 import { isGroupJid } from './validation.js'
 import { isSameJid } from '../permissions.js'
+import { TypoGuard } from './typo-guard.js'
 import {
   composeMiddleware,
   createCooldownMiddleware,
@@ -31,6 +32,9 @@ function normalizeName(value: string): string {
 export class CommandRegistry implements CommandRegistryLike {
   private readonly commands = new Map<string, CommandDefinition>()
   private readonly middleware: CommandMiddleware
+  private readonly typoGuard = new TypoGuard({ prefixes: ['!', '/', '.', '#'] })
+  private cachedSuggestionCandidates: string[] | null = null
+  private readonly typoRateLimit = new Map<string, number>()
 
   constructor(
     private readonly config: FrameworkConfig,
@@ -65,6 +69,7 @@ export class CommandRegistry implements CommandRegistryLike {
   }
 
   register(command: CommandDefinition): () => void {
+    this.cachedSuggestionCandidates = null
     const name = normalizeName(command.name)
     if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(name)) {
       throw new Error(`Invalid command name: ${command.name}`)
@@ -78,6 +83,7 @@ export class CommandRegistry implements CommandRegistryLike {
     const normalized = { ...command, name, aliases } satisfies CommandDefinition
     for (const candidate of names) this.commands.set(candidate, normalized)
     return () => {
+      this.cachedSuggestionCandidates = null
       for (const candidate of names) {
         if (this.commands.get(candidate) === normalized) this.commands.delete(candidate)
       }
@@ -122,7 +128,12 @@ export class CommandRegistry implements CommandRegistryLike {
 
     const [token, ...args] = body.split(/\s+/)
     const command = this.get(token ?? '')
-    if (!command) return false
+    if (!command) {
+      if (token && token.length >= 2 && token.length <= 32) {
+        await this.handleTypoSuggestion(message, token, inputPrefix)
+      }
+      return false
+    }
 
     if (command.freshness?.maxAgeMs !== undefined && command.freshness.maxAgeMs > 0) {
       const now = Date.now()
@@ -286,5 +297,58 @@ export class CommandRegistry implements CommandRegistryLike {
       cleanupTyping()
     }
     return true
+  }
+
+  private getSuggestionCandidates(): readonly string[] {
+    if (!this.cachedSuggestionCandidates) {
+      const candidates = new Set<string>()
+      for (const [nameOrAlias, def] of this.commands.entries()) {
+        if (def.hidden || def.scope === 'internal') continue
+        candidates.add(nameOrAlias)
+      }
+      this.cachedSuggestionCandidates = [...candidates]
+    }
+    return this.cachedSuggestionCandidates
+  }
+
+  private async handleTypoSuggestion(
+    message: CoreMessage,
+    token: string,
+    inputPrefix: string,
+  ): Promise<boolean> {
+    const actorJid = message.senderJid ?? message.remoteJid
+    const now = Date.now()
+    const lastNotice = this.typoRateLimit.get(actorJid) ?? 0
+
+    // Anti-spam: max 1 suggestion per user per 10 seconds
+    if (now - lastNotice < 10_000) return false
+    this.typoRateLimit.set(actorJid, now)
+
+    // Bounded cleanup to avoid memory growth
+    if (this.typoRateLimit.size > 500) {
+      for (const [jid, timestamp] of this.typoRateLimit.entries()) {
+        if (now - timestamp > 60_000) this.typoRateLimit.delete(jid)
+      }
+    }
+
+    const candidates = this.getSuggestionCandidates()
+    const suggestions = this.typoGuard.suggest(token, candidates, {
+      maxDistance: 2,
+      minSimilarity: 0.7,
+      limit: 3,
+    })
+
+    if (suggestions.length === 0) return false
+
+    const formattedList = suggestions.map((s) => `*${inputPrefix}${s.candidate}*`).join(', ')
+    const replyText = `Command *${inputPrefix}${token}* tidak ditemukan.\nMungkin maksud kamu: ${formattedList}?`
+
+    try {
+      await this.whatsapp.sendText(message.remoteJid, replyText)
+      return true
+    } catch (err) {
+      this.logger.debug({ err, token }, 'failed sending typo suggestion message')
+      return false
+    }
   }
 }

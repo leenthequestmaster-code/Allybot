@@ -16,3 +16,4 @@ export * from './interaction.js'
 export * from './msg-builder.js'
 export * from './typing-helper.js'
 
+export * from './typo-guard.js'
