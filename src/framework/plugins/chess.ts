@@ -25,8 +25,11 @@ interface OpenChallenge {
   readonly hostName: string
   readonly hostColor: 'w' | 'b'
   readonly createdAt: number
+  readonly expiresAt: number
+  readonly timer?: NodeJS.Timeout
 }
 
+const OPEN_CHALLENGE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 const openChallenges = new Map<string, OpenChallenge>()
 const avatarCache = new Map<string, { buf?: Buffer; expiresAt: number }>()
 
@@ -73,6 +76,24 @@ function displayNameFor(whatsapp: WhatsAppPort, jid: string, fallbackPushName?: 
 function mentionOpts(jids: readonly string[]): WhatsAppSendOptions | undefined {
   const unique = [...new Set(jids.filter(Boolean).map((j) => jidNormalizedUser(j)))]
   return unique.length > 0 ? { mentions: unique } : undefined
+}
+
+async function canCancelChallenge(ctx: CommandContext, hostJid: string): Promise<boolean> {
+  const senderJid = ctx.message.senderJid
+  if (!senderJid) return false
+  if (isSameJid(senderJid, hostJid)) return true
+  if (isSameJid(senderJid, ctx.config.botOwnerJid)) return true
+  const remoteJid = ctx.message.remoteJid
+  if (!isGroupJid(remoteJid) || !ctx.whatsapp.getGroupMetadata) return false
+  try {
+    const metadata = await ctx.whatsapp.getGroupMetadata(remoteJid)
+    if (!metadata?.participants) return false
+    const bareSender = senderJid.split("@")[0]?.split(":")[0]
+    const p = metadata.participants.find((x) => x.jid.split("@")[0]?.split(":")[0] === bareSender)
+    return p?.role === "admin" || p?.role === "superadmin"
+  } catch {
+    return false
+  }
 }
 
 function formatEloDelta(delta: number): string {
@@ -296,6 +317,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
                 `• \`${ctx.prefix}catur @lawan\` : Tantang pemain lain bermain`,
                 `• \`${ctx.prefix}catur open\` : Buka tantangan publik di grup`,
                 `• \`${ctx.prefix}catur join\` : Masuk ke tantangan terbuka`,
+                `• \`${ctx.prefix}catur cancel\` : Batalkan tantangan terbuka atau pertandingan`,
                 `• \`${ctx.prefix}catur solo\` : Mode latihan mandiri`,
                 '',
                 '*Kontrol Langkah:*',
@@ -327,13 +349,36 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
               await ctx.reply('Masih ada pertandingan catur yang sedang berlangsung di obrolan ini.')
               return
             }
+            const existing = openChallenges.get(chatJid)
+            if (existing) {
+              if (existing.timer) clearTimeout(existing.timer)
+              openChallenges.delete(chatJid)
+            }
+
             const hostColor = ctx.args[1]?.toLowerCase() === 'hitam' || ctx.args[1]?.toLowerCase() === 'b' ? 'b' : 'w'
+            const createdAt = Date.now()
+            const expiresAt = createdAt + OPEN_CHALLENGE_TTL_MS
+
+            const timer = setTimeout(() => {
+              const current = openChallenges.get(chatJid)
+              if (current && current.createdAt === createdAt) {
+                openChallenges.delete(chatJid)
+                whatsapp.sendText(
+                  chatJid,
+                  `*CATUR // TANTANGAN KEDALUWARSA*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\n_Tantangan catur terbuka dari ${current.hostName} telah kedaluwarsa (5 menit) karena belum ada lawan yang bergabung._\n━━━━━━━━━━━━━━━━━━━━`,
+                ).catch(() => {})
+              }
+            }, OPEN_CHALLENGE_TTL_MS)
+            timer.unref?.()
+
             openChallenges.set(chatJid, {
               chatJid,
               hostJid: senderJid,
               hostName: senderName,
               hostColor,
-              createdAt: Date.now(),
+              createdAt,
+              expiresAt,
+              timer,
             })
             const eloProfile = chess.getPlayerElo(senderJid, senderName)
             await ctx.reply(
@@ -342,10 +387,53 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
                 '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
                 `• Penantang   : ${userTag(senderJid)} (${eloProfile.elo} ELO)`,
                 `• Pilihan Sisi: ${hostColor === 'w' ? 'Putih' : 'Hitam'}`,
+                '• Berlaku     : 5 menit',
                 '━━━━━━━━━━━━━━━━━━━━',
-                `_Ketik \`${ctx.prefix}catur join\` untuk menerima tantangan._`,
+                `_Ketik \`${ctx.prefix}catur join\` untuk menerima tantangan, atau \`${ctx.prefix}catur cancel\` untuk membatalkan._`,
               ].join('\n'),
               mentionOpts([senderJid]),
+            )
+            return
+          }
+
+          // Subcommand: cancel / batal / stop / abort
+          if (sub === 'cancel' || sub === 'batal' || sub === 'stop' || sub === 'abort') {
+            const chal = openChallenges.get(chatJid)
+            if (chal) {
+              const allowed = await canCancelChallenge(ctx, chal.hostJid)
+              if (!allowed) {
+                await ctx.reply(`Hanya penantang (${chal.hostName}) atau Admin yang dapat membatalkan tantangan terbuka ini.`)
+                return
+              }
+              if (chal.timer) clearTimeout(chal.timer)
+              openChallenges.delete(chatJid)
+              await ctx.reply(
+                '*CATUR // TANTANGAN DIBATALKAN*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\n_Tantangan catur terbuka berhasil dibatalkan._\n━━━━━━━━━━━━━━━━━━━━',
+              )
+              return
+            }
+
+            const activeGame = chess.getActiveGame(chatJid)
+            if (!activeGame) {
+              await ctx.reply('Tidak ada sesi tantangan terbuka atau pertandingan catur yang aktif di obrolan ini.')
+              return
+            }
+
+            if (!isSameJid(senderJid, activeGame.whiteJid) && !isSameJid(senderJid, activeGame.blackJid)) {
+              await ctx.reply('Hanya pemain yang sedang bertanding yang dapat membatalkan sesi ini.')
+              return
+            }
+
+            if (activeGame.moveHistory.length >= 4) {
+              await ctx.reply(
+                `Pertandingan sudah berjalan ${activeGame.moveHistory.length} langkah. Gunakan \`${ctx.prefix}catur menyerah\` atau \`${ctx.prefix}catur remis\`.`,
+              )
+              return
+            }
+
+            chess.abortGame(chatJid)
+            await ctx.reply(
+              '*CATUR // PERTANDINGAN DIBATALKAN*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\n_Sesi pertandingan dibatalkan tanpa perubahan rating ELO._\n━━━━━━━━━━━━━━━━━━━━',
             )
             return
           }
@@ -512,21 +600,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
             return
           }
 
-          if (sub === 'stop' || sub === 'batal' || sub === 'abort') {
-            if (!isSameJid(senderJid, active.whiteJid) && !isSameJid(senderJid, active.blackJid)) {
-              await ctx.reply('Hanya pemain yang sedang bertanding yang dapat membatalkan sesi.')
-              return
-            }
-            if (active.moveHistory.length >= 4) {
-              await ctx.reply(
-                `Pertandingan sudah berjalan ${active.moveHistory.length} langkah. Gunakan \`${ctx.prefix}catur menyerah\` atau \`${ctx.prefix}catur remis\`.`,
-              )
-              return
-            }
-            chess.abortGame(chatJid)
-            await ctx.reply('*CATUR // PERTANDINGAN DIBATALKAN*\n─꯭──꯭──    .  .  .    ▭▬▭▬▭\n_Sesi pertandingan dibatalkan tanpa perubahan rating ELO._\n━━━━━━━━━━━━━━━━━━━━')
-            return
-          }
+
 
           if (sub === 'menyerah' || sub === 'resign' || sub === 'nyerah') {
             if (!isSameJid(senderJid, active.whiteJid) && !isSameJid(senderJid, active.blackJid)) {
