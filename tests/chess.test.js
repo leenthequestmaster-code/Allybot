@@ -15,7 +15,7 @@ import {
 
 const logger = pino({ level: 'silent' })
 
-test('ChessService FIDE Super-Engine: FEN, Scholar Mate, ELO rating, and Tactical Review', () => {
+test('ChessService FIDE Super-Engine: FEN, Scholar Mate, ELO rating, and Tactical Review', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'allybot-chess-test-'))
   try {
     const dbPath = join(dir, 'allybot.sqlite')
@@ -73,7 +73,7 @@ test('ChessService FIDE Super-Engine: FEN, Scholar Mate, ELO rating, and Tactica
     assert.equal(getEloTier(1220).title, 'Tactician')
 
     // 4. Verify Tactical Game Review (Blunder detection on 3...Nf6)
-    const review = analyzeGameHistory(lastRes.state, lb[0].elo, lb[1].elo)
+    const review = await analyzeGameHistory(lastRes.state, lb[0].elo, lb[1].elo)
     assert.equal(review.steps.length, 7)
     assert.ok(review.counts.b.Blunder >= 1 || review.counts.b.Mistake >= 1)
     assert.ok(review.whiteAccuracy >= 80)

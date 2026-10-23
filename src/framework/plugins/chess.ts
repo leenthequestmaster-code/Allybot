@@ -640,7 +640,14 @@ export function createChessPlugin(whatsapp: WhatsAppPort): Plugin {
         handler: async (ctx) => {
           await ctx.react('🏆')
           const topList = chess.getLeaderboard(10)
-          const cardPng = await chess.renderLeaderboardCardPng(topList)
+          const avatars = new Map<string, Buffer>()
+          await Promise.all(
+            topList.map(async (p) => {
+              const buf = await resolveAvatar(whatsapp, p.userJid)
+              if (buf) avatars.set(p.userJid, buf)
+            }),
+          )
+          const cardPng = await chess.renderLeaderboardCardPng(topList, { avatars })
 
           const lines: string[] = [
             '*CATUR // KLASEMEN ELO TOP 10*',

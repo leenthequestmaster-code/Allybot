@@ -1146,7 +1146,11 @@ export function cpToWinProb(whiteCp: number): number {
   return 1 / (1 + Math.pow(10, -clamped / 400))
 }
 
-export function analyzeGameHistory(state: ChessGameState, whiteElo: number, blackElo: number): GameReviewSummary {
+export async function analyzeGameHistory(
+  state: ChessGameState,
+  whiteElo: number,
+  blackElo: number,
+): Promise<GameReviewSummary> {
   const steps: EvaluatedMoveStep[] = []
   const counts: Record<PieceColor, Record<MoveClassification, number>> = {
     w: { Brilliant: 0, Great: 0, Best: 0, Book: 0, Good: 0, Inaccuracy: 0, Mistake: 0, Blunder: 0 },
@@ -1158,32 +1162,91 @@ export function analyzeGameHistory(state: ChessGameState, whiteElo: number, blac
   let bAccuracySum = 0
   let bMoves = 0
 
+  // 1. Gather all unique FENs across moves
+  const fensToEval: string[] = []
+  for (const rec of state.moveHistory) {
+    fensToEval.push(rec.fenBefore, rec.fenAfter)
+  }
+
+  // 2. Run Stockfish 16 NNUE batch evaluation (fast depth 8)
+  const sfEvals = await evaluatePositionsWithStockfish(fensToEval, 8)
+  const sfMap = new Map<string, StockfishPositionEval>()
+  if (sfEvals.length === fensToEval.length) {
+    for (let i = 0; i < fensToEval.length; i++) {
+      sfMap.set(fensToEval[i], sfEvals[i])
+    }
+  }
+
+  // 3. Evaluate each move
   for (let i = 0; i < state.moveHistory.length; i++) {
     const rec = state.moveHistory[i]
     const parsedBefore = parseFen(rec.fenBefore)
     const parsedAfter = parseFen(rec.fenAfter)
     if ('error' in parsedBefore || 'error' in parsedAfter) continue
 
-    const bestBefore = findBestMoveAndEval(
-      parsedBefore.board,
-      parsedBefore.turn,
-      parsedBefore.castling,
-      parsedBefore.epTarget,
-      2,
-    )
-    const afterBest = findBestMoveAndEval(
-      parsedAfter.board,
-      parsedAfter.turn,
-      parsedAfter.castling,
-      parsedAfter.epTarget,
-      1,
-    )
+    // Check ECO Opening Book first (0ms, 100% accurate theory)
+    const movesSoFar = state.moveHistory.slice(0, i + 1)
+    const bookEntry = lookupOpeningBook(movesSoFar)
 
-    const evalCpBefore = bestBefore.bestWhiteCp
-    const evalCpAfter = afterBest.bestWhiteCp
+    // Stockfish evaluation (relative to side to move)
+    const sfBefore = sfMap.get(rec.fenBefore)
+    const sfAfter = sfMap.get(rec.fenAfter)
+
+    let evalCpBefore = 0
+    let evalCpAfter = 0
+    let bestMoveSan = '-'
+
+    if (sfBefore && sfAfter) {
+      // Stockfish score cp is relative to side to move
+      evalCpBefore = parsedBefore.turn === 'w' ? sfBefore.scoreCp : -sfBefore.scoreCp
+      evalCpAfter = parsedAfter.turn === 'w' ? sfAfter.scoreCp : -sfAfter.scoreCp
+
+      // Convert bestUci to SAN
+      if (sfBefore.bestUci) {
+        const matchingMove = getAllLegalMoves(
+          parsedBefore.board,
+          parsedBefore.turn,
+          parsedBefore.castling,
+          parsedBefore.epTarget,
+        ).find((m) => {
+          const sanObj = formatMoveSAN(parsedBefore.board, parsedBefore.turn, parsedBefore.castling, parsedBefore.epTarget, m)
+          return sanObj.uci === sfBefore.bestUci
+        })
+        if (matchingMove) {
+          bestMoveSan = formatMoveSAN(
+            parsedBefore.board,
+            parsedBefore.turn,
+            parsedBefore.castling,
+            parsedBefore.epTarget,
+            matchingMove,
+          ).san
+        } else {
+          bestMoveSan = sfBefore.bestUci
+        }
+      }
+    } else {
+      // Fallback to internal TS engine
+      const bestBefore = findBestMoveAndEval(
+        parsedBefore.board,
+        parsedBefore.turn,
+        parsedBefore.castling,
+        parsedBefore.epTarget,
+        2,
+      )
+      const afterBest = findBestMoveAndEval(
+        parsedAfter.board,
+        parsedAfter.turn,
+        parsedAfter.castling,
+        parsedAfter.epTarget,
+        1,
+      )
+      evalCpBefore = bestBefore.bestWhiteCp
+      evalCpAfter = afterBest.bestWhiteCp
+      bestMoveSan = bestBefore.bestSan
+    }
 
     const moverSign = rec.color === 'w' ? 1 : -1
-    const cpLoss = Math.max(0, (evalCpBefore - evalCpAfter) * moverSign)
+    let cpLoss = Math.max(0, (evalCpBefore - evalCpAfter) * moverSign)
 
     const winProbBefore = cpToWinProb(evalCpBefore)
     const winProbAfter = cpToWinProb(evalCpAfter)
@@ -1193,75 +1256,85 @@ export function analyzeGameHistory(state: ChessGameState, whiteElo: number, blac
     let symbol = '✓'
     let badgeColor = '#96bc4b'
     let sqHighlightColor = '#b9ca43'
+    let commentary = `${rec.color === 'w' ? 'Putih' : 'Hitam'} melangkah ${rec.san} (${classification}).`
 
-    // Check if sacrifice / brilliant
+    // Sacrifice check for brilliant moves
     const movedPieceVal = PIECE_VALUES[rec.piece[1] as PieceType]
     const capturedVal = rec.captured ? PIECE_VALUES[rec.captured[1] as PieceType] : 0
     const enemyColor: PieceColor = rec.color === 'w' ? 'b' : 'w'
     const isExposedToAttack = isSquareAttacked(parsedAfter.board, rec.toR, rec.toC, enemyColor)
 
-    if (rec.ply <= 6 && cpLoss <= 25) {
+    if (rec.san.includes('#')) {
+      classification = 'Best'
+      symbol = '★'
+      badgeColor = '#81b64c'
+      sqHighlightColor = '#81b64c'
+      commentary = `${rec.san} — Skakmat! Langkah penyelesaian sempurna.`
+      cpLoss = 0
+    } else if (bookEntry) {
+      // Recognized theory opening move
       classification = 'Book'
       symbol = '📖'
       badgeColor = '#a88865'
-      sqHighlightColor = '#b9ca43'
+      sqHighlightColor = '#a88865'
+      commentary = `${bookEntry.eco} ${bookEntry.name}: Langkah teori pembukaan standar.`
     } else if (cpLoss <= 15 && isExposedToAttack && movedPieceVal > capturedVal + 100 && evalCpAfter * moverSign >= -30) {
       classification = 'Brilliant'
       symbol = '!!'
       badgeColor = '#1baca6'
       sqHighlightColor = '#1baca6'
-    } else if (rec.san === bestBefore.bestSan || cpLoss <= 12) {
-      if (moverWinProbDelta >= 0.14) {
+      commentary = `BRILLIANT (${rec.san})!! Pengorbanan taktis luar biasa!`
+    } else if (rec.san === bestMoveSan || cpLoss <= 15) {
+      if (moverWinProbDelta >= 0.12) {
         classification = 'Great'
         symbol = '!'
         badgeColor = '#5c8bb0'
         sqHighlightColor = '#5c8bb0'
+        commentary = `${rec.san} — Langkah kunci yang memperkuat posisi!`
       } else {
         classification = 'Best'
         symbol = '★'
         badgeColor = '#81b64c'
         sqHighlightColor = '#81b64c'
+        commentary = `${rec.san} — Langkah terbaik di posisi ini!`
       }
-    } else if (cpLoss <= 45) {
+    } else if (cpLoss <= 50) {
       classification = 'Good'
       symbol = '✓'
       badgeColor = '#96bc4b'
       sqHighlightColor = '#96bc43'
-    } else if (cpLoss <= 110) {
+      commentary = `${rec.san} — Langkah solid dan aman.`
+    } else if (cpLoss <= 120) {
       classification = 'Inaccuracy'
       symbol = '?!'
       badgeColor = '#f7c631'
       sqHighlightColor = '#f7c631'
-    } else if (cpLoss <= 240) {
+      commentary = `${rec.san} kurang akurat. Langkah yang lebih baik adalah ${bestMoveSan}.`
+    } else if (cpLoss <= 250) {
       classification = 'Mistake'
       symbol = '?'
       badgeColor = '#e6912c'
       sqHighlightColor = '#e6912c'
+      commentary = `${rec.san} adalah MISTAKE. Posisi menguntungkan terlepas, seharusnya ${bestMoveSan}.`
     } else {
       classification = 'Blunder'
       symbol = '??'
       badgeColor = '#ca3431'
       sqHighlightColor = '#ca3431'
+      commentary = `${rec.san} adalah BLUNDER FATAL! Seharusnya melangkah ${bestMoveSan}.`
     }
 
     counts[rec.color][classification]++
 
-    const moveAcc = Math.max(0, Math.min(100, 103.16 * Math.exp(-0.004 * cpLoss) - 3.16))
+    // Calculate move accuracy
+    const effectiveLoss = classification === 'Book' ? 0 : cpLoss
+    const moveAcc = Math.max(0, Math.min(100, 103.16 * Math.exp(-0.004 * effectiveLoss) - 3.16))
     if (rec.color === 'w') {
       wAccuracySum += moveAcc
       wMoves++
     } else {
       bAccuracySum += moveAcc
       bMoves++
-    }
-
-    let commentary = `${rec.color === 'w' ? 'Putih' : 'Hitam'} melangkah ${rec.san} (${classification}).`
-    if (classification === 'Blunder' || classification === 'Mistake') {
-      commentary = `${rec.san} adalah ${classification.toUpperCase()}! Langkah terbaik seharusnya ${bestBefore.bestSan}.`
-    } else if (classification === 'Brilliant') {
-      commentary = `BRILLIANT (${rec.san})!! Pengorbanan taktis luar biasa oleh ${rec.color === 'w' ? 'Putih' : 'Hitam'}!`
-    } else if (classification === 'Best' || classification === 'Great') {
-      commentary = `${rec.san} — Langkah paling akurat di posisi ini!`
     }
 
     steps.push({
@@ -1277,7 +1350,7 @@ export function analyzeGameHistory(state: ChessGameState, whiteElo: number, blac
       fenAfter: rec.fenAfter,
       evalCpBefore,
       evalCpAfter,
-      bestMoveSan: bestBefore.bestSan,
+      bestMoveSan,
       bestEvalCp: evalCpBefore,
       cpLoss: Math.round(cpLoss),
       winProbBefore,
@@ -1318,6 +1391,10 @@ export function analyzeGameHistory(state: ChessGameState, whiteElo: number, blac
 // ============================================================================
 // 4. CHESS SERVICE (SQLITE ELO + SATORI RENDERERS + FFMPEG MP4 REVIEW)
 // ============================================================================
+export interface LeaderboardRenderOptions {
+  avatars?: Map<string, Buffer>
+}
+
 export interface BoardRenderOptions {
   whiteAvatarBuffer?: Buffer
   blackAvatarBuffer?: Buffer
@@ -1339,6 +1416,254 @@ async function toAvatarDataUrl(buf?: Buffer, fallbackName?: string, size = 32): 
     <text x="50%" y="55%" font-family="sans-serif" font-weight="bold" font-size="${Math.floor(size * 0.52)}" fill="#eaedd1" dominant-baseline="middle" text-anchor="middle">${initial}</text>
   </svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+}
+
+
+// ============================================================================
+// 1.5. FIDE ECO OPENING BOOK (Zero-Latency Standard Variations)
+// ============================================================================
+export interface OpeningBookEntry {
+  readonly name: string
+  readonly eco: string
+}
+
+export const ECO_OPENINGS: Record<string, OpeningBookEntry> = {
+  // King's Pawn (1. e4)
+  'e4': { name: "King's Pawn Opening", eco: 'B00' },
+  'e4 e5': { name: 'Open Game', eco: 'C20' },
+  'e4 e5 Nf3': { name: "King's Knight Opening", eco: 'C40' },
+  'e4 e5 Nf3 Nc6': { name: 'Normal Open Game', eco: 'C44' },
+  'e4 e5 Nf3 Nc6 Bb5': { name: 'Ruy Lopez (Spanish Opening)', eco: 'C60' },
+  'e4 e5 Nf3 Nc6 Bb5 a6': { name: 'Ruy Lopez: Morphy Defense', eco: 'C68' },
+  'e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6': { name: 'Ruy Lopez: Closed', eco: 'C70' },
+  'e4 e5 Nf3 Nc6 Bc4': { name: 'Italian Game', eco: 'C50' },
+  'e4 e5 Nf3 Nc6 Bc4 Bc5': { name: 'Italian: Giuoco Piano', eco: 'C53' },
+  'e4 e5 Nf3 Nc6 Bc4 Nf6': { name: 'Italian: Two Knights Defense', eco: 'C55' },
+  'e4 e5 Nf3 Nc6 d4': { name: 'Scotch Game', eco: 'C45' },
+  'e4 e5 Nf3 Nc6 d4 exd4 Nxd4': { name: 'Scotch Game: Main Line', eco: 'C45' },
+  'e4 e5 Nf3 Nf6': { name: "Petrov's Defense", eco: 'C42' },
+  'e4 e5 f4': { name: "King's Gambit", eco: 'C30' },
+  'e4 e5 f4 exf4': { name: "King's Gambit Accepted", eco: 'C33' },
+  'e4 e5 Nc3': { name: 'Vienna Game', eco: 'C25' },
+  'e4 e5 d4': { name: 'Center Game', eco: 'C21' },
+  'e4 e5 d4 exd4 Qxd4 Nc6': { name: 'Center Game: Normal', eco: 'C21' },
+  'e4 e5 Bc4': { name: "Bishop's Opening", eco: 'C23' },
+  'e4 e5 Bc4 Bc5': { name: "Bishop's Opening: Boi Variation", eco: 'C23' },
+  'e4 e5 Bc4 Nf6': { name: "Bishop's Opening: Berlin Defense", eco: 'C24' },
+  'e4 e5 Bc4 Nc6': { name: "Bishop's Opening: Normal", eco: 'C23' },
+  'e4 e5 Qh5': { name: 'Wayward Queen Attack', eco: 'C20' },
+
+  // Sicilian Defense (1. e4 c5)
+  'e4 c5': { name: 'Sicilian Defense', eco: 'B20' },
+  'e4 c5 Nf3': { name: 'Sicilian Defense: Open Line', eco: 'B27' },
+  'e4 c5 Nf3 d6': { name: 'Sicilian: Modern Line', eco: 'B50' },
+  'e4 c5 Nf3 d6 d4': { name: 'Sicilian: Main Line', eco: 'B53' },
+  'e4 c5 Nf3 d6 d4 cxd4': { name: 'Sicilian: Open Center', eco: 'B54' },
+  'e4 c5 Nf3 d6 d4 cxd4 Nxd4': { name: 'Sicilian: Open', eco: 'B54' },
+  'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6': { name: 'Sicilian: Classical Setup', eco: 'B54' },
+  'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3': { name: 'Sicilian: Classical', eco: 'B56' },
+  'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6': { name: 'Sicilian Defense: Najdorf', eco: 'B90' },
+  'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6': { name: 'Sicilian Defense: Dragon', eco: 'B70' },
+  'e4 c5 Nf3 e6': { name: 'Sicilian: French Variation', eco: 'B40' },
+  'e4 c5 Nf3 Nc6': { name: 'Sicilian: Old Sicilian', eco: 'B30' },
+  'e4 c5 c3': { name: 'Sicilian: Alapin Variation', eco: 'B22' },
+  'e4 c5 Nc3': { name: 'Sicilian: Closed', eco: 'B23' },
+  'e4 c5 d4': { name: 'Sicilian: Smith-Morra Gambit', eco: 'B21' },
+
+  // French Defense (1. e4 e6)
+  'e4 e6': { name: 'French Defense', eco: 'C00' },
+  'e4 e6 d4': { name: 'French: Normal', eco: 'C00' },
+  'e4 e6 d4 d5': { name: 'French Defense: Main Line', eco: 'C00' },
+  'e4 e6 d4 d5 Nc3': { name: 'French: Paulsen Variation', eco: 'C10' },
+  'e4 e6 d4 d5 Nc3 Nf6': { name: 'French: Classical', eco: 'C11' },
+  'e4 e6 d4 d5 Nc3 Bb4': { name: 'French: Winawer Variation', eco: 'C15' },
+  'e4 e6 d4 d5 e5': { name: 'French: Advance Variation', eco: 'C02' },
+  'e4 e6 d4 d5 Nd2': { name: 'French: Tarrasch Variation', eco: 'C03' },
+  'e4 e6 d4 d5 exd5': { name: 'French: Exchange Variation', eco: 'C01' },
+
+  // Caro-Kann Defense (1. e4 c6)
+  'e4 c6': { name: 'Caro-Kann Defense', eco: 'B10' },
+  'e4 c6 d4': { name: 'Caro-Kann: Normal', eco: 'B12' },
+  'e4 c6 d4 d5': { name: 'Caro-Kann Defense: Main Line', eco: 'B12' },
+  'e4 c6 d4 d5 Nc3': { name: 'Caro-Kann: Classical', eco: 'B15' },
+  'e4 c6 d4 d5 e5': { name: 'Caro-Kann: Advance Variation', eco: 'B12' },
+  'e4 c6 d4 d5 exd5': { name: 'Caro-Kann: Exchange', eco: 'B13' },
+  'e4 c6 d4 d5 Nd2': { name: 'Caro-Kann: Modern', eco: 'B15' },
+
+  // Other Semi-Open Games
+  'e4 d5': { name: 'Scandinavian Defense', eco: 'B01' },
+  'e4 d5 exd5': { name: 'Scandinavian: Main', eco: 'B01' },
+  'e4 d5 exd5 Qxd5': { name: 'Scandinavian: Mieses-Kotroc', eco: 'B01' },
+  'e4 d5 exd5 Nf6': { name: 'Scandinavian: Modern', eco: 'B01' },
+  'e4 d6': { name: 'Pirc Defense', eco: 'B07' },
+  'e4 d6 d4': { name: 'Pirc: Normal', eco: 'B07' },
+  'e4 d6 d4 Nf6': { name: 'Pirc Defense: Main Line', eco: 'B07' },
+  'e4 g6': { name: 'Modern Defense', eco: 'B06' },
+  'e4 Nf6': { name: "Alekhine's Defense", eco: 'B02' },
+  'e4 c5 Nf3 b6': { name: 'Sicilian: Katalymov', eco: 'B27' },
+
+  // Queen's Pawn & Closed Games (1. d4)
+  'd4': { name: "Queen's Pawn Opening", eco: 'D00' },
+  'd4 d5': { name: 'Closed Game', eco: 'D00' },
+  'd4 d5 c4': { name: "Queen's Gambit", eco: 'D06' },
+  'd4 d5 c4 dxc4': { name: "Queen's Gambit Accepted", eco: 'D20' },
+  'd4 d5 c4 e6': { name: "Queen's Gambit Declined", eco: 'D30' },
+  'd4 d5 c4 e6 Nc3': { name: 'QGD: Normal Line', eco: 'D31' },
+  'd4 d5 c4 e6 Nc3 Nf6': { name: 'QGD: Classical', eco: 'D35' },
+  'd4 d5 c4 c6': { name: 'Slav Defense', eco: 'D10' },
+  'd4 d5 c4 c6 Nf3': { name: 'Slav Defense: Modern', eco: 'D11' },
+  'd4 d5 c4 c6 Nf3 Nf6': { name: 'Slav Defense: Three Knights', eco: 'D11' },
+  'd4 d5 c4 c6 Nc3 Nf6': { name: 'Slav Defense: Classical', eco: 'D15' },
+  'd4 d5 Nf3': { name: "Queen's Pawn: Zukertort", eco: 'D02' },
+  'd4 d5 Bf4': { name: 'London System', eco: 'D00' },
+  'd4 d5 Bf4 Nf6': { name: 'London System', eco: 'D00' },
+  'd4 d5 Bf4 Nf6 e3': { name: 'London System: Classical', eco: 'D00' },
+  'd4 d5 Nc3': { name: 'Chigorin / Jobava London', eco: 'D00' },
+  'd4 d5 Nc3 Nf6 Bf4': { name: 'Jobava London System', eco: 'D00' },
+
+  // Indian Defenses (1. d4 Nf6)
+  'd4 Nf6': { name: 'Indian Defense', eco: 'A45' },
+  'd4 Nf6 c4': { name: 'Indian: Normal', eco: 'E00' },
+  'd4 Nf6 c4 g6': { name: "King's Indian / Grünfeld", eco: 'E60' },
+  'd4 Nf6 c4 g6 Nc3': { name: 'Indian: Westphalian', eco: 'E61' },
+  'd4 Nf6 c4 g6 Nc3 Bg7': { name: "King's Indian Defense", eco: 'E61' },
+  'd4 Nf6 c4 g6 Nc3 Bg7 e4': { name: "King's Indian: Main Line", eco: 'E70' },
+  'd4 Nf6 c4 g6 Nc3 d5': { name: 'Grünfeld Defense', eco: 'D80' },
+  'd4 Nf6 c4 e6': { name: 'East Indian Defense', eco: 'E00' },
+  'd4 Nf6 c4 e6 Nc3': { name: 'Nimzo-Indian Setup', eco: 'E20' },
+  'd4 Nf6 c4 e6 Nc3 Bb4': { name: 'Nimzo-Indian Defense', eco: 'E20' },
+  'd4 Nf6 c4 e6 Nf3': { name: "Queen's Indian Setup", eco: 'E12' },
+  'd4 Nf6 c4 e6 Nf3 b6': { name: "Queen's Indian Defense", eco: 'E12' },
+  'd4 Nf6 c4 e6 Nf3 Bb4+': { name: 'Bogo-Indian Defense', eco: 'E11' },
+  'd4 Nf6 c4 e6 g3': { name: 'Catalan Opening', eco: 'E01' },
+  'd4 Nf6 c4 c5': { name: 'Benoni Defense', eco: 'A56' },
+  'd4 Nf6 c4 c5 d5': { name: 'Benoni: Main Line', eco: 'A57' },
+  'd4 Nf6 c4 c5 d5 b5': { name: 'Benko Gambit', eco: 'A57' },
+  'd4 Nf6 Bf4': { name: 'London System', eco: 'A48' },
+  'd4 f5': { name: 'Dutch Defense', eco: 'A80' },
+
+  // Flank Openings
+  'c4': { name: 'English Opening', eco: 'A10' },
+  'c4 e5': { name: "English: King's English", eco: 'A20' },
+  'c4 c5': { name: 'English: Symmetrical Variation', eco: 'A30' },
+  'c4 Nf6': { name: 'English: Anglo-Indian', eco: 'A15' },
+  'Nf3': { name: 'Réti Opening', eco: 'A04' },
+  'Nf3 d5': { name: 'Réti: Main Line', eco: 'A06' },
+  'Nf3 d5 g3': { name: "King's Indian Attack", eco: 'A07' },
+  'b3': { name: 'Nimzo-Larsen Attack', eco: 'A01' },
+  'g3': { name: "King's Fianchetto", eco: 'A00' },
+  'f4': { name: "Bird's Opening", eco: 'A02' },
+}
+
+export function lookupOpeningBook(movesSoFar: readonly MoveRecord[]): OpeningBookEntry | null {
+  if (movesSoFar.length === 0) return null
+  const cleanSans = movesSoFar.map((m) => m.san.replace(/[+#!?]/g, '').trim())
+  const key = cleanSans.join(' ')
+  return ECO_OPENINGS[key] ?? null
+}
+
+
+// ============================================================================
+// 1.6. STOCKFISH 16 NNUE EVALUATOR ENGINE (Depth 8-10, 16MB Hash, Ultra-Fast)
+// ============================================================================
+export interface StockfishPositionEval {
+  bestUci?: string
+  scoreCp: number
+}
+
+export async function evaluatePositionsWithStockfish(
+  fens: readonly string[],
+  depth = 8,
+): Promise<StockfishPositionEval[]> {
+  const candidates = ['/usr/games/stockfish', '/usr/bin/stockfish', 'stockfish']
+  let sfPath: string | null = null
+  for (const c of candidates) {
+    if (existsSync(c)) {
+      sfPath = c
+      break
+    }
+  }
+  if (!sfPath) sfPath = 'stockfish'
+
+  return new Promise((resolve) => {
+    let child: any
+    try {
+      child = spawn(sfPath, [], { stdio: ['pipe', 'pipe', 'pipe'] })
+    } catch {
+      return resolve([])
+    }
+
+    const results: StockfishPositionEval[] = []
+    let buffer = ''
+    let isReady = false
+    let currentIdx = 0
+
+    const timer = setTimeout(() => {
+      try { child.kill('SIGKILL') } catch {}
+      resolve(results)
+    }, 25_000)
+
+    const processNext = () => {
+      if (currentIdx >= fens.length) {
+        clearTimeout(timer)
+        try {
+          child.stdin?.write('quit\n')
+          child.kill('SIGTERM')
+        } catch {}
+        return resolve(results)
+      }
+      const fen = fens[currentIdx]
+      child.stdin?.write(`position fen ${fen}\ngo depth ${depth}\n`)
+    }
+
+    child.stdout?.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString('utf8')
+      if (!isReady && buffer.includes('readyok')) {
+        isReady = true
+        buffer = ''
+        processNext()
+        return
+      }
+
+      if (isReady && buffer.includes('bestmove')) {
+        const lines = buffer.split('\n')
+        let scoreCp = 0
+        let bestUci: string | undefined
+
+        for (const line of lines) {
+          if (line.includes('score cp')) {
+            const parts = line.trim().split(/\s+/)
+            const idx = parts.indexOf('cp')
+            if (idx !== -1 && parts[idx + 1]) {
+              scoreCp = parseInt(parts[idx + 1], 10) || 0
+            }
+          } else if (line.includes('score mate')) {
+            const parts = line.trim().split(/\s+/)
+            const idx = parts.indexOf('mate')
+            if (idx !== -1 && parts[idx + 1]) {
+              const m = parseInt(parts[idx + 1], 10) || 1
+              scoreCp = m > 0 ? 20000 : -20000
+            }
+          }
+          if (line.startsWith('bestmove')) {
+            bestUci = line.trim().split(/\s+/)[1]
+          }
+        }
+
+        results.push({ bestUci, scoreCp })
+        buffer = ''
+        currentIdx++
+        processNext()
+      }
+    })
+
+    child.on('error', () => {
+      clearTimeout(timer)
+      resolve(results)
+    })
+
+    child.stdin?.write('uci\nsetoption name Threads value 1\nsetoption name Hash value 16\nisready\n')
+  })
 }
 
 export class ChessService implements Service {
@@ -2683,7 +3008,7 @@ export class ChessService implements Service {
   async renderReviewVideoMp4(state: ChessGameState, options?: BoardRenderOptions): Promise<{ mp4Buffer: Buffer; summary: GameReviewSummary }> {
     const wProfile = this.getPlayerElo(state.whiteJid, state.whiteName)
     const bProfile = this.getPlayerElo(state.blackJid, state.blackName)
-    const summary = analyzeGameHistory(state, wProfile.elo, bProfile.elo)
+    const summary = await analyzeGameHistory(state, wProfile.elo, bProfile.elo)
 
     const frames: Buffer[] = []
     // Initial frame
@@ -2759,7 +3084,12 @@ export class ChessService implements Service {
   // --------------------------------------------------------------------------
   // SATORI + RESVG TOP 10 ELO LEADERBOARD VISUAL CARD (!leaderboardchess)
   // --------------------------------------------------------------------------
-  async renderLeaderboardCardPng(entries: readonly EloProfile[]): Promise<Buffer> {
+
+
+  // --------------------------------------------------------------------------
+  // CHESS.COM AUTHENTIC SATORI + RESVG LEADERBOARD VISUAL CARD (!lbchess)
+  // --------------------------------------------------------------------------
+  async renderLeaderboardCardPng(entries: readonly EloProfile[], options?: LeaderboardRenderOptions): Promise<Buffer> {
     const fonts = loadSatoriFonts()
     const rows: any[] = []
 
@@ -2768,18 +3098,25 @@ export class ChessService implements Service {
       const item = displayEntries[i]
       const tier = getEloTier(item.elo)
       const winrate = item.gamesPlayed > 0 ? Math.round((item.wins / item.gamesPlayed) * 100) : 0
+      const isTop3 = i < 3
       const rankColors = ['#f59e0b', '#cbd5e1', '#d97706']
-      const rankBg = i < 3 ? rankColors[i] : '#302e2b'
-      const rankFg = i < 3 ? '#1f1e1b' : '#eaedd1'
+      const rankBg = isTop3 ? rankColors[i] : '#312e2b'
+      const rankFg = isTop3 ? '#181715' : '#9b9893'
+      const borderLeftColor = isTop3 ? rankColors[i] : 'transparent'
+      const rowBg = i % 2 === 0 ? '#262421' : '#21201d'
+
+      const avatarBuf = options?.avatars?.get(item.userJid)
+      const avatarUrl = await toAvatarDataUrl(avatarBuf, item.displayName, 34)
 
       rows.push({
         type: 'div',
         props: {
           style: {
             width: '100%',
-            height: '52px',
-            backgroundColor: i % 2 === 0 ? '#262421' : '#1f1e1b',
-            borderRadius: '6px',
+            height: '56px',
+            backgroundColor: rowBg,
+            borderLeft: `4px solid ${borderLeftColor}`,
+            borderBottom: '1px solid #2d2b27',
             padding: '0 16px',
             display: 'flex',
             alignItems: 'center',
@@ -2789,45 +3126,64 @@ export class ChessService implements Service {
             {
               type: 'div',
               props: {
-                style: { display: 'flex', alignItems: 'center', gap: '12px' },
+                style: { display: 'flex', alignItems: 'center', gap: '14px', flex: 1 },
                 children: [
                   {
                     type: 'div',
                     props: {
                       style: {
-                        width: '30px',
-                        height: '30px',
+                        width: '32px',
+                        height: '32px',
                         borderRadius: '6px',
                         backgroundColor: rankBg,
                         color: rankFg,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '15px',
-                        fontWeight: 700,
+                        fontSize: '14px',
+                        fontWeight: 800,
                       },
-                      children: `#${i + 1}`,
+                      children: `${i + 1}`,
                     },
                   },
                   {
-                    type: 'span',
+                    type: 'img',
                     props: {
-                      style: { fontSize: '16px', fontWeight: 700, color: '#eaedd1' },
-                      children: item.displayName.slice(0, 18),
-                    },
-                  },
-                  {
-                    type: 'span',
-                    props: {
+                      src: avatarUrl,
                       style: {
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        color: tier.color,
-                        backgroundColor: '#302e2b',
-                        padding: '3px 8px',
-                        borderRadius: '4px',
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '17px',
+                        objectFit: 'cover',
+                        border: '1px solid #4a4843',
                       },
-                      children: tier.title,
+                    },
+                  },
+                  {
+                    type: 'div',
+                    props: {
+                      style: { display: 'flex', alignItems: 'center', gap: '8px' },
+                      children: [
+                        {
+                          type: 'span',
+                          props: { style: { fontSize: '15px', fontWeight: 700, color: '#f8fafc' }, children: item.displayName.slice(0, 16) },
+                        },
+                        {
+                          type: 'span',
+                          props: {
+                            style: {
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              color: tier.color,
+                              backgroundColor: '#302e2b',
+                              border: `1px solid ${tier.color}40`,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                            },
+                            children: tier.title,
+                          },
+                        },
+                      ],
                     },
                   },
                 ],
@@ -2836,27 +3192,42 @@ export class ChessService implements Service {
             {
               type: 'div',
               props: {
-                style: { display: 'flex', alignItems: 'center', gap: '18px' },
+                style: { width: '160px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
                 children: [
                   {
                     type: 'span',
-                    props: {
-                      style: { fontSize: '14px', color: '#a09d98' },
-                      children: `${item.wins}W / ${item.losses}L / ${item.draws}D (${winrate}%)`,
-                    },
+                    props: { style: { fontSize: '13px', color: '#94a3b8' }, children: `${item.wins}W ${item.losses}L ${item.draws}D` },
                   },
                   {
                     type: 'span',
                     props: {
                       style: {
-                        fontSize: '18px',
+                        fontSize: '11px',
                         fontWeight: 700,
                         color: '#81b64c',
-                        width: '90px',
-                        textAlign: 'right',
+                        backgroundColor: '#1b2d15',
+                        border: '1px solid #365314',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
                       },
-                      children: `${item.elo} ELO`,
+                      children: `${winrate}% WR`,
                     },
+                  },
+                ],
+              },
+            },
+            {
+              type: 'div',
+              props: {
+                style: { width: '110px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' },
+                children: [
+                  {
+                    type: 'span',
+                    props: { style: { fontSize: '17px', fontWeight: 800, color: '#81b64c' }, children: `${item.elo}` },
+                  },
+                  {
+                    type: 'span',
+                    props: { style: { fontSize: '11px', color: '#73716d' }, children: `Puncak ${item.peakElo}` },
                   },
                 ],
               },
@@ -2874,11 +3245,11 @@ export class ChessService implements Service {
             width: '100%',
             height: '120px',
             backgroundColor: '#262421',
-            borderRadius: '8px',
+            borderRadius: '6px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '16px',
+            fontSize: '15px',
             color: '#a09d98',
           },
           children: 'Belum ada data pertandingan catur berperingkat.',
@@ -2886,83 +3257,166 @@ export class ChessService implements Service {
       })
     }
 
-    const totalHeight = Math.max(280, 150 + rows.length * 60)
-    const tree: any = {
+    const vdom: any = {
       type: 'div',
       props: {
         style: {
-          width: '720px',
-          height: `${totalHeight}px`,
-          backgroundColor: '#302e2b',
+          width: '800px',
+          backgroundColor: '#181715',
+          borderTop: '4px solid #81b64c',
           padding: '24px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
+          gap: '14px',
           fontFamily: 'Inter',
-          color: '#eaedd1',
+          borderRadius: '8px',
         },
         children: [
+          // Header
           {
             type: 'div',
             props: {
               style: {
-                width: '100%',
-                backgroundColor: '#262421',
-                borderRadius: '8px',
-                padding: '16px 20px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                borderBottom: '3px solid #81b64c',
+                backgroundColor: '#21201d',
+                border: '1px solid #33312e',
+                borderRadius: '8px',
+                padding: '16px 20px',
               },
               children: [
                 {
                   type: 'div',
                   props: {
-                    style: { display: 'flex', flexDirection: 'column', gap: '4px' },
+                    style: { display: 'flex', alignItems: 'center', gap: '14px' },
                     children: [
                       {
-                        type: 'span',
+                        type: 'div',
                         props: {
-                          style: { fontSize: '22px', fontWeight: 700, color: '#eaedd1' },
-                          children: '🏆 LEADERBOARD CATUR P2P ALLYBOT',
+                          style: {
+                            width: '42px',
+                            height: '42px',
+                            borderRadius: '8px',
+                            backgroundColor: '#81b64c',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '22px',
+                          },
+                          children: '♟️',
                         },
                       },
                       {
-                        type: 'span',
+                        type: 'div',
                         props: {
-                          style: { fontSize: '13px', color: '#a09d98' },
-                          children: 'Peringkat Resmi FIDE ELO Rating Komunitas',
+                          style: { display: 'flex', flexDirection: 'column', gap: '2px' },
+                          children: [
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: '18px', fontWeight: 800, color: '#eaedd1', letterSpacing: '0.5px' }, children: 'KLASEMEN GLOBAL CATUR' },
+                            },
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: '12px', color: '#9b9893' }, children: 'Standar Rating FIDE • Komunitas Allyssea' },
+                            },
+                          ],
                         },
                       },
                     ],
                   },
                 },
                 {
-                  type: 'img',
+                  type: 'div',
                   props: {
-                    src: PIECE_SPRITES.wK,
-                    width: 48,
-                    height: 48,
-                    style: { width: '48px', height: '48px' },
+                    style: {
+                      backgroundColor: '#273b18',
+                      color: '#a3d160',
+                      border: '1px solid #53782b',
+                      padding: '6px 14px',
+                      borderRadius: '16px',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      letterSpacing: '0.5px',
+                    },
+                    children: 'TOP 10 MASTER',
                   },
                 },
               ],
             },
           },
+          // Table Header
           {
             type: 'div',
             props: {
-              style: { display: 'flex', flexDirection: 'column', gap: '8px' },
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: '#262421',
+                borderRadius: '6px 6px 0 0',
+                borderBottom: '1px solid #33312e',
+                padding: '10px 16px',
+              },
+              children: [
+                {
+                  type: 'span',
+                  props: { style: { width: '60px', fontSize: '11px', fontWeight: 800, color: '#73716d' }, children: 'RANK' },
+                },
+                {
+                  type: 'span',
+                  props: { style: { flex: 1, fontSize: '11px', fontWeight: 800, color: '#73716d' }, children: 'PEMAIN' },
+                },
+                {
+                  type: 'span',
+                  props: { style: { width: '160px', textAlign: 'center', fontSize: '11px', fontWeight: 800, color: '#73716d' }, children: 'STATISTIK' },
+                },
+                {
+                  type: 'span',
+                  props: { style: { width: '110px', textAlign: 'right', fontSize: '11px', fontWeight: 800, color: '#73716d' }, children: 'RATING ELO' },
+                },
+              ],
+            },
+          },
+          // Rows
+          {
+            type: 'div',
+            props: {
+              style: { display: 'flex', flexDirection: 'column', borderRadius: '0 0 6px 6px', overflow: 'hidden' },
               children: rows,
+            },
+          },
+          // Footer
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                color: '#73716d',
+                fontSize: '12px',
+              },
+              children: [
+                {
+                  type: 'span',
+                  props: { children: '♟️ Mainkan catur dengan !catur @lawan atau !catur open' },
+                },
+                {
+                  type: 'span',
+                  props: { children: 'Diperbarui otomatis' },
+                },
+              ],
             },
           },
         ],
       },
     }
 
-    const svg = await satori(tree, { width: 720, height: totalHeight, fonts })
-    const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: 720 } })
+    const svg = await satori(vdom, { width: 800, fonts })
+    const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: 800 } })
     return Buffer.from(resvg.render().asPng())
   }
+
 }
