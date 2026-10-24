@@ -31,6 +31,10 @@ import { remoteOpsPlugin } from '../dist/framework/plugins/remote-ops.js'
 import { createSuggestPlugin } from '../dist/framework/plugins/suggest.js'
 import { createMenfessPlugin } from '../dist/framework/plugins/menfess.js'
 import { createRekapPlugin } from '../dist/framework/plugins/rekap.js'
+import { createChessPlugin } from '../dist/framework/plugins/chess.js'
+import { reminderPlugin } from '../dist/framework/plugins/reminder.js'
+import { certificatePlugin } from '../dist/framework/plugins/certificate.js'
+import { exifPlugin } from '../dist/framework/plugins/exif.js'
 import { downloaderPlugin } from '../dist/framework/plugins/downloader.js'
 import { quranPlugin } from '../dist/framework/plugins/quran.js'
 import { sholatPlugin } from '../dist/framework/plugins/sholat.js'
@@ -84,6 +88,9 @@ const SERVICE_NAMES = [
   'downloader',
   'quota',
   'community',
+  'chess',
+  'reminder',
+  'aegis-queue',
   'menfess',
 ]
 
@@ -167,6 +174,7 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(createSentryPlugin({ isEnabled: false, captureError() {}, captureMessage() {}, close: async () => {} }))
   framework.registerPlugin(technicalPlugin)
   framework.registerPlugin(createAiPlugin({ fallbackEnabled: false }))
+  framework.registerPlugin(createRekapPlugin(whatsapp, { fallbackEnabled: false }))
   framework.registerPlugin(developerModePlugin)
   framework.registerPlugin(codebasePlugin)
   framework.registerPlugin(diagnosticsPlugin)
@@ -183,6 +191,10 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
+  framework.registerPlugin(createChessPlugin(whatsapp))
+  framework.registerPlugin(reminderPlugin)
+  framework.registerPlugin(certificatePlugin)
+  framework.registerPlugin(exifPlugin)
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(downloaderPlugin)
   framework.registerPlugin(spotifyPlugin)
