@@ -5,17 +5,23 @@ export interface VideoPluginOptions {
   readonly videoService?: VideoService
 }
 
+function sourceVideo(context: CommandContext): { source: 'direct' | 'quoted'; kind: string } | undefined {
+  if (context.message.media?.kind === 'video') return { source: 'direct', kind: 'video' }
+  if (context.message.quotedMedia?.kind === 'video') return { source: 'quoted', kind: 'video' }
+  return undefined
+}
+
 export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginOptions = {}): Plugin {
   return {
     name: 'video-commands',
-    version: '0.1.0',
+    version: '0.2.0',
     load(context) {
       const videoService =
         options.videoService ??
         context.services.get<VideoService>('video') ??
         new VideoService()
 
-      // 1. Core Video Generation Command (!vid)
+      // ── 1. AI Video Generation (Veo 3.1 & Omni 1.1 Flash) ─────────────
       context.commands.register({
         name: 'vid',
         aliases: ['video', 'veo', 'generatevideo'],
@@ -30,7 +36,8 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
             await cmdContext.reply(
               `🎬 *Chlona Video Studio (Google Flow / Veo 3.1)*\n\n` +
               `Format:\n` +
-              `• \`${cmdContext.prefix}vid <deskripsi video>\`\n\n` +
+              `• \`${cmdContext.prefix}vid <deskripsi video>\`\n` +
+              `• \`${cmdContext.prefix}vidomni <deskripsi video>\` (dengan audio bawaan Omni)\n\n` +
               `Contoh:\n` +
               `• \`${cmdContext.prefix}vid seekor naga es terbang di atas puncak gunung bersalju, cinematic 4k\`\n` +
               `• \`${cmdContext.prefix}vid pemandangan kota tokyo di malam hari hujan dengan lampu neon cyber\`\n\n` +
@@ -44,7 +51,6 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
             return
           }
 
-          // Check sender quota
           const senderJid = cmdContext.message.senderJid ?? cmdContext.message.remoteJid
           const quota = videoService.checkQuota(senderJid)
           if (!quota.allowed) {
@@ -52,7 +58,6 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
             return
           }
 
-          // Immediate reaction & status acknowledgement
           await cmdContext.react('⏳')
           await cmdContext.reply(
             `🎬 *Chlona Video Studio*\n\n` +
@@ -70,8 +75,9 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
               model: 'veo-lite',
             })
 
-            if (cmdContext.whatsapp.sendMedia) {
-              await cmdContext.whatsapp.sendMedia(cmdContext.message.remoteJid, {
+            const mediaPort = whatsapp ?? cmdContext.whatsapp
+            if (mediaPort?.sendMedia) {
+              await mediaPort.sendMedia(cmdContext.message.remoteJid, {
                 kind: 'video',
                 data: result.buffer,
                 mimeType: result.mimeType,
@@ -102,14 +108,306 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
         },
       })
 
-      // 2. Video Status Command (!vidstatus)
+      // ── 2. Omni 1.1 Flash Video Generation ─────────────────────────────
+      context.commands.register({
+        name: 'vidomni',
+        aliases: ['omni', 'veoomni'],
+        description: 'Generate video AI menggunakan Gemini Omni 1.1 Flash dengan audio/efek suara asli',
+        category: 'tools',
+        scope: 'both',
+        menuOrder: 16,
+        cooldownMs: 15_000,
+        handler: async (cmdContext: CommandContext) => {
+          const rawPrompt = cmdContext.args.join(' ').trim()
+          if (!rawPrompt || rawPrompt.length < 5) {
+            await cmdContext.reply(
+              `⚡ *Chlona Video Studio (Gemini Omni 1.1 Flash)*\n\n` +
+              `Format:\n` +
+              `• \`${cmdContext.prefix}vidomni <deskripsi>\`\n\n` +
+              `Omni 1.1 Flash menghasilkan video dengan audio dan efek suara alami yang sinkron.`
+            )
+            return
+          }
+
+          const senderJid = cmdContext.message.senderJid ?? cmdContext.message.remoteJid
+          const quota = videoService.checkQuota(senderJid)
+          if (!quota.allowed) {
+            await cmdContext.reply(quota.reason ?? '⚠️ Batas kuota pembuatan video tercapai.')
+            return
+          }
+
+          await cmdContext.react('⏳')
+          await cmdContext.reply(
+            `⚡ *Chlona Video Studio (Omni 1.1 Flash)*\n\n` +
+            `Permintaan videomu sedang diproses dengan model Omni!\n\n` +
+            `📝 *Prompt:* "_${rawPrompt}_"\n` +
+            `🔊 *Fitur:* Native Ambient Sound\n` +
+            `⏳ *Estimasi:* ~30-60 detik`
+          )
+
+          try {
+            const result = await videoService.enqueue(senderJid, {
+              prompt: rawPrompt,
+              model: 'omni-flash',
+            })
+
+            const mediaPort = whatsapp ?? cmdContext.whatsapp
+            if (mediaPort?.sendMedia) {
+              await mediaPort.sendMedia(cmdContext.message.remoteJid, {
+                kind: 'video',
+                data: result.buffer,
+                mimeType: result.mimeType,
+                fileName: result.fileName,
+                caption:
+                  `⚡ *Hasil Video Gemini Omni 1.1 Flash*\n\n` +
+                  `📝 *Prompt:* _${rawPrompt}_\n` +
+                  `🔊 *Audio:* Native Ambient Sound FX\n` +
+                  `© Allyssea Creative Lab`,
+              })
+              await cmdContext.react('✨')
+            }
+          } catch (error) {
+            await cmdContext.react('❌')
+            await cmdContext.reply(
+              `⚠️ Gagal memproses video Omni: ${error instanceof Error ? error.message : 'Error sistem'}`
+            )
+          }
+        },
+      })
+
+      // ── 3. Native Video Editing: Compress (!vcompress) ─────────────────
+      context.commands.register({
+        name: 'vcompress',
+        aliases: ['vshrink', 'kompresvideo'],
+        description: 'Kompres ukuran video WhatsApp agar hemat kuota tanpa pecah',
+        category: 'tools',
+        scope: 'both',
+        menuOrder: 17,
+        cooldownMs: 5_000,
+        handler: async (cmdContext: CommandContext) => {
+          const videoTarget = sourceVideo(cmdContext)
+          const mediaPort = whatsapp ?? cmdContext.whatsapp
+          if (!videoTarget || !mediaPort?.downloadMedia || !mediaPort?.sendMedia) {
+            await cmdContext.reply(`Kirim atau balas video dengan \`${cmdContext.prefix}vcompress\` untuk mengecilkan ukurannya ya~ 📹`)
+            return
+          }
+
+          await cmdContext.react('⏳')
+          try {
+            const downloaded = await mediaPort.downloadMedia(cmdContext.message, videoTarget.source, {
+              maxBytes: 30 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const originalBytes = downloaded.data.length
+            const compressedBuffer = await videoService.compressVideo(Buffer.from(downloaded.data))
+            const newBytes = compressedBuffer.length
+            const pct = Math.max(1, Math.round((1 - newBytes / originalBytes) * 100))
+
+            await mediaPort.sendMedia(cmdContext.message.remoteJid, {
+              kind: 'video',
+              data: compressedBuffer,
+              mimeType: 'video/mp4',
+              fileName: 'compressed.mp4',
+              caption:
+                `📦 *Video Berhasil Dikompres*\n\n` +
+                `• Asli   : ${(originalBytes / (1024 * 1024)).toFixed(1)} MB\n` +
+                `• Hasil  : ${(newBytes / (1024 * 1024)).toFixed(1)} MB (-${pct}%)\n` +
+                `© Allyssea Video Engine`,
+            })
+            await cmdContext.react('✨')
+          } catch (err) {
+            await cmdContext.react('❌')
+            await cmdContext.reply(`Gagal mengompres video: ${err instanceof Error ? err.message : 'Error'}`)
+          }
+        },
+      })
+
+      // ── 4. Native Video Editing: Trim (!vtrim) ─────────────────────────
+      context.commands.register({
+        name: 'vtrim',
+        aliases: ['vcut', 'potongvideo'],
+        description: 'Potong rentang durasi video (contoh: !vtrim 00:02 00:10)',
+        category: 'tools',
+        scope: 'both',
+        menuOrder: 18,
+        cooldownMs: 5_000,
+        handler: async (cmdContext: CommandContext) => {
+          const videoTarget = sourceVideo(cmdContext)
+          const mediaPort = whatsapp ?? cmdContext.whatsapp
+          const start = cmdContext.args[0]
+          const end = cmdContext.args[1]
+
+          if (!videoTarget || !start || !mediaPort?.downloadMedia || !mediaPort?.sendMedia) {
+            await cmdContext.reply(
+              `Balas video lalu ketik:\n` +
+              `• \`${cmdContext.prefix}vtrim <mulai> [selesai]\`\n\n` +
+              `Contoh:\n` +
+              `• \`${cmdContext.prefix}vtrim 00:02 00:08\`\n` +
+              `• \`${cmdContext.prefix}vtrim 5 15\` (potong dari detik 5 sampai 15)`
+            )
+            return
+          }
+
+          await cmdContext.react('⏳')
+          try {
+            const downloaded = await mediaPort.downloadMedia(cmdContext.message, videoTarget.source, {
+              maxBytes: 30 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const trimmedBuffer = await videoService.trimVideo(Buffer.from(downloaded.data), start, end)
+
+            await mediaPort.sendMedia(cmdContext.message.remoteJid, {
+              kind: 'video',
+              data: trimmedBuffer,
+              mimeType: 'video/mp4',
+              fileName: 'trimmed.mp4',
+              caption: `✂️ *Video Berhasil Dipotong*\nDurasi: ${start} s/d ${end ?? 'akhir'}\n© Allyssea Video Engine`,
+            })
+            await cmdContext.react('✨')
+          } catch (err) {
+            await cmdContext.react('❌')
+            await cmdContext.reply(`Gagal memotong video: ${err instanceof Error ? err.message : 'Error'}`)
+          }
+        },
+      })
+
+      // ── 5. Native Video Editing: Speed (!vspeed) ───────────────────────
+      context.commands.register({
+        name: 'vspeed',
+        aliases: ['vtempo', 'kecepatanvideo'],
+        description: 'Ubah kecepatan playback video (contoh: !vspeed 1.5x / 0.5x / 2x)',
+        category: 'tools',
+        scope: 'both',
+        menuOrder: 19,
+        cooldownMs: 5_000,
+        handler: async (cmdContext: CommandContext) => {
+          const videoTarget = sourceVideo(cmdContext)
+          const mediaPort = whatsapp ?? cmdContext.whatsapp
+          const speedRaw = parseFloat(cmdContext.args[0]?.replace('x', '') || '')
+
+          if (!videoTarget || isNaN(speedRaw) || speedRaw < 0.25 || speedRaw > 4.0 || !mediaPort?.downloadMedia || !mediaPort?.sendMedia) {
+            await cmdContext.reply(
+              `Balas video lalu ketik:\n` +
+              `• \`${cmdContext.prefix}vspeed <angka>x\`\n\n` +
+              `Contoh:\n` +
+              `• \`${cmdContext.prefix}vspeed 1.5x\` (percepat 1.5 kali)\n` +
+              `• \`${cmdContext.prefix}vspeed 0.5x\` (slow-motion)`
+            )
+            return
+          }
+
+          await cmdContext.react('⏳')
+          try {
+            const downloaded = await mediaPort.downloadMedia(cmdContext.message, videoTarget.source, {
+              maxBytes: 30 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const speedBuffer = await videoService.speedVideo(Buffer.from(downloaded.data), speedRaw)
+
+            await mediaPort.sendMedia(cmdContext.message.remoteJid, {
+              kind: 'video',
+              data: speedBuffer,
+              mimeType: 'video/mp4',
+              fileName: 'speed.mp4',
+              caption: `⏩ *Kecepatan Diubah: ${speedRaw}x*\n© Allyssea Video Engine`,
+            })
+            await cmdContext.react('✨')
+          } catch (err) {
+            await cmdContext.react('❌')
+            await cmdContext.reply(`Gagal mengubah kecepatan: ${err instanceof Error ? err.message : 'Error'}`)
+          }
+        },
+      })
+
+      // ── 6. Native Video Editing: Mute (!vmute) ─────────────────────────
+      context.commands.register({
+        name: 'vmute',
+        aliases: ['vsilence', 'hanyavideo'],
+        description: 'Hilangkan audio/suara dari video',
+        category: 'tools',
+        scope: 'both',
+        menuOrder: 20,
+        cooldownMs: 3_000,
+        handler: async (cmdContext: CommandContext) => {
+          const videoTarget = sourceVideo(cmdContext)
+          const mediaPort = whatsapp ?? cmdContext.whatsapp
+
+          if (!videoTarget || !mediaPort?.downloadMedia || !mediaPort?.sendMedia) {
+            await cmdContext.reply(`Balas video lalu ketik \`${cmdContext.prefix}vmute\` untuk membuang suaranya ya~ 🔇`)
+            return
+          }
+
+          await cmdContext.react('⏳')
+          try {
+            const downloaded = await mediaPort.downloadMedia(cmdContext.message, videoTarget.source, {
+              maxBytes: 30 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const mutedBuffer = await videoService.muteVideo(Buffer.from(downloaded.data))
+
+            await mediaPort.sendMedia(cmdContext.message.remoteJid, {
+              kind: 'video',
+              data: mutedBuffer,
+              mimeType: 'video/mp4',
+              fileName: 'muted.mp4',
+              caption: `🔇 *Video Dibisukan (Muted)*\n© Allyssea Video Engine`,
+            })
+            await cmdContext.react('✨')
+          } catch (err) {
+            await cmdContext.react('❌')
+            await cmdContext.reply(`Gagal membisukan video: ${err instanceof Error ? err.message : 'Error'}`)
+          }
+        },
+      })
+
+      // ── 7. Native Video Editing: Extract VN (!vvn) ─────────────────────
+      context.commands.register({
+        name: 'vvn',
+        aliases: ['videotovn', 'vptt'],
+        description: 'Ekstrak audio video menjadi Voice Note (PTT) WhatsApp',
+        category: 'tools',
+        scope: 'both',
+        menuOrder: 21,
+        cooldownMs: 3_000,
+        handler: async (cmdContext: CommandContext) => {
+          const videoTarget = sourceVideo(cmdContext)
+          const mediaPort = whatsapp ?? cmdContext.whatsapp
+
+          if (!videoTarget || !mediaPort?.downloadMedia || !mediaPort?.sendMedia) {
+            await cmdContext.reply(`Balas video lalu ketik \`${cmdContext.prefix}vvn\` untuk mengubah suaranya jadi Voice Note (VN) ya~ 🎙️`)
+            return
+          }
+
+          await cmdContext.react('⏳')
+          try {
+            const downloaded = await mediaPort.downloadMedia(cmdContext.message, videoTarget.source, {
+              maxBytes: 30 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const vnBuffer = await videoService.extractVoiceNote(Buffer.from(downloaded.data))
+
+            await mediaPort.sendMedia(cmdContext.message.remoteJid, {
+              kind: 'audio',
+              data: vnBuffer,
+              mimeType: 'audio/ogg; codecs=opus',
+              fileName: 'voice-note.opus',
+            })
+            await cmdContext.react('✨')
+          } catch (err) {
+            await cmdContext.react('❌')
+            await cmdContext.reply(`Gagal mengekstrak audio: ${err instanceof Error ? err.message : 'Error'}`)
+          }
+        },
+      })
+
+      // ── 8. Status & Info Commands ──────────────────────────────────────
       context.commands.register({
         name: 'vidstatus',
         aliases: ['videostatus'],
         description: 'Cek status antrean & sisa limit harian pembuatan video',
         category: 'tools',
         scope: 'both',
-        menuOrder: 16,
+        menuOrder: 22,
         cooldownMs: 5_000,
         handler: async (cmdContext: CommandContext) => {
           const senderJid = cmdContext.message.senderJid ?? cmdContext.message.remoteJid
@@ -120,33 +418,34 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
             `📊 *Status Chlona Video Studio*\n\n` +
             `• Antrean Aktif  : *${qSize} job*\n` +
             `• Sisa Limitmu   : *${quota.remaining} video hari ini*\n` +
-            `• Status Sistem  : *Online (Google Flow Veo 3.1)* 🟢\n\n` +
+            `• Status Sistem  : *Online (Google Flow Veo 3.1 & Omni 1.1)* 🟢\n\n` +
             `Ketik \`${cmdContext.prefix}vid <prompt>\` untuk mulai merender video!`
           )
         },
       })
 
-      // 3. Video Models Info Command (!vidmodels)
       context.commands.register({
         name: 'vidmodels',
         aliases: ['videomodels'],
         description: 'Lihat daftar model video AI yang tersedia di Google Flow',
         category: 'tools',
         scope: 'both',
-        menuOrder: 17,
+        menuOrder: 23,
         cooldownMs: 5_000,
         handler: async (cmdContext: CommandContext) => {
           await cmdContext.reply(
             `🎬 *Katalog Model Google Flow Studio*\n\n` +
-            `1. 🌟 *Veo 3.1 - Lite* (Default)\n` +
-            `   • Model cepat & hemat kredit\n` +
-            `   • Resolusi 720p HD @ 24fps\n` +
-            `   • Cocok untuk visual sinematik & animasi\n\n` +
-            `2. ⚡ *Omni 1.1 Flash*\n` +
-            `   • Video super responsif dengan audio/sound effect bawaan\n\n` +
-            `3. 💎 *Veo 3.1 - Fast / Quality*\n` +
-            `   • Mode resolusi tinggi untuk kebutuhan detail visual tingkat lanjut\n\n` +
-            `_Gunakan \`${cmdContext.prefix}vid <prompt>\` untuk langsung mencoba!_`
+            `1. 🌟 *Veo 3.1 - Lite* (\`${cmdContext.prefix}vid <prompt>\`)\n` +
+            `   • Cepat & hemat kuota\n` +
+            `   • Resolusi 720p HD @ 24fps\n\n` +
+            `2. ⚡ *Omni 1.1 Flash* (\`${cmdContext.prefix}vidomni <prompt>\`)\n` +
+            `   • Dilengkapi efek suara / audio bawaan sinkron\n\n` +
+            `✂️ *Tools Edit Video Cepat:*\n` +
+            `• \`${cmdContext.prefix}vcompress\` : Kecilkan ukuran video\n` +
+            `• \`${cmdContext.prefix}vtrim\` : Potong rentang durasi\n` +
+            `• \`${cmdContext.prefix}vspeed\` : Ubah kecepatan video\n` +
+            `• \`${cmdContext.prefix}vmute\` : Hilangkan suara video\n` +
+            `• \`${cmdContext.prefix}vvn\` : Ekstrak audio jadi VN WhatsApp`
           )
         },
       })

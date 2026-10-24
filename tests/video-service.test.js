@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import fs from 'node:fs'
 import pino from 'pino'
 import {
   VideoService,
@@ -34,6 +35,19 @@ function fakeWhatsapp() {
     },
     async sendReaction(remoteJid, key, emoji) {
       reactions.push({ remoteJid, key, emoji })
+    },
+    async downloadMedia(msg, source, limits) {
+      // Return a sample MP4 buffer if requested
+      const samplePath = '/root/flow-spike/final-test-video.mp4'
+      const data = fs.existsSync(samplePath)
+        ? fs.readFileSync(samplePath)
+        : Buffer.from('00000018667479706d7034320000000069736f6d6d7034320000000866726565000000106d6461740000000000000000', 'hex')
+      return {
+        data,
+        mimeType: 'video/mp4',
+        fileName: 'sample.mp4',
+        kind: 'video',
+      }
     },
   }
 }
@@ -111,6 +125,12 @@ test('4. VideoPlugin registers commands !vid, !vidstatus, and !vidmodels', async
   plugin.load?.({ logger, config, events, commands: registry, services })
 
   assert.ok(registry.get('vid'))
+  assert.ok(registry.get('vidomni'))
+  assert.ok(registry.get('vcompress'))
+  assert.ok(registry.get('vtrim'))
+  assert.ok(registry.get('vspeed'))
+  assert.ok(registry.get('vmute'))
+  assert.ok(registry.get('vvn'))
   assert.ok(registry.get('vidstatus'))
   assert.ok(registry.get('vidmodels'))
 })
@@ -152,6 +172,7 @@ test('6. !vidstatus and !vidmodels deliver accurate status and catalog details',
   assert.equal(whatsapp.sent.length, 2)
   assert.match(whatsapp.sent[1].text, /Katalog Model Google Flow Studio/i)
   assert.match(whatsapp.sent[1].text, /Veo 3\.1 - Lite/i)
+  assert.match(whatsapp.sent[1].text, /Omni 1\.1 Flash/i)
 })
 
 test('7. End-to-end !vid dispatch renders and delivers video media payload', async () => {
@@ -177,13 +198,68 @@ test('7. End-to-end !vid dispatch renders and delivers video media payload', asy
     ),
   )
 
-  // 1 immediate acknowledgement message sent
   assert.equal(whatsapp.sent.length, 1)
   assert.match(whatsapp.sent[0].text, /Permintaan videomu sudah masuk antrean/i)
 
-  // Media delivered
   assert.equal(whatsapp.media.length, 1)
   assert.equal(whatsapp.media[0].payload.kind, 'video')
   assert.equal(whatsapp.media[0].payload.mimeType, 'video/mp4')
   assert.match(whatsapp.media[0].payload.caption, /Google Veo 3\.1/i)
+})
+
+test('8. Native editing commands reject safely when no video is attached', async () => {
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const whatsapp = fakeWhatsapp()
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  const videoService = new VideoService({ provider: new MockVideoProvider() })
+  services.register(videoService)
+
+  const plugin = createVideoPlugin(whatsapp, { videoService })
+  plugin.load?.({ logger, config, events, commands: registry, services })
+
+  await registry.dispatch(message('m-5', 'user@s.whatsapp.net', '!vcompress'))
+  assert.match(whatsapp.sent[0].text, /Kirim atau balas video/i)
+
+  await registry.dispatch(message('m-6', 'user@s.whatsapp.net', '!vtrim'))
+  assert.match(whatsapp.sent[1].text, /Balas video lalu ketik/i)
+
+  await registry.dispatch(message('m-7', 'user@s.whatsapp.net', '!vspeed'))
+  assert.match(whatsapp.sent[2].text, /Balas video lalu ketik/i)
+
+  await registry.dispatch(message('m-8', 'user@s.whatsapp.net', '!vmute'))
+  assert.match(whatsapp.sent[3].text, /Balas video lalu ketik/i)
+
+  await registry.dispatch(message('m-9', 'user@s.whatsapp.net', '!vvn'))
+  assert.match(whatsapp.sent[4].text, /Balas video lalu ketik/i)
+})
+
+test('9. Native FFmpeg video transformations execute cleanly on valid media', async () => {
+  const samplePath = '/root/flow-spike/final-test-video.mp4'
+  if (!fs.existsSync(samplePath)) return
+
+  const inputBuffer = fs.readFileSync(samplePath)
+  const service = new VideoService()
+
+  // 1. Compress
+  const compressed = await service.compressVideo(inputBuffer)
+  assert.ok(compressed.length > 0)
+  assert.ok(compressed.length < inputBuffer.length)
+
+  // 2. Mute
+  const muted = await service.muteVideo(inputBuffer)
+  assert.ok(muted.length > 0)
+
+  // 3. Extract VN (Opus)
+  const vn = await service.extractVoiceNote(inputBuffer)
+  assert.ok(vn.length > 0)
+  assert.ok(vn.length < inputBuffer.length)
+
+  // 4. Speed 1.5x
+  const spedUp = await service.speedVideo(inputBuffer, 1.5)
+  assert.ok(spedUp.length > 0)
+
+  // 5. Trim
+  const trimmed = await service.trimVideo(inputBuffer, '00:00:01', '00:00:04')
+  assert.ok(trimmed.length > 0)
 })

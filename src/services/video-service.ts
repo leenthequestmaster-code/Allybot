@@ -1,5 +1,45 @@
 import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import { spawn } from 'node:child_process'
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
+
+function runFfmpegVideoCli(args: string[], inputBuffer: Buffer, isOpus = false): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const tmpInput = path.join(os.tmpdir(), `vid-in-${crypto.randomUUID()}.mp4`)
+    const tmpOutput = path.join(os.tmpdir(), `vid-out-${crypto.randomUUID()}${isOpus ? '.opus' : '.mp4'}`)
+
+    fs.writeFileSync(tmpInput, inputBuffer)
+
+    const finalArgs = ['-y', '-i', tmpInput, ...args, tmpOutput]
+    const child = spawn('ffmpeg', finalArgs, { stdio: ['ignore', 'pipe', 'pipe'] })
+
+    const stderrChunks: Buffer[] = []
+    child.stderr.on('data', (c) => stderrChunks.push(c))
+
+    child.on('close', (code) => {
+      try {
+        if (code === 0 && fs.existsSync(tmpOutput)) {
+          const out = fs.readFileSync(tmpOutput)
+          resolve(out)
+        } else {
+          const err = Buffer.concat(stderrChunks).toString('utf8')
+          reject(new Error(`FFMPEG_ERROR: code ${code} - ${err.slice(-200)}`))
+        }
+      } finally {
+        fs.unlink(tmpInput, () => {})
+        fs.unlink(tmpOutput, () => {})
+      }
+    })
+
+    child.on('error', (err) => {
+      fs.unlink(tmpInput, () => {})
+      fs.unlink(tmpOutput, () => {})
+      reject(err)
+    })
+  })
+}
 
 export interface VideoGenerationOptions {
   readonly prompt: string
@@ -322,5 +362,58 @@ export class VideoService {
     }
 
     this.isProcessing = false
+  }
+
+  // ── Native Video Editing via FFmpeg ──────────────────────────────────
+  async compressVideo(inputBuffer: Buffer): Promise<Buffer> {
+    return runFfmpegVideoCli([
+      '-vf', "scale=trunc(iw*0.7/2)*2:trunc(ih*0.7/2)*2",
+      '-c:v', 'libx264',
+      '-crf', '28',
+      '-preset', 'faster',
+      '-c:a', 'aac',
+      '-b:a', '64k',
+      '-movflags', '+faststart',
+    ], inputBuffer)
+  }
+
+  async trimVideo(inputBuffer: Buffer, start: string, end?: string): Promise<Buffer> {
+    const args: string[] = ['-ss', start]
+    if (end) {
+      args.push('-to', end)
+    }
+    args.push('-c:v', 'libx264', '-preset', 'faster', '-c:a', 'aac', '-movflags', '+faststart')
+    return runFfmpegVideoCli(args, inputBuffer)
+  }
+
+  async speedVideo(inputBuffer: Buffer, speed: number): Promise<Buffer> {
+    const clamped = Math.max(0.25, Math.min(4.0, speed))
+    const setpts = (1 / clamped).toFixed(4)
+    return runFfmpegVideoCli([
+      '-filter_complex', `[0:v]setpts=${setpts}*PTS[v];[0:a]atempo=${clamped}[a]`,
+      '-map', '[v]',
+      '-map', '[a]',
+      '-c:v', 'libx264',
+      '-preset', 'faster',
+      '-movflags', '+faststart',
+    ], inputBuffer)
+  }
+
+  async muteVideo(inputBuffer: Buffer): Promise<Buffer> {
+    return runFfmpegVideoCli([
+      '-c:v', 'copy',
+      '-an',
+      '-movflags', '+faststart',
+    ], inputBuffer)
+  }
+
+  async extractVoiceNote(inputBuffer: Buffer): Promise<Buffer> {
+    return runFfmpegVideoCli([
+      '-vn',
+      '-c:a', 'libopus',
+      '-b:a', '48k',
+      '-ar', '48000',
+      '-ac', '1',
+    ], inputBuffer, true)
   }
 }
