@@ -33,6 +33,7 @@
     "file-type": "^21.0.0",
     "gerdur-core": "^2.20.0",
     "ioredis": "^6.0.0",
+    "jsqr": "^1.4.0",
     "lrclib-api": "^2.2.0",
     "music-metadata": "^11.10.3",
     "node-id3": "^0.2.9",

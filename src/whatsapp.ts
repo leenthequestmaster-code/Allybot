@@ -1,3 +1,4 @@
+import { generateWaveform } from './services/waveform-generator.js'
 import NodeCache from '@cacheable/node-cache'
 import makeWASocket, {
   Browsers,
@@ -662,10 +663,22 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
           if (!mimeType.startsWith('video/')) throw new Error('Video payload MIME mismatch')
           content = { video: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}), ...(payload.gifPlayback ? { gifPlayback: true } : {}) }
           break
-        case 'audio':
+        case 'audio': {
           if (!mimeType.startsWith('audio/')) throw new Error('Audio payload MIME mismatch')
-          content = { audio: data, mimetype: mimeType, ...(payload.ptt !== undefined ? { ptt: payload.ptt } : {}) }
+          let waveform: Uint8Array | undefined = payload.waveform
+          if (payload.ptt && !waveform) {
+            try {
+              waveform = await generateWaveform(data)
+            } catch {}
+          }
+          content = {
+            audio: data,
+            mimetype: mimeType,
+            ...(payload.ptt !== undefined ? { ptt: payload.ptt } : {}),
+            ...(waveform ? { waveform } : {}),
+          }
           break
+        }
         case 'document':
           if (!payload.fileName || !/^[a-zA-Z0-9][a-zA-Z0-9._ -]{0,99}$/.test(payload.fileName)) throw new Error('Document filename is invalid')
           content = { document: data, mimetype: mimeType, fileName: payload.fileName, ...(payload.caption ? { caption: payload.caption } : {}) }

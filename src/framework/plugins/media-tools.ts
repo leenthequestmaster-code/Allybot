@@ -7,6 +7,7 @@ import {
   safeMediaFailure,
 } from './media-common.js'
 import QRCode from 'qrcode'
+import { scanQrFromImage } from '../../services/qr-scanner.js'
 import { findEmojiMix, fetchEmojiMixBuffer } from '../../services/emojimix.js'
 import { upscaleImage } from '../../services/upscaler.js'
 import { setStickerExif } from '../../services/sticker-exif.js'
@@ -311,6 +312,55 @@ export function registerMediaToolCommands(context: PluginContext, transformer?: 
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'screenshot command failed')
             await commandContext.reply('Gagal ambil screenshot nih, pastiin website-nya bisa dibuka ya~ 🌐')
+          }
+        },
+      })
+
+        
+      context.commands.register({
+        name: 'scanqr',
+        aliases: ['readqr', 'qrread', 'cekqr'],
+        description: 'Pindai dan baca teks dari gambar kode QR (kirim atau balas foto QR)',
+        category: 'tools',
+        menuOrder: 24,
+        cooldownMs: 3_000,
+        handler: async (commandContext) => {
+          const selected = sourceFor(commandContext)
+          if (!selected) {
+            await commandContext.reply(`Kirim foto QR atau balas foto QR lalu ketik ${commandContext.prefix}scanqr.`)
+            return
+          }
+          if (!commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply('Fitur download media tidak didukung pada adapter ini.')
+            return
+          }
+          await commandContext.react('🔍')
+          try {
+            const media = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, { maxBytes: 15 * 1024 * 1024 })
+            if (!media || media.kind !== 'image') {
+              await commandContext.reply('Media harus berupa foto/gambar kode QR.')
+              return
+            }
+            const res = await scanQrFromImage(Buffer.from(media.data))
+            if (!res) {
+              await commandContext.react('❌')
+              await commandContext.reply('Tidak ditemukan kode QR yang terbaca pada gambar tersebut. Pastikan foto jelas dan tidak buram ya~ 🔍')
+              return
+            }
+
+            await commandContext.react('✅')
+            const lines = [
+              '🔎 *Hasil Pindai Kode QR*',
+              '',
+              `• Isi Teks : \`${res.text}\``,
+              res.isUrl ? `• Tautan   : ${res.text}` : null,
+              `• Resolusi : ${res.width}x${res.height} px`,
+            ].filter(Boolean)
+            await commandContext.reply(lines.join('\n'))
+          } catch (err) {
+            commandContext.logger.warn({ err }, 'scanqr command failed')
+            await commandContext.react('❌')
+            await commandContext.reply('Gagal membaca kode QR dari gambar.')
           }
         },
       })
