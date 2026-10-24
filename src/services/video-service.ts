@@ -45,6 +45,7 @@ export interface VideoGenerationOptions {
   readonly prompt: string
   readonly model?: 'veo-lite' | 'veo-fast' | 'omni-flash'
   readonly timeoutMs?: number
+  readonly imageBuffer?: Buffer
 }
 
 export interface VideoGenerationResult {
@@ -73,7 +74,7 @@ export class MockVideoProvider implements VideoProvider {
       buffer: dummyMp4,
       mimeType: 'video/mp4',
       durationSeconds: 8,
-      modelName: options.model ?? 'veo-lite',
+      modelName: options.imageBuffer ? 'omni-flash' : (options.model ?? 'veo-lite'),
       fileName: 'mock-video.mp4',
     }
   }
@@ -153,6 +154,28 @@ export class FlowVideoProvider implements VideoProvider {
       }
 
       await page.waitForTimeout(1_000)
+
+      let tempImagePath: string | undefined
+      if (options.imageBuffer) {
+        tempImagePath = path.join(os.tmpdir(), `flow-i2v-${crypto.randomUUID()}.png`)
+        fs.writeFileSync(tempImagePath, options.imageBuffer)
+
+        // Upload reference image to Flow
+        try {
+          const addMediaBtn = page.locator('button[aria-label*="Menu tambahkan media"]')
+          await addMediaBtn.click()
+          await page.waitForTimeout(400)
+          const uploadBtn = page.locator('button:has-text("Upload")')
+          const [fileChooser] = await Promise.all([
+            page.waitForEvent('filechooser', { timeout: 10_000 }),
+            uploadBtn.click(),
+          ])
+          await fileChooser.setFiles(tempImagePath)
+          await page.waitForTimeout(4_000)
+        } catch {
+          // ignore upload menu issues and continue
+        }
+      }
 
       // Open Settings popup
       const settingsBtn = page.locator('button.settings-trigger-button')

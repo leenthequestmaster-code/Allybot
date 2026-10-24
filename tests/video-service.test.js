@@ -263,3 +263,35 @@ test('9. Native FFmpeg video transformations execute cleanly on valid media', as
   const trimmed = await service.trimVideo(inputBuffer, '00:00:01', '00:00:04')
   assert.ok(trimmed.length > 0)
 })
+
+
+test('10. !omnivid handles Image-to-Video animation from image media', async () => {
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const whatsapp = fakeWhatsapp()
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  const videoService = new VideoService({
+    provider: new MockVideoProvider(),
+    cooldownMs: 0,
+    dailyLimit: 10,
+  })
+  services.register(videoService)
+
+  const plugin = createVideoPlugin(whatsapp, { videoService })
+  plugin.load?.({ logger, config, events, commands: registry, services })
+
+  // 1. Rejects if no image is present
+  await registry.dispatch(message('m-10', 'user-no-img@s.whatsapp.net', '!omnivid buat tersenyum'))
+  assert.match(whatsapp.sent[0].text, /Kirim gambar atau balas foto/i)
+
+  // 2. Succeeds when image is present
+  const msgWithImage = message('m-11', 'user-with-img@s.whatsapp.net', '!omnivid buat tersenyum ramah', {
+    media: { kind: 'image' }
+  })
+  await registry.dispatch(msgWithImage)
+
+  assert.match(whatsapp.sent[1].text, /Gambarmu sedang dianimasikan dengan Gemini Omni/i)
+  assert.equal(whatsapp.media.length, 1)
+  assert.equal(whatsapp.media[0].payload.kind, 'video')
+  assert.match(whatsapp.media[0].payload.caption, /Gemini Omni 1\.1 Flash/i)
+})

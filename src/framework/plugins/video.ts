@@ -11,6 +11,12 @@ function sourceVideo(context: CommandContext): { source: 'direct' | 'quoted'; ki
   return undefined
 }
 
+function sourceImage(context: CommandContext): { source: 'direct' | 'quoted'; kind: string } | undefined {
+  if (context.message.media?.kind === 'image') return { source: 'direct', kind: 'image' }
+  if (context.message.quotedMedia?.kind === 'image') return { source: 'quoted', kind: 'image' }
+  return undefined
+}
+
 export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginOptions = {}): Plugin {
   return {
     name: 'video-commands',
@@ -108,27 +114,33 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
         },
       })
 
-      // ── 2. Omni 1.1 Flash Video Generation ─────────────────────────────
+      // ── 2. Omni 1.1 Flash Video Generation & Image-to-Video (I2V) ───────
       context.commands.register({
-        name: 'vidomni',
-        aliases: ['omni', 'veoomni'],
-        description: 'Generate video AI menggunakan Gemini Omni 1.1 Flash dengan audio/efek suara asli',
+        name: 'omnivid',
+        aliases: ['vidomni', 'i2v'],
+        description: 'Animasikan gambar/foto menjadi video AI hidup menggunakan Gemini Omni 1.1 Flash',
         category: 'tools',
         scope: 'both',
         menuOrder: 16,
         cooldownMs: 15_000,
         handler: async (cmdContext: CommandContext) => {
-          const rawPrompt = cmdContext.args.join(' ').trim()
-          if (!rawPrompt || rawPrompt.length < 5) {
+          const imgTarget = sourceImage(cmdContext)
+          const mediaPort = whatsapp ?? cmdContext.whatsapp
+
+          if (!imgTarget || !mediaPort?.downloadMedia) {
             await cmdContext.reply(
-              `⚡ *Chlona Video Studio (Gemini Omni 1.1 Flash)*\n\n` +
-              `Format:\n` +
-              `• \`${cmdContext.prefix}vidomni <deskripsi>\`\n\n` +
-              `Omni 1.1 Flash menghasilkan video dengan audio dan efek suara alami yang sinkron.`
+              `🎬 *Chlona Omni Video (Image-to-Video)*\n\n` +
+              `Kirim gambar atau balas foto dengan caption:\n` +
+              `• \`${cmdContext.prefix}omnivid <deskripsi gerakan>\`\n\n` +
+              `Contoh:\n` +
+              `• \`${cmdContext.prefix}omnivid buat rambutnya tertiup angin dan tersenyum lembut\`\n` +
+              `• \`${cmdContext.prefix}omnivid buat air terjunnya mengalir deras dan ada kabut lembut\`\n\n` +
+              `_Engine: Gemini Omni 1.1 Flash (dengan efek suara alami!)_ ✨`
             )
             return
           }
 
+          const rawPrompt = cmdContext.args.join(' ').trim() || 'Animate this image with smooth natural cinematic motion'
           const senderJid = cmdContext.message.senderJid ?? cmdContext.message.remoteJid
           const quota = videoService.checkQuota(senderJid)
           if (!quota.allowed) {
@@ -138,38 +150,50 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
 
           await cmdContext.react('⏳')
           await cmdContext.reply(
-            `⚡ *Chlona Video Studio (Omni 1.1 Flash)*\n\n` +
-            `Permintaan videomu sedang diproses dengan model Omni!\n\n` +
-            `📝 *Prompt:* "_${rawPrompt}_"\n` +
+            `⚡ *Chlona Omni Video Studio*\n\n` +
+            `Gambarmu sedang dianimasikan dengan Gemini Omni 1.1 Flash!\n\n` +
+            `📝 *Instruksi Gerak:* "_${rawPrompt}_"\n` +
             `🔊 *Fitur:* Native Ambient Sound\n` +
-            `⏳ *Estimasi:* ~30-60 detik`
+            `⏳ *Estimasi:* ~30-60 detik\n` +
+            `📊 *Sisa Kuota Hari Ini:* ${quota.remaining - 1} video\n\n` +
+            `_Mohon tunggu sebentar ya, video sedang diproses..._ ☕`
           )
 
           try {
+            const downloaded = await mediaPort.downloadMedia(cmdContext.message, imgTarget.source, {
+              maxBytes: 15 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+
             const result = await videoService.enqueue(senderJid, {
               prompt: rawPrompt,
               model: 'omni-flash',
+              imageBuffer: Buffer.from(downloaded.data),
             })
 
-            const mediaPort = whatsapp ?? cmdContext.whatsapp
-            if (mediaPort?.sendMedia) {
+            if (mediaPort.sendMedia) {
               await mediaPort.sendMedia(cmdContext.message.remoteJid, {
                 kind: 'video',
                 data: result.buffer,
                 mimeType: result.mimeType,
                 fileName: result.fileName,
                 caption:
-                  `⚡ *Hasil Video Gemini Omni 1.1 Flash*\n\n` +
-                  `📝 *Prompt:* _${rawPrompt}_\n` +
+                  `✨ *Hasil Animasi Foto (Gemini Omni 1.1 Flash)*\n\n` +
+                  `📝 *Gerakan:* _${rawPrompt}_\n` +
                   `🔊 *Audio:* Native Ambient Sound FX\n` +
+                  `⏱️ *Durasi:* ${result.durationSeconds} Detik\n` +
                   `© Allyssea Creative Lab`,
               })
               await cmdContext.react('✨')
             }
           } catch (error) {
+            cmdContext.logger.error(
+              { errorName: error instanceof Error ? error.name : 'UnknownError' },
+              'Omni video animation failed',
+            )
             await cmdContext.react('❌')
             await cmdContext.reply(
-              `⚠️ Gagal memproses video Omni: ${error instanceof Error ? error.message : 'Error sistem'}`
+              `⚠️ Gagal menganimasikan gambar: ${error instanceof Error ? error.message : 'Error sistem'}`
             )
           }
         },
