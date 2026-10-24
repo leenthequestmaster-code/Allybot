@@ -252,17 +252,49 @@ export interface GeneratedImageResult {
   readonly source: '9router-gemini' | 'pollinations-flux'
 }
 
+export function cleanImagePrompt(raw: string): string {
+  let p = raw.trim()
+
+  // 1. Strip WhatsApp mentions e.g. @628... or @2688484...
+  p = p.replace(/@\d+(?::\d+)?(?:@s\.whatsapp\.net|@lid)?/g, ' ')
+
+  // 2. Strip bot names & conversational particles
+  const noiseRegex =
+    /\b(?:chlona|allybot|ally|bot|dong|ya|tolong|coba|nih|sih|deh|kan|aja|saja|menurut\s+imajinasi\s+(?:kamu|mu)?|imajinasimu|imajinasi\s+kamu|bikinin|bikin(?:kan)?|buat(?:in|kan)?|gambarin|gambar(?:in|kan)?|lukis(?:in|kan)?|generate\s+image|foto|picture|t2i|text2img)\b/gi
+  p = p.replace(noiseRegex, ' ')
+
+  // 3. Collapse punctuation & extra whitespace
+  p = p.replace(/[!?,.:;~#*_]/g, ' ').replace(/\s+/g, ' ').trim()
+
+  // 4. Special handling for Allyssea
+  if (/^allyssea$/i.test(p) || p.length === 0) {
+    p = 'Allyssea fantasy kingdom landscape with magnificent castles, glowing crystal towers, lush enchanted forests, vibrant skies, highly detailed cinematic digital art'
+  } else if (p.toLowerCase().includes('allyssea')) {
+    p = p.replace(/\ballyssea\b/gi, 'Allyssea enchanted fantasy kingdom')
+  }
+
+  // 5. Expand single person/subject names for better photorealism
+  if (/^prabowo(?:\s+subianto)?$/i.test(p)) {
+    p = 'Prabowo Subianto in a dark formal suit, smiling, realistic detailed photographic portrait, professional studio lighting'
+  }
+
+  return p
+}
+
 export async function generateImageWithAi(
   prompt: string,
   options: GenerateImageOptions = {},
 ): Promise<GeneratedImageResult> {
-  const cleanPrompt = prompt.trim()
-  if (!cleanPrompt) throw new AiHandlerError('invalid_input', 'Prompt gambar tidak boleh kosong.')
+  const rawPrompt = prompt.trim()
+  if (!rawPrompt) throw new AiHandlerError('invalid_input', 'Prompt gambar tidak boleh kosong.')
+
+  const cleanPrompt = cleanImagePrompt(rawPrompt)
 
   const apiKey = (options.apiKey ?? process.env.AI_API_KEY)?.trim()
   const baseUrl = options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL
   const model = options.model ?? process.env.AI_IMAGE_MODEL ?? 'ag/gemini-3.1-flash-image'
-  const timeoutMs = options.timeoutMs ?? 30_000
+  // Generous 120s timeout for high-resolution 1024x1024 generation during peak loads
+  const timeoutMs = options.timeoutMs ?? 120_000
 
   // 1. Primary: 9Router / OpenAI-compatible /images/generations endpoint
   if (apiKey && baseUrl) {
@@ -295,7 +327,7 @@ export async function generateImageWithAi(
       if (res.ok) {
         const data: any = await res.json()
         const b64 = data.data?.[0]?.b64_json
-        if (typeof b64 === 'string' && b64.length > 100) {
+        if (typeof b64 === 'string' && b64.length > 500) {
           return {
             buffer: Buffer.from(b64, 'base64'),
             mimeType: 'image/png',
@@ -304,7 +336,7 @@ export async function generateImageWithAi(
         }
         const imgUrl = data.data?.[0]?.url
         if (typeof imgUrl === 'string' && imgUrl.startsWith('http')) {
-          const dlRes = await fetch(imgUrl, { signal: AbortSignal.timeout(15_000) })
+          const dlRes = await fetch(imgUrl, { signal: AbortSignal.timeout(20_000) })
           if (dlRes.ok) {
             return {
               buffer: Buffer.from(await dlRes.arrayBuffer()),
@@ -319,13 +351,13 @@ export async function generateImageWithAi(
     }
   }
 
-  // 2. Secondary Fallback: Pollinations.ai with FLUX.1-schnell
+  // 2. Secondary Fallback: Pollinations.ai (using fast turboflux endpoint)
   try {
-    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?model=flux&width=1024&height=1024&nologo=true&seed=${Date.now()}`
-    const res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(30_000) })
+    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=1024&height=1024&nologo=true&seed=${Date.now()}`
+    const res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(45_000) })
     if (res.ok) {
       const buffer = Buffer.from(await res.arrayBuffer())
-      if (buffer.length > 1000) {
+      if (buffer.length > 1000 && !buffer.slice(0, 100).toString('utf8').includes('FREE_LIMIT')) {
         return {
           buffer,
           mimeType: 'image/jpeg',
@@ -337,5 +369,5 @@ export async function generateImageWithAi(
     throw new AiHandlerError('provider_unavailable', `Gagal menghasilkan gambar: ${String(err)}`)
   }
 
-  throw new AiHandlerError('provider_unavailable', 'Seluruh layanan generate gambar sedang tidak tersedia.')
+  throw new AiHandlerError('provider_unavailable', 'Layanan generate gambar sedang sibuk atau timeout. Coba ulangi sebentar lagi ya~')
 }

@@ -949,7 +949,14 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
 
           await commandContext.react('🎨')
-          if (commandContext.sendPresence) await commandContext.sendPresence('composing')
+          let heartbeatTimer: NodeJS.Timeout | null = null
+          if (commandContext.sendPresence) {
+            await commandContext.sendPresence('composing')
+            heartbeatTimer = setInterval(() => {
+              void commandContext.sendPresence?.('composing')
+            }, 8_000)
+            heartbeatTimer.unref?.()
+          }
 
           try {
             const result = await generateImageWithAi(prompt)
@@ -966,9 +973,13 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             }
             await commandContext.react('✅')
           } catch (error) {
-            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'text2img command failed')
+            const errMsg = error instanceof Error ? error.message : String(error)
+            commandContext.logger.warn({ err: error, msg: errMsg }, 'text2img command failed')
             await commandContext.react('❌')
-            await commandContext.reply('Gagal bikin gambar nih, coba kata kunci lain ya~ 🎨')
+            await commandContext.reply(`Gagal bikin gambar nih (${errMsg}). Coba kata kunci lain ya~ 🎨`)
+          } finally {
+            if (heartbeatTimer) clearInterval(heartbeatTimer)
+            if (commandContext.sendPresence) await commandContext.sendPresence('paused')
           }
         },
       })
