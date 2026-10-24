@@ -13,6 +13,7 @@ import {
   MAX_AI_INPUT_LENGTH,
   createAiHandler,
   describeImageWithAi,
+  generateImageWithAi,
   type AiTransport,
 } from '../../ai-handler.js'
 import { isSameJid } from '../../permissions.js'
@@ -251,6 +252,14 @@ export function matchNaturalLanguageCommand(
   const rekapMatch = trimmed.match(/^(?:tolong\s+|coba\s+)?(?:rekap|rangkum(?:in|kan)?)\s+(?:obrolan|chat|pesan)(?:\s+grup)?(?:\s+(\d+))?/i)
   if (rekapMatch) {
     return { commandName: 'rekap', argsText: rekapMatch[1] ?? '' }
+  }
+
+  // 10. Autonomous drawing / image generation ("gambarin kucing di luar angkasa", "buatkan gambar pemandangan", "lukis ...")
+  const drawMatch = trimmed.match(
+    /^(?:tolong\s+|coba\s+)?(?:gambar(?:in|kan)?|buat(?:in|kan)?\s+gambar|bikin(?:in)?\s+gambar|lukis(?:in|kan)?|generate\s+image)\s+(.+)$/i,
+  )
+  if (drawMatch?.[1]) {
+    return { commandName: 'text2img', argsText: drawMatch[1].trim() }
   }
 
   return undefined
@@ -920,11 +929,11 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         },
       })
 
-      // 6. Text-to-Image (Pollinations AI)
+      // 6. Text-to-Image (9Router Gemini Image + Pollinations FLUX Fallback)
       context.commands.register({
         name: 'text2img',
         aliases: ['buatgambar', 't2i'],
-        description: 'Hasilkan gambar dari deskripsi teks',
+        description: 'Hasilkan gambar dari deskripsi teks menggunakan AI Vision / Image Generator',
         category: 'tools',
         menuOrder: 6,
         cooldownMs: 5_000,
@@ -934,26 +943,31 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             await commandContext.reply(`Format: ${commandContext.prefix}text2img <deskripsi gambar>\nContoh: ${commandContext.prefix}text2img a cute anime cat in space`)
             return
           }
-          if (prompt.length > 300) {
-            await commandContext.reply('Deskripsinya kepanjangan nih, maksimal 300 karakter ya~ ✍️')
+          if (prompt.length > 500) {
+            await commandContext.reply('Deskripsinya kepanjangan nih, maksimal 500 karakter ya~ ✍️')
             return
           }
+
+          await commandContext.react('🎨')
+          if (commandContext.sendPresence) await commandContext.sendPresence('composing')
+
           try {
-            const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&nologo=true`
-            const res = await fetch(url, { signal: AbortSignal.timeout(25_000) })
-            if (!res.ok) throw new Error(`HTTP ${res.status}`)
-            const buffer = new Uint8Array(await res.arrayBuffer())
+            const result = await generateImageWithAi(prompt)
             if (commandContext.whatsapp.sendMedia) {
+              const engineLabel = result.source === '9router-gemini' ? 'Gemini 3.1 Flash Image (Imagen)' : 'FLUX.1 Schnell'
               await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
                 kind: 'image',
-                data: buffer,
-                mimeType: 'image/jpeg',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `🎨 *Hasil Gambar AI*\n> "${prompt}"\n\n_Engine: ${engineLabel}_`,
               })
             } else {
-              await commandContext.reply(`Gambar hasil: ${url}`)
+              await commandContext.reply(`Gambar berhasil dibuat untuk prompt: "${prompt}".`)
             }
+            await commandContext.react('✅')
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'text2img command failed')
+            await commandContext.react('❌')
             await commandContext.reply('Gagal bikin gambar nih, coba kata kunci lain ya~ 🎨')
           }
         },

@@ -237,3 +237,105 @@ export async function describeImageWithAi(
 
   return boundedOutput(response.choices[0]?.message?.content ?? 'Tidak ada deskripsi yang dihasilkan.')
 }
+
+
+export interface GenerateImageOptions {
+  readonly apiKey?: string
+  readonly baseUrl?: string
+  readonly model?: string
+  readonly timeoutMs?: number
+}
+
+export interface GeneratedImageResult {
+  readonly buffer: Buffer
+  readonly mimeType: string
+  readonly source: '9router-gemini' | 'pollinations-flux'
+}
+
+export async function generateImageWithAi(
+  prompt: string,
+  options: GenerateImageOptions = {},
+): Promise<GeneratedImageResult> {
+  const cleanPrompt = prompt.trim()
+  if (!cleanPrompt) throw new AiHandlerError('invalid_input', 'Prompt gambar tidak boleh kosong.')
+
+  const apiKey = (options.apiKey ?? process.env.AI_API_KEY)?.trim()
+  const baseUrl = options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL
+  const model = options.model ?? process.env.AI_IMAGE_MODEL ?? 'ag/gemini-3.1-flash-image'
+  const timeoutMs = options.timeoutMs ?? 30_000
+
+  // 1. Primary: 9Router / OpenAI-compatible /images/generations endpoint
+  if (apiKey && baseUrl) {
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      timer.unref?.()
+
+      const endpoint = `${baseUrl.replace(/\/+$/, '')}/images/generations`
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          prompt: cleanPrompt,
+          n: 1,
+          size: 'auto',
+          quality: 'auto',
+          background: 'auto',
+          image_detail: 'high',
+          output_format: 'png',
+        }),
+      })
+      clearTimeout(timer)
+
+      if (res.ok) {
+        const data: any = await res.json()
+        const b64 = data.data?.[0]?.b64_json
+        if (typeof b64 === 'string' && b64.length > 100) {
+          return {
+            buffer: Buffer.from(b64, 'base64'),
+            mimeType: 'image/png',
+            source: '9router-gemini',
+          }
+        }
+        const imgUrl = data.data?.[0]?.url
+        if (typeof imgUrl === 'string' && imgUrl.startsWith('http')) {
+          const dlRes = await fetch(imgUrl, { signal: AbortSignal.timeout(15_000) })
+          if (dlRes.ok) {
+            return {
+              buffer: Buffer.from(await dlRes.arrayBuffer()),
+              mimeType: 'image/png',
+              source: '9router-gemini',
+            }
+          }
+        }
+      }
+    } catch {
+      // Fallback to secondary provider
+    }
+  }
+
+  // 2. Secondary Fallback: Pollinations.ai with FLUX.1-schnell
+  try {
+    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?model=flux&width=1024&height=1024&nologo=true&seed=${Date.now()}`
+    const res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(30_000) })
+    if (res.ok) {
+      const buffer = Buffer.from(await res.arrayBuffer())
+      if (buffer.length > 1000) {
+        return {
+          buffer,
+          mimeType: 'image/jpeg',
+          source: 'pollinations-flux',
+        }
+      }
+    }
+  } catch (err) {
+    throw new AiHandlerError('provider_unavailable', `Gagal menghasilkan gambar: ${String(err)}`)
+  }
+
+  throw new AiHandlerError('provider_unavailable', 'Seluruh layanan generate gambar sedang tidak tersedia.')
+}
