@@ -1,3 +1,4 @@
+import { resolveCityCoordinate, calculateJadwalOffline } from './sholat-offline.js'
 import { getCached, setCached, type JadwalSholat } from './sholat-cache.js'
 
 async function fetchWithRetry(module: string, url: string, retries = 3): Promise<any> {
@@ -66,6 +67,20 @@ function getFormatTanggalAladhan(dateObj: Date): string {
 }
 
 export async function getJadwal(kota: string, dateObj: Date = new Date()): Promise<JadwalSholat> {
+  // 0. Primary: 100% Offline Astronomical Engine (SunCalc + Kemenag Hisab Standards)
+  const offlineCity = resolveCityCoordinate(kota)
+  if (offlineCity) {
+    const offline = calculateJadwalOffline(offlineCity, dateObj)
+    return {
+      imsak: offline.imsak,
+      subuh: offline.subuh,
+      dzuhur: offline.dzuhur,
+      ashar: offline.ashar,
+      maghrib: offline.maghrib,
+      isya: offline.isya,
+    }
+  }
+
   // Format tanggal universal untuk cache key (YYYY-MM-DD)
   const y = dateObj.getFullYear()
   const m = String(dateObj.getMonth() + 1).padStart(2, '0')
