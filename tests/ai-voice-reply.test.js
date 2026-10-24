@@ -8,7 +8,13 @@ test('1. isVoiceResponseRequested accurately detects VN and voice requests', () 
   assert.equal(isVoiceResponseRequested('coba ngomong dong Chlona'), true)
   assert.equal(isVoiceResponseRequested('kirim vn dong'), true)
   assert.equal(isVoiceResponseRequested('suara kamu gimana sih?'), true)
-  assert.equal(isVoiceResponseRequested('halo Chlona', true), true) // incoming audio is true
+  // Incoming audio default: natural two-way voice chat
+  assert.equal(isVoiceResponseRequested('halo Chlona apa kabar', true), true)
+
+  // Contextual override: user spoke via VN but explicitly asked for text response
+  assert.equal(isVoiceResponseRequested('Chlona tolong catat ini ya, balas pake teks aja', true), false)
+  assert.equal(isVoiceResponseRequested('jangan vn ya Chlona', true), false)
+  assert.equal(isVoiceResponseRequested('tolong ketik teks aja ya', true), false)
 
   // Negative tests
   assert.equal(isVoiceResponseRequested('Chlona tolong jelasin catur'), false)

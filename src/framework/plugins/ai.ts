@@ -30,12 +30,28 @@ import {
 const AI_COMMAND_COOLDOWN_MS = 3_000
 
 export function isVoiceResponseRequested(prompt: string, incomingAudio = false): boolean {
-  if (incomingAudio) return true
   const p = prompt.toLowerCase()
+
+  // 1. Explicit text-only or negative intent overrides (even if sent via audio)
+  if (/\b(?:jangan|gausah|nggak\s*usah|gak\s*usah|tak\s*usah)\s+(?:pake\s+|pakai\s+)?(?:vn|voicenote|voice\s*note|suara|audio)\b/i.test(p)) {
+    return false
+  }
+  if (/\b(?:balas|jawab|respon|kirim|tulis|ketik)\s+(?:pake\s+|pakai\s+|lewat\s+)?(?:teks|tulisan)\s*(?:aja|saja)?\b/i.test(p)) {
+    return false
+  }
+  if (/\b(?:teks|tulisan)\s+(?:aja|saja)\b/i.test(p)) {
+    return false
+  }
+
+  // 2. Explicit voice requested
   if (/\b(?:balas|jawab|respon|kirim|kasih|dgn|dengan|lewat|pake|pakai)\s+(?:vn|voicenote|voice\s*note|suara|audio|rekaman)\b/i.test(p)) return true
   if (/\b(?:vn|voicenote|voice\s*note|suara|rekaman)\s*(?:dong|ya|aja|deh|pls|please)\b/i.test(p)) return true
   if (/\b(?:coba|bisa)?\s*(?:ngomong|bicara|suaranya)\s*(?:dong|pake|pakai|gimana)?\b/i.test(p) && !/\bbahasa\b/i.test(p)) return true
   if (/\bsuara\s+kamu\b/i.test(p)) return true
+
+  // 3. Incoming audio default (seamless two-way voice conversation)
+  if (incomingAudio) return true
+
   return false
 }
 
