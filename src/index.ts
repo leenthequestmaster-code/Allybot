@@ -67,6 +67,10 @@ import { createChessPlugin } from './framework/plugins/chess.js'
 import { ChessService } from './services/chess-service.js'
 import { AiMemoryService } from './services/ai-memory-service.js'
 import { AegisQueueService } from './services/aegis-queue/index.js'
+import { ReminderService } from './services/reminder-service.js'
+import { reminderPlugin } from './framework/plugins/reminder.js'
+import { certificatePlugin } from './framework/plugins/certificate.js'
+import { exifPlugin } from './framework/plugins/exif.js'
 
 import { downloaderPlugin } from "./framework/plugins/downloader.js"
 
@@ -157,6 +161,7 @@ async function main(): Promise<void> {
   framework.registerService(redis)
   framework.registerService(new AiMemoryService({ redis }))
   framework.registerService(new AegisQueueService(whatsapp, logger, { redis }))
+  framework.registerService(new ReminderService(config.DATABASE_PATH, whatsapp, logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new ChessService(config.DATABASE_PATH, logger))
@@ -193,6 +198,9 @@ async function main(): Promise<void> {
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(createChessPlugin(whatsapp))
+  framework.registerPlugin(reminderPlugin)
+  framework.registerPlugin(certificatePlugin)
+  framework.registerPlugin(exifPlugin)
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(downloaderPlugin)
   framework.registerPlugin(spotifyPlugin)
