@@ -29,6 +29,28 @@ import {
 
 const AI_COMMAND_COOLDOWN_MS = 3_000
 
+export function isVoiceResponseRequested(prompt: string, incomingAudio = false): boolean {
+  if (incomingAudio) return true
+  const p = prompt.toLowerCase()
+  if (/\b(?:balas|jawab|respon|kirim|kasih|dgn|dengan|lewat|pake|pakai)\s+(?:vn|voicenote|voice\s*note|suara|audio|rekaman)\b/i.test(p)) return true
+  if (/\b(?:vn|voicenote|voice\s*note|suara|rekaman)\s*(?:dong|ya|aja|deh|pls|please)\b/i.test(p)) return true
+  if (/\b(?:coba|bisa)?\s*(?:ngomong|bicara|suaranya)\s*(?:dong|pake|pakai|gimana)?\b/i.test(p) && !/\bbahasa\b/i.test(p)) return true
+  if (/\bsuara\s+kamu\b/i.test(p)) return true
+  return false
+}
+
+export function cleanTextForSpeech(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, ' ') // strip codeblocks
+    .replace(/`[^`]*`/g, ' ')           // strip inline code
+    .replace(/https?:\/\/\S+/gi, 'tautan') // replace URLs
+    .replace(/[*_~#]/g, '')                 // strip markdown formatting
+    .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '') // strip emojis
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+
 /**
  * Economy mutation and sensitive commands that MUST be typed manually with a prefix
  * (e.g. `!pay`, `!bank`, `!taxbayar`) to prevent accidental transfers via natural language.
@@ -498,6 +520,25 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             }
 
             await memory?.appendExchange(commandContext.message.remoteJid, senderJid, finalPrompt, formattedReply)
+
+            const wantsVoice = isVoiceResponseRequested(rawPrompt)
+            if (wantsVoice && commandContext.whatsapp.sendMedia) {
+              try {
+                if (commandContext.sendPresence) await commandContext.sendPresence('recording')
+                const cleanSpeech = cleanTextForSpeech(formattedReply)
+                const speech = await synthesizeNaturalSpeech(cleanSpeech.slice(0, 500))
+                await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                  kind: 'audio',
+                  data: speech.audioData,
+                  mimeType: speech.mimeType,
+                  waveform: speech.waveform,
+                  ptt: true,
+                })
+              } catch (err) {
+                commandContext.logger.warn({ err }, 'failed generating voice reply for !ai')
+              }
+            }
+
             await commandContext.reply(formattedReply)
           } catch (error) {
             commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI command failed safely')
@@ -553,7 +594,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         let instruction = detection.cleanText
         const memory = getMemoryService()
 
-        const sendPresence = async (presence: 'composing' | 'paused') => {
+        const sendPresence = async (presence: 'composing' | 'recording' | 'paused') => {
           try {
             if (whatsapp.sendPresenceUpdate) {
               await whatsapp.sendPresenceUpdate(message.remoteJid, presence)
@@ -717,6 +758,25 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           }
 
           await memory?.appendExchange(message.remoteJid, senderJid, boundedInstruction, formattedReply)
+
+          const wantsVoice = isVoiceResponseRequested(boundedInstruction, isAudio)
+          if (wantsVoice && whatsapp.sendMedia) {
+            try {
+              await sendPresence('recording')
+              const cleanSpeech = cleanTextForSpeech(formattedReply)
+              const speech = await synthesizeNaturalSpeech(cleanSpeech.slice(0, 500))
+              await whatsapp.sendMedia(message.remoteJid, {
+                kind: 'audio',
+                data: speech.audioData,
+                mimeType: speech.mimeType,
+                waveform: speech.waveform,
+                ptt: true,
+              })
+            } catch (err) {
+              context.logger.warn({ err }, 'failed generating voice reply for mention')
+            }
+          }
+
           await whatsapp.sendText(message.remoteJid, formattedReply)
         } catch (error) {
           context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI mention handler failed safely')
