@@ -39,6 +39,7 @@ import { downloaderPlugin } from '../dist/framework/plugins/downloader.js'
 import { quranPlugin } from '../dist/framework/plugins/quran.js'
 import { sholatPlugin } from '../dist/framework/plugins/sholat.js'
 import { doaPlugin } from '../dist/framework/plugins/doa.js'
+import { createVideoPlugin } from '../dist/framework/plugins/video.js'
 
 // These two legacy plugins perform boot-time I/O outside the framework service registry.
 // Replace their external boundaries before importing them, not their real plugin hooks.
@@ -92,6 +93,7 @@ const SERVICE_NAMES = [
   'reminder',
   'aegis-queue',
   'menfess',
+  'video',
 ]
 
 // Every property resolves to another callable stub, so plugin load hooks can read flags,
@@ -206,6 +208,7 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(createAfkPlugin(whatsapp))
   framework.registerPlugin(createSuggestPlugin(whatsapp))
   framework.registerPlugin(createMenfessPlugin(whatsapp))
+  framework.registerPlugin(createVideoPlugin(whatsapp))
 
   // Retain an independent registration-inventory guard: new runtime plugins must be
   // added here, otherwise an all-ready assertion could silently cover only a subset.

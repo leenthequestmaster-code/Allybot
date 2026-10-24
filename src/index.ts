@@ -58,6 +58,8 @@ import { createGroupContextPlugin } from './framework/plugins/group-context.js'
 import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
 import { WebCompanionService } from './services/web-companion-service.js'
 import { DownloaderService } from "./services/downloader-service.js"
+import { VideoService, FlowVideoProvider, MockVideoProvider } from './services/video-service.js'
+import { createVideoPlugin } from './framework/plugins/video.js' 
 import { QuotaService } from './services/quota-service.js'
 import { GatekeeperService } from './services/gatekeeper-service.js'
 import { RemoteOpsService } from './services/remote-ops-service.js'
@@ -175,6 +177,18 @@ async function main(): Promise<void> {
   })
   framework.registerService(new GatekeeperService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, { whatsapp, redis }))
   framework.registerService(new RemoteOpsService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, whatsapp))
+  const videoProvider = config.VIDEO_ENABLED
+    ? new FlowVideoProvider({
+        cookiesPath: config.FLOW_COOKIES_PATH,
+        projectUrl: config.FLOW_PROJECT_URL,
+        timeoutMs: config.VIDEO_JOB_TIMEOUT_MS,
+      })
+    : new MockVideoProvider()
+  framework.registerService(new VideoService({
+    provider: videoProvider,
+    cooldownMs: config.VIDEO_COOLDOWN_MS,
+    dailyLimit: config.VIDEO_DAILY_LIMIT,
+  }))
   framework.registerPlugin(createSentryPlugin(sentry))
   framework.registerPlugin(technicalPlugin)
   if (config.AI_ENABLED) {
@@ -212,6 +226,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(createAfkPlugin(whatsapp))
   if (config.SUGGEST_ENABLED) framework.registerPlugin(createSuggestPlugin(whatsapp))
   if (config.MENFESS_ENABLED) framework.registerPlugin(createMenfessPlugin(whatsapp))
+  framework.registerPlugin(createVideoPlugin(whatsapp))
   const lifecycle = new AppLifecycle(config, logger, storage, whatsapp, framework, sentry)
   
   startScheduler(whatsapp)
