@@ -177,10 +177,12 @@ export const spotifyPlugin: Plugin = {
           const elapsed = Date.now() - t0
           const quotaAfter = checkQuota(senderJid, tier, config)
           const quotaDisplay = quotaAfter.quota === 999999 ? '∞' : String(quotaAfter.quota)
+          const yearStr = result.year ? ` (${result.year})` : ''
+          const genreStr = result.genre ? ` • ${result.genre}` : ''
           const caption =
             `*${result.trackName}*\n` +
-            `${result.artist} · ${result.album}\n` +
-            `${formatMs(result.durationMs)} · ${formatMs(elapsed)} · ${quotaAfter.used + 1}/${quotaDisplay}`
+            `${result.artist} · ${result.album}${yearStr}\n` +
+            `${formatMs(result.durationMs)}${genreStr} · ${formatMs(elapsed)} · ${quotaAfter.used + 1}/${quotaDisplay}`
 
           await ctx.reply(caption)
 

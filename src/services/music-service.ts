@@ -17,6 +17,7 @@ import { createHash } from 'crypto'
 import type { Config } from './music-config.js'
 import * as cache from './music-cache.js'
 import * as circuit from './music-circuit.js'
+import { enrichAudioBuffer, fetchLyricsEnriched, resolveCanonicalMetadata } from './music-enricher.js'
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,9 @@ export interface SearchResult {
   trackName: string
   artist: string
   album: string
+  year?: string
+  genre?: string
+  coverUrl?: string
   filePath: string
   lyrics?: string
   syncedLyrics?: string
@@ -203,57 +207,78 @@ export async function fallbackSecondaryAudio(
   const q = query?.trim()
   if (!q) return null
 
-  // 1. Prioritize SoundCloud (fast in-process stream)
-  let result = await downloadSoundCloudFallback(q)
+  // 1. Resolve canonical metadata first for optimal search keywords
+  const canonical = await resolveCanonicalMetadata(q)
+  const searchQuery = canonical.isCanonical ? `${canonical.artist} - ${canonical.title}` : q
+
+  // 2. Prioritize SoundCloud (fast in-process stream)
+  let result = await downloadSoundCloudFallback(searchQuery)
   let source = 'SoundCloud'
 
-  // 2. Fall back to YouTube (yt-dlp)
+  // 3. Fall back to YouTube (yt-dlp)
   if (!result) {
+    result = await downloadYouTubeFallback(searchQuery)
+    source = 'YouTube'
+  }
+
+  // If still not found and searchQuery !== q, try original query on YouTube
+  if (!result && searchQuery !== q) {
     result = await downloadYouTubeFallback(q)
     source = 'YouTube'
   }
 
   if (!result) return null
 
-  const trackId = `fb_${createHash('sha1').update(`${source}:${result.title}`).digest('hex').slice(0, 12)}`
+  // 4. Enrich audio buffer: transcode to standard MP3, fetch cover art, fetch lyrics, inject ID3 tags
+  const enriched = await enrichAudioBuffer({
+    query: q,
+    rawAudio: result.buffer,
+    canonicalHint: {
+      title: canonical.isCanonical ? canonical.title : result.title,
+      artist: canonical.isCanonical ? canonical.artist : result.artist,
+      album: canonical.isCanonical ? canonical.album : source,
+      year: canonical.year,
+      genre: canonical.genre,
+      artworkUrl: canonical.artworkUrl,
+      durationMs: canonical.durationMs ?? result.durationMs,
+    },
+  })
+
+  const trackId = `fb_${createHash('sha1').update(`${source}:${enriched.title}`).digest('hex').slice(0, 12)}`
   const filePath = cache.audioPathFor(trackId)
-  writeFileSync(filePath, result.buffer)
+  writeFileSync(filePath, enriched.buffer)
 
-  let plainLyrics: string | undefined
-  let syncedLyrics: string | undefined
-  try {
-    const lrcResult = await fetchLrclibLyrics(result.artist, result.title)
-    if (lrcResult) {
-      plainLyrics = lrcResult.plainLyrics
-      syncedLyrics = lrcResult.syncedLyrics ?? undefined
-    }
-  } catch {}
-
-  const pseudoTrack = {
+  const pseudoTrack: any = {
     SNG_ID: trackId,
-    SNG_TITLE: result.title,
-    ART_NAME: result.artist,
-    ALB_TITLE: source,
-    DURATION: String(Math.round(result.durationMs / 1000)),
-  } as any
+    SNG_TITLE: enriched.title,
+    ART_NAME: enriched.artist,
+    ALB_TITLE: enriched.album,
+    YEAR: enriched.year,
+    GENRE: enriched.genre,
+    COVER_URL: enriched.coverUrl,
+    DURATION: String(Math.round(enriched.durationMs / 1000)),
+  }
 
   cache.setCachedById(trackId, {
     track: pseudoTrack,
-    lyrics: plainLyrics,
-    syncedLyrics,
+    lyrics: enriched.lyrics,
+    syncedLyrics: enriched.syncedLyrics,
     filePath,
   })
   cache.setCachedTrack(query, pseudoTrack)
   cache.persistMeta()
 
   return {
-    trackName: result.title,
-    artist: result.artist,
-    album: source,
+    trackName: enriched.title,
+    artist: enriched.artist,
+    album: enriched.album,
+    year: enriched.year,
+    genre: enriched.genre,
+    coverUrl: enriched.coverUrl,
     filePath,
-    lyrics: plainLyrics,
-    syncedLyrics,
-    durationMs: result.durationMs,
+    lyrics: enriched.lyrics,
+    syncedLyrics: enriched.syncedLyrics,
+    durationMs: enriched.durationMs,
   }
 }
 
@@ -287,6 +312,9 @@ export async function searchAndDownload(
         trackName: cachedTrack.SNG_TITLE,
         artist: cachedTrack.ART_NAME,
         album: cachedTrack.ALB_TITLE,
+        year: (cachedTrack as any).YEAR,
+        genre: (cachedTrack as any).GENRE,
+        coverUrl: (cachedTrack as any).COVER_URL,
         filePath: cached.filePath,
         lyrics: cached.lyrics,
         syncedLyrics: cached.syncedLyrics,
@@ -338,8 +366,13 @@ export async function searchAndDownload(
   let audioBuffer: Buffer | null = null
   let lastDownloadError: unknown = null
 
+  const isDjRequested = /\b(dj|remix|jedag|jedug)\b/i.test(query)
   for (const candidate of tracks.slice(0, 3)) {
     const candidateId = String(candidate.SNG_ID)
+    const isCandidateRemix = /\b(dj|remix|jedag|jedug|koplo|slowed)\b/i.test(candidate.SNG_TITLE) || /\b(dj)\b/i.test(candidate.ART_NAME)
+    if (!isDjRequested && isCandidateRemix) {
+      continue
+    }
 
     // Check if candidate is already cached on disk
     const existing = cache.getCachedById(candidateId, config)
@@ -408,25 +441,7 @@ export async function searchAndDownload(
   // Cache the query → track mapping
   cache.setCachedTrack(query, chosenTrack)
 
-  // ── Tag the audio ─────────────────────────────────────────────────────────
-  let taggedBuffer: Buffer
-  try {
-    const tagged = await addTrackTags(audioBuffer, fullTrack, {
-      writeLyrics: true,
-      embedCover: true,
-      embedArtistImage: false,
-    })
-    taggedBuffer = tagged.buffer
-  } catch {
-    // If tagging fails, use raw buffer
-    taggedBuffer = audioBuffer
-  }
-
-  // ── Write to cache file ───────────────────────────────────────────────────
-  const filePath = cache.audioPathFor(trackId)
-  writeFileSync(filePath, taggedBuffer)
-
-  // ── Fetch lyrics ──────────────────────────────────────────────────────────
+  // ── Fetch lyrics first (Deezer -> LRCLIB clean search) ────────────────────
   let plainLyrics: string | undefined
   let syncedLyrics: string | undefined
 
@@ -436,44 +451,68 @@ export async function searchAndDownload(
     if (deezerLyrics?.LYRICS_TEXT) {
       plainLyrics = deezerLyrics.LYRICS_TEXT
 
-      // Build LRC from sync data if available
       if (deezerLyrics.LYRICS_SYNC_JSON && deezerLyrics.LYRICS_SYNC_JSON.length > 0) {
         syncedLyrics = deezerLyrics.LYRICS_SYNC_JSON.map((l) => `${l.lrc_timestamp} ${l.line}`).join('\n')
       }
     }
-  } catch {
-    // fallback to lrclib
-  }
+  } catch {}
 
-  // Fallback to lrclib if no lyrics from Deezer
+  // Fallback to enriched LRCLIB if Deezer lyrics not available
   if (!plainLyrics) {
-    const lrcResult = await fetchLrclibLyrics(
+    const lrcResult = await fetchLyricsEnriched(
       chosenTrack.ART_NAME,
       chosenTrack.SNG_TITLE,
       chosenTrack.ALB_TITLE,
     )
-    if (lrcResult) {
+    if (lrcResult.plainLyrics) {
       plainLyrics = lrcResult.plainLyrics
-      syncedLyrics = lrcResult.syncedLyrics ?? undefined
+      syncedLyrics = lrcResult.syncedLyrics
     }
+  }
+
+  // ── Tag and Enrich Audio with ID3v2 Tags & Cover Art ───────────────────────
+  const enriched = await enrichAudioBuffer({
+    query: `${chosenTrack.ART_NAME} - ${chosenTrack.SNG_TITLE}`,
+    rawAudio: audioBuffer,
+    canonicalHint: {
+      title: chosenTrack.SNG_TITLE,
+      artist: chosenTrack.ART_NAME,
+      album: chosenTrack.ALB_TITLE,
+      durationMs: Number(chosenTrack.DURATION) * 1000,
+    },
+    explicitLyrics: plainLyrics,
+  })
+
+  // ── Write to cache file ───────────────────────────────────────────────────
+  const filePath = cache.audioPathFor(trackId)
+  writeFileSync(filePath, enriched.buffer)
+
+  const cachedTrackMeta: any = {
+    ...chosenTrack,
+    YEAR: enriched.year,
+    GENRE: enriched.genre,
+    COVER_URL: enriched.coverUrl,
   }
 
   // ── Cache the result ──────────────────────────────────────────────────────
   cache.setCachedById(trackId, {
-    track: chosenTrack,
-    lyrics: plainLyrics,
-    syncedLyrics,
+    track: cachedTrackMeta,
+    lyrics: enriched.lyrics || plainLyrics,
+    syncedLyrics: enriched.syncedLyrics || syncedLyrics,
     filePath,
   })
   cache.persistMeta()
 
   return {
-    trackName: chosenTrack.SNG_TITLE,
-    artist: chosenTrack.ART_NAME,
-    album: chosenTrack.ALB_TITLE,
+    trackName: enriched.title,
+    artist: enriched.artist,
+    album: enriched.album,
+    year: enriched.year,
+    genre: enriched.genre,
+    coverUrl: enriched.coverUrl,
     filePath,
-    lyrics: plainLyrics,
-    syncedLyrics,
-    durationMs: Number(chosenTrack.DURATION) * 1000,
+    lyrics: enriched.lyrics || plainLyrics,
+    syncedLyrics: enriched.syncedLyrics || syncedLyrics,
+    durationMs: enriched.durationMs,
   }
 }
