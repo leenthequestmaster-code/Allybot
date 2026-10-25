@@ -537,7 +537,11 @@ export function applyTicTacToeMove(
 
   let cellIndex: number | null = null;
   if (typeof input === 'number') {
-    if (input >= 1 && input <= 9) cellIndex = input - 1;
+    if (input >= 1 && input <= 9) {
+      cellIndex = input - 1;
+    } else if (input === 0) {
+      cellIndex = 0;
+    }
   } else {
     cellIndex = parseTicTacToeMoveInput(input);
   }

@@ -125,6 +125,16 @@ export function formatMentionTag(jid: string): string {
   return `@${num}`;
 }
 
+export function isSameUser(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  const cleanA = normalizeUserJid(a);
+  const cleanB = normalizeUserJid(b);
+  if (cleanA === cleanB) return true;
+  const userA = cleanA.split('@')[0];
+  const userB = cleanB.split('@')[0];
+  return Boolean(userA && userB && userA === userB);
+}
+
 export function getGameDisplayName(gameType: MinigameType): string {
   if (gameType === 'connect4') return 'Connect 4';
   if (gameType === 'tictactoe') return 'Tic-Tac-Toe';
@@ -420,6 +430,66 @@ export class MinigamesService {
     };
   }
 
+  public async startDirectMatch(params: {
+    chatJid: string;
+    gameType: MinigameType;
+    p1Jid: string;
+    p1Name: string;
+    p2Jid: string;
+    p2Name: string;
+    whatsapp?: WhatsAppPort;
+  }): Promise<MinigameActionResponse> {
+    const { chatJid, gameType } = params;
+    const p1Jid = normalizeUserJid(params.p1Jid);
+    const p2Jid = normalizeUserJid(params.p2Jid);
+
+    if (this.sessions.has(chatJid)) {
+      return {
+        ok: false,
+        code: 'MATCH_IN_PROGRESS',
+        message: '⚠️ Masih ada permainan yang sedang berlangsung di chat ini. Selesaikan terlebih dahulu!',
+      };
+    }
+
+    const session = this.buildInitialSession({
+      chatJid,
+      gameType,
+      isBotMatch: false,
+      botDifficulty: null,
+      p1Jid,
+      p1Name: params.p1Name,
+      p2Jid,
+      p2Name: params.p2Name,
+    });
+
+    this.sessions.set(chatJid, session);
+    this.challenges.delete(chatJid);
+
+    const gameLabel = getGameDisplayName(gameType);
+    const instructions =
+      gameType === 'connect4'
+        ? '💡 Ketik angka kolom `1-7` untuk menjatuhkan koin.'
+        : gameType === 'tictactoe'
+          ? '💡 Ketik angka `1-9` (layout keypad) atau koordinat `a1-c3`.'
+          : '💡 Ketik asal dan tujuan langkah (contoh: `c3 d4` atau `c3 e5 g7`).';
+
+    const boardPng = await this.renderSessionBoardPng(session, params.whatsapp);
+
+    return {
+      ok: true,
+      code: 'MATCH_STARTED',
+      session,
+      boardPng,
+      mentions: [p1Jid, p2Jid],
+      message:
+        `🚀 *GAME ${gameLabel.toUpperCase()} DIMULAI!*\n\n` +
+        `🔵 Pemain 1: ${formatMentionTag(p1Jid)} (${session.p1Name})\n` +
+        `🔴 Pemain 2: ${formatMentionTag(p2Jid)} (${session.p2Name})\n\n` +
+        `👉 Giliran pertama: ${formatMentionTag(session.state.turn === 1 ? p1Jid : p2Jid)}\n` +
+        `${instructions}`,
+    };
+  }
+
   public async acceptChallenge(params: {
     chatJid: string;
     accepterJid: string;
@@ -431,12 +501,12 @@ export class MinigamesService {
       return {
         ok: false,
         code: 'NO_CHALLENGE',
-        message: '⚠️ Tidak ada tantangan yang sedang menunggu di chat ini.',
+        message: '⚠️ Tidak ada tantangan yang sedang menunggu di chat ini. Buka lobi dengan `open` atau tantang langsung `@lawan`.',
       };
     }
 
     const accepterJid = normalizeUserJid(params.accepterJid);
-    if (challenge.challengerJid === accepterJid) {
+    if (isSameUser(challenge.challengerJid, accepterJid)) {
       return {
         ok: false,
         code: 'CANNOT_ACCEPT_OWN',
@@ -444,7 +514,7 @@ export class MinigamesService {
       };
     }
 
-    if (challenge.opponentJid && challenge.opponentJid !== accepterJid) {
+    if (challenge.opponentJid && !isSameUser(challenge.opponentJid, accepterJid)) {
       return {
         ok: false,
         code: 'WRONG_OPPONENT',
@@ -640,7 +710,7 @@ export class MinigamesService {
     const senderJid = normalizeUserJid(params.senderJid);
     const expectedJid = session.state.turn === 1 ? session.p1Jid : session.p2Jid;
 
-    if (senderJid !== expectedJid) {
+    if (!isSameUser(senderJid, expectedJid)) {
       return {
         ok: false,
         code: 'WRONG_TURN',
@@ -672,7 +742,7 @@ export class MinigamesService {
       humanMoveNotation = `Kolom ${col}`;
     }
 
-    // 2. TIC-TAC-TOE
+// 2. TIC-TAC-TOE
     else if (session.state.kind === 'tictactoe') {
       const cellIndex = parseTicTacToeMoveInput(params.rawMove);
       if (cellIndex === null) {
@@ -682,7 +752,7 @@ export class MinigamesService {
           message: '⚠️ Input kotak tidak valid. Masukkan angka `1-9` atau koordinat `a1-c3`.',
         };
       }
-      const res = applyTicTacToeMove(session.state, cellIndex);
+      const res = applyTicTacToeMove(session.state, params.rawMove);
       if (!res.ok) {
         return {
           ok: false,
@@ -690,7 +760,7 @@ export class MinigamesService {
           message: `⚠️ ${res.error ?? 'Kotak sudah terisi.'}`,
         };
       }
-      humanMoveNotation = `Kotak ${cellIndex} (${res.coordLabel?.toUpperCase()})`;
+      humanMoveNotation = `Kotak ${res.keypadNumber} (${res.coordLabel?.toUpperCase()})`;
     }
 
     // 3. DAM / CHECKERS 8x8
@@ -997,12 +1067,6 @@ export class MinigamesService {
   }): boolean {
     const session = this.sessions.get(params.chatJid);
     if (!session) return false;
-
-    if (params.senderJid) {
-      const cleanSender = normalizeUserJid(params.senderJid);
-      const expected = session.state.turn === 1 ? session.p1Jid : session.p2Jid;
-      if (cleanSender !== expected) return false;
-    }
 
     const trimmed = params.text.trim();
     if (!trimmed) return false;

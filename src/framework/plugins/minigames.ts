@@ -23,6 +23,7 @@ import {
   type BotDifficulty,
   type MinigameActionResponse,
   normalizeUserJid,
+  isSameUser,
   getGameDisplayName,
 } from '../../services/minigames/index.js';
 
@@ -30,6 +31,15 @@ export interface MinigamesPluginOptions {
   service?: MinigamesService;
   dbPath?: string;
   whatsapp?: WhatsAppPort;
+}
+
+let sharedService: MinigamesService | null = null;
+
+function getSharedService(options: MinigamesPluginOptions = {}): MinigamesService {
+  if (!sharedService) {
+    sharedService = options.service ?? new MinigamesService({ dbPath: options.dbPath });
+  }
+  return sharedService;
 }
 
 function parseBotDifficultyArg(tokens: readonly string[]): BotDifficulty {
@@ -44,14 +54,9 @@ export function createMinigamesPlugin(
   whatsapp: WhatsAppPort,
   options: MinigamesPluginOptions = {},
 ): Plugin {
-  let service: MinigamesService | null = options.service ?? null;
-
-  const ensureService = (): MinigamesService => {
-    if (!service) {
-      service = new MinigamesService({ dbPath: options.dbPath });
-    }
-    return service;
-  };
+  if (options.service) {
+    sharedService = options.service;
+  }
 
   const dispatchAction = async (
     ctx: CommandContext,
@@ -80,7 +85,13 @@ export function createMinigamesPlugin(
     gameType: MinigameType,
     activeWhatsapp: WhatsAppPort,
   ): Promise<void> => {
-    const svc = ensureService();
+    if (!sharedService && ctx.services?.has?.('minigames')) {
+      try {
+        sharedService = ctx.services.get<MinigamesService>('minigames');
+      } catch {}
+    }
+    const svc = getSharedService(options);
+
     const chatJid = ctx.message.remoteJid;
     const senderJid = ctx.message.senderJid ? normalizeUserJid(ctx.message.senderJid) : chatJid;
     const senderName = ctx.message.pushName || 'Player';
@@ -132,7 +143,7 @@ export function createMinigamesPlugin(
       return;
     }
 
-    // 2. Subcommand: open
+    // 2. Subcommand: open (Open Lobby for anyone to join)
     if (sub === 'open' || sub === 'buka') {
       const res = svc.createChallenge({
         chatJid,
@@ -217,7 +228,7 @@ export function createMinigamesPlugin(
       return;
     }
 
-    // 9. Mention challenge: !c4 @user
+    // 9. Mention challenge: !c4 @user -> START IMMEDIATELY!
     const targetRaw = ctx.message.mentionedJids?.[0] || ctx.message.quotedSenderJid;
     if (sub.startsWith('@') || targetRaw) {
       if (!targetRaw) {
@@ -225,13 +236,21 @@ export function createMinigamesPlugin(
         return;
       }
       const opponentJid = normalizeUserJid(targetRaw);
-      const res = svc.createChallenge({
+      if (isSameUser(senderJid, opponentJid)) {
+        await ctx.reply('⚠️ Kamu tidak bisa menantang diri sendiri!');
+        return;
+      }
+      const opponentName = activeWhatsapp.getDisplayName?.(opponentJid) || 'Player 2';
+      const res = await svc.startDirectMatch({
         chatJid,
         gameType,
-        challengerJid: senderJid,
-        challengerName: senderName,
-        opponentJid,
+        p1Jid: senderJid,
+        p1Name: senderName,
+        p2Jid: opponentJid,
+        p2Name: opponentName,
+        whatsapp: activeWhatsapp,
       });
+      if (res.ok) await ctx.react('🎮');
       await dispatchAction(ctx, res, activeWhatsapp);
       return;
     }
@@ -260,16 +279,12 @@ export function createMinigamesPlugin(
     version: '1.0.0',
     load(context: PluginContext) {
       const activeWhatsapp = whatsapp;
-      let svc = service;
-      if (!svc && context.services?.has?.('minigames')) {
+      if (!sharedService && context.services?.has?.('minigames')) {
         try {
-          svc = context.services.get<MinigamesService>('minigames');
-        } catch {
-          svc = ensureService();
-        }
-      } else if (!svc) {
-        svc = ensureService();
+          sharedService = context.services.get<MinigamesService>('minigames');
+        } catch {}
       }
+      const svc = getSharedService(options);
       svc.start();
 
       context.commands.register({
@@ -314,9 +329,18 @@ export function createMinigamesPlugin(
         const chatJid = message.remoteJid;
         const senderJid = normalizeUserJid(message.senderJid);
         const rawText = message.text.trim();
+        const activeSvc = getSharedService(options);
+
+        // Check if there is an active session in this room
+        const active = activeSvc.getActiveSession(chatJid);
+        if (!active) return;
+
+        // Skip command inputs (starts with prefix)
+        const prefix = context.config?.commandPrefix || '!';
+        if (rawText.startsWith(prefix)) return;
 
         if (
-          !svc.isMinigameMoveOrReply({
+          !activeSvc.isMinigameMoveOrReply({
             chatJid,
             senderJid,
             text: rawText,
@@ -326,7 +350,7 @@ export function createMinigamesPlugin(
           return;
         }
 
-        const res = await svc.submitMove({
+        const res = await activeSvc.submitMove({
           chatJid,
           senderJid,
           rawMove: rawText,
@@ -349,8 +373,8 @@ export function createMinigamesPlugin(
     },
 
     unload() {
-      if (service) {
-        service.stop();
+      if (sharedService) {
+        sharedService.stop();
       }
     },
   };
