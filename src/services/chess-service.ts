@@ -1426,30 +1426,86 @@ export function parseFlexibleMove(
 
     const pieceAtSource = state.board[fromR]?.[fromC]
     if (!pieceAtSource) {
-      return { error: `Kotak asal *${fromSq}* kosong (tidak ada bidak di sana).` }
+      return {
+        error: `Langkah tidak valid. Kotak ${fromSq} kosong.\nLangkah legal: ${allLegal.slice(0, 5).map((m) => m.san).join(', ')}.`,
+      }
     }
     if (pieceAtSource[0] !== state.turn) {
-      return { error: `Bidak di *${fromSq}* adalah milik lawan. Saat ini giliran *${state.turn === 'w' ? 'Putih' : 'Hitam'}*.` }
+      return {
+        error: `Langkah tidak valid. Bidak di ${fromSq} milik lawan.\nGiliran saat ini: ${state.turn === 'w' ? 'Putih' : 'Hitam'}.`,
+      }
     }
+
+    const legalFromHere = allLegal.filter((m) => m.fromR === fromR && m.fromC === fromC)
+    const pieceType = pieceAtSource[1] as PieceType
+
     const pseudo = getPseudoMovesForSquare(state.board, state.castling, state.epTarget, fromR, fromC)
     const pseudoMatch = pseudo.find((m) => m.toR === toR && m.toC === toC)
     if (pseudoMatch) {
       const testBoard = applyMoveToBoard(state.board, pseudoMatch)
       if (isInCheck(testBoard, state.turn)) {
-        return { error: `Langkah *${fromSq} → ${toSq}* tidak sah karena membiarkan Raja Anda dalam keadaan *SKAK*!` }
+        return {
+          error: `Skak! Raja ${state.turn === 'w' ? 'Putih' : 'Hitam'} terancam. Langkah tidak valid.\nKamu harus: blok, tangkap bidak penyerang, atau geser raja.`,
+        }
       }
     }
-    return { error: `Bidak di *${fromSq}* tidak bisa melangkah ke *${toSq}* sesuai aturan FIDE.` }
+
+    if (pieceType === 'P') {
+      const isBackward = state.turn === 'w' ? toR > fromR : toR < fromR
+      if (isBackward) {
+        const legalPawnMoves = legalFromHere.map((m) => m.san).join(', ')
+        return {
+          error: `Langkah tidak valid. Pion tidak bisa mundur.${legalPawnMoves ? `\nLangkah legal: ${legalPawnMoves}.` : `\nLangkah legal lain: ${allLegal.slice(0, 5).map((m) => m.san).join(', ')}.`}`,
+        }
+      }
+    }
+
+    if (legalFromHere.length > 0) {
+      return {
+        error: `Langkah tidak valid untuk bidak di ${fromSq}.\nLangkah legal bidak ini: ${legalFromHere.slice(0, 6).map((m) => m.san).join(', ')}.`,
+      }
+    }
+
+    return {
+      error: `Langkah tidak valid. Bidak di ${fromSq} tidak memiliki langkah legal.\nLangkah legal: ${allLegal.slice(0, 5).map((m) => m.san).join(', ')}.`,
+    }
   }
 
   if (isInCheck(state.board, state.turn)) {
     return {
-      error: `Langkah *"${rawInput}"* tidak sah! Raja Anda sedang terkena *SKAK* — wajib menyelamatkan Raja terlebih dahulu.`,
+      error: `Skak! Raja ${state.turn === 'w' ? 'Putih' : 'Hitam'} terancam. Langkah tidak valid.\nKamu harus: blok, tangkap bidak penyerang, atau geser raja.`,
+    }
+  }
+
+  const pieceChar = cleaned[0].toUpperCase()
+  const pieceTypes: Record<string, string> = {
+    N: 'kuda',
+    B: 'gajah',
+    R: 'benteng',
+    Q: 'menteri',
+    K: 'raja',
+  }
+  if (pieceTypes[pieceChar]) {
+    const pieceLegal = allLegal.filter((m) => state.board[m.fromR]?.[m.fromC]?.[1] === pieceChar)
+    if (pieceLegal.length > 0) {
+      return {
+        error: `Langkah tidak valid untuk ${pieceTypes[pieceChar]}.\nLangkah legal: ${pieceLegal.slice(0, 6).map((m) => m.san).join(', ')}.`,
+      }
+    }
+  }
+
+  const looksLikeChess =
+    /^(O-O(-O)?|0-0(-0)?|[KQRBNPkqrbnp]?[a-h]?[1-8]?x?[a-h][1-8](=[QRBNqrbn])?[+#!?]*|[a-h][1-8][\s\-:x]*[a-h][1-8][qrbnQRBN]?)$/i.test(
+      cleaned,
+    )
+  if (!looksLikeChess) {
+    return {
+      error: 'Langkah tidak valid. Format salah.\nContoh: e4, Nf3, O-O, exd5.',
     }
   }
 
   return {
-    error: `Notasi langkah *"${rawInput}"* tidak dikenali atau tidak sah. Contoh langkah sah: ${allLegal.slice(0, 4).map((m) => m.san).join(', ')}.`,
+    error: `Langkah tidak valid.\nLangkah legal: ${allLegal.slice(0, 6).map((m) => m.san).join(', ')}.`,
   }
 }
 

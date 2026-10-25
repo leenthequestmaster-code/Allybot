@@ -93,6 +93,7 @@ export interface WhatsAppMediaPayload {
   readonly gifPlayback?: boolean
   readonly ptt?: boolean
   readonly waveform?: Uint8Array
+  readonly mentions?: readonly string[]
 }
 
 export interface WhatsAppPollOptions {

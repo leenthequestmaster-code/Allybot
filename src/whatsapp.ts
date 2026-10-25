@@ -657,11 +657,22 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
           break
         case 'image':
           if (!mimeType.startsWith('image/')) throw new Error('Image payload MIME mismatch')
-          content = { image: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}) }
+          content = {
+            image: data,
+            mimetype: mimeType,
+            ...(payload.caption ? { caption: payload.caption } : {}),
+            ...(payload.mentions && payload.mentions.length > 0 ? { mentions: [...payload.mentions] } : {}),
+          }
           break
         case 'video':
           if (!mimeType.startsWith('video/')) throw new Error('Video payload MIME mismatch')
-          content = { video: data, mimetype: mimeType, ...(payload.caption ? { caption: payload.caption } : {}), ...(payload.gifPlayback ? { gifPlayback: true } : {}) }
+          content = {
+            video: data,
+            mimetype: mimeType,
+            ...(payload.caption ? { caption: payload.caption } : {}),
+            ...(payload.gifPlayback ? { gifPlayback: true } : {}),
+            ...(payload.mentions && payload.mentions.length > 0 ? { mentions: [...payload.mentions] } : {}),
+          }
           break
         case 'audio': {
           if (!mimeType.startsWith('audio/')) throw new Error('Audio payload MIME mismatch')
