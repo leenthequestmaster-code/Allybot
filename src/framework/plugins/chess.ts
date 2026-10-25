@@ -34,8 +34,6 @@ export function isChessMoveOrReply(text: string, quotedText?: string): boolean {
   return isChessNotationOrBoardReply(text, quotedText)
 }
 
-const HEADER_BORDER = '─꯭──꯭──    .  .  .    ▭▬▭▬▭'
-const DIVIDER_BORDER = '━━━━━━━━━━━━━━━━━━━━'
 const OPEN_CHALLENGE_TTL_MS = 5 * 60 * 1000
 
 export interface OpenChallenge {
@@ -208,45 +206,26 @@ export function formatMoveCaption(
 
 export function formatReviewSummaryCaption(summary: GameReviewSummary): string {
   const lines: string[] = [
-    HEADER_BORDER,
-    `  *GAME REVIEW CATUR (${summary.matchId})*`,
-    DIVIDER_BORDER,
-    '',
-    `Hasil: *${summary.resultTitle}*`,
-    `Info: _${summary.resultReason}_`,
+    `*Game Review Catur*`,
+    `Hasil: *${summary.resultTitle}* (${summary.resultReason ?? '-'})`,
   ]
 
   if (summary.openingName) {
-    lines.push(`📖 Pembukaan: *${summary.openingEco ?? ''} ${summary.openingName}*`)
+    lines.push(`Pembukaan: *${summary.openingEco ?? ''} ${summary.openingName}*`)
   }
 
   lines.push(
-    '',
-    `⬜ *${summary.whiteName}* (${summary.whiteElo} ELO) — Akurasi: *${summary.whiteAccuracy}%*`,
-    `⬛ *${summary.blackName}* (${summary.blackElo} ELO) — Akurasi: *${summary.blackAccuracy}%*`,
-    '',
-    '*KLASIFIKASI LANGKAH (PUTIH | HITAM)*',
-    `• !! Brilliant  : *${summary.counts.w.Brilliant}* | *${summary.counts.b.Brilliant}*`,
-    `• ! Great Move  : *${summary.counts.w.Great}* | *${summary.counts.b.Great}*`,
-    `• ★ Best Move   : *${summary.counts.w.Best}* | *${summary.counts.b.Best}*`,
-    `• ✓ Good Move   : *${summary.counts.w.Good}* | *${summary.counts.b.Good}*`,
-    `• 📖 Book Move   : *${summary.counts.w.Book}* | *${summary.counts.b.Book}*`,
-    `• ?! Inaccuracy : *${summary.counts.w.Inaccuracy}* | *${summary.counts.b.Inaccuracy}*`,
-    `• ? Mistake     : *${summary.counts.w.Mistake}* | *${summary.counts.b.Mistake}*`,
-    `• ?? Blunder    : *${summary.counts.w.Blunder}* | *${summary.counts.b.Blunder}*`,
+    `Akurasi: Putih *${summary.whiteAccuracy}%* | Hitam *${summary.blackAccuracy}%*`,
   )
 
   if (summary.turningPoint) {
     const tp = summary.turningPoint
     const side = tp.color === 'w' ? 'Putih' : 'Hitam'
     lines.push(
-      '',
-      `*MOMEN KUNCI (TURNING POINT)*`,
-      `Langkah #${tp.moveNumber} (${side}: *${tp.san}*) terdeteksi *${tp.classification.toUpperCase()} (${tp.symbol})* (-${(tp.cpLoss / 100).toFixed(1)} poin). Rekomendasi mesin: *${tp.bestMoveSan}*.`,
+      `Momen kunci: #${tp.moveNumber} ${side} (${tp.san} - ${tp.classification}). Rekomendasi: ${tp.bestMoveSan}.`,
     )
   }
 
-  lines.push(DIVIDER_BORDER)
   return lines.join('\n')
 }
 
@@ -257,7 +236,6 @@ export function formatPlayerProfileCaption(
 ): string {
   const profile = chess.getPlayerElo(userJid, displayName)
   const rank = chess.getPlayerRank(userJid)
-  const weekly = chess.getWeeklyEloDeltas(userJid)
   const highestRating = Math.max(
     profile.blitz.elo,
     profile.rapid.elo,
@@ -266,30 +244,11 @@ export function formatPlayerProfileCaption(
   )
   const tier = getEloTier(highestRating)
 
-  const fmtDelta = (d: number) => `${d >= 0 ? '+' : ''}${d} this week ${d >= 0 ? '↑' : '↓'}`
-
-  const trophyStr =
-    profile.botTrophies.length > 0
-      ? profile.botTrophies.map((lv) => `Bot Lv ${lv}`).join(', ')
-      : 'Belum ada'
-
   return [
-    HEADER_BORDER,
-    '  *PROFIL CATUR ALLYBOT (ALLYCHESS)*',
-    DIVIDER_BORDER,
-    '',
-    `Pemain: ${userTag(profile.userJid)} (${profile.displayName}) [${tier.title.toUpperCase()}]`,
-    `Peringkat Global: *#${rank}* • Gelar: ${tier.icon} ${tier.title}`,
-    `Statistik Total: *${profile.totalPlayed.toLocaleString('en-US')}* Main • *${profile.totalWins}* Menang • *${profile.totalDraws}* Seri • *${profile.totalLosses}* Kalah`,
-    '',
-    '*RATING KATEGORI*',
-    `⚡ Bullet (3m) : *${profile.bullet.elo}* (Peak *${profile.bullet.peakElo}*) • ${fmtDelta(weekly.bullet)}`,
-    `🔥 Blitz (7m)  : *${profile.blitz.elo}* (Peak *${profile.blitz.peakElo}*) • ${fmtDelta(weekly.blitz)}`,
-    `☕ Rapid (15m) : *${profile.rapid.elo}* (Peak *${profile.rapid.peakElo}*) • ${fmtDelta(weekly.rapid)}`,
-    `🧩 Puzzle      : *${profile.puzzle.elo}* (Peak *${profile.puzzle.peakElo}*) • ${fmtDelta(weekly.puzzle)}`,
-    '',
-    `Trofi: ${trophyStr}`,
-    DIVIDER_BORDER,
+    `Profil Catur: ${playerTag(profile.userJid, profile.displayName)}`,
+    `Peringkat: #${rank} (${tier.title})`,
+    `Rating: Blitz *${profile.blitz.elo}* | Rapid *${profile.rapid.elo}* | Bullet *${profile.bullet.elo}*`,
+    `Statistik: ${profile.totalWins}M/${profile.totalLosses}K/${profile.totalDraws}S (${profile.totalPlayed} main)`,
   ].join('\n')
 }
 
@@ -369,15 +328,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
         if (abortedMove1) {
           await whatsapp.sendText(
             chatJid,
-            [
-              HEADER_BORDER,
-              '  *PERTANDINGAN DIBATALKAN (AFK)*',
-              DIVIDER_BORDER,
-              '',
-              state.resultReason ?? 'Pemain tidak melangkah pada langkah pertama.',
-              'Status: _Tidak ada penalti ELO._',
-              DIVIDER_BORDER,
-            ].join('\n'),
+            `Pertandingan catur dibatalkan (AFK).\n${state.resultReason ?? 'Pemain tidak melangkah pada langkah pertama.'}`,
             mentionOpts([state.whiteJid, state.blackJid]),
           )
           return
@@ -414,7 +365,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
 
         await ctx.react('🎬')
         await ctx.reply(
-          `⏳ Menganalisis *${targetState.moveHistory.length} langkah* (Stockfish 16 NNUE + 80 FIDE ECO Book) dan merender video MP4 *Game Review*...`,
+          `⏳ Menganalisis *${targetState.moveHistory.length} langkah* dan merender video Game Review...`,
         )
 
         try {
@@ -530,6 +481,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
                 data: new Uint8Array(cardPng),
                 mimeType: 'image/png',
                 caption,
+                mentions: mentions?.mentions,
               })
             } else {
               await ctx.reply(caption, mentions)
@@ -542,17 +494,10 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
             if (!answerArg) {
               const session = chess.startPuzzle(chatJid, senderJid, senderName)
               const caption = [
-                HEADER_BORDER,
-                `  *TEKA-TEKI TAKTIS ALLYCHESS (${session.puzzle.id})*`,
-                DIVIDER_BORDER,
-                '',
-                `🧩 Judul  : *${session.puzzle.title}*`,
-                `🎯 Tema   : *${session.puzzle.theme}*`,
-                `⭐ Rating : *${session.puzzle.rating} ELO*`,
-                `💡 Petunjuk: _${session.puzzle.hint}_`,
-                '',
-                `Ketik *${ctx.prefix}catur puzzle <langkah>* (contoh: \`${ctx.prefix}catur puzzle Re8#\`) untuk menjawab dan meningkatkan *Puzzle ELO* di kartu \`!elochess\`!`,
-                DIVIDER_BORDER,
+                `*Teka-Teki Catur #${session.puzzle.id}*`,
+                `Tema: ${session.puzzle.theme} (${session.puzzle.rating} ELO)`,
+                `Petunjuk: ${session.puzzle.hint}`,
+                `Ketik *${ctx.prefix}catur puzzle <langkah>* (contoh: \`${ctx.prefix}catur puzzle Re8#\`)`,
               ].join('\n')
               await ctx.reply(caption)
               return
@@ -560,23 +505,18 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
 
             const res = chess.solvePuzzle(chatJid, senderJid, senderName, answerArg)
             if ('error' in res) {
-              await ctx.reply(`❌ ${res.error}`)
+              await ctx.reply(res.error)
               return
             }
             const sign = res.delta >= 0 ? '+' : ''
             const statusHeader = res.solved
-              ? '✅ *JAWABAN BENAR! TEKA-TEKI TERPECAHKAN*'
-              : `❌ *JAWABAN KURANG TEPAT* (Solusi: *${res.puzzle.solutionSan}*)`
+              ? 'Jawaban benar!'
+              : `Jawaban kurang tepat. Solusi: *${res.puzzle.solutionSan}*`
             await ctx.reply(
               [
-                HEADER_BORDER,
-                `  ${statusHeader}`,
-                DIVIDER_BORDER,
-                '',
-                `🧩 Puzzle : *${res.puzzle.title}* (${res.puzzle.rating} ELO)`,
-                `📈 Puzzle ELO : *${res.before} → ${res.after}* (*${sign}${res.delta}* minggu ini)`,
-                `Cek kartu profil terbarumu dengan *${ctx.prefix}elochess*!`,
-                DIVIDER_BORDER,
+                statusHeader,
+                `Puzzle: *${res.puzzle.title}* (${res.puzzle.rating} ELO)`,
+                `Rating Puzzle: *${res.before} → ${res.after}* (${sign}${res.delta})`,
               ].join('\n'),
             )
             return

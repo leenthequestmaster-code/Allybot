@@ -368,11 +368,10 @@ test('Feature D: 80+ ECO Opening Book, Scholar Mate, Satori PNG, Review MP4 & Pl
     const { mp4Buffer } = await chess.renderReviewVideoMp4(lastRes.state)
     assert.ok(Buffer.isBuffer(mp4Buffer) && mp4Buffer.length > 200)
 
-    // 5. Verify Official Allybot Box Borders & Plugin Challenge Lifecycle
+    // 5. Verify Clean Profile Caption & Plugin Challenge Lifecycle
     const profileText = formatPlayerProfileCaption(chess, whiteJid, 'PutihMaster')
-    assert.ok(profileText.includes('─꯭──꯭──    .  .  .    ▭▬▭▬▭'))
-    assert.ok(profileText.includes('━━━━━━━━━━━━━━━━━━━━'))
-    assert.ok(profileText.includes('🔥 Blitz (7m)  : *432*'))
+    assert.ok(profileText.includes('Profil Catur:'))
+    assert.ok(profileText.includes('Blitz *432*'))
 
     // Verify AI Chlona Reply Guard
     assert.equal(isChessMoveOrReply('Nf3'), true)
@@ -537,11 +536,9 @@ test('Feature E: Visual !elochess Profile Card (1000x667 PNG), #Ranking, Weekly 
     assert.equal(sentMedia.length, 1)
     assert.equal(sentMedia[0].kind, 'image')
     assert.equal(sentMedia[0].mimeType, 'image/png')
-    assert.ok(sentMedia[0].caption.includes('PROFIL CATUR ALLYBOT'))
+    assert.ok(sentMedia[0].caption.includes('Profil Catur:'))
     assert.ok(sentMedia[0].caption.includes('#1'))
-    assert.ok(sentMedia[0].caption.includes('+32 this week ↑'))
-    assert.ok(sentMedia[0].caption.includes('-32 this week ↓'))
-    assert.ok(sentMedia[0].caption.includes('🧩 Puzzle'))
+    assert.ok(sentMedia[0].caption.includes('Rating: Blitz'))
 
     chess.shutdown({ logger, config: { commandPrefix: '!', defaultCooldownMs: 0 }, services: null })
   } finally {
