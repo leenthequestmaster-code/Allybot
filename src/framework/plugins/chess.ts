@@ -499,7 +499,18 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
                 `Petunjuk: ${session.puzzle.hint}`,
                 `Ketik *${ctx.prefix}catur puzzle <langkah>* (contoh: \`${ctx.prefix}catur puzzle Re8#\`)`,
               ].join('\n')
-              await ctx.reply(caption)
+
+              if (ctx.whatsapp.sendMedia) {
+                const boardPng = await chess.renderPuzzleBoardPng(session.puzzle)
+                await ctx.whatsapp.sendMedia(chatJid, {
+                  kind: 'image',
+                  data: new Uint8Array(boardPng),
+                  mimeType: 'image/png',
+                  caption,
+                })
+              } else {
+                await ctx.reply(caption)
+              }
               return
             }
 

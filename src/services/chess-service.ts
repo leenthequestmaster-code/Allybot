@@ -3677,6 +3677,83 @@ export class ChessService implements Service {
   }
 
   // --------------------------------------------------------------------------
+  // SATORI + RESVG PUZZLE BOARD IMAGE RENDERER (!catur puzzle)
+  // --------------------------------------------------------------------------
+  async renderPuzzleBoardPng(puzzle: TacticalPuzzleSpec): Promise<Buffer> {
+    const fonts = loadSatoriFonts()
+    const parsed = parseFen(puzzle.fen)
+    const board = 'error' in parsed ? createInitialBoard() : parsed.board
+
+    const squareNodes: any[] = []
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const isDark = (r + c) % 2 === 1
+        const sqBg = isDark ? '#b58863' : '#f0d9b5'
+        const piece = board[r][c]
+        const sprite = piece ? PIECE_SPRITES[piece] : null
+
+        squareNodes.push({
+          type: 'div',
+          props: {
+            style: {
+              width: '80px',
+              height: '80px',
+              backgroundColor: sqBg,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+            children: sprite
+              ? {
+                  type: 'img',
+                  props: {
+                    src: sprite,
+                    width: 72,
+                    height: 72,
+                    style: { width: '72px', height: '72px' },
+                  },
+                }
+              : null,
+          },
+        })
+      }
+    }
+
+    const tree = {
+      type: 'div',
+      props: {
+        style: {
+          width: '688px',
+          height: '688px',
+          backgroundColor: '#302e2b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+        },
+        children: {
+          type: 'div',
+          props: {
+            style: {
+              width: '640px',
+              height: '640px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              borderRadius: '6px',
+              overflow: 'hidden',
+            },
+            children: squareNodes,
+          },
+        },
+      },
+    }
+
+    const svg = await satori(tree as any, { width: 688, height: 688, fonts })
+    const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: 688 } })
+    return Buffer.from(resvg.render().asPng())
+  }
+
+  // --------------------------------------------------------------------------
   // SATORI + RESVG + FFMPEG MP4 GAME REVIEW GENERATOR (!review)
   // --------------------------------------------------------------------------
   private async renderReviewFramePng(
