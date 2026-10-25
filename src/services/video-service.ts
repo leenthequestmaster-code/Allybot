@@ -41,6 +41,13 @@ function runFfmpegVideoCli(args: string[], inputBuffer: Buffer, isOpus = false):
   })
 }
 
+function isValidMp4Buffer(buf: Buffer): boolean {
+  if (!buf || buf.length < 32) return false
+  // Check for 'ftyp' box signature at byte offset 4
+  const ftyp = buf.toString('ascii', 4, 8)
+  return ftyp === 'ftyp'
+}
+
 export interface VideoGenerationOptions {
   readonly prompt: string
   readonly model?: 'veo-lite' | 'veo-fast' | 'omni-flash'
@@ -65,7 +72,11 @@ export class MockVideoProvider implements VideoProvider {
   readonly name = 'mock'
 
   async generate(options: VideoGenerationOptions): Promise<VideoGenerationResult> {
-    // Generate a minimal dummy MP4 binary container (128 bytes)
+    if (options.imageBuffer && options.imageBuffer.length === 0) {
+      throw new Error('INVALID_IMAGE: Ukuran file gambar tidak boleh kosong.')
+    }
+
+    // Standard minimal MP4 binary header with ftyp box
     const dummyMp4 = Buffer.from(
       '00000018667479706d7034320000000069736f6d6d7034320000000866726565000000106d6461740000000000000000',
       'hex',
@@ -75,7 +86,7 @@ export class MockVideoProvider implements VideoProvider {
       mimeType: 'video/mp4',
       durationSeconds: 8,
       modelName: options.imageBuffer ? 'omni-flash' : (options.model ?? 'veo-lite'),
-      fileName: 'mock-video.mp4',
+      fileName: `video-${Date.now()}.mp4`,
     }
   }
 }
@@ -102,12 +113,17 @@ export class FlowVideoProvider implements VideoProvider {
 
   async generate(options: VideoGenerationOptions): Promise<VideoGenerationResult> {
     if (!fs.existsSync(this.cookiesPath)) {
-      throw new Error(`FLOW_COOKIE_MISSING: Cookie file not found at ${this.cookiesPath}`)
+      throw new Error('AUTH_ERROR: Sesi autentikasi tidak ditemukan.')
+    }
+
+    if (options.imageBuffer && options.imageBuffer.length < 100) {
+      throw new Error('INVALID_IMAGE: Format atau ukuran gambar tidak valid.')
     }
 
     const cookies = JSON.parse(fs.readFileSync(this.cookiesPath, 'utf8'))
     let browser: Browser | undefined
     let context: BrowserContext | undefined
+    let tempImagePath: string | undefined
 
     try {
       browser = await chromium.launch({
@@ -129,7 +145,6 @@ export class FlowVideoProvider implements VideoProvider {
       const page: Page = await context.newPage()
       page.setDefaultTimeout(this.timeoutMs)
 
-      // Listen for video CDN download stream
       let capturedVideoUrl: string | undefined
       page.on('request', (req) => {
         const u = req.url()
@@ -143,6 +158,12 @@ export class FlowVideoProvider implements VideoProvider {
 
       await page.goto(this.projectUrl, { waitUntil: 'networkidle', timeout: 45_000 })
 
+      // Check if redirected to landing/about page (auth expired)
+      const currentUrl = page.url()
+      if (currentUrl.includes('/about')) {
+        throw new Error('AUTH_EXPIRED: Sesi login telah berakhir. Diperlukan pembaruan sesi.')
+      }
+
       // Dismiss cookie consent banner if present
       try {
         const agreeBtn = page.locator('.glue-cookie-notification-bar__accept')
@@ -155,83 +176,112 @@ export class FlowVideoProvider implements VideoProvider {
 
       await page.waitForTimeout(1_000)
 
-      let tempImagePath: string | undefined
+      // ── Step 1: Upload User Image (Mandatory for Image-to-Video) ──
       if (options.imageBuffer) {
         tempImagePath = path.join(os.tmpdir(), `flow-i2v-${crypto.randomUUID()}.png`)
         fs.writeFileSync(tempImagePath, options.imageBuffer)
 
-        // Upload reference image to Flow
+        let uploadSuccess = false
+        const maxRetries = 2
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const addMediaBtn = page.locator('button[aria-label*="Menu tambahkan media"], button.add-menu-trigger').first()
+            await addMediaBtn.waitFor({ state: 'visible', timeout: 8_000 })
+            await addMediaBtn.click()
+            await page.waitForTimeout(500)
+
+            const uploadBtn = page.locator('button:has-text("Upload"), [role=menuitem]:has-text("Upload")').first()
+            await uploadBtn.waitFor({ state: 'visible', timeout: 5_000 })
+
+            const [fileChooser] = await Promise.all([
+              page.waitForEvent('filechooser', { timeout: 10_000 }),
+              uploadBtn.click(),
+            ])
+
+            await fileChooser.setFiles(tempImagePath)
+            await page.waitForTimeout(5_000)
+
+            // Validate that an image asset tile exists in the project
+            const assetTileCount = await page.locator('flow-image-tile, .container:has(img)').count()
+            if (assetTileCount > 0) {
+              uploadSuccess = true
+              break
+            }
+          } catch {
+            await page.waitForTimeout(1_000)
+          }
+        }
+
+        if (!uploadSuccess) {
+          throw new Error('UPLOAD_FAILED: Gagal mengunggah gambar ke antarmuka video.')
+        }
+
+        // Trigger animation action on uploaded image tile
         try {
-          const addMediaBtn = page.locator('button[aria-label*="Menu tambahkan media"]')
-          await addMediaBtn.click()
-          await page.waitForTimeout(400)
-          const uploadBtn = page.locator('button:has-text("Upload")')
-          const [fileChooser] = await Promise.all([
-            page.waitForEvent('filechooser', { timeout: 10_000 }),
-            uploadBtn.click(),
-          ])
-          await fileChooser.setFiles(tempImagePath)
-          await page.waitForTimeout(4_000)
+          const animateBtn = page.locator('button[aria-label*="Animasikan gambar ini"]').first()
+          if (await animateBtn.isVisible({ timeout: 4_000 })) {
+            await animateBtn.click({ force: true })
+            await page.waitForTimeout(1_000)
+          }
         } catch {
-          // ignore upload menu issues and continue
+          // fallback to manual video mode
         }
       }
 
-      // Open Settings popup
-      const settingsBtn = page.locator('button.settings-trigger-button')
-      await settingsBtn.click()
-      await page.waitForTimeout(500)
+      // ── Step 2: Configure Mode & Settings ─────────────────────────
+      try {
+        const settingsBtn = page.locator('button.settings-trigger-button')
+        if (await settingsBtn.isVisible()) {
+          await settingsBtn.click()
+          await page.waitForTimeout(500)
 
-      // Switch to Video mode
-      const videoToggle = page.locator('button[role=radio]:has-text("Video")')
-      await videoToggle.click()
-      await page.waitForTimeout(500)
+          const videoToggle = page.locator('button[role=radio]:has-text("Video")')
+          if (await videoToggle.isVisible()) {
+            await videoToggle.click()
+            await page.waitForTimeout(500)
+          }
 
-      // Select model if requested
-      if (options.model === 'omni-flash') {
-        const modelSelectBtn = page.locator('button:has(.model-select-trigger-content)')
-        await modelSelectBtn.click()
-        await page.waitForTimeout(400)
-        await page.locator('[role=menuitem]:has-text("Omni 1.1 Flash"), mat-option:has-text("Omni 1.1 Flash")').first().click()
-        await page.waitForTimeout(400)
-      } else if (options.model === 'veo-fast') {
-        const modelSelectBtn = page.locator('button:has(.model-select-trigger-content)')
-        await modelSelectBtn.click()
-        await page.waitForTimeout(400)
-        await page.locator('[role=menuitem]:has-text("Veo 3.1 - Fast"), mat-option:has-text("Veo 3.1 - Fast")').first().click()
-        await page.waitForTimeout(400)
+          if (options.model === 'omni-flash') {
+            const modelSelectBtn = page.locator('button:has(.model-select-trigger-content)')
+            if (await modelSelectBtn.isVisible()) {
+              await modelSelectBtn.click()
+              await page.waitForTimeout(400)
+              await page.locator('[role=menuitem]:has-text("Omni 1.1 Flash"), mat-option:has-text("Omni 1.1 Flash")').first().click()
+              await page.waitForTimeout(400)
+            }
+          }
+
+          await page.locator('button.settings-trigger-button').click()
+          await page.waitForTimeout(500)
+        }
+      } catch {
+        // continue if settings already aligned
       }
 
-      // Close settings menu
-      await page.locator('button.settings-trigger-button').click()
-      await page.waitForTimeout(500)
-
-      // Fill prompt in editor
+      // ── Step 3: Enter Prompt & Trigger Generation ────────────────
       const editor = page.locator('div.ProseMirror[aria-label*="Apa yang ingin Anda buat"]')
       await editor.waitFor({ state: 'visible', timeout: 10_000 })
       await editor.click()
       await editor.fill(options.prompt)
       await page.waitForTimeout(800)
 
-      // Click Generate Button
       const genBtn = page.locator('button.generate-icon-button')
+      await genBtn.waitFor({ state: 'visible', timeout: 5_000 })
       await genBtn.click()
 
-      // Poll until video finishes rendering (typically 25 - 60s)
+      // ── Step 4: Poll & Download Generated Video ──────────────────
       const startTime = Date.now()
       const maxWaitMs = options.timeoutMs ?? this.timeoutMs
 
       while (Date.now() - startTime < maxWaitMs) {
         await page.waitForTimeout(4_000)
-
-        // Try clicking latest video tile
         try {
           const tile = page.locator('flow-video-tile').first()
           if (await tile.isVisible()) {
             await tile.click({ timeout: 2_000 })
             await page.waitForTimeout(2_000)
 
-            // Click Download media button to trigger signed CDN URL
             const dlBtn = page.locator('button[aria-label="Download media"]')
             if (await dlBtn.isVisible()) {
               await dlBtn.click({ timeout: 2_000 })
@@ -243,29 +293,35 @@ export class FlowVideoProvider implements VideoProvider {
             }
           }
         } catch {
-          // keep polling
+          // continue polling
         }
       }
 
       if (!capturedVideoUrl) {
-        throw new Error('VIDEO_RENDER_TIMEOUT: Timed out waiting for Google Flow video generation.')
+        throw new Error('TIMEOUT: Waktu proses pembuatan video habis sebelum hasil tersedia.')
       }
 
-      // Fetch video buffer directly via authenticated page context
       const res = await page.request.get(capturedVideoUrl)
       if (!res.ok()) {
-        throw new Error(`VIDEO_FETCH_FAILED: Failed to download video stream (${res.status()})`)
+        throw new Error(`FETCH_FAILED: Gagal mengunduh file video (${res.status()}).`)
       }
 
       const buffer = await res.body()
+      if (!isValidMp4Buffer(buffer)) {
+        throw new Error('INVALID_OUTPUT: Format file video yang diterima tidak valid.')
+      }
+
       return {
         buffer,
         mimeType: 'video/mp4',
         durationSeconds: 8,
         modelName: options.model ?? 'veo-lite',
-        fileName: `veo-${Date.now()}.mp4`,
+        fileName: `video-${Date.now()}.mp4`,
       }
     } finally {
+      if (tempImagePath && fs.existsSync(tempImagePath)) {
+        fs.unlink(tempImagePath, () => {})
+      }
       if (context) await context.close().catch(() => {})
       if (browser) await browser.close().catch(() => {})
     }
@@ -302,19 +358,17 @@ export class VideoService {
     const now = Date.now()
     const today = new Date().toISOString().slice(0, 10)
 
-    // Check cooldown
     const lastUse = this.userCooldowns.get(senderJid) ?? 0
     const diff = now - lastUse
     if (diff < this.cooldownMs) {
       const waitSec = Math.ceil((this.cooldownMs - diff) / 1_000)
       return {
         allowed: false,
-        reason: `⏳ Masih cooldown nih! Tunggu sekitar *${waitSec} detik* lagi ya~`,
+        reason: `Status: Diproses\nTunggu ${waitSec} detik sebelum membuat video berikutnya.`,
         remaining: 0,
       }
     }
 
-    // Check daily limit
     const daily = this.userDailyCounts.get(senderJid)
     if (!daily || daily.date !== today) {
       return { allowed: true, remaining: this.dailyLimit }
@@ -323,7 +377,7 @@ export class VideoService {
     if (daily.count >= this.dailyLimit) {
       return {
         allowed: false,
-        reason: `⚠️ Kamu sudah mencapai batas harian (*${this.dailyLimit} video/hari*). Kuota reset besok ya!`,
+        reason: `Status: Gagal\nBatas harian ${this.dailyLimit} video telah tercapai. Kuota diperbarui besok.`,
         remaining: 0,
       }
     }
@@ -350,7 +404,7 @@ export class VideoService {
   ): Promise<VideoGenerationResult> {
     const quota = this.checkQuota(senderJid)
     if (!quota.allowed) {
-      throw new Error(quota.reason ?? 'Quota exceeded')
+      throw new Error(quota.reason ?? 'Status: Gagal\nBatas kuota pembuatan video tercapai.')
     }
 
     return new Promise<VideoGenerationResult>((resolve, reject) => {
@@ -379,7 +433,7 @@ export class VideoService {
         try {
           await task()
         } catch {
-          // task errors handled via individual promise reject
+          // errors handled in individual promise reject
         }
       }
     }

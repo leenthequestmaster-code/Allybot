@@ -37,7 +37,6 @@ function fakeWhatsapp() {
       reactions.push({ remoteJid, key, emoji })
     },
     async downloadMedia(msg, source, limits) {
-      // Return a sample MP4 buffer if requested
       const samplePath = '/root/flow-spike/final-test-video.mp4'
       const data = fs.existsSync(samplePath)
         ? fs.readFileSync(samplePath)
@@ -66,16 +65,16 @@ function message(id, remoteJid, text, options = {}) {
 
 test('1. MockVideoProvider produces valid MP4 binary buffer without network', async () => {
   const provider = new MockVideoProvider()
-  const result = await provider.generate({ prompt: 'cinematic sunset on beach' })
+  const result = await provider.generate({ prompt: 'pemandangan pantai' })
 
   assert.equal(provider.name, 'mock')
   assert.equal(result.mimeType, 'video/mp4')
   assert.equal(result.durationSeconds, 8)
   assert.ok(result.buffer.length > 0)
-  assert.equal(result.fileName, 'mock-video.mp4')
+  assert.match(result.fileName, /\.mp4$/)
 })
 
-test('2. VideoService enforces FIFO queueing and commits usage', async () => {
+test('2. VideoService enforces FIFO queueing and commits usage with concise status', async () => {
   const service = new VideoService({
     provider: new MockVideoProvider(),
     cooldownMs: 1_000,
@@ -91,7 +90,8 @@ test('2. VideoService enforces FIFO queueing and commits usage', async () => {
 
   const quota = service.checkQuota('user1@s.whatsapp.net')
   assert.equal(quota.allowed, false)
-  assert.match(quota.reason ?? '', /cooldown/i)
+  assert.match(quota.reason ?? '', /Status: Diproses/i)
+  assert.match(quota.reason ?? '', /Tunggu \d+ detik/i)
 })
 
 test('3. VideoService daily quota decrement and exhaustion rejection', async () => {
@@ -110,10 +110,11 @@ test('3. VideoService daily quota decrement and exhaustion rejection', async () 
   const q2 = service.checkQuota('userA@s.whatsapp.net')
   assert.equal(q2.allowed, false)
   assert.equal(q2.remaining, 0)
-  assert.match(q2.reason ?? '', /batas harian/i)
+  assert.match(q2.reason ?? '', /Status: Gagal/i)
+  assert.match(q2.reason ?? '', /Batas harian 2 video telah tercapai/i)
 })
 
-test('4. VideoPlugin registers commands !vid, !vidstatus, and !vidmodels', async () => {
+test('4. VideoPlugin registers commands !vid, !omnivid, and editing commands without model names', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -125,7 +126,7 @@ test('4. VideoPlugin registers commands !vid, !vidstatus, and !vidmodels', async
   plugin.load?.({ logger, config, events, commands: registry, services })
 
   assert.ok(registry.get('vid'))
-  assert.ok(registry.get('vidomni'))
+  assert.ok(registry.get('omnivid'))
   assert.ok(registry.get('vcompress'))
   assert.ok(registry.get('vtrim'))
   assert.ok(registry.get('vspeed'))
@@ -133,9 +134,15 @@ test('4. VideoPlugin registers commands !vid, !vidstatus, and !vidmodels', async
   assert.ok(registry.get('vvn'))
   assert.ok(registry.get('vidstatus'))
   assert.ok(registry.get('vidmodels'))
+
+  // Verify description purity (zero AI model name leak)
+  for (const cmdName of ['vid', 'omnivid', 'vcompress', 'vtrim', 'vspeed', 'vmute', 'vvn']) {
+    const desc = registry.get(cmdName)?.description ?? ''
+    assert.doesNotMatch(desc, /\b(veo|gemini|google|flow)\b/i)
+  }
 })
 
-test('5. !vid rejects empty or too short prompt with helpful instructions', async () => {
+test('5. !vid rejects empty or too short prompt with standardized format', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -148,11 +155,12 @@ test('5. !vid rejects empty or too short prompt with helpful instructions', asyn
 
   await registry.dispatch(message('m-1', 'user@s.whatsapp.net', '!vid'))
   assert.equal(whatsapp.sent.length, 1)
-  assert.match(whatsapp.sent[0].text, /Chlona Video Studio/i)
-  assert.match(whatsapp.sent[0].text, /Format:/i)
+  assert.match(whatsapp.sent[0].text, /Status: Gagal/i)
+  assert.match(whatsapp.sent[0].text, /Format perintah:\n!vid <deskripsi>/i)
+  assert.doesNotMatch(whatsapp.sent[0].text, /veo|gemini|omni|google/i)
 })
 
-test('6. !vidstatus and !vidmodels deliver accurate status and catalog details', async () => {
+test('6. !vidstatus and !vidmodels deliver concise standardized status', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -165,17 +173,18 @@ test('6. !vidstatus and !vidmodels deliver accurate status and catalog details',
 
   await registry.dispatch(message('m-2', 'user@s.whatsapp.net', '!vidstatus'))
   assert.equal(whatsapp.sent.length, 1)
-  assert.match(whatsapp.sent[0].text, /Status Chlona Video Studio/i)
-  assert.match(whatsapp.sent[0].text, /8 video hari ini/i)
+  assert.match(whatsapp.sent[0].text, /Status: Berhasil/i)
+  assert.match(whatsapp.sent[0].text, /Sisa kuota harian: 8 video/i)
+  assert.doesNotMatch(whatsapp.sent[0].text, /veo|gemini|omni|google/i)
 
   await registry.dispatch(message('m-3', 'user@s.whatsapp.net', '!vidmodels'))
   assert.equal(whatsapp.sent.length, 2)
-  assert.match(whatsapp.sent[1].text, /Katalog Model Google Flow Studio/i)
-  assert.match(whatsapp.sent[1].text, /Veo 3\.1 - Lite/i)
-  assert.match(whatsapp.sent[1].text, /Omni 1\.1 Flash/i)
+  assert.match(whatsapp.sent[1].text, /Status: Berhasil/i)
+  assert.match(whatsapp.sent[1].text, /Daftar perintah video:/i)
+  assert.doesNotMatch(whatsapp.sent[1].text, /\b(veo|gemini|google|flow)\b/i)
 })
 
-test('7. End-to-end !vid dispatch renders and delivers video media payload', async () => {
+test('7. End-to-end !vid dispatch renders and delivers concise video caption', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -194,20 +203,23 @@ test('7. End-to-end !vid dispatch renders and delivers video media payload', asy
     message(
       'm-4',
       'user@s.whatsapp.net',
-      '!vid seekor naga es terbang di atas puncak gunung bersalju',
+      '!vid pemandangan pegunungan saat fajar',
     ),
   )
 
   assert.equal(whatsapp.sent.length, 1)
-  assert.match(whatsapp.sent[0].text, /Permintaan videomu sudah masuk antrean/i)
+  assert.match(whatsapp.sent[0].text, /Status: Diproses/i)
+  assert.match(whatsapp.sent[0].text, /Video sedang dibuat/i)
 
   assert.equal(whatsapp.media.length, 1)
   assert.equal(whatsapp.media[0].payload.kind, 'video')
   assert.equal(whatsapp.media[0].payload.mimeType, 'video/mp4')
-  assert.match(whatsapp.media[0].payload.caption, /Google Veo 3\.1/i)
+  assert.match(whatsapp.media[0].payload.caption, /Status: Berhasil/i)
+  assert.match(whatsapp.media[0].payload.caption, /Video selesai dibuat/i)
+  assert.doesNotMatch(whatsapp.media[0].payload.caption, /veo|gemini|omni|google/i)
 })
 
-test('8. Native editing commands reject safely when no video is attached', async () => {
+test('8. Native editing commands reject safely with standardized error format', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -219,19 +231,24 @@ test('8. Native editing commands reject safely when no video is attached', async
   plugin.load?.({ logger, config, events, commands: registry, services })
 
   await registry.dispatch(message('m-5', 'user@s.whatsapp.net', '!vcompress'))
-  assert.match(whatsapp.sent[0].text, /Kirim atau balas video/i)
+  assert.match(whatsapp.sent[0].text, /Status: Gagal/i)
+  assert.match(whatsapp.sent[0].text, /Balas video dengan !vcompress/i)
 
   await registry.dispatch(message('m-6', 'user@s.whatsapp.net', '!vtrim'))
-  assert.match(whatsapp.sent[1].text, /Balas video lalu ketik/i)
+  assert.match(whatsapp.sent[1].text, /Status: Gagal/i)
+  assert.match(whatsapp.sent[1].text, /Format perintah: !vtrim/i)
 
   await registry.dispatch(message('m-7', 'user@s.whatsapp.net', '!vspeed'))
-  assert.match(whatsapp.sent[2].text, /Balas video lalu ketik/i)
+  assert.match(whatsapp.sent[2].text, /Status: Gagal/i)
+  assert.match(whatsapp.sent[2].text, /Format perintah: !vspeed/i)
 
   await registry.dispatch(message('m-8', 'user@s.whatsapp.net', '!vmute'))
-  assert.match(whatsapp.sent[3].text, /Balas video lalu ketik/i)
+  assert.match(whatsapp.sent[3].text, /Status: Gagal/i)
+  assert.match(whatsapp.sent[3].text, /Balas video dengan !vmute/i)
 
   await registry.dispatch(message('m-9', 'user@s.whatsapp.net', '!vvn'))
-  assert.match(whatsapp.sent[4].text, /Balas video lalu ketik/i)
+  assert.match(whatsapp.sent[4].text, /Status: Gagal/i)
+  assert.match(whatsapp.sent[4].text, /Balas video dengan !vvn/i)
 })
 
 test('9. Native FFmpeg video transformations execute cleanly on valid media', async () => {
@@ -241,31 +258,25 @@ test('9. Native FFmpeg video transformations execute cleanly on valid media', as
   const inputBuffer = fs.readFileSync(samplePath)
   const service = new VideoService()
 
-  // 1. Compress
   const compressed = await service.compressVideo(inputBuffer)
   assert.ok(compressed.length > 0)
   assert.ok(compressed.length < inputBuffer.length)
 
-  // 2. Mute
   const muted = await service.muteVideo(inputBuffer)
   assert.ok(muted.length > 0)
 
-  // 3. Extract VN (Opus)
   const vn = await service.extractVoiceNote(inputBuffer)
   assert.ok(vn.length > 0)
   assert.ok(vn.length < inputBuffer.length)
 
-  // 4. Speed 1.5x
   const spedUp = await service.speedVideo(inputBuffer, 1.5)
   assert.ok(spedUp.length > 0)
 
-  // 5. Trim
   const trimmed = await service.trimVideo(inputBuffer, '00:00:01', '00:00:04')
   assert.ok(trimmed.length > 0)
 })
 
-
-test('10. !omnivid handles Image-to-Video animation from image media', async () => {
+test('10. !omnivid handles Image-to-Video animation from image media with standardized format', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -282,7 +293,9 @@ test('10. !omnivid handles Image-to-Video animation from image media', async () 
 
   // 1. Rejects if no image is present
   await registry.dispatch(message('m-10', 'user-no-img@s.whatsapp.net', '!omnivid buat tersenyum'))
+  assert.match(whatsapp.sent[0].text, /Status: Gagal/i)
   assert.match(whatsapp.sent[0].text, /Kirim gambar atau balas foto/i)
+  assert.doesNotMatch(whatsapp.sent[0].text, /\b(veo|gemini|google|flow)\b/i)
 
   // 2. Succeeds when image is present
   const msgWithImage = message('m-11', 'user-with-img@s.whatsapp.net', '!omnivid buat tersenyum ramah', {
@@ -290,8 +303,11 @@ test('10. !omnivid handles Image-to-Video animation from image media', async () 
   })
   await registry.dispatch(msgWithImage)
 
-  assert.match(whatsapp.sent[1].text, /Gambarmu sedang dianimasikan dengan Gemini Omni/i)
+  assert.match(whatsapp.sent[1].text, /Status: Diproses/i)
+  assert.match(whatsapp.sent[1].text, /Gambar sedang diunggah dan diproses/i)
   assert.equal(whatsapp.media.length, 1)
   assert.equal(whatsapp.media[0].payload.kind, 'video')
-  assert.match(whatsapp.media[0].payload.caption, /Gemini Omni 1\.1 Flash/i)
+  assert.match(whatsapp.media[0].payload.caption, /Status: Berhasil/i)
+  assert.match(whatsapp.media[0].payload.caption, /Video dari gambar berhasil dibuat/i)
+  assert.doesNotMatch(whatsapp.media[0].payload.caption, /\b(veo|gemini|google|flow)\b/i)
 })
