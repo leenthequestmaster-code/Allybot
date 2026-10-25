@@ -9,6 +9,15 @@ import type {
   WhatsAppPort,
 } from '../contracts.js'
 import {
+  buildAnimePrompt,
+  buildLogoPrompt,
+  buildI2iPrompt,
+  buildBgChangePrompt,
+  buildRestorePrompt,
+  buildCosplayPrompt,
+  buildRemixPrompt,
+} from '../../services/image-prompts.js'
+import {
   AiHandlerError,
   MAX_AI_INPUT_LENGTH,
   createAiHandler,
@@ -929,57 +938,370 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         },
       })
 
-      // 6. Text-to-Image (9Router Gemini Image + Pollinations FLUX Fallback)
+      // 6. Text-to-Image & Image Studio Commands
       context.commands.register({
         name: 'text2img',
-        aliases: ['buatgambar', 't2i'],
-        description: 'Hasilkan gambar dari deskripsi teks menggunakan AI Vision / Image Generator',
+        aliases: ['draw', 'buatgambar', 't2i'],
+        description: 'Membuat gambar dari deskripsi teks',
         category: 'tools',
         menuOrder: 6,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
           const prompt = commandContext.args.join(' ').trim()
-          if (!prompt) {
-            await commandContext.reply(`Format: ${commandContext.prefix}text2img <deskripsi gambar>\nContoh: ${commandContext.prefix}text2img a cute anime cat in space`)
+          if (!prompt || prompt.length < 3) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\n${commandContext.prefix}draw <deskripsi gambar>`
+            )
             return
           }
           if (prompt.length > 500) {
-            await commandContext.reply('Deskripsinya kepanjangan nih, maksimal 500 karakter ya~ ✍️')
+            await commandContext.reply('Status: Gagal\nDeskripsi terlalu panjang. Maksimal 500 karakter.')
             return
           }
 
-          await commandContext.react('🎨')
-          let heartbeatTimer: NodeJS.Timeout | null = null
-          if (commandContext.sendPresence) {
-            await commandContext.sendPresence('composing')
-            heartbeatTimer = setInterval(() => {
-              void commandContext.sendPresence?.('composing')
-            }, 8_000)
-            heartbeatTimer.unref?.()
-          }
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nGambar sedang dibuat.')
 
           try {
             const result = await generateImageWithAi(prompt)
             if (commandContext.whatsapp.sendMedia) {
-              const engineLabel = result.source === '9router-gemini' ? 'Gemini 3.1 Flash Image (Imagen)' : 'FLUX.1 Schnell'
               await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
                 kind: 'image',
                 data: new Uint8Array(result.buffer),
                 mimeType: result.mimeType,
-                caption: `🎨 *Hasil Gambar AI*\n> "${prompt}"\n\n_Engine: ${engineLabel}_`,
+                caption: `Status: Berhasil\nGambar selesai dibuat.`,
               })
-            } else {
-              await commandContext.reply(`Gambar berhasil dibuat untuk prompt: "${prompt}".`)
+              await commandContext.react('✅')
             }
-            await commandContext.react('✅')
           } catch (error) {
-            const errMsg = error instanceof Error ? error.message : String(error)
-            commandContext.logger.warn({ err: error, msg: errMsg }, 'text2img command failed')
+            commandContext.logger.warn({ err: error }, 'text2img command failed')
             await commandContext.react('❌')
-            await commandContext.reply(`Gagal bikin gambar nih (${errMsg}). Coba kata kunci lain ya~ 🎨`)
-          } finally {
-            if (heartbeatTimer) clearInterval(heartbeatTimer)
-            if (commandContext.sendPresence) await commandContext.sendPresence('paused')
+            await commandContext.reply(
+              'Status: Gagal\nPembuatan gambar tidak dapat diproses saat ini. Silakan coba beberapa saat lagi.'
+            )
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'anime',
+        aliases: ['animeart'],
+        description: 'Membuat gambar bergaya animasi sinematik',
+        category: 'tools',
+        menuOrder: 7,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const raw = commandContext.args.join(' ').trim()
+          if (!raw || raw.length < 3) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\n${commandContext.prefix}anime <deskripsi>\n\nContoh:\n${commandContext.prefix}anime gadis di stasiun kereta saat hujan`
+            )
+            return
+          }
+
+          const wrapped = buildAnimePrompt(raw)
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nGambar sedang dibuat.')
+
+          try {
+            const result = await generateImageWithAi(wrapped.prompt, { negativePrompt: wrapped.negativePrompt })
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `Status: Berhasil\nGambar selesai dibuat.`,
+              })
+              await commandContext.react('✅')
+            }
+          } catch (error) {
+            await commandContext.react('❌')
+            await commandContext.reply(
+              'Status: Gagal\nPembuatan gambar tidak dapat diproses saat ini. Silakan coba beberapa saat lagi.'
+            )
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'logo',
+        aliases: ['vectorlogo'],
+        description: 'Membuat logo vektor dan ikon grafis minimalis',
+        category: 'tools',
+        menuOrder: 8,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const raw = commandContext.args.join(' ').trim()
+          const parts = raw.split('|').map((s) => s.trim()).filter(Boolean)
+          const brand = parts[0]
+          const concept = parts[1] || 'modern clean branding'
+
+          if (!brand) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\n${commandContext.prefix}logo <nama brand> | <konsep>\n\nContoh:\n${commandContext.prefix}logo Kopi Senja | kedai kopi hangat`
+            )
+            return
+          }
+
+          const wrapped = buildLogoPrompt(brand, concept)
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nLogo sedang dibuat.')
+
+          try {
+            const result = await generateImageWithAi(wrapped.prompt, { negativePrompt: wrapped.negativePrompt })
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `Status: Berhasil\nLogo selesai dibuat.`,
+              })
+              await commandContext.react('✅')
+            }
+          } catch (error) {
+            await commandContext.react('❌')
+            await commandContext.reply(
+              'Status: Gagal\nPembuatan logo tidak dapat diproses saat ini. Silakan coba beberapa saat lagi.'
+            )
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'i2i',
+        aliases: ['editgambar'],
+        description: 'Mengubah elemen gambar berdasarkan instruksi',
+        category: 'tools',
+        menuOrder: 9,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const selected = extractImageSource(commandContext)
+          const instruction = commandContext.args.join(' ').trim()
+
+          if (!selected || !instruction || !commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}i2i <instruksi perubahan>`
+            )
+            return
+          }
+
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nGambar sedang diproses.')
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 15 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const wrapped = buildI2iPrompt(instruction)
+            const result = await generateImageWithAi(wrapped.prompt, {
+              imageBuffer: Buffer.from(downloaded.data),
+              negativePrompt: wrapped.negativePrompt,
+            })
+
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `Status: Berhasil\nGambar berhasil diubah.`,
+              })
+              await commandContext.react('✅')
+            }
+          } catch (error) {
+            await commandContext.react('❌')
+            await commandContext.reply('Status: Gagal\nGagal memproses gambar. Silakan coba beberapa saat lagi.')
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'bgchange',
+        aliases: ['gantibg'],
+        description: 'Mengganti latar belakang gambar',
+        category: 'tools',
+        menuOrder: 10,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const selected = extractImageSource(commandContext)
+          const newBg = commandContext.args.join(' ').trim()
+
+          if (!selected || !newBg || !commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}bgchange <latar baru>`
+            )
+            return
+          }
+
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nLatar belakang sedang diganti.')
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 15 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const wrapped = buildBgChangePrompt(newBg)
+            const result = await generateImageWithAi(wrapped.prompt, {
+              imageBuffer: Buffer.from(downloaded.data),
+              negativePrompt: wrapped.negativePrompt,
+            })
+
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `Status: Berhasil\nLatar belakang berhasil diganti.`,
+              })
+              await commandContext.react('✅')
+            }
+          } catch (error) {
+            await commandContext.react('❌')
+            await commandContext.reply('Status: Gagal\nGagal mengganti latar belakang gambar.')
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'restore',
+        aliases: ['jernihkan'],
+        description: 'Menjernihkan dan memulihkan detail gambar yang buram',
+        category: 'tools',
+        menuOrder: 11,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const selected = extractImageSource(commandContext)
+
+          if (!selected || !commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}restore`
+            )
+            return
+          }
+
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nGambar sedang dijernihkan.')
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 15 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const wrapped = buildRestorePrompt()
+            const result = await generateImageWithAi(wrapped.prompt, {
+              imageBuffer: Buffer.from(downloaded.data),
+              negativePrompt: wrapped.negativePrompt,
+            })
+
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `Status: Berhasil\nGambar berhasil dijernihkan.`,
+              })
+              await commandContext.react('✅')
+            }
+          } catch (error) {
+            await commandContext.react('❌')
+            await commandContext.reply('Status: Gagal\nGagal menjernihkan gambar.')
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'cosplay',
+        aliases: ['charedit'],
+        description: 'Mengubah pakaian dan kostum pada gambar',
+        category: 'tools',
+        menuOrder: 12,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const selected = extractImageSource(commandContext)
+          const outfit = commandContext.args.join(' ').trim()
+
+          if (!selected || !outfit || !commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}cosplay <deskripsi kostum>`
+            )
+            return
+          }
+
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nKostum gambar sedang diubah.')
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 15 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const wrapped = buildCosplayPrompt(outfit)
+            const result = await generateImageWithAi(wrapped.prompt, {
+              imageBuffer: Buffer.from(downloaded.data),
+              negativePrompt: wrapped.negativePrompt,
+            })
+
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `Status: Berhasil\nKostum berhasil diubah.`,
+              })
+              await commandContext.react('✅')
+            }
+          } catch (error) {
+            await commandContext.react('❌')
+            await commandContext.reply('Status: Gagal\nGagal mengubah kostum gambar.')
+          }
+        },
+      })
+
+      context.commands.register({
+        name: 'remix',
+        aliases: ['blendimage'],
+        description: 'Menggabungkan gaya seni ke dalam gambar',
+        category: 'tools',
+        menuOrder: 13,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          const selected = extractImageSource(commandContext)
+          const style = commandContext.args.join(' ').trim() || 'artistic digital painting'
+
+          if (!selected || !commandContext.whatsapp.downloadMedia) {
+            await commandContext.reply(
+              `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}remix <arah gaya>`
+            )
+            return
+          }
+
+          await commandContext.react('⏳')
+          await commandContext.reply('Status: Diproses\nGaya gambar sedang digabungkan.')
+
+          try {
+            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
+              maxBytes: 15 * 1024 * 1024,
+              timeoutMs: 30_000,
+            })
+            const wrapped = buildRemixPrompt(style)
+            const result = await generateImageWithAi(wrapped.prompt, {
+              imageBuffer: Buffer.from(downloaded.data),
+              negativePrompt: wrapped.negativePrompt,
+            })
+
+            if (commandContext.whatsapp.sendMedia) {
+              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+                kind: 'image',
+                data: new Uint8Array(result.buffer),
+                mimeType: result.mimeType,
+                caption: `Status: Berhasil\nGaya gambar berhasil digabungkan.`,
+              })
+              await commandContext.react('✅')
+            }
+          } catch (error) {
+            await commandContext.react('❌')
+            await commandContext.reply('Status: Gagal\nGagal menggabungkan gaya gambar.')
           }
         },
       })

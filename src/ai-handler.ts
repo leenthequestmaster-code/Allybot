@@ -244,6 +244,8 @@ export interface GenerateImageOptions {
   readonly baseUrl?: string
   readonly model?: string
   readonly timeoutMs?: number
+  readonly imageBuffer?: Buffer
+  readonly negativePrompt?: string
 }
 
 export interface GeneratedImageResult {
@@ -289,6 +291,7 @@ export async function generateImageWithAi(
   if (!rawPrompt) throw new AiHandlerError('invalid_input', 'Prompt gambar tidak boleh kosong.')
 
   const cleanPrompt = cleanImagePrompt(rawPrompt)
+  const effectivePrompt = options.negativePrompt ? `${cleanPrompt}. Avoid: ${options.negativePrompt}` : cleanPrompt
 
   const apiKey = (options.apiKey ?? process.env.AI_API_KEY)?.trim()
   const baseUrl = options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL
@@ -313,7 +316,7 @@ export async function generateImageWithAi(
         },
         body: JSON.stringify({
           model,
-          prompt: cleanPrompt,
+          prompt: effectivePrompt,
           n: 1,
           size: 'auto',
           quality: 'auto',
@@ -353,7 +356,7 @@ export async function generateImageWithAi(
 
   // 2. Secondary Fallback: Pollinations.ai (using fast turboflux endpoint)
   try {
-    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=1024&height=1024&nologo=true&seed=${Date.now()}`
+    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(effectivePrompt)}?width=1024&height=1024&nologo=true&seed=${Date.now()}`
     const res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(45_000) })
     if (res.ok) {
       const buffer = Buffer.from(await res.arrayBuffer())

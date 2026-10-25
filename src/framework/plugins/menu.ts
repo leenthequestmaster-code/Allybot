@@ -198,7 +198,8 @@ async function canSeePrivilegedCategory(
 
 const SUBCAT_DESCRIPTIONS: Record<string, string> = {
   // Tools
-  'Artificial Intelligence': 'Tanya asisten pintar, buat gambar otomatis, dan ubah teks jadi suara',
+  'Artificial Intelligence': 'Tanya asisten pintar, buat & edit gambar otomatis, dan ubah teks jadi suara',
+  'Video Tools': 'Buat video sinematik, animasikan foto, dan edit video secara instan',
   'Media & Sticker': 'Buat stiker WhatsApp, ubah format media, dan jernihkan foto',
   'Visual Card & Stalk': 'Buat gambar kutipan percakapan dan intip profil media sosial',
   'Search & Download': 'Cari informasi dan simpan media dari internet langsung ke WhatsApp',
@@ -345,7 +346,20 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
   tools: [
     {
       title: 'Artificial Intelligence',
-      commands: ['ai', 'ally', 'tanya', 'translate', 'summarize', 'aidetection', 'tts', 'suara', 'text2img', 'buatgambar', 't2i', 'img2text', 'ocr'],
+      commands: [
+        'ai', 'ally', 'tanya', 'translate', 'summarize', 'aidetection', 'tts', 'suara',
+        'text2img', 'draw', 'buatgambar', 't2i', 'anime', 'logo',
+        'i2i', 'bgchange', 'restore', 'cosplay', 'charedit', 'remix',
+        'img2text', 'ocr'
+      ],
+    },
+    {
+      title: 'Video Tools',
+      commands: [
+        'vid', 'video', 'omnivid', 'vidomni', 'i2v',
+        'vcompress', 'vshrink', 'vtrim', 'vcut', 'vspeed', 'vtempo', 'vmute', 'vsilence',
+        'vvn', 'videotovn', 'vidstatus', 'vidmodels'
+      ],
     },
     {
       title: 'Media & Sticker',
