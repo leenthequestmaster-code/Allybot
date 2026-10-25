@@ -381,16 +381,40 @@ export class MinigamesService {
       return {
         ok: false,
         code: 'MATCH_IN_PROGRESS',
-        message: '⚠️ Masih ada permainan yang sedang berlangsung di chat ini. Selesaikan terlebih dahulu!',
+        message: 'Masih ada permainan yang sedang berlangsung di chat ini. Selesaikan terlebih dahulu!',
       };
     }
 
-    if (opponentJid && challengerJid === opponentJid) {
+    if (opponentJid && isSameUser(challengerJid, opponentJid)) {
       return {
         ok: false,
         code: 'SELF_CHALLENGE',
-        message: '⚠️ Kamu tidak bisa menantang diri sendiri! Gunakan `bot` untuk bermain solo.',
+        message: 'Kamu tidak bisa menantang diri sendiri! Gunakan `bot` untuk bermain solo.',
       };
+    }
+
+    const existingHost = [...this.challenges.values()].find(
+      (c) => isSameUser(c.challengerJid, challengerJid) && Date.now() - c.createdAt <= 5 * 60 * 1000,
+    );
+    if (existingHost) {
+      return {
+        ok: false,
+        code: 'SPAM_CHALLENGE',
+        message: `Kamu masih memiliki tantangan ${getGameDisplayName(existingHost.gameType)} aktif. Batalkan dengan cancel terlebih dahulu.`,
+      };
+    }
+
+    const currentRoomChal = this.challenges.get(chatJid);
+    if (currentRoomChal) {
+      if (Date.now() - currentRoomChal.createdAt > 5 * 60 * 1000) {
+        this.challenges.delete(chatJid);
+      } else {
+        return {
+          ok: false,
+          code: 'ROOM_CHALLENGE_EXISTS',
+          message: `Masih ada tantangan ${getGameDisplayName(currentRoomChal.gameType)} yang menunggu di chat ini. Gunakan acc / decline / cancel.`,
+        };
+      }
     }
 
     const challengeId = crypto.randomUUID();
@@ -412,10 +436,8 @@ export class MinigamesService {
         code: 'CHALLENGE_CREATED',
         mentions: [challengerJid, opponentJid],
         message:
-          `🎮 *TANTANGAN ${gameLabel.toUpperCase()}*\n\n` +
-          `👤 Penantang: ${formatMentionTag(challengerJid)}\n` +
-          `🎯 Lawan: ${formatMentionTag(opponentJid)}\n\n` +
-          `Ketik \`${cmdAlias} join\` untuk menerima tantangan!`,
+          `Tantangan ${gameLabel} dikirim ke ${formatMentionTag(opponentJid)}.\n` +
+          `Menunggu konfirmasi (\`${cmdAlias} acc\` / \`${cmdAlias} decline\`).`,
       };
     }
 
@@ -424,9 +446,9 @@ export class MinigamesService {
       code: 'OPEN_CHALLENGE_CREATED',
       mentions: [challengerJid],
       message:
-        `🌐 *OPEN LOBBY ${gameLabel.toUpperCase()}*\n\n` +
-        `👤 Host: ${formatMentionTag(challengerJid)}\n\n` +
-        `Siapa saja di grup ini bisa mengetik \`${cmdAlias} join\` untuk langsung bertanding!`,
+        `*TANTANGAN ${gameLabel.toUpperCase()} TERBUKA*\n` +
+        `Host: ${formatMentionTag(challengerJid)}\n` +
+        `Ketik \`${cmdAlias} acc\` untuk menerima tantangan!`,
     };
   }
 
@@ -497,11 +519,12 @@ export class MinigamesService {
     whatsapp?: WhatsAppPort;
   }): Promise<MinigameActionResponse> {
     const challenge = this.challenges.get(params.chatJid);
-    if (!challenge) {
+    if (!challenge || Date.now() - challenge.createdAt > 5 * 60 * 1000) {
+      this.challenges.delete(params.chatJid);
       return {
         ok: false,
-        code: 'NO_CHALLENGE',
-        message: '⚠️ Tidak ada tantangan yang sedang menunggu di chat ini. Buka lobi dengan `open` atau tantang langsung `@lawan`.',
+        code: 'CHALLENGE_EXPIRED',
+        message: 'Tantangan kedaluwarsa atau tidak ada tantangan aktif.',
       };
     }
 
@@ -510,7 +533,7 @@ export class MinigamesService {
       return {
         ok: false,
         code: 'CANNOT_ACCEPT_OWN',
-        message: '⚠️ Kamu tidak bisa menerima tantangan buatanmu sendiri!',
+        message: 'Kamu tidak bisa menerima tantangan buatanmu sendiri.',
       };
     }
 
@@ -519,7 +542,7 @@ export class MinigamesService {
         ok: false,
         code: 'WRONG_OPPONENT',
         mentions: [challenge.opponentJid],
-        message: `⚠️ Tantangan ini ditujukan khusus untuk ${formatMentionTag(challenge.opponentJid)}!`,
+        message: `Hanya ${formatMentionTag(challenge.opponentJid)} yang dapat menerima tantangan ini.`,
       };
     }
 
@@ -560,11 +583,37 @@ export class MinigamesService {
       boardPng,
       mentions: [p1Jid, p2Jid],
       message:
-        `🚀 *GAME ${gameLabel.toUpperCase()} DIMULAI!*\n\n` +
-        `🔵 Pemain 1: ${formatMentionTag(p1Jid)} (${p1Name})\n` +
-        `🔴 Pemain 2: ${formatMentionTag(p2Jid)} (${p2Name})\n\n` +
+        `Tantangan diterima. Permainan dimulai!\n\n` +
         `👉 Giliran pertama: ${formatMentionTag(session.state.turn === 1 ? p1Jid : p2Jid)}\n` +
         `${instructions}`,
+    };
+  }
+
+  public declineChallenge(chatJid: string, senderJid: string): MinigameActionResponse {
+    const challenge = this.challenges.get(chatJid);
+    if (!challenge || Date.now() - challenge.createdAt > 5 * 60 * 1000) {
+      this.challenges.delete(chatJid);
+      return {
+        ok: false,
+        code: 'CHALLENGE_EXPIRED',
+        message: 'Tantangan kedaluwarsa atau tidak ada tantangan aktif.',
+      };
+    }
+
+    const cleanSender = normalizeUserJid(senderJid);
+    if (challenge.opponentJid && !isSameUser(challenge.opponentJid, cleanSender) && !isSameUser(challenge.challengerJid, cleanSender)) {
+      return {
+        ok: false,
+        code: 'NOT_TARGET',
+        message: 'Hanya lawan yang ditantang yang dapat menolak tantangan ini.',
+      };
+    }
+
+    this.challenges.delete(chatJid);
+    return {
+      ok: true,
+      code: 'CHALLENGE_DECLINED',
+      message: 'Tantangan ditolak.',
     };
   }
 
@@ -1010,30 +1059,30 @@ export class MinigamesService {
     const challenge = this.challenges.get(chatJid);
 
     if (challenge) {
-      if (challenge.challengerJid !== cleanSender) {
+      if (!isSameUser(challenge.challengerJid, cleanSender)) {
         return {
           ok: false,
           code: 'NOT_CHALLENGER',
-          message: '⚠️ Hanya pembuat tantangan yang dapat membatalkan lobi terbuka ini.',
+          message: 'Hanya pembuat tantangan yang dapat membatalkan.',
         };
       }
       this.challenges.delete(chatJid);
       return {
         ok: true,
         code: 'CHALLENGE_CANCELLED',
-        message: '🛑 Tantangan permainan berhasil dibatalkan.',
+        message: 'Tantangan dibatalkan.',
       };
     }
 
     const session = this.sessions.get(chatJid);
     if (session) {
-      const isP1 = session.p1Jid === cleanSender;
-      const isP2 = session.p2Jid === cleanSender;
+      const isP1 = isSameUser(session.p1Jid, cleanSender);
+      const isP2 = isSameUser(session.p2Jid, cleanSender);
       if (!isP1 && !isP2) {
         return {
           ok: false,
           code: 'NOT_PARTICIPANT',
-          message: '⚠️ Hanya pemain yang bertanding yang dapat membatalkan permainan ini.',
+          message: 'Hanya pemain yang bertanding yang dapat membatalkan permainan ini.',
         };
       }
 
@@ -1043,7 +1092,7 @@ export class MinigamesService {
           ok: true,
           code: 'MATCH_ABORTED',
           aborted: true,
-          message: '🛑 Pertandingan dibatalkan di awal langkah.',
+          message: 'Pertandingan dibatalkan.',
         };
       }
     }
@@ -1051,7 +1100,7 @@ export class MinigamesService {
     return {
       ok: false,
       code: 'NOTHING_TO_CANCEL',
-      message: '⚠️ Tidak ada tantangan atau pertandingan awal yang bisa dibatalkan.',
+      message: 'Tidak ada tantangan atau pertandingan aktif untuk dibatalkan.',
     };
   }
 

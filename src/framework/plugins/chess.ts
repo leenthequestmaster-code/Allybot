@@ -42,6 +42,8 @@ export interface OpenChallenge {
   readonly chatJid: string
   readonly hostJid: string
   readonly hostName: string
+  readonly targetJid?: string | null
+  readonly targetName?: string | null
   readonly hostColor: 'w' | 'b'
   readonly mode: TimeControlMode
   readonly createdAt: number
@@ -507,6 +509,11 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
             return
           }
 
+          if (sub === 'rank' || sub === 'leaderboard' || sub === 'top') {
+            await handleLeaderboardRequest(ctx)
+            return
+          }
+
           if (sub === 'elo' || sub === 'profile' || sub === 'profil' || sub === 'stats') {
             const targetRaw =
               ctx.message.mentionedJids?.[0] || ctx.message.quotedSenderJid || senderJid
@@ -614,6 +621,22 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
               await ctx.reply('Pertandingan catur sedang berjalan di obrolan ini.')
               return
             }
+            const existingHostChal = [...openChallenges.values()].find(
+              (c) => isSameJid(c.hostJid, senderJid) && Date.now() - c.createdAt <= OPEN_CHALLENGE_TTL_MS,
+            )
+            if (existingHostChal) {
+              await ctx.reply(
+                `Kamu masih memiliki tantangan aktif yang belum selesai. Batalkan dengan *${ctx.prefix}catur cancel* terlebih dahulu.`,
+              )
+              return
+            }
+            const currentRoomChal = getOpenChallenge(chatJid)
+            if (currentRoomChal) {
+              await ctx.reply(
+                `Masih ada tantangan catur yang menunggu di obrolan ini. Gunakan *${ctx.prefix}catur acc*, *${ctx.prefix}catur decline*, atau *${ctx.prefix}catur cancel*.`,
+              )
+              return
+            }
             const restArgs = ctx.args.slice(1)
             const hostColor = parseColorArg(restArgs) ?? 'w'
             const mode = parseModeArg(restArgs, 'blitz')
@@ -624,6 +647,8 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
               chatJid,
               hostJid: senderJid,
               hostName: senderName,
+              targetJid: null,
+              targetName: null,
               hostColor,
               mode,
               createdAt: Date.now(),
@@ -636,26 +661,33 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
                 '*TANTANGAN CATUR TERBUKA*',
                 `Penantang: ${playerTag(senderJid, senderName)} (${eloProfile.elo} ELO • ${tier.title}).`,
                 `Mode: ${tc.label} | Warna host: ${hostColor === 'w' ? 'Putih' : 'Hitam'}.`,
-                `Ketik *${ctx.prefix}catur join* untuk menerima tantangan.`,
+                `Ketik *${ctx.prefix}catur acc* untuk menerima tantangan.`,
               ].join('\n'),
               mentionOpts([senderJid]),
             )
             return
           }
 
-          // Subcommand: join open challenge
-          if (sub === 'join' || sub === 'gabung' || sub === 'terima') {
+          // Subcommand: acc / accept / join challenge
+          if (sub === 'acc' || sub === 'accept' || sub === 'terima' || sub === 'join' || sub === 'gabung') {
             if (chess.getActiveGame(chatJid)) {
               await ctx.reply('Pertandingan catur sudah dimulai di obrolan ini.')
               return
             }
             const chal = getOpenChallenge(chatJid)
             if (!chal) {
-              await ctx.reply('Tidak ada tantangan catur terbuka.')
+              await ctx.reply('Tantangan kedaluwarsa atau tidak ada tantangan aktif.')
               return
             }
             if (isSameJid(chal.hostJid, senderJid)) {
-              await ctx.reply('Kamu tidak bisa menerima tantanganmu sendiri.')
+              await ctx.reply('Kamu tidak bisa menerima tantanganmu sendiri!')
+              return
+            }
+            if (chal.targetJid && !isSameJid(chal.targetJid, senderJid)) {
+              await ctx.reply(
+                `Hanya ${playerTag(chal.targetJid, chal.targetName ?? undefined)} yang dapat menerima tantangan ini.`,
+                mentionOpts([chal.targetJid]),
+              )
               return
             }
 
@@ -682,8 +714,24 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
               whatsapp,
               chess,
               created,
-              formatMoveCaption(created, undefined, undefined, ctx.prefix),
+              `Tantangan diterima. Permainan dimulai!\n\n${formatMoveCaption(created, undefined, undefined, ctx.prefix)}`,
             )
+            return
+          }
+
+          // Subcommand: decline / tolak challenge
+          if (sub === 'decline' || sub === 'tolak' || sub === 'reject') {
+            const chal = getOpenChallenge(chatJid)
+            if (!chal) {
+              await ctx.reply('Tantangan kedaluwarsa atau tidak ada tantangan aktif.')
+              return
+            }
+            if (chal.targetJid && !isSameJid(chal.targetJid, senderJid) && !isSameJid(chal.hostJid, senderJid)) {
+              await ctx.reply('Hanya lawan yang ditantang yang dapat menolak tantangan ini.')
+              return
+            }
+            openChallenges.delete(chatJid)
+            await ctx.reply('Tantangan ditolak.')
             return
           }
 
@@ -781,34 +829,41 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
               await ctx.reply('Kamu tidak bisa menantang diri sendiri.')
               return
             }
+            const existingHostChal = [...openChallenges.values()].find(
+              (c) => isSameJid(c.hostJid, senderJid) && Date.now() - c.createdAt <= OPEN_CHALLENGE_TTL_MS,
+            )
+            if (existingHostChal) {
+              await ctx.reply(
+                `Kamu masih memiliki tantangan aktif yang belum selesai. Batalkan dengan *${ctx.prefix}catur cancel* terlebih dahulu.`,
+              )
+              return
+            }
+            const currentRoomChal = getOpenChallenge(chatJid)
+            if (currentRoomChal) {
+              await ctx.reply(
+                `Masih ada tantangan catur yang menunggu di obrolan ini. Gunakan *${ctx.prefix}catur acc*, *${ctx.prefix}catur decline*, atau *${ctx.prefix}catur cancel*.`,
+              )
+              return
+            }
             const opponentName = displayNameFor(whatsapp, opponentJid)
             const restArgs = ctx.args.slice(1)
             const mode = parseModeArg(restArgs, 'blitz')
             const hostColor = parseColorArg(restArgs) ?? 'w'
 
-            const whiteJid = hostColor === 'w' ? senderJid : opponentJid
-            const whiteName = hostColor === 'w' ? senderName : opponentName
-            const blackJid = hostColor === 'w' ? opponentJid : senderJid
-            const blackName = hostColor === 'w' ? opponentName : senderName
-
-            const created = chess.createGame({
+            openChallenges.set(chatJid, {
               chatJid,
-              whiteJid,
-              whiteName,
-              blackJid,
-              blackName,
-              timeControl: mode,
+              hostJid: senderJid,
+              hostName: senderName,
+              targetJid: opponentJid,
+              targetName: opponentName,
+              hostColor,
+              mode,
+              createdAt: Date.now(),
             })
-            if ('error' in created) {
-              await ctx.reply(created.error)
-              return
-            }
-            await ctx.react('♟️')
-            await sendBoardImage(
-              whatsapp,
-              chess,
-              created,
-              formatMoveCaption(created, undefined, undefined, ctx.prefix),
+
+            await ctx.reply(
+              `Tantangan catur dikirim ke ${playerTag(opponentJid, opponentName)}.\nMenunggu konfirmasi (*${ctx.prefix}catur acc* / *${ctx.prefix}catur decline*).`,
+              mentionOpts([senderJid, opponentJid]),
             )
             return
           }
@@ -1022,6 +1077,52 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
         handler: handleReviewRequest,
       })
 
+      const handleLeaderboardRequest = async (ctx: CommandContext): Promise<void> => {
+        await ctx.react('🏆')
+        const rawCat = ctx.args[0]?.toLowerCase() ?? ctx.args[1]?.toLowerCase() ?? 'blitz'
+        const category: EloCategory =
+          rawCat === 'rapid' || rawCat === '15m'
+            ? 'rapid'
+            : rawCat === 'bullet' || rawCat === '3m'
+              ? 'bullet'
+              : 'blitz'
+
+        const topList = chess.getLeaderboard(10, category)
+        const cardPng = await chess.renderLeaderboardCardPng(topList, category, whatsapp)
+        const tc = TIME_CONTROLS[category]
+
+        const medals = ['🥇', '🥈', '🥉']
+        const lines: string[] = [
+          `*Klasemen Top 10 ${tc.label} Catur*`,
+          '',
+        ]
+
+        if (topList.length === 0) {
+          lines.push('Belum ada pemain yang menyelesaikan pertandingan.')
+        } else {
+          for (let i = 0; i < topList.length; i++) {
+            const p = topList[i]
+            lines.push(
+              `${medals[i] ?? `#${i + 1}`} ${playerTag(p.userJid, p.displayName)} — *${p.elo} ELO* (${p.wins}M/${p.losses}K)`,
+            )
+          }
+        }
+
+        const caption = lines.join('\n')
+        const mentions = mentionOpts(topList.map((x) => x.userJid))
+        if (ctx.whatsapp.sendMedia) {
+          await ctx.whatsapp.sendMedia(ctx.message.remoteJid, {
+            kind: 'image',
+            data: new Uint8Array(cardPng),
+            mimeType: 'image/png',
+            caption,
+            mentions: mentions?.mentions,
+          })
+        } else {
+          await ctx.reply(caption, mentions)
+        }
+      }
+
       // 3. Standalone !leaderboardchess [blitz|rapid|bullet] command
       context.commands.register({
         name: 'leaderboardchess',
@@ -1030,55 +1131,7 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
         category: 'fun',
         menuOrder: 5,
         cooldownMs: 3000,
-        handler: async (ctx) => {
-          await ctx.react('🏆')
-          const rawCat = ctx.args[0]?.toLowerCase() ?? 'blitz'
-          const category: EloCategory =
-            rawCat === 'rapid' || rawCat === '15m'
-              ? 'rapid'
-              : rawCat === 'bullet' || rawCat === '3m'
-                ? 'bullet'
-                : 'blitz'
-
-          const topList = chess.getLeaderboard(10, category)
-          const cardPng = await chess.renderLeaderboardCardPng(topList, category, whatsapp)
-          const tc = TIME_CONTROLS[category]
-
-          const medals = ['🥇', '🥈', '🥉']
-          const lines: string[] = [
-            HEADER_BORDER,
-            `  *KLASEMEN TOP 10 ${tc.label.toUpperCase()} CATUR*`,
-            DIVIDER_BORDER,
-            '',
-          ]
-
-          if (topList.length === 0) {
-            lines.push('_Belum ada pemain yang menyelesaikan pertandingan berperingkat._')
-          } else {
-            for (let i = 0; i < topList.length; i++) {
-              const p = topList[i]
-              const tier = getEloTier(p.elo)
-              const wr = p.gamesPlayed > 0 ? Math.round((p.wins / p.gamesPlayed) * 100) : 0
-              lines.push(
-                `${medals[i] ?? `#${i + 1}`} ${userTag(p.userJid)} — *${p.elo} ELO* (${tier.icon} ${tier.title}) • ${p.wins}W/${p.losses}L/${p.draws}D (${wr}%)`,
-              )
-            }
-          }
-          lines.push(DIVIDER_BORDER)
-
-          const caption = lines.join('\n')
-          const mentions = mentionOpts(topList.map((x) => x.userJid))
-          if (ctx.whatsapp.sendMedia) {
-            await ctx.whatsapp.sendMedia(ctx.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(cardPng),
-                mimeType: 'image/png',
-                caption,
-              })
-          } else {
-            await ctx.reply(caption, mentions)
-          }
-        },
+        handler: handleLeaderboardRequest,
       })
 
       // 4. Standalone !elochess [@user] command (Visual 1000x667 AllyChess Profile Card + Official Caption)
@@ -1105,11 +1158,12 @@ export function createChessPlugin(whatsapp: WhatsAppPort, options?: { botDelayMs
           const mentions = mentionOpts([targetJid])
           if (ctx.whatsapp.sendMedia) {
             await ctx.whatsapp.sendMedia(ctx.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(cardPng),
-                mimeType: 'image/png',
-                caption,
-              })
+              kind: 'image',
+              data: new Uint8Array(cardPng),
+              mimeType: 'image/png',
+              caption,
+              mentions: mentions?.mentions,
+            })
           } else {
             await ctx.reply(caption, mentions)
           }

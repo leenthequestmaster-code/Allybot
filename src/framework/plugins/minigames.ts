@@ -131,7 +131,8 @@ export function createMinigamesPlugin(
           `*Panduan Game ${gameLabel} Allybot*`,
           '',
           `• Tantang teman: \`${ctx.prefix}${cmdAlias} @lawan\``,
-          `• Buka lobi grup: \`${ctx.prefix}${cmdAlias} open\` | Gabung: \`${ctx.prefix}${cmdAlias} join\``,
+          `• Konfirmasi tantangan: \`${ctx.prefix}${cmdAlias} acc\` | \`${ctx.prefix}${cmdAlias} decline\``,
+          `• Buka lobi grup: \`${ctx.prefix}${cmdAlias} open\` | Gabung: \`${ctx.prefix}${cmdAlias} acc\``,
           `• Lawan bot: \`${ctx.prefix}${cmdAlias} bot [1-3]\``,
           `• Lihat papan: \`${ctx.prefix}${cmdAlias} board\``,
           `• Batalkan: \`${ctx.prefix}${cmdAlias} cancel\``,
@@ -156,8 +157,8 @@ export function createMinigamesPlugin(
       return;
     }
 
-    // 3. Subcommand: join / terima / gabung
-    if (sub === 'join' || sub === 'terima' || sub === 'gabung') {
+    // 3. Subcommand: acc / accept / join
+    if (sub === 'acc' || sub === 'accept' || sub === 'terima' || sub === 'join' || sub === 'gabung') {
       const res = await svc.acceptChallenge({
         chatJid,
         accepterJid: senderJid,
@@ -165,6 +166,13 @@ export function createMinigamesPlugin(
         whatsapp: activeWhatsapp,
       });
       if (res.ok) await ctx.react('🎮');
+      await dispatchAction(ctx, res, activeWhatsapp);
+      return;
+    }
+
+    // 3b. Subcommand: decline / tolak
+    if (sub === 'decline' || sub === 'tolak' || sub === 'reject') {
+      const res = svc.declineChallenge(chatJid, senderJid);
       await dispatchAction(ctx, res, activeWhatsapp);
       return;
     }
@@ -228,9 +236,14 @@ export function createMinigamesPlugin(
       return;
     }
 
-    // 9. Mention challenge: !c4 @user -> START IMMEDIATELY!
+    // 9. Mention challenge: !c4 @user -> create pending challenge
     const targetRaw = ctx.message.mentionedJids?.[0] || ctx.message.quotedSenderJid;
-    if (sub.startsWith('@') || targetRaw) {
+    if (
+      sub.startsWith('@') ||
+      targetRaw ||
+      (!sub && targetRaw) ||
+      (targetRaw && !['board', 'papan', 'bot', 'open', 'join', 'acc', 'decline', 'cancel', 'remis', 'draw', 'menyerah', 'resign'].includes(sub))
+    ) {
       if (!targetRaw) {
         await ctx.reply(`Tag lawan yang ingin kamu tantang. Contoh: \`${ctx.prefix}${cmdAlias} @lawan\``);
         return;
@@ -240,17 +253,13 @@ export function createMinigamesPlugin(
         await ctx.reply('⚠️ Kamu tidak bisa menantang diri sendiri!');
         return;
       }
-      const opponentName = activeWhatsapp.getDisplayName?.(opponentJid) || 'Player 2';
-      const res = await svc.startDirectMatch({
+      const res = svc.createChallenge({
         chatJid,
         gameType,
-        p1Jid: senderJid,
-        p1Name: senderName,
-        p2Jid: opponentJid,
-        p2Name: opponentName,
-        whatsapp: activeWhatsapp,
+        challengerJid: senderJid,
+        challengerName: senderName,
+        opponentJid,
       });
-      if (res.ok) await ctx.react('🎮');
       await dispatchAction(ctx, res, activeWhatsapp);
       return;
     }

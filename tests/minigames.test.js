@@ -268,6 +268,32 @@ describe('Allybot Minigames Suite — Reworked & Casual Turn-Based Verification'
       assert.equal(resignRes.gameOver, true);
       assert.equal(svc.getActiveSession(chatJid), null);
 
+      // 5. Test decline & anti-spam
+      const chal2 = svc.createChallenge({
+        chatJid: '120363002@g.us',
+        gameType: 'tictactoe',
+        challengerJid: p1,
+        challengerName: 'Budi',
+        opponentJid: p2,
+      });
+      assert.equal(chal2.ok, true);
+      assert.ok(chal2.message.includes('Tantangan Tic-Tac-Toe dikirim'));
+
+      // Anti-spam: P1 cannot create another challenge while pending exists
+      const spamChal = svc.createChallenge({
+        chatJid: '120363003@g.us',
+        gameType: 'checkers',
+        challengerJid: p1,
+        challengerName: 'Budi',
+      });
+      assert.equal(spamChal.ok, false);
+      assert.equal(spamChal.code, 'SPAM_CHALLENGE');
+
+      // P2 declines
+      const declineRes = svc.declineChallenge('120363002@g.us', p2);
+      assert.equal(declineRes.ok, true);
+      assert.equal(declineRes.message, 'Tantangan ditolak.');
+
       await svc.stop();
     });
   });
