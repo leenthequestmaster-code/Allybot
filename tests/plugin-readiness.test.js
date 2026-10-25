@@ -32,6 +32,7 @@ import { createSuggestPlugin } from '../dist/framework/plugins/suggest.js'
 import { createMenfessPlugin } from '../dist/framework/plugins/menfess.js'
 import { createRekapPlugin } from '../dist/framework/plugins/rekap.js'
 import { createChessPlugin } from '../dist/framework/plugins/chess.js'
+import { createMinigamesPlugin } from '../dist/framework/plugins/minigames.js'
 import { reminderPlugin } from '../dist/framework/plugins/reminder.js'
 import { certificatePlugin } from '../dist/framework/plugins/certificate.js'
 import { exifPlugin } from '../dist/framework/plugins/exif.js'
@@ -194,6 +195,7 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(createChessPlugin(whatsapp))
+  framework.registerPlugin(createMinigamesPlugin(whatsapp))
   framework.registerPlugin(reminderPlugin)
   framework.registerPlugin(certificatePlugin)
   framework.registerPlugin(exifPlugin)

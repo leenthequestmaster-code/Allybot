@@ -67,6 +67,8 @@ import { ChatHistoryService } from './services/chat-history-service.js'
 import { createRekapPlugin } from './framework/plugins/rekap.js'
 import { createChessPlugin } from './framework/plugins/chess.js'
 import { ChessService } from './services/chess-service.js'
+import { createMinigamesPlugin } from './framework/plugins/minigames.js'
+import { MinigamesService } from './services/minigames/index.js'
 import { AiMemoryService } from './services/ai-memory-service.js'
 import { AegisQueueService } from './services/aegis-queue/index.js'
 import { ReminderService } from './services/reminder-service.js'
@@ -167,6 +169,7 @@ async function main(): Promise<void> {
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new ChessService(config.DATABASE_PATH, logger))
+  framework.registerService(new MinigamesService({ dbPath: config.DATABASE_PATH, redis }))
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
   framework.registerService(new DownloaderService())
   framework.registerService(new QuotaService(config.DATABASE_PATH, logger, { botOwnerJid: config.BOT_OWNER_JID }))
@@ -212,6 +215,7 @@ async function main(): Promise<void> {
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(createChessPlugin(whatsapp))
+  framework.registerPlugin(createMinigamesPlugin(whatsapp))
   framework.registerPlugin(reminderPlugin)
   framework.registerPlugin(certificatePlugin)
   framework.registerPlugin(exifPlugin)

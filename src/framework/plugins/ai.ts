@@ -609,8 +609,15 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             /[♟♞♝♜♛♚]/u.test(quotedText) ||
             /\b(?:catur|chess|skak|skakmat|giliran jalan|langkah terakhir|game review)\b/i.test(quotedText)
 
+          const isQuotingMinigame =
+            /\b(?:connect 4|tictactoe|tic-tac-toe|dam|checkers|koin|petak|papan)\b/i.test(quotedText)
+
           const chessService = context.services.has('chess')
             ? (context.services.get('chess') as any)
+            : undefined
+
+          const minigamesService = context.services.has('minigames')
+            ? (context.services.get('minigames') as any)
             : undefined
 
           const activeGame = chessService?.getActiveGame?.(message.remoteJid)
@@ -620,7 +627,14 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
             senderJid &&
             (isSameJid(senderJid, activeGame.whiteJid) || isSameJid(senderJid, activeGame.blackJid))
 
-          if (isQuotingChess || isPlayerInActiveGame) {
+          const isMinigameActive = minigamesService?.isMinigameMoveOrReply?.({
+            chatJid: message.remoteJid,
+            senderJid,
+            text: message.text ?? '',
+            quotedMessageId: message.quotedMessageId,
+          })
+
+          if (isQuotingChess || isPlayerInActiveGame || isQuotingMinigame || isMinigameActive) {
             return
           }
         }
