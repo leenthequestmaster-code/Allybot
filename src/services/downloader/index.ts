@@ -22,6 +22,7 @@ import { sfileAdapter } from './adapters/sfile.js'
 import { soundcloudAdapter } from './adapters/soundcloud.js'
 import { videyAdapter } from './adapters/videy.js'
 import { pixeldrainAdapter } from './adapters/pixeldrain.js'
+import { teraboxAdapter } from './adapters/terabox.js'
 
 export { CircuitOpenError } from './circuit.js'
 export type { DownloaderAdapter, ResolveOptions, ResolveResult, MediaItem, SearchResult } from './types.js'
@@ -50,6 +51,7 @@ const adapters: readonly DownloaderAdapter[] = [
   soundcloudAdapter,
   videyAdapter,
   pixeldrainAdapter,
+  teraboxAdapter,
 ] as const
 
 /** Per-adapter circuit breakers */
@@ -72,6 +74,7 @@ const HOSTS: Record<string, readonly string[]> = {
   bilibili: ['bilibili.com', 'bilibili.tv'], rednote: ['xiaohongshu.com', 'xhslink.com', 'xhslink.cn', 'rednote.com'],
   bandcamp: ['bandcamp.com'], mediafire: ['mediafire.com'], sfile: ['sfile.co', 'sfile.mobi'],
   soundcloud: ['soundcloud.com'], videy: ['videy.co'], pixeldrain: ['pixeldrain.com'],
+  terabox: ['terabox.app', 'terabox.com', '1024tera.com', 'freeterabox.com', '4shared.com'],
 }
 function hostMatches(adapter: string, host: string): boolean {
   if (adapter === 'pinterest') return /^(?:[a-z0-9-]+\.)?pinterest\.(?:com|[a-z]{2,3}(?:\.[a-z]{2})?)$/.test(host)
