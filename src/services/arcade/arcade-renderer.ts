@@ -8,6 +8,8 @@ import path from 'node:path';
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import sharp from 'sharp';
+import { Canvas, loadImage, type Image } from 'skia-canvas';
+import type { WhatsAppPort } from '../../framework/contracts.js';
 import type {
   HotPotatoState,
   LmsQuizState,
@@ -776,7 +778,522 @@ export async function renderSpeedMonopolyPng(state: SpeedMonopolyState): Promise
 // GENERIC HIGH-CONTRAST STATUS CARD FOR PARTY / CARD / LUDO GAMES
 // ============================================================================
 
-export async function renderArcadeSummaryCardPng(params: {
+export 
+// ============================================================================
+// CASH & GUNS IMMERSIVE SKIA-CANVAS RENDERER (NATIVE ASSETS + AVATAR PP WA)
+// ============================================================================
+
+const avatarCache = new Map<string, { img: Image | null; expiresAt: number }>();
+
+export async function getPlayerAvatarImage(
+  whatsapp: WhatsAppPort | undefined,
+  jid: string,
+): Promise<Image | null> {
+  if (!jid || jid.startsWith('bot:')) return null;
+  const now = Date.now();
+  const cached = avatarCache.get(jid);
+  if (cached && cached.expiresAt > now) {
+    return cached.img;
+  }
+
+  if (!whatsapp?.getProfilePictureUrl) {
+    avatarCache.set(jid, { img: null, expiresAt: now + 15 * 60 * 1000 });
+    return null;
+  }
+
+  try {
+    const url = await whatsapp.getProfilePictureUrl(jid, 'preview', 3000);
+    if (!url) {
+      avatarCache.set(jid, { img: null, expiresAt: now + 15 * 60 * 1000 });
+      return null;
+    }
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) {
+      avatarCache.set(jid, { img: null, expiresAt: now + 15 * 60 * 1000 });
+      return null;
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    const img = await loadImage(buf);
+    avatarCache.set(jid, { img, expiresAt: now + 30 * 60 * 1000 });
+    return img;
+  } catch {
+    avatarCache.set(jid, { img: null, expiresAt: now + 15 * 60 * 1000 });
+    return null;
+  }
+}
+
+let cachedHeistAssets: {
+  bg: Image;
+  gun: Image;
+  cash: Image;
+  diamond: Image;
+  wound: Image;
+  click: Image;
+  bang: Image;
+} | null = null;
+
+async function loadHeistAssets(): Promise<typeof cachedHeistAssets> {
+  if (cachedHeistAssets) return cachedHeistAssets;
+
+  const baseCandidates = [
+    path.join(process.cwd(), 'assets', 'games', 'cashguns'),
+    path.join(process.cwd(), 'dist', 'assets', 'games', 'cashguns'),
+  ];
+  let assetDir = '';
+  for (const d of baseCandidates) {
+    if (fs.existsSync(path.join(d, 'gun.png'))) {
+      assetDir = d;
+      break;
+    }
+  }
+
+  if (!assetDir) return null;
+
+  try {
+    const [bg, gun, cash, diamond, wound, click, bang] = await Promise.all([
+      loadImage(path.join(assetDir, 'tabletop.jpg')),
+      loadImage(path.join(assetDir, 'gun.png')),
+      loadImage(path.join(assetDir, 'cash.png')),
+      loadImage(path.join(assetDir, 'diamond.png')),
+      loadImage(path.join(assetDir, 'wound_token.png')),
+      loadImage(path.join(assetDir, 'card_click.png')),
+      loadImage(path.join(assetDir, 'card_bang.png')),
+    ]);
+    cachedHeistAssets = { bg, gun, cash, diamond, wound, click, bang };
+    return cachedHeistAssets;
+  } catch {
+    return null;
+  }
+}
+
+export async function renderCashGunsSkiaPng(
+  state: CashGunsState,
+  whatsapp?: WhatsAppPort,
+): Promise<Buffer> {
+  const assets = await loadHeistAssets();
+  if (!assets) {
+    // Fallback to summary card if assets missing
+    return await renderArcadeSummaryCardPng({
+      title: 'CASH & GUNS',
+      subtitle: `Ronde ${state.round}/${state.maxRounds} • Pot $${state.currentLootPot.toLocaleString('en-US')}`,
+      rows: state.players.map((p) => ({
+        left: `${p.name} (Luka: ${p.wounds ?? 0}/3)`,
+        right: p.isEliminated ? 'Gugur' : `$${(p.score ?? 0).toLocaleString('en-US')}`,
+        highlight: !p.isEliminated,
+      })),
+      footer: `Fase: ${state.status.toUpperCase()}`,
+    });
+  }
+
+  const width = 1200;
+  const height = 896;
+  const canvas = new Canvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.drawImage(assets.bg, 0, 0, width, height);
+  const vignette = ctx.createRadialGradient(width / 2, height / 2, 280, width / 2, height / 2, 680);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.6)');
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, width, height);
+
+  // Header Banner
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(40, 22, width - 80, 52, 8);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#eab308';
+  ctx.stroke();
+
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillStyle = '#f8fafc';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText("🔫 CA$H 'N GUNS — MEJA PERAMPOKAN", 65, 48);
+
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.fillText('(Kapasitas: Min 2 — Maks 8 Pemain)', 480, 48);
+
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillStyle = '#facc15';
+  ctx.fillText(`RONDE ${state.round} / ${state.maxRounds} • FASE ${state.status.toUpperCase()}`, width - 65, 48);
+  ctx.restore();
+
+  // Center Loot Vault
+  const cx = width / 2;
+  const cy = height / 2 - 10;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 10;
+  ctx.beginPath();
+  ctx.roundRect(cx - 200, cy - 130, 400, 260, 14);
+  ctx.fillStyle = 'rgba(20, 20, 24, 0.85)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.5)';
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillStyle = '#facc15';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '1.5px';
+  ctx.fillText(`JARAHAN BRANKAS: $${state.currentLootPot.toLocaleString('en-US')}`, cx, cy - 100);
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 6;
+  ctx.drawImage(assets.cash, cx - 145, cy - 85, 220, 220);
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(56, 189, 248, 0.7)';
+  ctx.shadowBlur = 16;
+  ctx.drawImage(assets.diamond, cx + 50, cy - 35, 120, 120);
+  ctx.restore();
+
+  // Helper Heart
+  function drawHeart(hx: number, hy: number, size: number, isAlive = true) {
+    ctx.save();
+    ctx.translate(hx, hy);
+    const s = size / 30;
+    ctx.scale(s, s);
+
+    ctx.beginPath();
+    ctx.moveTo(0, 8);
+    ctx.bezierCurveTo(0, 0, -15, -8, -15, 8);
+    ctx.bezierCurveTo(-15, 18, 0, 26, 0, 32);
+    ctx.bezierCurveTo(0, 26, 15, 18, 15, 8);
+    ctx.bezierCurveTo(15, -8, 0, 0, 0, 8);
+    ctx.closePath();
+
+    if (isAlive) {
+      ctx.fillStyle = '#ef4444';
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.6)';
+      ctx.shadowBlur = 6;
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#27272a';
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = '#52525b';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-4, 4);
+      ctx.lineTo(2, 14);
+      ctx.lineTo(-2, 22);
+      ctx.lineTo(3, 30);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ef4444';
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Helper Avatar with WhatsApp PP support
+  function drawAvatarPP(x: number, y: number, radius: number, name: string, ppImg: Image | null, isGodfather = false) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
+    ctx.fillStyle = isGodfather ? '#f59e0b' : '#38bdf8';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    if (ppImg) {
+      ctx.drawImage(ppImg, x - radius, y - radius, radius * 2, radius * 2);
+    } else {
+      const grad = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
+      grad.addColorStop(0, '#0284c7');
+      grad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+
+      ctx.font = `bold ${Math.round(radius * 0.95)}px sans-serif`;
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(name.slice(0, 1).toUpperCase(), x, y + 2);
+    }
+    ctx.restore();
+
+    if (isGodfather) {
+      ctx.save();
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('👑', x, y - radius - 2);
+      ctx.restore();
+    }
+  }
+
+  // Helper Gun with collinear alignment & grip flip
+  function drawAlignedGunAndLaser(pivotX: number, pivotY: number, targetX: number, targetY: number, isDucking = false) {
+    if (isDucking) {
+      ctx.save();
+      ctx.translate(pivotX, pivotY);
+      ctx.rotate(Math.PI / 2);
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 8;
+      const gW = 105;
+      const scale = gW / 804;
+      ctx.drawImage(assets!.gun, -180 * scale, -108 * scale, gW, 578 * scale);
+      ctx.restore();
+      return;
+    }
+
+    const dx = targetX - pivotX;
+    const dy = targetY - pivotY;
+    const angle = Math.atan2(dy, dx);
+
+    const gW = 125;
+    const scale = gW / 804;
+    const muzzleDist = (804 - 180) * scale;
+    const muzzleWorldX = pivotX + muzzleDist * Math.cos(angle);
+    const muzzleWorldY = pivotY + muzzleDist * Math.sin(angle);
+
+    ctx.save();
+    ctx.setLineDash([8, 6]);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(muzzleWorldX, muzzleWorldY);
+    ctx.lineTo(targetX, targetY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#ef4444';
+    ctx.fill();
+    ctx.restore();
+
+    const isAimingLeft = Math.abs(angle) > Math.PI / 2;
+    ctx.save();
+    ctx.translate(pivotX, pivotY);
+    ctx.rotate(angle);
+    if (isAimingLeft) {
+      ctx.scale(1, -1);
+    }
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 4;
+    ctx.drawImage(assets!.gun, -180 * scale, -108 * scale, gW, 578 * scale);
+    ctx.restore();
+  }
+
+  // Pre-fetch player avatars
+  const avatarImgs = new Map<string, Image | null>();
+  await Promise.all(
+    state.players.map(async (p) => {
+      const img = await getPlayerAvatarImage(whatsapp, p.jid);
+      avatarImgs.set(p.jid, img);
+    }),
+  );
+
+  // 8 Player Positions Map (Clean perimeter)
+  const layout8 = [
+    { x: 50, y: 95, gunPivot: { x: 395, y: 150 }, isLeft: true },
+    { x: 810, y: 95, gunPivot: { x: 775, y: 200 }, isLeft: false },
+    { x: 50, y: 635, gunPivot: { x: 395, y: 690 }, isLeft: true },
+    { x: 810, y: 635, gunPivot: { x: 775, y: 690 }, isLeft: false },
+    { x: 50, y: 275, gunPivot: { x: 395, y: 330 }, isLeft: true },
+    { x: 810, y: 275, gunPivot: { x: 775, y: 330 }, isLeft: false },
+    { x: 50, y: 455, gunPivot: { x: 395, y: 510 }, isLeft: true },
+    { x: 810, y: 455, gunPivot: { x: 775, y: 510 }, isLeft: false },
+  ];
+
+  const cardW = 340;
+  const cardH = 155;
+
+  // Station mapping
+  const activeStations = state.players.map((p, idx) => {
+    const pos = layout8[idx % layout8.length];
+    const isGodfather = p.jid === state.hostJid;
+    const aim = state.pendingAims[p.jid];
+    const stance = state.courageDecisions[p.jid] || 'PENDING';
+    return {
+      player: p,
+      isGodfather,
+      aim,
+      stance,
+      x: pos.x,
+      y: pos.y,
+      gunPivot: pos.gunPivot,
+      avatarPos: { x: pos.x + 46, y: pos.y + 55 },
+    };
+  });
+
+  // Draw Aiming Guns First
+  for (const st of activeStations) {
+    if (st.aim?.targetJid && st.stance !== 'DUCK') {
+      const targetSt = activeStations.find((s) => s.player.jid === st.aim!.targetJid);
+      if (targetSt) {
+        drawAlignedGunAndLaser(st.gunPivot.x, st.gunPivot.y, targetSt.avatarPos.x, targetSt.avatarPos.y, false);
+      }
+    } else {
+      drawAlignedGunAndLaser(st.gunPivot.x, st.gunPivot.y, st.gunPivot.x, st.gunPivot.y, true);
+    }
+  }
+
+  // Draw Station Cards
+  for (const st of activeStations) {
+    const p = st.player;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.55)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 6;
+    ctx.beginPath();
+    ctx.roundRect(st.x, st.y, cardW, cardH, 12);
+    ctx.fillStyle = 'rgba(24, 24, 27, 0.94)';
+    ctx.fill();
+    ctx.lineWidth = st.isGodfather ? 2.5 : 1.5;
+    ctx.strokeStyle = st.isGodfather ? '#facc15' : '#52525b';
+    ctx.stroke();
+    ctx.restore();
+
+    // 1. Avatar PP WA
+    const avImg = avatarImgs.get(p.jid) || null;
+    drawAvatarPP(st.avatarPos.x, st.avatarPos.y, 30, p.name, avImg, st.isGodfather);
+
+    // 2. Info
+    const infoX = st.x + 92;
+    ctx.font = 'bold 17px sans-serif';
+    ctx.fillStyle = st.isGodfather ? '#facc15' : '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.fillText(p.name, infoX, st.y + 32);
+
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = st.isGodfather ? '#fde047' : '#a1a1aa';
+    ctx.fillText(st.isGodfather ? 'THE GODFATHER' : 'PERAMPOK', infoX, st.y + 50);
+
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillStyle = '#4ade80';
+    ctx.fillText(`Loot: $${(p.score ?? 0).toLocaleString('en-US')}`, infoX, st.y + 76);
+
+    // Hearts
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = '#a1a1aa';
+    ctx.fillText('Nyawa:', infoX, st.y + 104);
+    const maxLives = 3;
+    const remainingLives = Math.max(0, maxLives - (p.wounds ?? 0));
+    for (let l = 0; l < maxLives; l++) {
+      const hx = infoX + 54 + l * 25;
+      const hy = st.y + 92;
+      drawHeart(hx, hy, 18, l < remainingLives);
+    }
+
+    // Stance
+    const isStand = st.stance === 'STAND';
+    const isDuck = st.stance === 'DUCK';
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(infoX, st.y + 118, 140, 26, 4);
+    ctx.fillStyle = isStand ? '#14532d' : isDuck ? '#713f12' : '#27272a';
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = isStand ? '#4ade80' : isDuck ? '#facc15' : '#52525b';
+    ctx.stroke();
+
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isStand ? '🛡️ STAND (TAHAN)' : isDuck ? '🪖 DUCK (TIARAP)' : '⏳ MENUNGGU NYALI', infoX + 70, st.y + 131);
+    ctx.restore();
+
+    // 3. Bullet Card Inset Slot
+    const slotX = st.x + cardW - 95;
+    const slotY = st.y + 14;
+    const slotW = 80;
+    const slotH = 126;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(slotX, slotY, slotW, slotH, 6);
+    ctx.fillStyle = '#111318';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#3f3f46';
+    ctx.stroke();
+
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillStyle = '#71717a';
+    ctx.textAlign = 'center';
+    ctx.fillText('AMUNISI', slotX + slotW / 2, slotY + 12);
+
+    const cardPad = 4;
+    const cInX = slotX + cardPad;
+    const cInY = slotY + 18;
+    const cInW = slotW - cardPad * 2;
+    const cInH = slotH - 22;
+
+    const isRevealed = state.status === 'finished' || (state.status as string) === 'resolved';
+
+    if (!isRevealed || !st.aim?.bullet) {
+      ctx.beginPath();
+      ctx.roundRect(cInX, cInY, cInW, cInH, 4);
+      ctx.fillStyle = '#1e1b4b';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#4338ca';
+      ctx.stroke();
+      ctx.font = 'bold 18px sans-serif';
+      ctx.fillStyle = '#818cf8';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🔒', cInX + cInW / 2, cInY + cInH / 2);
+    } else if (st.aim.bullet === 'BANG') {
+      ctx.beginPath();
+      ctx.roundRect(cInX, cInY, cInW, cInH, 4);
+      ctx.clip();
+      ctx.drawImage(assets!.bang, cInX, cInY, cInW, cInH);
+    } else {
+      ctx.beginPath();
+      ctx.roundRect(cInX, cInY, cInW, cInH, 4);
+      ctx.clip();
+      ctx.drawImage(assets!.click, cInX, cInY, cInW, cInH);
+    }
+    ctx.restore();
+  }
+
+  // Bottom Directive
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(40, height - 68, width - 80, 46, 8);
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#ef4444';
+  ctx.stroke();
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillStyle = '#f8fafc';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚡ PILIH NYALI DI GRUP: Ketik !cng stand (tahan) atau !cng duck (tiarap) sebelum waktu habis!', width / 2, height - 45);
+  ctx.restore();
+
+  return await canvas.toBuffer('png');
+}
+
+async function renderArcadeSummaryCardPng(params: {
   title: string;
   subtitle: string;
   rows: Array<{ left: string; right: string; highlight?: boolean }>;
@@ -890,6 +1407,7 @@ export async function renderArcadeSummaryCardPng(params: {
 export async function renderArcadeGameStatePng(
   gameType: string,
   state: unknown,
+  whatsapp?: WhatsAppPort,
 ): Promise<Buffer> {
   switch (gameType) {
     case 'wordle':
@@ -972,16 +1490,7 @@ export async function renderArcadeGameStatePng(
     }
     case 'cash_and_guns': {
       const s = state as CashGunsState;
-      return await renderArcadeSummaryCardPng({
-        title: 'CASH & GUNS',
-        subtitle: `Ronde ${s.round}/${s.maxRounds} • Pot $${s.currentLootPot.toLocaleString('en-US')}`,
-        rows: s.players.map((p) => ({
-          left: `${p.name} (Luka: ${p.wounds ?? 0}/3)`,
-          right: p.isEliminated ? 'Gugur' : `$${(p.score ?? 0).toLocaleString('en-US')}`,
-          highlight: !p.isEliminated,
-        })),
-        footer: `Fase: ${s.status.toUpperCase()} (AIM via DM / COURAGE di Grup)`,
-      });
+      return await renderCashGunsSkiaPng(s, whatsapp);
     }
     case 'ludo': {
       const s = state as LudoState;

@@ -15,6 +15,7 @@ import {
 } from './arcade-engines.js';
 import { renderArcadeGameStatePng } from './arcade-renderer.js';
 import { VelaEscrowManager } from '../games/core/vela-escrow.js';
+import type { WhatsAppPort } from '../../framework/contracts.js';
 
 export interface ActiveArcadeSession {
   readonly gameId: string;
@@ -62,6 +63,7 @@ export class ArcadeService {
   private readonly dbPath: string;
   private readonly enableAutoTimers: boolean;
   private readonly escrowManager?: VelaEscrowManager;
+  public whatsapp?: WhatsAppPort;
   private readonly onTimeoutBroadcast?: (
     groupJid: string,
     output: ArcadeDispatchOutput,
@@ -71,11 +73,13 @@ export class ArcadeService {
     dbPath?: string;
     enableAutoTimers?: boolean;
     escrowManager?: VelaEscrowManager;
+    whatsapp?: WhatsAppPort;
     onTimeoutBroadcast?: (groupJid: string, output: ArcadeDispatchOutput) => Promise<void>;
   }) {
     this.dbPath = options?.dbPath ?? path.join(process.cwd(), 'data', 'allybot-arcade.sqlite');
     this.enableAutoTimers = options?.enableAutoTimers ?? false;
     this.escrowManager = options?.escrowManager;
+    this.whatsapp = options?.whatsapp;
     this.onTimeoutBroadcast = options?.onTimeoutBroadcast;
   }
 
@@ -341,7 +345,7 @@ export class ArcadeService {
 
     const boardPng =
       params.renderPng !== false
-        ? await renderArcadeGameStatePng(params.gameType, initialState)
+        ? await renderArcadeGameStatePng(params.gameType, initialState, this.whatsapp)
         : undefined;
 
     return {
@@ -420,7 +424,7 @@ export class ArcadeService {
 
     const boardPng =
       res.success && params.renderPng !== false
-        ? await renderArcadeGameStatePng(session.gameType, session.state)
+        ? await renderArcadeGameStatePng(session.gameType, session.state, this.whatsapp)
         : undefined;
 
     return {
@@ -508,7 +512,7 @@ export class ArcadeService {
 
     const boardPng =
       res.success && renderPng
-        ? await renderArcadeGameStatePng(session.gameType, session.state)
+        ? await renderArcadeGameStatePng(session.gameType, session.state, this.whatsapp)
         : undefined;
 
     return {

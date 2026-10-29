@@ -172,7 +172,7 @@ async function main(): Promise<void> {
   framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
   framework.registerService(new ChessService(config.DATABASE_PATH, logger))
   framework.registerService(new MinigamesService({ dbPath: config.DATABASE_PATH, redis }))
-  const arcadeService = new ArcadeService({ dbPath: config.DATABASE_PATH, enableAutoTimers: true })
+  const arcadeService = new ArcadeService({ dbPath: config.DATABASE_PATH, enableAutoTimers: true, whatsapp })
   framework.registerService(arcadeService)
   framework.registerService(new WebCompanionService(logger, { whatsapp }))
   framework.registerService(new DownloaderService())

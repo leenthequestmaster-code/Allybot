@@ -1,4 +1,4 @@
-import { mkdirSync, copyFileSync, existsSync } from 'node:fs'
+import { mkdirSync, copyFileSync, cpSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -7,10 +7,10 @@ const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 mkdirSync(resolve(root, 'dist', 'assets'), { recursive: true })
 mkdirSync(resolve(root, 'dist', 'web'), { recursive: true })
 
-const thumbSrc = resolve(root, 'assets', 'allybot-menu-thumbnail.jpg')
-const thumbDst = resolve(root, 'dist', 'assets', 'allybot-menu-thumbnail.jpg')
-if (existsSync(thumbSrc)) {
-  copyFileSync(thumbSrc, thumbDst)
+const assetsSrc = resolve(root, 'assets')
+const assetsDst = resolve(root, 'dist', 'assets')
+if (existsSync(assetsSrc)) {
+  cpSync(assetsSrc, assetsDst, { recursive: true })
 }
 
 const htmlSrc = resolve(root, 'src', 'web', 'index.html')
