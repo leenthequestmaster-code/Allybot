@@ -299,7 +299,7 @@ export class BlackjackEngine implements GameEngine<BlackjackState, BlackjackActi
           ? ` — *${s.outcome.toUpperCase()}* (${s.netDelta >= 0 ? '+' : ''}${s.netDelta})`
           : '';
       lines.push(
-        `${turnArrow}${formatPlayerTag(s.player.jid)}: ${s.cards.map((c) => c.code).join(' ')} = *${h.total}* [Taruhan: ${s.bet}]${outcomeBadge}`,
+        `${turnArrow}${formatPlayerTag(s.player.jid)}: ${s.cards.map((c) => c.code).join(' ')} = *${h.total}* [Poin: ${s.bet}]${outcomeBadge}`,
       );
     }
 
