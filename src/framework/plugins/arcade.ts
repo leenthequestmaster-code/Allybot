@@ -30,6 +30,7 @@ import {
   normalizeWhatsAppUserJid,
 } from '../../services/arcade/arcade-service.js';
 import type { ArcadeGameType } from '../../services/arcade/arcade-engines.js';
+import { renderArcadeGameStatePng } from '../../services/arcade/arcade-renderer.js';
 
 export interface ArcadePluginOptions {
   service?: ArcadeService;
@@ -93,6 +94,180 @@ export function isArcadeMoveOrDm(
   return false;
 }
 
+export const ARCADE_GAME_GUIDES: Record<ArcadeGameType, (prefix: string) => string> = {
+  wordle: (p) => [
+    '🟩 *PANDUAN WORDLE INDONESIA (KBBI)*',
+    '',
+    'Tebak kata rahasia 5 huruf baku dalam 6 kesempatan.',
+    '',
+    '• 🟩 *Hijau* : Huruf tepat pada posisinya',
+    '• 🟨 *Kuning*: Huruf ada di kata tapi posisinya salah',
+    '• ⬛ *Abu*   : Huruf tidak ada di dalam kata',
+    '',
+    '*Perintah:*',
+    `• \`${p}wordle start\` : Mulai permainan kata baru`,
+    `• \`${p}wordle <kata5huruf>\` : Tebak kata (atau ketik langsung 5 huruf)`,
+    `• \`${p}wordle board\` : Tampilkan papan tebakan`,
+    `• \`${p}wordle cancel\` : Batalkan sesi kata`,
+    '',
+    'Contoh: Ketik `!wordle start` lalu ketik `SURGA`',
+  ].join('\n'),
+
+  tarot: (p) => [
+    '🔮 *PANDUAN TAROT READING (78 ARCANA)*',
+    '',
+    'Penarikan kartu Tarot lengkap (22 Major Arcana + 56 Minor Arcana).',
+    'Setiap kartu memiliki interpretasi Tegak (Upright) atau Terbalik (Reversed).',
+    '',
+    '*Pilihan Tebaran (Spread):*',
+    `• \`${p}tarot 1 [pertanyaan]\` : 1 Kartu (Fokus Utama / Insight harian)`,
+    `• \`${p}tarot 3 [pertanyaan]\` : 3 Kartu (Masa Lalu, Sekarang, Masa Depan)`,
+    '',
+    '*Contoh:*',
+    `• \`${p}tarot 1 bagaimana energiku hari ini?\``,
+    `• \`${p}tarot 3 apakah usaha baruku akan lancar?\``,
+  ].join('\n'),
+
+  hot_potato: (p) => [
+    '💣 *PANDUAN HOT POTATO BOM*',
+    '',
+    'Estafet bom berisiko tinggi! Bom memiliki sumbu rahasia acak (30–75 detik).',
+    'Oper bom secepatnya sebelum meledak di tanganmu!',
+    '',
+    '*Alur Permainan:*',
+    `1. Host buka lobi: \`${p}bom start [taruhan_vela]\``,
+    `2. Pemain lain gabung: \`${p}bom join\``,
+    `3. Host mulai: \`${p}bom mulai\``,
+    `4. Pemegang bom oper cepat: \`.pass @target\` (bisa tanpa prefix)`,
+    '',
+    'Pemain yang memegang bom saat meledak langsung tereliminasi!',
+  ].join('\n'),
+
+  lms_quiz: (p) => [
+    '🧠 *PANDUAN LAST MAN STANDING (LMS QUIZ)*',
+    '',
+    'Kuis eliminasi massal bertahan hidup.',
+    'Soal dikirim di grup, semua pemain WAJIB menjawab secara RAHASIA via DM bot!',
+    '',
+    '*Alur Permainan:*',
+    `1. Host buka kuis: \`${p}lms start [taruhan_vela]\``,
+    `2. Pemain lain gabung: \`${p}lms join\``,
+    `3. Host mulai: \`${p}lms mulai\``,
+    `4. Jawab rahasia via DM bot: ketik \`A\`, \`B\`, \`C\`, atau \`D\` di chat pribadi bot`,
+    '',
+    'Pemain yang salah atau tidak menjawab sebelum batas waktu langsung gugur!',
+  ].join('\n'),
+
+  blackjack: (p) => [
+    '🃏 *PANDUAN BLACKJACK 21 (VS DEALER AI)*',
+    '',
+    'Dapatkan nilai kartu sedekat mungkin ke 21 tanpa melebihi (Bust).',
+    'Dealer AI wajib hit sampai minimal 17. Natural Blackjack bayar 3:2!',
+    '',
+    '*Alur Permainan:*',
+    `1. Buka meja: \`${p}bj start [taruhan_vela]\``,
+    `2. Gabung meja: \`${p}bj join\``,
+    `3. Mulai deal: \`${p}bj deal\` (atau \`${p}bj start\`)`,
+    '',
+    '*Aksi Saat Giliranmu:*',
+    `• \`${p}bj hit\` (atau ketik \`hit\`) : Tambah 1 kartu`,
+    `• \`${p}bj stand\` (atau ketik \`stand\`) : Tahan kartu saat ini`,
+    `• \`${p}bj double\` (atau ketik \`double\`) : Gandakan taruhan & ambil 1 kartu terakhir`,
+  ].join('\n'),
+
+  uno: (p) => [
+    '🎴 *PANDUAN KARTU UNO (108 KARTU RESMI)*',
+    '',
+    'Buang kartu yang cocok warna atau angkanya dengan kartu di meja.',
+    'Kartu di tanganmu dikirim secara rahasia via DM oleh bot!',
+    '',
+    '*Kartu Aksi:*',
+    '• *Draw 2* : Lawan berikutnya ambil 2 kartu & giliran dilewati',
+    '• *Skip* : Lewati giliran pemain berikutnya',
+    '• *Reverse* : Balikkan arah putaran giliran',
+    '• *Wild* : Bebas buang & tentukan warna aktif',
+    '• *Wild Draw 4* : Lawan ambil 4 kartu & tentukan warna aktif',
+    '',
+    '*Perintah:*',
+    `• \`${p}uno start [taruhan]\` : Buka meja Uno`,
+    `• \`${p}uno join\` : Ikut bermain`,
+    `• \`${p}uno mulai\` : Mulai bagikan kartu`,
+    `• \`${p}uno play <id_kartu> [warna]\` : Buang kartu (Contoh: \`${p}uno play UNO-5\` atau \`${p}uno play UNO-12 merah\`)`,
+    `• \`${p}uno draw\` : Ambil 1 kartu dari deck`,
+    `• \`${p}uno pass\` : Lewati giliran setelah mengambil kartu`,
+  ].join('\n'),
+
+  cash_and_guns: (p) => [
+    '🔫 *PANDUAN CASH & GUNS (BLUFFING HEIST)*',
+    '',
+    'Game gertakan perampokan & bagi jarahan Vela!',
+    'Setiap pemain dibekali pistol berisi 5 peluru kosong (CLICK) dan 3 peluru asli (BANG).',
+    '',
+    '*Alur Permainan Per Ronde:*',
+    `1. Buka lobi: \`${p}cng start\``,
+    `2. Gabung: \`${p}cng join\` | Mulai: \`${p}cng mulai\``,
+    `3. *Fase Bidik (via DM)*: Ketik \`aim @target click\` atau \`aim @target bang\` di chat pribadi bot`,
+    `4. *Fase Nyali (di grup)*: Pilih \`${p}cng stand\` (bertahan) atau \`${p}cng duck\` (tiarap/menyerah)`,
+    '',
+    'Pemain yang terkena peluru BANG mendapat 1 luka (3 luka = gugur). Yang bertahan membagi jarahan!',
+  ].join('\n'),
+
+  ular_tangga: (p) => [
+    '🎲 *PANDUAN ULAR TANGGA 100 PETAK*',
+    '',
+    'Berlomba mencapai petak 100 dengan lemparan dadu 1–6.',
+    'Petak tangga membawamu naik, petak ular membuatmu merosot.',
+    'Wajib tiba tepat di petak 100 (kelebihan langkah memantul mundur)!',
+    '',
+    '*Perintah:*',
+    `• \`${p}ut start [taruhan]\` : Buka lobi permainan`,
+    `• \`${p}ut join\` : Ikut bermain`,
+    `• \`${p}ut mulai\` : Mulai permainan`,
+    `• \`${p}ut roll\` (atau ketik \`kocok\` / \`roll\`) : Lempar dadu`,
+    `• \`${p}ut board\` : Tampilkan posisi papan saat ini`,
+  ].join('\n'),
+
+  ludo: (p) => [
+    '🔴 *PANDUAN LUDO KLASIK 4 WARNA*',
+    '',
+    'Kelilingi 52 petak jalur utama menuju Jalur Finish (Step 56).',
+    '',
+    '*Aturan Kunci:*',
+    '• Butuh dadu angka 6 untuk mengeluarkan pion dari Base ke jalur utama.',
+    '• Menimpa pion lawan = pion lawan dimakan dan kembali ke Base!',
+    '• Petak berbintang adalah Petak Aman (Safe Tiles, pion kebal).',
+    '• Dadu angka 6 memberikan bonus lemparan 1x lagi.',
+    '',
+    '*Perintah:*',
+    `• \`${p}ludo start [taruhan]\` : Buka meja Ludo`,
+    `• \`${p}ludo join\` : Ikut bermain`,
+    `• \`${p}ludo mulai\` : Mulai permainan`,
+    `• \`${p}ludo roll\` (atau ketik \`kocok\` / \`roll\`) : Lempar dadu`,
+    `• \`${p}ludo pion <1-4>\` : Pilih pion yang akan digerakkan`,
+  ].join('\n'),
+
+  speed_monopoly: (p) => [
+    '🏠 *PANDUAN SPEED MONOPOLY (16 PETAK CEPAT)*',
+    '',
+    'Monopoli cepat 16 petak keliling kota-kota Indonesia. Maksimal 15 putaran!',
+    '',
+    '*Kelompok Properti:*',
+    '• 🟤 Brown : Medan Baru (100) & Malioboro (120)',
+    '• 🔵 Cyan  : Braga (200) & Kuta Bali (220)',
+    '• 🟡 Amber : Simpang Lima (300) & Tunjungan (320)',
+    '• 🟢 Emerald: Sudirman (400) & Thamrin (450)',
+    '',
+    '*Perintah:*',
+    `• \`${p}monopoli start [taruhan]\` : Buka meja Monopoli`,
+    `• \`${p}monopoli join\` : Ikut bermain`,
+    `• \`${p}monopoli mulai\` : Mulai permainan`,
+    `• \`${p}monopoli roll\` (atau ketik \`kocok\` / \`roll\`) : Lempar dadu`,
+    `• \`${p}monopoli buy\` (atau ketik \`beli\`) : Beli tanah yang diinjak`,
+    `• \`${p}monopoli upgrade <petak>\` : Bangun rumah`,
+    `• \`${p}monopoli skip\` : Lewati beli tanah`,
+  ].join('\n'),
+};
+
 export function createArcadePlugin(
   whatsapp: WhatsAppPort,
   options: ArcadePluginOptions = {},
@@ -151,6 +326,7 @@ export function createArcadePlugin(
     }
   };
 
+
   const handleGameCommand = async (
     ctx: CommandContext,
     gameType: ArcadeGameType,
@@ -193,8 +369,87 @@ export function createArcadePlugin(
       return;
     }
 
-    // 3. No active game: Start new game
+    // 3. Bare command (No args) OR Help command
+    if (!sub || sub === 'help' || sub === 'bantuan' || sub === 'panduan') {
+      // If there is an active session for this game, show board/status
+      if (session && session.gameType === gameType) {
+        await ctx.react('🎮');
+        const boardPng = await renderArcadeGameStatePng(session.gameType, session.state);
+        await dispatchOutput(
+          ctx,
+          {
+            handled: true,
+            groupJid: chatJid,
+            gameType: session.gameType,
+            boardPng,
+            result: {
+              success: true,
+              state: session.state,
+              broadcastMessage: `👉 Sesi *${session.gameType}* sedang aktif di grup ini.`,
+            },
+          },
+          activeWhatsapp,
+          chatJid,
+        );
+        return;
+      }
+
+      // No active game: Show curated guide!
+      const guideFn = ARCADE_GAME_GUIDES[gameType];
+      if (guideFn) {
+        await ctx.reply(guideFn(ctx.prefix));
+        return;
+      }
+    }
+
+    // 4. Board / Papan inspection
+    if (sub === 'board' || sub === 'papan' || sub === 'status') {
+      if (!session || session.gameType !== gameType) {
+        await ctx.reply(`⚠️ Tidak ada game *${gameType}* yang sedang aktif di grup ini.`);
+        return;
+      }
+      await ctx.react('🎮');
+      const boardPng = await renderArcadeGameStatePng(session.gameType, session.state);
+      await dispatchOutput(
+        ctx,
+        {
+          handled: true,
+          groupJid: chatJid,
+          gameType: session.gameType,
+          boardPng,
+          result: {
+            success: true,
+            state: session.state,
+            broadcastMessage: `👉 Papan status *${session.gameType}* terkini.`,
+          },
+        },
+        activeWhatsapp,
+        chatJid,
+      );
+      return;
+    }
+
+    // 5. Start new game (explicit triggers)
+    const isStartTrigger =
+      sub === 'start' ||
+      sub === 'mulai' ||
+      sub === 'open' ||
+      sub === 'buka' ||
+      sub === 'deal' ||
+      sub === 'main' ||
+      sub === 'create' ||
+      (gameType === 'tarot' && (sub === '1' || sub === '3' || sub === 'single' || sub === 'three' || sub === 'tarik' || sub === 'draw')) ||
+      (gameType === 'wordle' && /^[a-z]{5}$/i.test(sub));
+
     if (!session) {
+      if (!isStartTrigger) {
+        const guideFn = ARCADE_GAME_GUIDES[gameType];
+        await ctx.reply(
+          `⚠️ Belum ada game *${gameType}* yang aktif di grup ini.\nKetik \`${ctx.prefix}${ctx.commandName} start\` untuk memulai, atau lihat panduan:\n\n${guideFn ? guideFn(ctx.prefix) : ''}`
+        );
+        return;
+      }
+
       // Parse optional wager
       let wagerAmount = 0;
       for (const arg of ctx.args) {
@@ -205,6 +460,14 @@ export function createArcadePlugin(
         }
       }
 
+      // Custom config for Tarot
+      let customConfig: Record<string, unknown> | undefined;
+      if (gameType === 'tarot') {
+        const count = sub === '3' || sub === 'three' ? 3 : 1;
+        const qWords = ctx.args.slice(1).join(' ').trim();
+        customConfig = { count, question: qWords || undefined };
+      }
+
       await ctx.react('🎮');
       const out = await svc.startGame({
         groupJid: chatJid,
@@ -212,13 +475,29 @@ export function createArcadePlugin(
         hostJid: senderJid,
         hostName: senderName,
         wagerAmount,
+        customConfig,
       });
+
+      // If Wordle was started directly with a 5-letter guess word:
+      if (gameType === 'wordle' && /^[a-z]{5}$/i.test(sub) && out.handled && svc.getActiveSession(chatJid)) {
+        await dispatchOutput(ctx, out, activeWhatsapp, chatJid);
+        const guessOut = await svc.dispatchAction({
+          groupJid: chatJid,
+          action: {
+            type: 'GUESS',
+            playerJid: senderJid,
+            payload: { word: sub.toUpperCase(), playerName: senderName },
+          },
+        });
+        await dispatchOutput(ctx, guessOut, activeWhatsapp, chatJid);
+        return;
+      }
 
       await dispatchOutput(ctx, out, activeWhatsapp, chatJid);
       return;
     }
 
-    // 4. Game active: Join or Action
+    // 6. Game active: Join or Action
     if (sub === 'join' || sub === 'ikut') {
       const out = await svc.dispatchAction({
         groupJid: chatJid,
