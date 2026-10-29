@@ -73,28 +73,20 @@ export function isArcadeMoveOrDm(
   const session = service.getActiveSession(msg.remoteJid);
   if (!session) return false;
 
-  if (session.gameType === 'hot_potato' && /^\.pass\b/i.test(text)) {
-    return true;
-  }
   if (session.gameType === 'wordle' && /^[A-Za-z]{5}$/.test(text)) {
     return true;
   }
   if (session.gameType === 'blackjack' && /^(hit|stand|double)$/i.test(text)) {
     return true;
   }
-  if (
-    (session.gameType === 'ular_tangga' ||
-      session.gameType === 'ludo' ||
-      session.gameType === 'speed_monopoly') &&
-    /^(roll|kocok|lempar|buy|beli|skip|lewat)$/i.test(text)
-  ) {
+  if (session.gameType === 'ludo' && /^(roll|kocok|lempar)$/i.test(text)) {
     return true;
   }
 
   return false;
 }
 
-export const ARCADE_GAME_GUIDES: Record<ArcadeGameType, (prefix: string) => string> = {
+export const ARCADE_GAME_GUIDES: Partial<Record<ArcadeGameType, (prefix: string) => string>> = {
   wordle: (p) => [
     '🟩 *WORDLE INDONESIA (KBBI)*',
     '',
@@ -109,33 +101,6 @@ export const ARCADE_GAME_GUIDES: Record<ArcadeGameType, (prefix: string) => stri
     `• \`${p}wordle <kata>\` — Tebak kata (atau ketik langsung 5 huruf)`,
     `• \`${p}wordle board\` — Lihat papan tebakan`,
     `• \`${p}wordle cancel\` — Batalkan sesi`,
-  ].join('\n'),
-
-  tarot: (p) => [
-    '🔮 *TAROT READING (78 ARCANA)*',
-    '',
-    'Penarikan kartu Tarot lengkap (22 Major + 56 Minor Arcana).',
-    '',
-    '*Pilihan Tebaran:*',
-    `• \`${p}tarot 1 [tanya]\` — 1 Kartu (Fokus / Insight harian)`,
-    `• \`${p}tarot 3 [tanya]\` — 3 Kartu (Masa Lalu, Sekarang, Masa Depan)`,
-    '',
-    `Contoh: \`${p}tarot 3 apakah usaha baruku lancar?\``,
-  ].join('\n'),
-
-  hot_potato: (p) => [
-    '💣 *HOT POTATO BOM*',
-    '',
-    'Estafet bom sumbu acak (30–75 detik).',
-    'Oper secepatnya sebelum meledak di tanganmu!',
-    '',
-    '*Cara Main:*',
-    `1. Buka lobi: \`${p}bom start\``,
-    `2. Gabung: \`${p}bom join\``,
-    `3. Mulai: \`${p}bom mulai\``,
-    `4. Oper bom: \`.pass @target\` (langsung di grup)`,
-    '',
-    'Pemegang bom saat meledak langsung gugur.',
   ].join('\n'),
 
   lms_quiz: (p) => [
@@ -196,18 +161,6 @@ export const ARCADE_GAME_GUIDES: Record<ArcadeGameType, (prefix: string) => stri
     'Kena 3 peluru BANG = gugur. Yang bertahan membagi jarahan.',
   ].join('\n'),
 
-  ular_tangga: (p) => [
-    '🎲 *ULAR TANGGA 100 PETAK*',
-    '',
-    'Balapan mencapai petak 100 dengan dadu 1–6.',
-    'Tangga naik, ular turun, tepat di petak 100 (kelebihan memantul mundur).',
-    '',
-    '*Perintah:*',
-    `• \`${p}ut start\` — Buka lobi | \`${p}ut join\` — Gabung | \`${p}ut mulai\` — Mulai`,
-    `• \`${p}ut roll\` (atau ketik \`kocok\` / \`roll\`) — Lempar dadu`,
-    `• \`${p}ut board\` — Lihat papan saat ini`,
-  ].join('\n'),
-
   ludo: (p) => [
     '🔴 *LUDO KLASIK 4 WARNA*',
     '',
@@ -218,20 +171,6 @@ export const ARCADE_GAME_GUIDES: Record<ArcadeGameType, (prefix: string) => stri
     `• \`${p}ludo start\` — Buka meja | \`${p}ludo join\` — Gabung | \`${p}ludo mulai\` — Mulai`,
     `• \`${p}ludo roll\` (atau ketik \`kocok\` / \`roll\`) — Lempar dadu`,
     `• \`${p}ludo pion <1-4>\` — Gerakkan pion`,
-  ].join('\n'),
-
-  speed_monopoly: (p) => [
-    '🏠 *SPEED MONOPOLY (16 PETAK CEPAT)*',
-    '',
-    'Monopoli 16 petak keliling Indonesia. Maksimal 15 putaran.',
-    'Beli tanah, pungut sewa, bangun rumah upgrade.',
-    '',
-    '*Perintah:*',
-    `• \`${p}monopoli start\` — Buka meja | \`${p}monopoli join\` — Gabung | \`${p}monopoli mulai\` — Mulai`,
-    `• \`${p}monopoli roll\` (atau ketik \`kocok\` / \`roll\`) — Lempar dadu`,
-    `• \`${p}monopoli buy\` (atau ketik \`beli\`) — Beli tanah`,
-    `• \`${p}monopoli upgrade <petak>\` — Bangun rumah`,
-    `• \`${p}monopoli skip\` — Lewati beli tanah`,
   ].join('\n'),
 };
 
@@ -507,6 +446,7 @@ export function createArcadePlugin(
       const activeWhatsapp = whatsapp;
 
       // 1. Wordle
+      // 1. Wordle
       context.commands.register({
         name: 'wordle',
         aliases: ['katla'],
@@ -519,124 +459,71 @@ export function createArcadePlugin(
         },
       });
 
-      // 2. Tarot
-      context.commands.register({
-        name: 'tarot',
-        aliases: ['arcana'],
-        description: 'Tarik 1 atau 3 kartu Tarot (78 Arcana) dengan ramalan mendalam',
-        category: 'fun',
-        menuOrder: 21,
-        cooldownMs: 2000,
-        handler: async (ctx: CommandContext) => {
-          await handleGameCommand(ctx, 'tarot', activeWhatsapp);
-        },
-      });
-
-      // 3. Hot Potato Bom
-      context.commands.register({
-        name: 'bom',
-        aliases: ['hotpotato', 'kentang'],
-        description: 'Estafet bom acak 30-75 detik (.pass @target) sebelum meledak',
-        category: 'fun',
-        menuOrder: 22,
-        cooldownMs: 1000,
-        handler: async (ctx: CommandContext) => {
-          await handleGameCommand(ctx, 'hot_potato', activeWhatsapp);
-        },
-      });
-
-      // 4. LMS Quiz
+      // 2. LMS Quiz
       context.commands.register({
         name: 'lms',
         aliases: ['kuislms', 'lastman'],
         description: 'Kuis eliminasi massal: jawab rahasia via DM, yang salah gugur',
         category: 'fun',
-        menuOrder: 23,
+        menuOrder: 21,
         cooldownMs: 1500,
         handler: async (ctx: CommandContext) => {
           await handleGameCommand(ctx, 'lms_quiz', activeWhatsapp);
         },
       });
 
-      // 5. Blackjack
+      // 3. Blackjack
       context.commands.register({
         name: 'blackjack',
         aliases: ['bj', '21'],
         description: 'Mainkan Blackjack 21 kasino vs Dealer AI (hit, stand, double)',
         category: 'fun',
-        menuOrder: 24,
+        menuOrder: 22,
         cooldownMs: 1500,
         handler: async (ctx: CommandContext) => {
           await handleGameCommand(ctx, 'blackjack', activeWhatsapp);
         },
       });
 
-      // 6. Uno
+      // 4. Uno
       context.commands.register({
         name: 'uno',
         aliases: ['kartuuno'],
         description: 'Mainkan Uno 108 kartu resmi (Draw 2, Skip, Reverse, Wild)',
         category: 'fun',
-        menuOrder: 25,
+        menuOrder: 23,
         cooldownMs: 1500,
         handler: async (ctx: CommandContext) => {
           await handleGameCommand(ctx, 'uno', activeWhatsapp);
         },
       });
 
-      // 7. Cash & Guns
+      // 5. Cash & Guns
       context.commands.register({
         name: 'cashguns',
         aliases: ['cng'],
         description: 'Cash & Guns: bidik rahasia via DM, gertak bertahan/menyerah, bagi jarahan',
         category: 'fun',
-        menuOrder: 26,
+        menuOrder: 24,
         cooldownMs: 1500,
         handler: async (ctx: CommandContext) => {
           await handleGameCommand(ctx, 'cash_and_guns', activeWhatsapp);
         },
       });
 
-      // 8. Ular Tangga
-      context.commands.register({
-        name: 'ulartangga',
-        aliases: ['ut', 'snakes'],
-        description: 'Ular Tangga 100 petak klasik (tangga naik, ular turun, tepat 100)',
-        category: 'fun',
-        menuOrder: 27,
-        cooldownMs: 1500,
-        handler: async (ctx: CommandContext) => {
-          await handleGameCommand(ctx, 'ular_tangga', activeWhatsapp);
-        },
-      });
-
-      // 9. Ludo
+      // 6. Ludo
       context.commands.register({
         name: 'ludo',
         aliases: ['ludoking'],
         description: 'Ludo 4 warna (keluar base angka 6, makan pion lawan, jalur finish)',
         category: 'fun',
-        menuOrder: 28,
+        menuOrder: 25,
         cooldownMs: 1500,
         handler: async (ctx: CommandContext) => {
           await handleGameCommand(ctx, 'ludo', activeWhatsapp);
         },
       });
 
-      // 10. Speed Monopoly
-      context.commands.register({
-        name: 'monopoli',
-        aliases: ['monopoly'],
-        description: 'Speed Monopoly 16 petak cepat (beli tanah, sewa, kas, maks 15 ronde)',
-        category: 'fun',
-        menuOrder: 29,
-        cooldownMs: 1500,
-        handler: async (ctx: CommandContext) => {
-          await handleGameCommand(ctx, 'speed_monopoly', activeWhatsapp);
-        },
-      });
-
-      // 11. Arcade Leaderboard
       context.commands.register({
         name: 'arcade',
         aliases: ['arcadelb', 'arcadestats'],

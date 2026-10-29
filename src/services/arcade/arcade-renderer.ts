@@ -1293,6 +1293,709 @@ export async function renderCashGunsSkiaPng(
   return await canvas.toBuffer('png');
 }
 
+
+// ============================================================================
+// BLACKJACK 21 IMMERSIVE SKIA-CANVAS RENDERER (CASINO FELT TABLE)
+// ============================================================================
+
+export async function renderBlackjackSkiaPng(
+  state: BlackjackState,
+  whatsapp?: WhatsAppPort,
+): Promise<Buffer> {
+  const width = 840;
+  const height = 560;
+  const canvas = new Canvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  // Deep matte casino felt green
+  const felt = ctx.createRadialGradient(420, 240, 40, 420, 280, 480);
+  felt.addColorStop(0, '#0e522c');
+  felt.addColorStop(0.7, '#093e20');
+  felt.addColorStop(1, '#052914');
+  ctx.fillStyle = felt;
+  ctx.fillRect(0, 0, width, height);
+
+  // Mahogany wood rail
+  ctx.lineWidth = 14;
+  ctx.strokeStyle = '#1a0d06';
+  ctx.strokeRect(7, 7, width - 14, height - 14);
+
+  // Gold felt line
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+  ctx.strokeRect(20, 20, width - 40, height - 40);
+
+  // Printed felt rules
+  ctx.save();
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '2px';
+  ctx.fillText('BLACKJACK PAYS 3 TO 2', 420, 185);
+  ctx.font = '11px sans-serif';
+  ctx.fillText('Dealer must draw to 16 and stand on all 17s', 420, 205);
+  ctx.restore();
+
+  // Helper Playing Card
+  function drawPlayingCard(x: number, y: number, rank: string, suit: string, isFaceDown = false) {
+    const w = 70;
+    const h = 100;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 3;
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 6);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 6);
+    ctx.clip();
+
+    if (isFaceDown) {
+      ctx.fillStyle = '#991b1b';
+      ctx.fillRect(x, y, w, h);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+      for (let d = -h; d < w + h; d += 8) {
+        ctx.beginPath();
+        ctx.moveTo(x + d, y);
+        ctx.lineTo(x + d - h, y + h);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + d, y);
+        ctx.lineTo(x + d + h, y + h);
+        ctx.stroke();
+      }
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.strokeRect(x + 5, y + 5, w - 10, h - 10);
+      ctx.restore();
+      return;
+    }
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#d1d5db';
+    ctx.stroke();
+
+    const isRed = suit === '♥' || suit === '♦';
+    const color = isRed ? '#b91c1c' : '#111827';
+
+    ctx.fillStyle = color;
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(rank, x + 6, y + 18);
+    ctx.font = '13px sans-serif';
+    ctx.fillText(suit, x + 7, y + 32);
+
+    ctx.font = 'bold 28px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(suit, x + w / 2, y + h / 2 + 10);
+
+    ctx.save();
+    ctx.translate(x + w - 6, y + h - 6);
+    ctx.rotate(Math.PI);
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(rank, 0, 0);
+    ctx.font = '13px sans-serif';
+    ctx.fillText(suit, 1, 14);
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  // Dealer Section
+  ctx.save();
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = '#e5e7eb';
+  ctx.textAlign = 'center';
+  const dealerEval = evaluateBlackjackHand(state.dealerCards);
+  const dealerTotal = state.dealerHoleRevealed ? String(dealerEval.total) : '?';
+  ctx.fillText(`DEALER (Total: ${dealerTotal})`, 420, 50);
+
+  const startDx = 420 - (state.dealerCards.length * 28);
+  for (let i = 0; i < state.dealerCards.length; i++) {
+    const c = state.dealerCards[i];
+    const isHidden = !state.dealerHoleRevealed && i === 1;
+    drawPlayingCard(startDx + i * 36, 62, c.rank, c.suit, isHidden);
+  }
+  ctx.restore();
+
+  // Players Layout (Arc betting circles)
+  const seatCount = state.seats.length;
+  const seatPositions = [
+    { x: 420, y: 390 }, // Center
+    { x: 220, y: 360 }, // Left 1
+    { x: 620, y: 360 }, // Right 1
+    { x: 90,  y: 330 }, // Left 2
+    { x: 750, y: 330 }, // Right 2
+  ];
+
+  for (let idx = 0; idx < seatCount; idx++) {
+    const seat = state.seats[idx];
+    const pos = seatPositions[idx % seatPositions.length];
+    const h = evaluateBlackjackHand(seat.cards);
+    const isCurrent = state.status === 'player_turns' && idx === state.activeSeatIndex;
+
+    // Betting circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 44, 0, Math.PI * 2);
+    ctx.lineWidth = isCurrent ? 3 : 2;
+    ctx.strokeStyle = isCurrent ? '#facc15' : 'rgba(212, 175, 55, 0.5)';
+    ctx.stroke();
+
+    ctx.font = 'bold 11px sans-serif';
+    ctx.fillStyle = isCurrent ? '#facc15' : 'rgba(255, 255, 255, 0.4)';
+    ctx.textAlign = 'center';
+    ctx.fillText(h.isBlackjack ? 'BJ' : String(h.total), pos.x, pos.y + 4);
+    ctx.restore();
+
+    // Cards
+    const startCx = pos.x - 35 - ((seat.cards.length - 1) * 15);
+    for (let cIdx = 0; cIdx < seat.cards.length; cIdx++) {
+      const c = seat.cards[cIdx];
+      drawPlayingCard(startCx + cIdx * 28, pos.y - 70, c.rank, c.suit);
+    }
+
+    // Name & Status
+    ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = isCurrent ? '#facc15' : '#ffffff';
+    ctx.textAlign = 'center';
+    const tag = isCurrent ? `👉 ${seat.player.name}` : seat.player.name;
+    ctx.fillText(tag, pos.x, pos.y + 60);
+
+    const statusBadge =
+      state.status === 'finished'
+        ? seat.outcome.toUpperCase()
+        : seat.status.toUpperCase();
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = seat.outcome === 'win' || seat.outcome === 'blackjack_3_2' ? '#4ade80' : seat.outcome === 'bust' || seat.outcome === 'lose' ? '#f87171' : '#9ca3af';
+    ctx.fillText(`${statusBadge} [Poin: ${seat.bet}]`, pos.x, pos.y + 76);
+  }
+
+  return await canvas.toBuffer('png');
+}
+
+// ============================================================================
+// UNO 108 KARTU IMMERSIVE SKIA-CANVAS RENDERER (OFFICIAL TABLETOPS)
+// ============================================================================
+
+export async function renderUnoSkiaPng(
+  state: UnoState,
+  whatsapp?: WhatsAppPort,
+): Promise<Buffer> {
+  const width = 840;
+  const height = 560;
+  const canvas = new Canvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  // Matte Tabletop
+  ctx.fillStyle = '#1e222b';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#333d4f';
+  ctx.strokeRect(16, 16, width - 32, height - 32);
+
+  const colors: Record<string, string> = {
+    red: '#d7263d',
+    yellow: '#e5a914',
+    green: '#268c5b',
+    blue: '#1d71b8',
+    wild: '#0f172a',
+  };
+
+  function drawUnoCard(x: number, y: number, colorKey: string, value: string, tilt = 0, isFaceDown = false, scale = 1) {
+    const w = 78 * scale;
+    const h = 118 * scale;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(tilt);
+
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 8 * scale;
+    ctx.shadowOffsetY = 4 * scale;
+
+    ctx.beginPath();
+    ctx.roundRect(-w / 2, -h / 2, w, h, 8 * scale);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(tilt);
+    ctx.beginPath();
+    ctx.roundRect(-w / 2, -h / 2, w, h, 8 * scale);
+    ctx.clip();
+
+    if (isFaceDown) {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.save();
+      ctx.rotate(-0.35);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 30 * scale, 18 * scale, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#d7263d';
+      ctx.fill();
+      ctx.font = `italic bold ${15 * scale}px sans-serif`;
+      ctx.fillStyle = '#facc15';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('UNO', 0, 2);
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
+
+    const cHex = colors[colorKey] || '#1d71b8';
+    const m = 5 * scale;
+    ctx.beginPath();
+    ctx.roundRect(-w / 2 + m, -h / 2 + m, w - m * 2, h - m * 2, 6 * scale);
+    ctx.fillStyle = cHex;
+    ctx.fill();
+
+    ctx.save();
+    ctx.rotate(-0.35);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 28 * scale, 18 * scale, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.fillStyle = cHex;
+    ctx.font = `bold ${24 * scale}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(value, 0, 2);
+    ctx.restore();
+
+    ctx.font = `bold ${12 * scale}px sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(value, -w / 2 + 8 * scale, -h / 2 + 8 * scale);
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(value, w / 2 - 8 * scale, h / 2 - 8 * scale);
+
+    ctx.restore();
+  }
+
+  // Draw Pile (Stacked)
+  drawUnoCard(360, 260, 'wild', '', 0.04, true);
+  drawUnoCard(362, 258, 'wild', '', -0.02, true);
+  drawUnoCard(364, 256, 'wild', '', 0, true);
+
+  // Discard Pile (Top card)
+  const top = state.discardPile[state.discardPile.length - 1];
+  if (top) {
+    const valLabel = top.value.startsWith('wild') ? (top.value === 'wild_draw4' ? '+4' : 'W') : top.value.toUpperCase();
+    drawUnoCard(470, 256, top.color, valLabel, -0.08);
+  }
+
+  // Active Table Color Chip
+  ctx.font = 'bold 13px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.textAlign = 'center';
+  ctx.fillText('WARNA MEJA', 470, 350);
+
+  ctx.beginPath();
+  ctx.roundRect(420, 362, 100, 26, 4);
+  ctx.fillStyle = colors[state.activeColor] || '#1d71b8';
+  ctx.fill();
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(state.activeColor.toUpperCase(), 470, 379);
+
+  // Header Bar
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillStyle = '#f8fafc';
+  ctx.textAlign = 'left';
+  ctx.fillText('🎴 UNO 108 KARTU RESMI', 36, 48);
+
+  ctx.font = '13px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.textAlign = 'right';
+  ctx.fillText(`Putaran: ${state.direction === 1 ? '↻ Searah Jarum Jam' : '↺ Berlawanan Arah'}`, 804, 48);
+
+  // Players Around the Table
+  const pCount = state.players.length;
+  const pLayouts = [
+    { x: 300, y: 430, isTurn: 0 },
+    { x: 50,  y: 220, isTurn: 1 },
+    { x: 420, y: 90,  isTurn: 2 },
+    { x: 670, y: 220, isTurn: 3 },
+  ];
+
+  for (let i = 0; i < pCount; i++) {
+    const p = state.players[i];
+    const isTurn = state.status === 'playing' && i === state.currentTurnIndex;
+    const cardCount = (state.hands[p.jid] ?? []).length;
+    const pos = pLayouts[i % pLayouts.length];
+
+    ctx.save();
+    if (i === 0) {
+      // Bottom Player (Host / First viewer)
+      ctx.beginPath();
+      ctx.roundRect(pos.x, pos.y, 240, 80, 8);
+      ctx.fillStyle = '#0f172a';
+      ctx.fill();
+      ctx.lineWidth = isTurn ? 2 : 1;
+      ctx.strokeStyle = isTurn ? '#38bdf8' : '#334155';
+      ctx.stroke();
+
+      ctx.font = 'bold 14px sans-serif';
+      ctx.fillStyle = isTurn ? '#38bdf8' : '#ffffff';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${isTurn ? '👉 ' : ''}${p.name}`, pos.x + 18, pos.y + 28);
+
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(`${cardCount} Kartu di tangan (Cek DM)`, pos.x + 18, pos.y + 54);
+    } else {
+      ctx.font = isTurn ? 'bold 14px sans-serif' : '13px sans-serif';
+      ctx.fillStyle = isTurn ? '#38bdf8' : '#e2e8f0';
+      ctx.textAlign = i === 2 ? 'center' : i === 1 ? 'left' : 'left';
+      ctx.fillText(`${isTurn ? '👉 ' : ''}${p.name} (${cardCount} kartu${cardCount === 1 ? ' • UNO!' : ''})`, pos.x, pos.y);
+    }
+    ctx.restore();
+  }
+
+  return await canvas.toBuffer('png');
+}
+
+// ============================================================================
+// LAST MAN STANDING (LMS QUIZ) IMMERSIVE SKIA-CANVAS RENDERER
+// ============================================================================
+
+export async function renderLmsQuizSkiaPng(
+  state: LmsQuizState,
+  whatsapp?: WhatsAppPort,
+): Promise<Buffer> {
+  const width = 840;
+  const height = 560;
+  const canvas = new Canvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  // Deep matte ink background
+  ctx.fillStyle = '#0c1017';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#1e293b';
+  ctx.strokeRect(16, 16, width - 32, height - 32);
+
+  // Header Bar
+  ctx.font = 'bold 12px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.letterSpacing = '1.5px';
+  ctx.textAlign = 'left';
+  ctx.fillText('LAST MAN STANDING QUIZ', 40, 48);
+
+  const aliveCount = state.players.filter((p) => !p.isEliminated).length;
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#f59e0b';
+  ctx.fillText(`RONDE ${state.round} • ${aliveCount} PESERTA TERSISA`, 800, 48);
+
+  const q = state.currentQuestion;
+
+  // Question Card
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(40, 70, 760, 140, 8);
+  ctx.fillStyle = '#161e2e';
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#283548';
+  ctx.stroke();
+
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillStyle = '#38bdf8';
+  ctx.textAlign = 'left';
+  ctx.fillText(`KATEGORI: ${(q?.category ?? 'UMUM').toUpperCase()}`, 65, 102);
+
+  ctx.font = 'bold 17px sans-serif';
+  ctx.fillStyle = '#f8fafc';
+  const promptText = q ? q.prompt : 'Menunggu pertanyaan ronde berikutnya...';
+  // Break prompt text if long
+  if (promptText.length > 60) {
+    ctx.fillText(promptText.slice(0, 58) + '...', 65, 136);
+    ctx.fillText(promptText.slice(58, 120), 65, 164);
+  } else {
+    ctx.fillText(promptText, 65, 145);
+  }
+  ctx.restore();
+
+  // 4 Option Blocks (2x2 Grid)
+  const options = q
+    ? [
+        { key: 'A', text: q.options.A, x: 40, y: 230 },
+        { key: 'B', text: q.options.B, x: 430, y: 230 },
+        { key: 'C', text: q.options.C, x: 40, y: 310 },
+        { key: 'D', text: q.options.D, x: 430, y: 310 },
+      ]
+    : [];
+
+  for (const opt of options) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(opt.x, opt.y, 370, 64, 6);
+    ctx.fillStyle = '#161e2e';
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#283548';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.roundRect(opt.x + 14, opt.y + 14, 36, 36, 4);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#38bdf8';
+    ctx.stroke();
+
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(opt.key, opt.x + 32, opt.y + 32);
+
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillStyle = '#f1f5f9';
+    ctx.textAlign = 'left';
+    ctx.fillText(opt.text.slice(0, 36), opt.x + 64, opt.y + 32);
+    ctx.restore();
+  }
+
+  // Participant Survival Tray (Bottom)
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(40, 395, 760, 80, 8);
+  ctx.fillStyle = '#111827';
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#1f2937';
+  ctx.stroke();
+
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'left';
+  ctx.fillText('STATUS PESERTA:', 60, 420);
+
+  let pX = 60;
+  for (const p of state.players.slice(0, 4)) {
+    const isAnswered = state.secretAnswers[p.jid] !== undefined;
+    const statusText = p.isEliminated ? 'Gugur' : isAnswered ? 'Terkunci' : 'Menunggu';
+    const colorHex = p.isEliminated ? '#ef4444' : isAnswered ? '#22c55e' : '#f59e0b';
+
+    ctx.font = p.isEliminated ? '13px sans-serif' : 'bold 13px sans-serif';
+    ctx.fillStyle = p.isEliminated ? '#6b7280' : '#e5e7eb';
+    ctx.fillText(p.name, pX, 448);
+
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = colorHex;
+    ctx.fillText(statusText, pX, 464);
+
+    pX += 175;
+  }
+  ctx.restore();
+
+  // Clean Footer
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#94a3b8';
+  ctx.textAlign = 'center';
+  ctx.fillText('🔒 JAWAB RAHASIA VIA DM BOT: Ketik A, B, C, atau D di chat pribadi bot!', 420, 510);
+
+  return await canvas.toBuffer('png');
+}
+
+// ============================================================================
+// LUDO 4 WARNA IMMERSIVE SKIA-CANVAS RENDERER (15x15 GEOMETRIC BOARD)
+// ============================================================================
+
+export async function renderLudoSkiaPng(
+  state: LudoState,
+  whatsapp?: WhatsAppPort,
+): Promise<Buffer> {
+  const width = 660;
+  const height = 660;
+  const canvas = new Canvas(width, height);
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(0, 0, width, height);
+
+  const ox = 30;
+  const oy = 30;
+  const cellSize = 40;
+  const boardSize = 600;
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(ox, oy, boardSize, boardSize);
+
+  const colors: Record<string, string> = {
+    RED: '#dc2626',
+    GREEN: '#16a34a',
+    YELLOW: '#eab308',
+    BLUE: '#2563eb',
+  };
+
+  function drawBase(gx: number, gy: number, colorHex: string) {
+    const bx = ox + gx * cellSize;
+    const by = oy + gy * cellSize;
+    const bw = 6 * cellSize;
+    ctx.fillStyle = colorHex;
+    ctx.fillRect(bx, by, bw, bw);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(bx + cellSize, by + cellSize, 4 * cellSize, 4 * cellSize);
+
+    const coords = [
+      [bx + 2 * cellSize, by + 2 * cellSize],
+      [bx + 4 * cellSize, by + 2 * cellSize],
+      [bx + 2 * cellSize, by + 4 * cellSize],
+      [bx + 4 * cellSize, by + 4 * cellSize],
+    ];
+    for (const [cx, cy] of coords) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+      ctx.fillStyle = colorHex;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+    }
+  }
+
+  drawBase(0, 0, colors.RED);
+  drawBase(9, 0, colors.GREEN);
+  drawBase(0, 9, colors.BLUE);
+  drawBase(9, 9, colors.YELLOW);
+
+  // Track Grid Lines
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#cbd5e1';
+  for (let r = 0; r <= 15; r++) {
+    ctx.beginPath();
+    ctx.moveTo(ox, oy + r * cellSize);
+    ctx.lineTo(ox + boardSize, oy + r * cellSize);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(ox + r * cellSize, oy);
+    ctx.lineTo(ox + r * cellSize, oy + boardSize);
+    ctx.stroke();
+  }
+
+  // Colored Home Stretches
+  ctx.fillStyle = colors.RED;
+  for (let c = 1; c <= 5; c++) ctx.fillRect(ox + c * cellSize, oy + 7 * cellSize, cellSize, cellSize);
+  ctx.fillRect(ox + cellSize, oy + 6 * cellSize, cellSize, cellSize);
+
+  ctx.fillStyle = colors.GREEN;
+  for (let r = 1; r <= 5; r++) ctx.fillRect(ox + 7 * cellSize, oy + r * cellSize, cellSize, cellSize);
+  ctx.fillRect(ox + 8 * cellSize, oy + cellSize, cellSize, cellSize);
+
+  ctx.fillStyle = colors.YELLOW;
+  for (let c = 9; c <= 13; c++) ctx.fillRect(ox + c * cellSize, oy + 7 * cellSize, cellSize, cellSize);
+  ctx.fillRect(ox + 13 * cellSize, oy + 8 * cellSize, cellSize, cellSize);
+
+  ctx.fillStyle = colors.BLUE;
+  for (let r = 9; r <= 13; r++) ctx.fillRect(ox + 7 * cellSize, oy + r * cellSize, cellSize, cellSize);
+  ctx.fillRect(ox + 6 * cellSize, oy + 13 * cellSize, cellSize, cellSize);
+
+  // Center Finish Triangles
+  const cx = ox + 7.5 * cellSize;
+  const cy = oy + 7.5 * cellSize;
+
+  ctx.beginPath();
+  ctx.moveTo(ox + 6 * cellSize, oy + 6 * cellSize);
+  ctx.lineTo(cx, cy);
+  ctx.lineTo(ox + 6 * cellSize, oy + 9 * cellSize);
+  ctx.fillStyle = colors.RED;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(ox + 6 * cellSize, oy + 6 * cellSize);
+  ctx.lineTo(cx, cy);
+  ctx.lineTo(ox + 9 * cellSize, oy + 6 * cellSize);
+  ctx.fillStyle = colors.GREEN;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(ox + 9 * cellSize, oy + 6 * cellSize);
+  ctx.lineTo(cx, cy);
+  ctx.lineTo(ox + 9 * cellSize, oy + 9 * cellSize);
+  ctx.fillStyle = colors.YELLOW;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(ox + 6 * cellSize, oy + 9 * cellSize);
+  ctx.lineTo(cx, cy);
+  ctx.lineTo(ox + 9 * cellSize, oy + 9 * cellSize);
+  ctx.fillStyle = colors.BLUE;
+  ctx.fill();
+
+  // Safe Stars
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillStyle = '#64748b';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const stars = [
+    [1, 6], [2, 8], [6, 1], [6, 12], [8, 2], [8, 13], [12, 6], [13, 8]
+  ];
+  for (const [c, r] of stars) {
+    ctx.fillText('★', ox + (c + 0.5) * cellSize, oy + (r + 0.5) * cellSize);
+  }
+
+  // Draw Pawns
+  function drawPawn(gx: number, gy: number, colorHex: string, label: string) {
+    const px = ox + (gx + 0.5) * cellSize;
+    const py = oy + (gy + 0.5) * cellSize;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 3;
+
+    ctx.beginPath();
+    ctx.arc(px, py, 15, 0, Math.PI * 2);
+    ctx.fillStyle = colorHex;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(label, px, py);
+    ctx.restore();
+  }
+
+  // Draw active player pawns
+  const startPawnCoords: Record<string, [number, number]> = {
+    RED: [1, 6],
+    GREEN: [8, 1],
+    YELLOW: [13, 8],
+    BLUE: [6, 13],
+  };
+
+  for (const p of state.players) {
+    const cKey = state.playerColors[p.jid] || 'RED';
+    const hex = colors[cKey] || '#dc2626';
+    const coords = startPawnCoords[cKey] || [1, 6];
+    drawPawn(coords[0], coords[1], hex, p.name.slice(0, 2).toUpperCase());
+  }
+
+  return await canvas.toBuffer('png');
+}
+
 async function renderArcadeSummaryCardPng(params: {
   title: string;
   subtitle: string;
@@ -1460,56 +2163,23 @@ export async function renderArcadeGameStatePng(
     }
     case 'blackjack': {
       const s = state as BlackjackState;
-      const dTotal = s.dealerHoleRevealed
-        ? String(evaluateBlackjackHand(s.dealerCards).total)
-        : '?';
-      return await renderArcadeSummaryCardPng({
-        title: 'BLACKJACK 21',
-        subtitle: `Bandar: ${s.dealerHoleRevealed ? s.dealerCards.map((c) => c.code).join(' ') : `${s.dealerCards[0]?.code ?? ''} [?]`} (${dTotal})`,
-        rows: s.seats.map((seat, idx) => ({
-          left: `${seat.player.name}: ${seat.cards.map((c) => c.code).join(' ')}`,
-          right: `${evaluateBlackjackHand(seat.cards).total} • ${seat.status.toUpperCase()}`,
-          highlight: s.status === 'player_turns' && idx === s.activeSeatIndex,
-        })),
-        footer: 'Aksi: hit | stand | double (Payout Blackjack 3:2)',
-      });
+      return await renderBlackjackSkiaPng(s, whatsapp);
     }
     case 'uno': {
       const s = state as UnoState;
-      const top = s.discardPile[s.discardPile.length - 1];
-      return await renderArcadeSummaryCardPng({
-        title: 'UNO 108 KARTU',
-        subtitle: `Atas: [${top?.label ?? '-'}] • ${s.activeColor.toUpperCase()}`,
-        rows: s.players.map((p, idx) => ({
-          left: p.name,
-          right: `${(s.hands[p.jid] ?? []).length} Kartu`,
-          highlight: s.status === 'playing' && idx === s.currentTurnIndex,
-        })),
-        footer: `Arah: ${s.direction === 1 ? 'Searah Jarum Jam' : 'Berlawanan Arah'}`,
-      });
+      return await renderUnoSkiaPng(s, whatsapp);
     }
     case 'cash_and_guns': {
       const s = state as CashGunsState;
       return await renderCashGunsSkiaPng(s, whatsapp);
     }
+    case 'lms_quiz': {
+      const s = state as LmsQuizState;
+      return await renderLmsQuizSkiaPng(s, whatsapp);
+    }
     case 'ludo': {
       const s = state as LudoState;
-      return await renderArcadeSummaryCardPng({
-        title: 'LUDO 4 WARNA',
-        subtitle: `Status: ${s.status.toUpperCase()}`,
-        rows: s.players.map((p, idx) => {
-          const toks = s.tokens[p.jid] ?? [];
-          const summary = toks
-            .map((t) => (t.step === -1 ? 'Base' : t.step === 56 ? 'FIN' : `S${t.step}`))
-            .join('/');
-          return {
-            left: `${p.name} (${s.playerColors[p.jid]})`,
-            right: summary,
-            highlight: s.status === 'playing' && idx === s.currentTurnIndex,
-          };
-        }),
-        footer: 'Lempar dadu 6 untuk keluar Base & makan pion lawan!',
-      });
+      return await renderLudoSkiaPng(s, whatsapp);
     }
     default:
       return await renderArcadeSummaryCardPng({
