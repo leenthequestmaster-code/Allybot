@@ -16,9 +16,9 @@ const referenceKey = 'a'.repeat(64)
 const body = `Name: Aruna
 Gender: Female
 Age: 24
-Birthday: 12 Zephyra 776 KAR
+Birthday: 12 Akmesya 454 Sesterre
 Race: Human
-Class: Knight
+Class: Warrior
 Element: Fire
 Will Of Path: Neutral`
 

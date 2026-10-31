@@ -350,10 +350,12 @@ function buildStatsCardSvg(data: StatusCardPayload): string {
   )
 
   const stats = (data.stats ?? {}) as Record<string, any>
-  const hp = Number(stats.hp ?? 800)
-  const maxHp = Number(stats.maxHp ?? 800)
-  const se = Number(stats.se ?? 200)
-  const maxSe = Number(stats.maxSe ?? 200)
+  const hp = Number(stats.hp ?? 10_000)
+  const maxHp = Number(stats.maxHp ?? 10_000)
+  const isAdeon = stats.cc > 0 || stats.gc === 0
+  const energyLabel = isAdeon ? 'CC (CORE CAPACITY)' : 'GC (GATE CAPACITY)'
+  const energyVal = Number(isAdeon ? (stats.cc ?? stats.se ?? 1_000) : (stats.gc ?? 100))
+  const energyMax = Number(isAdeon ? (stats.maxCc ?? stats.maxSe ?? 1_000) : (stats.maxGc ?? 100))
 
   const [gx1, gy1, gx2, gy2] = [60, 205, W - 60, 375]
   const barFullW = gx2 - gx1 - 48
@@ -361,13 +363,13 @@ function buildStatsCardSvg(data: StatusCardPayload): string {
   out.push(
     `<rect x="${gx1}" y="${gy1}" width="${gx2 - gx1}" height="${gy2 - gy1}" rx="10" fill="rgb(11,16,28)" stroke="rgb(30,41,59)" stroke-width="1" />`,
     drawHudCornersSvg([gx1, gy1, gx2, gy2], 16, [0, 229, 255], 2),
-    `<text x="${gx1 + 24}" y="${gy1 + 33}" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="15" fill="rgb(0,229,255)">VITALITAS BINTANG (CORE GAUGES)</text>`,
+    `<text x="${gx1 + 24}" y="${gy1 + 33}" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="15" fill="rgb(0,229,255)">VITALITAS BINTANG (VITAL GAUGES)</text>`,
     `<text x="${gx1 + 24}" y="${gy1 + 64}" font-family="DejaVu Sans Mono, Inter, monospace" font-weight="700" font-size="14" fill="rgb(255,75,120)">HP (HEALTH POINTS)</text>`,
     `<text x="${gx2 - 24}" y="${gy1 + 66}" text-anchor="end" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="16" fill="rgb(248,250,252)">${esc(`${hp} / ${maxHp}`)}</text>`,
     drawSegmentedBarSvg(gx1 + 24, gy1 + 74, barFullW, 20, hp, maxHp, [255, 42, 95], [40, 16, 28]),
-    `<text x="${gx1 + 24}" y="${gy1 + 120}" font-family="DejaVu Sans Mono, Inter, monospace" font-weight="700" font-size="14" fill="rgb(0,220,255)">SE (SPIRIT ENERGY)</text>`,
-    `<text x="${gx2 - 24}" y="${gy1 + 122}" text-anchor="end" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="16" fill="rgb(248,250,252)">${esc(`${se} / ${maxSe}`)}</text>`,
-    drawSegmentedBarSvg(gx1 + 24, gy1 + 130, barFullW, 20, se, maxSe, [0, 210, 255], [14, 30, 50]),
+    `<text x="${gx1 + 24}" y="${gy1 + 120}" font-family="DejaVu Sans Mono, Inter, monospace" font-weight="700" font-size="14" fill="rgb(0,220,255)">${esc(energyLabel)}</text>`,
+    `<text x="${gx2 - 24}" y="${gy1 + 122}" text-anchor="end" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="16" fill="rgb(248,250,252)">${esc(`${energyVal} / ${energyMax}`)}</text>`,
+    drawSegmentedBarSvg(gx1 + 24, gy1 + 130, barFullW, 20, energyVal, energyMax, [0, 210, 255], [14, 30, 50]),
   )
 
   // 8-Card Symmetrical Combat Attribute Matrix (2 cols x 4 rows)
@@ -375,28 +377,27 @@ function buildStatsCardSvg(data: StatusCardPayload): string {
   out.push(
     `<rect x="${mx1}" y="${my1}" width="${mx2 - mx1}" height="${my2 - my1}" rx="10" fill="rgb(11,16,28)" stroke="rgb(30,41,59)" stroke-width="1" />`,
     drawHudCornersSvg([mx1, my1, mx2, my2], 16, [56, 189, 248], 2),
-    `<text x="${mx1 + 24}" y="${my1 + 33}" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="15" fill="rgb(0,229,255)">MATRIKS ATRIBUT TEMPUR (7 PILAR)</text>`,
+    `<text x="${mx1 + 24}" y="${my1 + 33}" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="15" fill="rgb(0,229,255)">MATRIKS ATRIBUT TEMPUR (6 PILAR & STATUS)</text>`,
   )
 
   const allocMap = (stats.allocatedTokens ?? {}) as Record<string, number>
-  const strVal = Number(stats.str ?? 10)
-  const defVal = Number(stats.def ?? 10)
-  const mpVal = Number(stats.mp ?? 10)
-  const resVal = Number(stats.res ?? 10)
-  const spdVal = Number(stats.spd ?? 10)
-  const intVal = Number(stats.int ?? 10)
-  const lckVal = Number(stats.lck ?? 10)
-  const totalStats = strVal + defVal + mpVal + resVal + spdVal + intVal + lckVal
+  const strVal = Number(stats.str ?? 100)
+  const apVal = Number(stats.ap ?? stats.mp ?? 100)
+  const defVal = Number(stats.def ?? 100)
+  const resVal = Number(stats.res ?? 100)
+  const agiVal = Number(stats.agi ?? stats.spd ?? 100)
+  const intVal = Number(stats.int ?? 100)
+  const totalStats = strVal + apVal + defVal + resVal + agiVal + intVal
 
   const attrList: Array<[string, string, string, number, number, readonly [number, number, number]]> = [
     ['STR', 'STRENGTH', 'Fisik / Daya Rusak', strVal, Number(allocMap.str ?? 0), [0, 229, 255]],
-    ['DEF', 'DEFENSE', 'Ketahanan / Armor', defVal, Number(allocMap.def ?? 0), [0, 229, 255]],
-    ['MP', 'MAGIC POWER', 'Kapasitas / Daya Sihir', mpVal, Number(allocMap.mp ?? 0), [0, 229, 255]],
-    ['RES', 'RESISTANCE', 'Resistensi Elemen', resVal, Number(allocMap.res ?? 0), [0, 229, 255]],
-    ['SPD', 'SPEED / AGILITY', 'Kelincahan / Refleks', spdVal, Number(allocMap.spd ?? 0), [0, 229, 255]],
-    ['INT', 'INTELLIGENCE', 'Akurasi / Wawasan', intVal, Number(allocMap.int ?? 0), [0, 229, 255]],
-    ['LCK', 'LUCK / FORTUNE', 'Keberuntungan / Fatalitas', lckVal, Number(allocMap.lck ?? 0), [0, 229, 255]],
-    ['TOT', 'TOTAL ATRIBUT', 'Akumulasi Poin Stat', totalStats, 0, [234, 179, 8]],
+    ['AP', 'ASTRESENCE POWER', 'Daya Mantra / Elemen / Heal', apVal, Number(allocMap.ap ?? allocMap.mp ?? 0), [0, 229, 255]],
+    ['DEF', 'DEFENSE', 'Ketahanan Fisik / Zirah', defVal, Number(allocMap.def ?? 0), [0, 229, 255]],
+    ['RES', 'RESISTANCE', 'Resistensi Elemen & Eterik', resVal, Number(allocMap.res ?? 0), [0, 229, 255]],
+    ['AGI', 'AGILITY', 'Kelincahan / Kecepatan Reaksi', agiVal, Number(allocMap.agi ?? allocMap.spd ?? 0), [0, 229, 255]],
+    ['INT', 'INTELLIGENCE', 'Akurasi / Analisis Taktik', intVal, Number(allocMap.int ?? 0), [0, 229, 255]],
+    ['CLS', 'CLASS SPECIALIST', stats.classBonusText || 'Role Bonus +50', 50, 0, [56, 189, 248]],
+    ['TOT', 'TOTAL ATRIBUT', 'Akumulasi Poin Stat Murni', totalStats, 0, [234, 179, 8]],
   ]
 
   const cardW = 385

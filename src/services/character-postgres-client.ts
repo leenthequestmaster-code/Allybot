@@ -50,7 +50,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           crew TEXT,
           will_of_path TEXT NOT NULL,
           profession TEXT,
-          titles JSONB NOT NULL DEFAULT '["Allyssea Citizens"]'::jsonb,
+          titles JSONB NOT NULL DEFAULT '["Commoners"]'::jsonb,
           motto TEXT,
           visual TEXT,
           origin TEXT,
@@ -93,7 +93,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
   ensureSchema().catch(() => {})
 
   function mapCharacterRow(row: Record<string, any>) {
-    let titles: string[] = ['Allyssea Citizens']
+    let titles: string[] = ['Commoners']
     if (Array.isArray(row.titles)) {
       titles = row.titles
     } else if (typeof row.titles === 'string') {
@@ -232,8 +232,8 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         const gender = String(payload.gender ?? '')
         const age = Number(payload.age ?? 0)
         const birthdayDay = Number(payload.birthday_day ?? 1)
-        const birthdayMonth = String(payload.birthday_month ?? 'Zephyra')
-        const birthdayYear = Number(payload.birthday_year ?? 776)
+        const birthdayMonth = String(payload.birthday_month ?? 'Akmesya')
+        const birthdayYear = Number(payload.birthday_year ?? 454)
         const race = String(payload.race ?? '')
         const className = String(payload.class_name ?? '')
         const element = String(payload.element ?? '')
@@ -250,12 +250,14 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
             character_id, guide_key, owner_key, registration_session_id,
             name, gender, age, birthday_day, birthday_month, birthday_year,
             race, class_name, element, spirit, crew, will_of_path,
-            profession, motto, visual, origin, rank, level, status, revision
+            profession, motto, visual, origin, rank, level, status, revision,
+            titles
           ) VALUES (
             ${characterId}, ${guideKey}, ${ownerKey}, ${sessionId || null},
             ${name}, ${gender}, ${age}, ${birthdayDay}, ${birthdayMonth}, ${birthdayYear},
             ${race}, ${className}, ${element}, ${spirit}, ${crew}, ${willOfPath},
-            ${profession}, ${motto}, ${visual}, ${origin}, 'F-', 1, 'active', 1
+            ${profession}, ${motto}, ${visual}, ${origin}, 'F-', 1, 'active', 1,
+            ${sql.json(['Commoners'])}
           )
         `
 
@@ -494,7 +496,7 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
         const statKey = String(args.p_stat_key ?? '').toLowerCase()
         const amount = Number(args.p_amount ?? 1)
 
-        const validKeys = ['hp', 'se', 'str', 'def', 'mp', 'res', 'spd', 'int', 'lck']
+        const validKeys = ['hp', 'cc', 'gc', 'str', 'ap', 'def', 'res', 'agi', 'int', 'se', 'mp', 'spd', 'lck']
         if (!validKeys.includes(statKey) || amount <= 0 || !Number.isInteger(amount) || amount > 100) {
           return { data: { ok: false, error: 'Kunci stat atau jumlah alokasi tidak valid (1-100).' }, error: null }
         }
@@ -513,7 +515,8 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
           const row = rows[0]
           const level = Number(row.level ?? 1)
           const bonusTokens = Math.max(0, Number(row.bonus_tokens ?? 0))
-          const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 + bonusTokens
+          // Baseline Level 1: 25 tokens. 4 tokens per level above 1.
+          const totalTokensEarned = 25 + (Math.max(1, level) - 1) * 4 + bonusTokens
           const currentAlloc: Record<string, number> = parseAllocatedStats(row.allocated_stats)
 
           const currentUsed = validKeys.reduce((sum, k) => sum + (Number(currentAlloc[k]) || 0), 0)
@@ -542,6 +545,58 @@ export function createPostgresCharacterClient(options: CharacterPostgresClientOp
             try { await redis.cacheDelete('character:active', ownerKey) } catch {}
           }
           return res
+        })
+      }
+
+      if (functionName === 'character_verify_citizen') {
+        const guideKey = String(args.p_guide_key ?? '')
+        const ownerKey = String(args.p_owner_key ?? '')
+
+        return await sql.begin(async (tx) => {
+          const rows = await tx`
+            SELECT character_id, name, titles FROM character_profiles
+            WHERE guide_key = ${guideKey} AND owner_key = ${ownerKey} AND status = 'active'
+            LIMIT 1
+            FOR UPDATE
+          `
+          if (rows.length === 0) {
+            return { data: { ok: false, error: 'Karakter aktif tidak ditemukan.' }, error: null }
+          }
+
+          const row = rows[0]
+          let titles: string[] = []
+          if (Array.isArray(row.titles)) {
+            titles = [...row.titles]
+          } else if (typeof row.titles === 'string') {
+            try { titles = JSON.parse(row.titles) } catch { titles = [] }
+          }
+
+          if (titles.includes('Citizens')) {
+            return { data: { ok: true, already: true, name: row.name, titles, message: `Karakter *${row.name}* telah berstatus Citizens resmi.` }, error: null }
+          }
+
+          titles.push('Citizens')
+
+          await tx`
+            UPDATE character_profiles
+            SET titles = ${tx.json(titles)}, updated_at = now()
+            WHERE character_id = ${row.character_id}
+          `
+
+          if (redis) {
+            await redis.cacheDelete('character:active', ownerKey).catch(() => {})
+          }
+
+          return {
+            data: {
+              ok: true,
+              already: false,
+              name: row.name,
+              titles,
+              message: `Pengesahan kependudukan berhasil! Karakter *${row.name}* kini resmi menyandang gelar [Citizens] di Allyssea.`,
+            },
+            error: null,
+          }
         })
       }
 

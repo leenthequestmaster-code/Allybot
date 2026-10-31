@@ -9,9 +9,9 @@ const validSheet = `
 *Name*: Aruna
 _Gender_ = Female
 Age: 24
-Birthday: 12 Zephyra 776 KAR
+Birthday: 12 Akmesya 454 Sesterre
 Race - Human
-Class: Knight
+Class: Warrior
 Element: Fire
 Will Of Path: Neutral
 Rank: S-
@@ -32,10 +32,10 @@ test('Character Sheet parser normalizes WhatsApp formatting and ignores server-o
     gender: 'Female',
     age: 24,
     birthdayDay: 12,
-    birthdayMonth: 'Zephyra',
-    birthdayYear: 776,
+    birthdayMonth: 'Akmesya',
+    birthdayYear: 454,
     race: 'Human',
-    className: 'Knight',
+    className: 'Warrior',
     element: 'Fire',
     willOfPath: 'Neutral',
     motto: 'Penjaga yang tidak pernah menyerah. Tetap berdiri saat malam panjang.',

@@ -217,7 +217,19 @@ function renderParseIssues(issues: readonly { field?: string; message: string }[
 
 function renderCharacter(record: Awaited<ReturnType<CharacterGuideService['getActive']>>): string {
   if (!record) return 'Kamu belum memiliki Character aktif. Gunakan !daftar di Grup Guide.'
-  const stats = calculateCharacterStats(record.race, record.level, record.allocatedStats ?? {}, record.bonusTokens ?? 0)
+  const stats = calculateCharacterStats(
+    record.race,
+    record.level,
+    record.allocatedStats ?? {},
+    record.bonusTokens ?? 0,
+    record.className,
+    record.rank,
+  )
+  const isAdeon = stats.cc > 0 || stats.gc === 0
+  const energyLabel = isAdeon ? 'CC' : 'GC'
+  const energyVal = isAdeon ? stats.cc : stats.gc
+  const energyMax = isAdeon ? stats.maxCc : stats.maxGc
+
   return [
     '╔═══════════════════════════════╗',
     '    ALLYSSEA · PASPOR WARGA RESMI',
@@ -229,12 +241,12 @@ function renderCharacter(record: Awaited<ReturnType<CharacterGuideService['getAc
     `Elemen     : ${record.element}`,
     '',
     '[VITALITAS BINTANG]',
-    `HP : ${stats.hp}/${stats.maxHp}`,
-    `SE : ${stats.se}/${stats.maxSe}`,
+    `HP : ${stats.hp.toLocaleString()} / ${stats.maxHp.toLocaleString()}`,
+    `${energyLabel} : ${energyVal.toLocaleString()} / ${energyMax.toLocaleString()}`,
     '',
-    '[POTENSI ATRIBUT]',
-    `STR ${stats.str} │ DEF ${stats.def} │ MP ${stats.mp} │ RES ${stats.res}`,
-    `SPD ${stats.spd} │ INT ${stats.int} │ LCK ${stats.lck}`,
+    '[MATRIKS ATRIBUT (6 PILAR)]',
+    `STR ${stats.str} │ AP ${stats.ap} │ DEF ${stats.def} │ RES ${stats.res}`,
+    `AGI ${stats.agi} │ INT ${stats.int}`,
     `Sisa Stat Token: ${stats.statTokens} (Ketik !alokasi untuk meningkatkan)`,
     '',
     '[CATATAN SIPIL]',
@@ -242,10 +254,10 @@ function renderCharacter(record: Awaited<ReturnType<CharacterGuideService['getAc
     `• Crew      : ${record.crew ?? '—'}`,
     `• Asal      : ${record.origin ?? '—'}`,
     `• Profesi   : ${record.profession ?? '—'}`,
-    `• Gelar     : ${record.titles.join(', ') || '—'}`,
+    `• Gelar     : ${record.titles.join(', ') || 'Commoners'}`,
     `• Motto     : ${record.motto ? `"${record.motto}"` : '—'}`,
     '─────────────────────────────────',
-    'Gunakan *!stats* untuk detail lengkap atau *!timerp* untuk waktu benua.',
+    'Gunakan *!stats* untuk kartu status atau *!timerp* untuk waktu benua.',
   ].join('\n')
 }
 
@@ -1109,7 +1121,7 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
       context.commands.register({
         name: 'alokasi',
         aliases: ['addstat', 'upstat', 'allocatestat'],
-        description: 'Alokasikan Stat Token ke atribut (HP/SE/STR/DEF/MP/RES/SPD/INT/LCK)',
+        description: 'Alokasikan Stat Token ke atribut (HP/CC/GC/STR/AP/DEF/RES/AGI/INT)',
         category: 'your-character',
         menuOrder: 7,
         cooldownMs: 3_000,
@@ -1126,9 +1138,10 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
               `${commandContext.prefix}alokasi <stat> <jumlah>`,
               '',
               'Pilihan Stat:',
-              '• hp  (+150 HP per token)',
-              '• se  (+100 SE per token)',
-              '• str, def, mp, res, spd, int, lck (+1 poin per token)',
+              '• hp  (+1.000 HP per token)',
+              '• cc  (+1.000 CC per token, khusus Adeon)',
+              '• gc  (+100 GC per token, khusus Arcanist)',
+              '• str, ap, def, res, agi, int (+1 poin per token)',
               '',
               'Contoh: `!alokasi str 2` atau `!alokasi hp 1`',
             ].join('\n'))
@@ -1138,6 +1151,38 @@ export function createCharacterGuidePlugin(whatsapp: WhatsAppPort): Plugin {
           }
           const result = await service.allocateStats(groupJid(commandContext) || 'global', actor, statKey, parseRes.value)
           await commandContext.reply(result.message)
+        },
+      })
+
+      context.commands.register({
+        name: 'verifwarga',
+        aliases: ['verifktp', 'citizenship', 'daftarktp'],
+        description: 'Verifikasi identitas kependudukan resmi di Balai Sipil / Dewan Magistrate',
+        category: 'your-character',
+        menuOrder: 15,
+        cooldownMs: 5_000,
+        handler: async (commandContext) => {
+          pruneTransientState()
+          const actor = actorJid(commandContext)
+          if (!actor) return void await commandContext.reply('Identitas pengirim tidak ditemukan.')
+          if (!service.isEnabled) return void await commandContext.reply('Fitur Character Guide belum aktif di server ini.')
+
+          const res = await service.verifyCitizen(actor)
+          if (!res.ok) {
+            return void await commandContext.reply(`❌ *Gagal Pengesahan:* ${res.message}`)
+          }
+          if (res.already) {
+            return void await commandContext.reply(`ℹ️ ${res.message}`)
+          }
+
+          await commandContext.reply([
+            '🏛️ *PENGESAHAN KEPENDUDUKAN KEKAIASARAN ALLYSSEA* 🏛️',
+            '─────────────────────────────────',
+            res.message,
+            '',
+            'Sekarang Anda memiliki akses penuh ke fasilitas perbankan, kepemilikan safe brankas, serta pengajuan kerja formal kekaisaran.',
+            'Ketik *!passport* atau *!character* untuk memeriksa gelar terbaru Anda.',
+          ].join('\n'))
         },
       })
 

@@ -3,64 +3,97 @@ import type { CharacterRace } from './character-sheet-parser.js'
 export interface CharacterAttributes {
   readonly hp: number
   readonly maxHp: number
+  readonly cc: number // Core Capacity (Adeon)
+  readonly maxCc: number
+  readonly gc: number // Gate Capacity (Arcanist)
+  readonly maxGc: number
+  // Interop aliases:
   readonly se: number
   readonly maxSe: number
   readonly str: number
+  readonly ap: number // Astresence Power
+  readonly mp: number // Alias to AP
   readonly def: number
-  readonly mp: number
   readonly res: number
-  readonly spd: number
+  readonly agi: number
+  readonly spd: number // Alias to AGI
   readonly int: number
-  readonly lck: number
+  readonly lck: number // Interop
   readonly statTokens: number
   readonly bonusTokens: number
   readonly allocatedTokens: Readonly<Record<string, number>>
   readonly trait: string
+  readonly classBonusText?: string
 }
 
-export interface RaceBonus {
-  readonly hp?: number
-  readonly se?: number
+export interface ClassBonus {
   readonly str?: number
+  readonly ap?: number
   readonly def?: number
-  readonly mp?: number
   readonly res?: number
-  readonly spd?: number
+  readonly agi?: number
   readonly int?: number
-  readonly lck?: number
-  readonly trait: string
+  readonly archetype: 'Attacker' | 'Defender' | 'Infiltrator' | 'Supporter'
 }
 
-export const RACE_BONUSES: Record<string, RaceBonus> = {
-  Human: { int: 10, lck: 10, trait: 'Versatility' },
-  Elf: { mp: 15, spd: 5, trait: 'Nature Attunement' },
-  'Dark Elf': { mp: 15, str: 5, trait: 'Night Vision' },
-  Dwarf: { str: 10, def: 10, trait: 'Iron Constitution' },
-  Giant: { str: 15, hp: 150, trait: 'Colossal Might' },
-  Orc: { str: 20, hp: 100, trait: 'Battle Fervor' },
-  Fairy: { spd: 20, se: 50, trait: 'Flight' },
-  Vampire: { mp: 10, spd: 10, trait: 'Life Steal' },
-  Pisces: { spd: 10, res: 10, trait: 'Aquatic Life' },
-  Harpy: { spd: 15, int: 5, trait: 'Aerial View' },
-  Slime: { def: 20, se: 50, trait: 'Elastic Body' },
-  Dragonborn: { str: 10, mp: 10, trait: 'Dragon Scale' },
-  Beastfolk: { spd: 10, str: 10, trait: 'Primal Instinct' },
-  Kitsune: { mp: 15, lck: 5, trait: 'Illusionist' },
-  Dryad: { res: 15, se: 100, trait: 'Root Connection' },
-  Demon: { mp: 15, str: 10, trait: 'Demonic Aura' },
-  Angel: { res: 15, mp: 10, trait: 'Holy Light' },
+export const CLASS_BONUSES: Record<string, ClassBonus> = {
+  // Attacker
+  Warrior: { str: 30, def: 20, archetype: 'Attacker' },
+  Brawler: { str: 30, agi: 20, archetype: 'Attacker' },
+  Marksman: { agi: 30, int: 20, archetype: 'Attacker' },
+  Berserker: { str: 30, res: 20, archetype: 'Attacker' },
+  // Defender
+  Guardian: { def: 30, res: 20, archetype: 'Defender' },
+  Juggernaut: { def: 30, str: 20, archetype: 'Defender' },
+  // Infiltrator
+  Assassin: { agi: 30, str: 20, archetype: 'Infiltrator' },
+  Trapper: { int: 30, agi: 20, archetype: 'Infiltrator' },
+  Puppeteer: { agi: 30, int: 20, archetype: 'Infiltrator' },
+  Poisoner: { int: 30, agi: 20, archetype: 'Infiltrator' },
+  // Supporter
+  Healer: { ap: 30, res: 20, archetype: 'Supporter' },
+  Enchanter: { ap: 30, int: 20, archetype: 'Supporter' },
+  Debuffer: { ap: 30, int: 20, archetype: 'Supporter' },
+  Summoner: { ap: 30, int: 20, archetype: 'Supporter' },
+  Engineer: { int: 30, str: 20, archetype: 'Supporter' },
+  Channeler: { ap: 30, int: 20, archetype: 'Supporter' },
+}
+
+export const RACE_TRAITS: Record<string, string> = {
+  // Astryans Lineage
+  Human: 'Versatility & Adaptability',
+  Elf: 'Keen Senses & Astral Attunement',
+  Dwarf: 'Stonecraft & Dense Bone',
+  Goblin: 'Mechanical Ingenuity & Cunning',
+  Serpentine: 'Cold Blood & Antidote Mastery',
+  Siren: 'Aquatic Resonance & Sonar',
+  // Primordial Lineage
+  Giant: 'Colossal Mass & Fortitude',
+  Orc: 'Battle Fervor & Dense Muscle',
+  Beastfolk: 'Primal Predator & Tracking',
+  Dryad: 'Living Bark & Botanical Symbiosis',
+  Fairy: 'Ethereal Flutter & High Affinity',
+  // Celestials Lineage
+  Dragon: 'Draconic Scales & Breath Pulse',
+  Valkyr: 'Aerial Dive & Ethereal Wings',
+  // Hibrida & Asimilasi
+  Beastkin: 'Urban Acuity & Nimble Senses',
+  'Half-Elf': 'Grace & Keen Curiosity',
+  Goliath: 'Massive Framework & Heavy Lift',
+  'Half-Orc': 'Unyielding Tenacity & Grit',
+  Chimera: 'Hybrid Resilience & Multi-Organ',
 }
 
 const BASE_VITAL = {
-  hp: 800,
-  se: 200,
-  str: 10,
-  def: 10,
-  mp: 10,
-  res: 10,
-  spd: 10,
-  int: 10,
-  lck: 10,
+  hp: 10_000,
+  cc: 1_000,
+  gc: 100,
+  str: 100,
+  ap: 100,
+  def: 100,
+  res: 100,
+  agi: 100,
+  int: 100,
 }
 
 export function parseAllocatedStats(raw: unknown): Record<string, number> {
@@ -89,72 +122,105 @@ export function parseAllocatedStats(raw: unknown): Record<string, number> {
   return {}
 }
 
+export function tokensPerLevelByPotency(grade: string): number {
+  const g = (grade || 'D').toUpperCase().replace(/[^A-Z0-9]/gu, '')
+  if (g.startsWith('F')) return 1
+  if (g.startsWith('E')) return 2
+  if (g.startsWith('D')) return 4
+  if (g.startsWith('C')) return 5
+  if (g.startsWith('B')) return 7
+  if (g.startsWith('A')) return 8
+  if (g.startsWith('S')) return 10
+  if (g === '0') return 5
+  return 4
+}
+
 export function calculateCharacterStats(
   race: string,
   level: number,
   allocated: unknown = {},
   bonusTokens = 0,
+  className = 'Warrior',
+  potencyGrade = 'D',
+  cultivationPath?: string,
 ): CharacterAttributes {
-  const bonus = RACE_BONUSES[race] ?? { trait: 'Adaptability' }
+  const trait = RACE_TRAITS[race] ?? 'Adaptability & Survival'
+  const classBonus = CLASS_BONUSES[className] ?? { str: 30, def: 20, archetype: 'Attacker' }
   const safeBonus = Math.max(0, Number(bonusTokens) || 0)
-  const totalTokensEarned = (Math.max(1, level) - 1) * 5 + 5 + safeBonus
-  const cleanAlloc = parseAllocatedStats(allocated)
   
+  // Equal baseline at Level 1: 25 tokens. Each subsequent level grants tokens by potency grade.
+  const earnedTokens = 25 + (Math.max(1, level) - 1) * tokensPerLevelByPotency(potencyGrade) + safeBonus
+  const cleanAlloc = parseAllocatedStats(allocated)
+
   const allocHp = Math.max(0, cleanAlloc.hp ?? 0)
-  const allocSe = Math.max(0, cleanAlloc.se ?? 0)
+  const allocCc = Math.max(0, cleanAlloc.cc ?? cleanAlloc.se ?? 0)
+  const allocGc = Math.max(0, cleanAlloc.gc ?? 0)
   const allocStr = Math.max(0, cleanAlloc.str ?? 0)
+  const allocAp = Math.max(0, cleanAlloc.ap ?? cleanAlloc.mp ?? 0)
   const allocDef = Math.max(0, cleanAlloc.def ?? 0)
-  const allocMp = Math.max(0, cleanAlloc.mp ?? 0)
   const allocRes = Math.max(0, cleanAlloc.res ?? 0)
-  const allocSpd = Math.max(0, cleanAlloc.spd ?? 0)
+  const allocAgi = Math.max(0, cleanAlloc.agi ?? cleanAlloc.spd ?? 0)
   const allocInt = Math.max(0, cleanAlloc.int ?? 0)
-  const allocLck = Math.max(0, cleanAlloc.lck ?? 0)
 
-  const usedTokens = allocHp + allocSe + allocStr + allocDef + allocMp + allocRes + allocSpd + allocInt + allocLck
-  const remainingTokens = Math.max(0, totalTokensEarned - usedTokens)
+  const usedTokens = allocHp + allocCc + allocGc + allocStr + allocAp + allocDef + allocRes + allocAgi + allocInt
+  const remainingTokens = Math.max(0, earnedTokens - usedTokens)
 
-  const maxHp = BASE_VITAL.hp + (bonus.hp ?? 0) + allocHp * 150
-  const maxSe = BASE_VITAL.se + (bonus.se ?? 0) + allocSe * 100
-  const str = BASE_VITAL.str + (bonus.str ?? 0) + allocStr
-  const def = BASE_VITAL.def + (bonus.def ?? 0) + allocDef
-  const mp = BASE_VITAL.mp + (bonus.mp ?? 0) + allocMp
-  const res = BASE_VITAL.res + (bonus.res ?? 0) + allocRes
-  const spd = BASE_VITAL.spd + (bonus.spd ?? 0) + allocSpd
-  const int = BASE_VITAL.int + (bonus.int ?? 0) + allocInt
-  const lck = BASE_VITAL.lck + (bonus.lck ?? 0) + allocLck
+  const maxHp = BASE_VITAL.hp + allocHp * 1_000
+  const isArcanist = cultivationPath?.toLowerCase().includes('arcanist') || cultivationPath?.toLowerCase().includes('astrevia')
+  const maxCc = isArcanist ? 0 : (BASE_VITAL.cc + allocCc * 1_000)
+  const maxGc = isArcanist ? (BASE_VITAL.gc + allocGc * 100) : 0
+  const energyMax = isArcanist ? maxGc : maxCc
+
+  const str = BASE_VITAL.str + (classBonus.str ?? 0) + allocStr
+  const ap = BASE_VITAL.ap + (classBonus.ap ?? 0) + allocAp
+  const def = BASE_VITAL.def + (classBonus.def ?? 0) + allocDef
+  const res = BASE_VITAL.res + (classBonus.res ?? 0) + allocRes
+  const agi = BASE_VITAL.agi + (classBonus.agi ?? 0) + allocAgi
+  const int = BASE_VITAL.int + (classBonus.int ?? 0) + allocInt
 
   return {
     hp: maxHp,
     maxHp,
-    se: maxSe,
-    maxSe,
+    cc: maxCc,
+    maxCc,
+    gc: maxGc,
+    maxGc,
+    se: energyMax,
+    maxSe: energyMax,
     str,
+    ap,
+    mp: ap,
     def,
-    mp,
     res,
-    spd,
+    agi,
+    spd: agi,
     int,
-    lck,
+    lck: 0,
     statTokens: remainingTokens,
     bonusTokens: safeBonus,
     allocatedTokens: {
       hp: allocHp,
-      se: allocSe,
+      cc: allocCc,
+      gc: allocGc,
       str: allocStr,
+      ap: allocAp,
       def: allocDef,
-      mp: allocMp,
       res: allocRes,
-      spd: allocSpd,
+      agi: allocAgi,
       int: allocInt,
-      lck: allocLck,
     },
-    trait: bonus.trait,
+    trait,
+    classBonusText: `${classBonus.archetype} (${Object.entries(classBonus).filter(([k]) => k !== 'archetype').map(([k, v]) => `+${v} ${k.toUpperCase()}`).join(', ')})`,
   }
 }
 
 export function renderStatsCard(name: string, race: string, className: string, rank: string, level: number, stats: CharacterAttributes): string {
   const hpBar = makeProgressBar(stats.hp, stats.maxHp, 10)
-  const seBar = makeProgressBar(stats.se, stats.maxSe, 10)
+  const isAdeon = stats.cc > 0 || stats.gc === 0
+  const energyLabel = isAdeon ? 'CC (Core)' : 'GC (Gate)'
+  const energyVal = isAdeon ? stats.cc : stats.gc
+  const energyMax = isAdeon ? stats.maxCc : stats.maxGc
+  const energyBar = makeProgressBar(energyVal, energyMax, 10)
 
   return [
     '╔═══════════════════════════════╗',
@@ -166,14 +232,13 @@ export function renderStatsCard(name: string, race: string, className: string, r
     `Karakteristik: ${stats.trait}`,
     '',
     '[VITALITAS BINTANG]',
-    `HP : ${stats.hp}/${stats.maxHp}  ${hpBar}`,
-    `SE : ${stats.se}/${stats.maxSe}  ${seBar}`,
+    `HP : ${stats.hp.toLocaleString()} / ${stats.maxHp.toLocaleString()}  ${hpBar}`,
+    `${energyLabel} : ${energyVal.toLocaleString()} / ${energyMax.toLocaleString()}  ${energyBar}`,
     '',
-    '[MATRIKS ATRIBUT]',
-    `• STR (Fisik)   : ${stats.str.toString().padEnd(3)} • DEF (Ketahanan): ${stats.def}`,
-    `• MP  (Sihir)   : ${stats.mp.toString().padEnd(3)} • RES (Resistensi): ${stats.res}`,
-    `• SPD (Kelincahan): ${stats.spd.toString().padEnd(3)} • INT (Akurasi)  : ${stats.int}`,
-    `• LCK (Keberuntungan): ${stats.lck}`,
+    '[MATRIKS ATRIBUT (6 PILAR)]',
+    `• STR (Fisik)   : ${stats.str.toString().padEnd(4)} • DEF (Ketahanan): ${stats.def}`,
+    `• AP  (Astresence): ${stats.ap.toString().padEnd(4)} • RES (Resistensi): ${stats.res}`,
+    `• AGI (Kelincahan): ${stats.agi.toString().padEnd(4)} • INT (Akurasi)  : ${stats.int}`,
     '',
     `Sisa Stat Token: *${stats.statTokens} Token*`,
     stats.statTokens > 0 

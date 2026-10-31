@@ -712,6 +712,24 @@ export class CharacterGuideService implements Service {
     return { ok: true, message: String(raw.message ?? 'Alokasi stat berhasil disimpan.') }
   }
 
+  async verifyCitizen(ownerJid: string): Promise<{ ok: boolean; message: string; already?: boolean }> {
+    this.assertJid(ownerJid, 'owner')
+    if (!this.client) throw new CharacterGuideUnavailableError()
+    const result = await this.call('character_verify_citizen', {
+      p_guide_key: worldScopeKey(),
+      p_owner_key: hashIdentity(ownerJid),
+    })
+    const raw = asRecord(result)
+    if (!raw || raw.ok !== true) {
+      return { ok: false, message: typeof raw?.error === 'string' ? raw.error : 'Gagal memverifikasi kependudukan.' }
+    }
+    return {
+      ok: true,
+      message: String(raw.message ?? 'Verifikasi kependudukan berhasil.'),
+      already: Boolean(raw.already),
+    }
+  }
+
   async retire(groupJid: string, ownerJid: string, characterId: string, reasonCode = 'owner_requested', sourceMessageId = ''): Promise<void> {
     this.assertGroup(groupJid)
     this.assertJid(ownerJid, 'owner')

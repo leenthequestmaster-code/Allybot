@@ -251,19 +251,19 @@ export class CharacterRegistrationWizardService {
           const monthQuery = parts.slice(1).join(' ').trim().toLowerCase()
           const monthNum = parseInt(monthQuery, 10)
 
-          if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+          if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 6) {
             month = CHARACTER_BIRTH_MONTHS[monthNum - 1]
           } else {
             month = CHARACTER_BIRTH_MONTHS.find((m) => m.toLowerCase() === monthQuery)
           }
 
           if (!month) {
-            return { reply: `⚠️ Bulan tidak ditemukan. Pilihan bulan (1-12):\n${CHARACTER_BIRTH_MONTHS.map((m, idx) => `${idx + 1}. ${m}`).join(', ')}\n\nContoh: \`15 Zephyra\` atau \`15 3\`:` }
+            return { reply: `⚠️ Bulan tidak ditemukan. Pilihan bulan (1-6):\n${CHARACTER_BIRTH_MONTHS.map((m, idx) => `${idx + 1}. ${m}`).join(', ')}\n\nContoh: \`15 Akmesya\` atau \`15 3\`:` }
           }
 
           session.draft.birthdayDay = day
           session.draft.birthdayMonth = month
-          session.draft.birthdayYear = 800 - (session.draft.age ?? 20)
+          session.draft.birthdayYear = 478 - (session.draft.age ?? 20)
         }
 
         session.history.push(session.currentStep)
@@ -281,7 +281,7 @@ export class CharacterRegistrationWizardService {
         }
 
         if (!race) {
-          return { reply: `⚠️ Ras *${text}* tidak dikenal. Silakan pilih nomor (1-17) atau nama ras yang tersedia:\n${CHARACTER_RACES.map((r, i) => `${i + 1}. ${r}`).join(', ')}` }
+          return { reply: `⚠️ Ras *${text}* tidak dikenal. Silakan pilih nomor (1-${CHARACTER_RACES.length}) atau nama ras yang tersedia:\n${CHARACTER_RACES.map((r, i) => `${i + 1}. ${r}`).join(', ')}` }
         }
 
         session.draft.race = race
@@ -300,30 +300,11 @@ export class CharacterRegistrationWizardService {
         }
 
         if (!className) {
-          return { reply: `⚠️ Kelas *${text}* tidak ditemukan. Silakan ketik nama kelas dari daftar yang ada (contoh: *Knight*, *Mage*, *Archer*, *Samurai*):` }
+          return { reply: `⚠️ Kelas *${text}* tidak ditemukan. Silakan ketik nama kelas dari 16 spesialis (contoh: *Warrior*, *Healer*, *Assassin*, *Guardian*):` }
         }
 
         session.draft.className = className
         session.history.push(session.currentStep)
-
-        // Racial element lock check:
-        // Slime -> Gel, Vampire -> Blood
-        if (session.draft.race === 'Slime') {
-          session.draft.element = 'Gel'
-          session.currentStep = 'will_of_path'
-          return {
-            reply: `💧 *Penyelarasan Rasial:*\nKarena ras karaktermu adalah *Slime*, elemenmu otomatis diselaraskan dengan *Gel* (Lendir Magis)!\n\n` + this.renderPromptForStep(session),
-          }
-        }
-
-        if (session.draft.race === 'Vampire') {
-          session.draft.element = 'Blood'
-          session.currentStep = 'will_of_path'
-          return {
-            reply: `🩸 *Penyelarasan Rasial:*\nKarena ras karaktermu adalah *Vampire*, elemenmu otomatis diselaraskan dengan *Blood* (Darah Terkutuk)!\n\n` + this.renderPromptForStep(session),
-          }
-        }
-
         session.currentStep = 'element'
         return { reply: this.renderPromptForStep(session) }
       }
@@ -333,18 +314,7 @@ export class CharacterRegistrationWizardService {
         element = CHARACTER_ELEMENTS.find((e) => e.toLowerCase() === lower)
 
         if (!element) {
-          return { reply: `⚠️ Elemen *${text}* tidak valid. Pilihan elemen yang tersedia:\nFire, Water, Wind, Earth, Electro, Ice, Dark, Light, Sound, Bone, Sand, Mist, Fruits, Paper, Magma` }
-        }
-
-        // Validate racial element restrictions
-        if (element === 'Nature' && session.draft.race !== 'Dryad' && session.draft.race !== 'Elf') {
-          return { reply: '⚠️ Elemen *Nature* murni dikhususkan untuk ras *Dryad* dan *Elf*. Silakan pilih elemen lain:' }
-        }
-        if (element === 'Blood' && session.draft.race !== 'Vampire') {
-          return { reply: '⚠️ Elemen *Blood* hanya dapat dikuasai oleh ras *Vampire*. Silakan pilih elemen lain:' }
-        }
-        if (element === 'Gel' && session.draft.race !== 'Slime') {
-          return { reply: '⚠️ Elemen *Gel* hanya dapat dikuasai oleh ras *Slime*. Silakan pilih elemen lain:' }
+          return { reply: `⚠️ Elemen *${text}* tidak valid. Pilihan elemen yang tersedia:\n${CHARACTER_ELEMENTS.join(', ')}` }
         }
 
         session.draft.element = element
@@ -356,11 +326,11 @@ export class CharacterRegistrationWizardService {
       case 'will_of_path': {
         let will: CharacterWillOfPath | undefined
         if (lower === '1' || lower === 'light' || lower === 'terang') will = 'Light'
-        else if (lower === '2' || lower === 'dark' || lower === 'kegelapan') will = 'Dark'
+        else if (lower === '2' || lower === 'dark' || lower === 'darkness' || lower === 'kegelapan') will = 'Darkness'
         else if (lower === '3' || lower === 'neutral' || lower === 'netral') will = 'Neutral'
 
         if (!will) {
-          return { reply: '⚠️ Pilihan jalur kehendak tidak valid. Balas dengan angka *1* (Light), *2* (Dark), atau *3* (Neutral):' }
+          return { reply: '⚠️ Pilihan poros tidak valid. Balas dengan angka *1* (Light), *2* (Darkness), atau *3* (Neutral):' }
         }
 
         session.draft.willOfPath = will
@@ -485,14 +455,13 @@ export class CharacterRegistrationWizardService {
           '─────────────────────────────────',
           `Karakter: *${d.name}* · Usia: ${d.age} Tahun`,
           '',
-          'Pilih hari dan bulan kelahiran (Kalender Allyssea):',
-          '• Format: `<hari 1-30> <bulan 1-12>` (Contoh: `15 3` atau `15 Zephyra`)',
+          'Pilih hari dan bulan kelahiran (Kalender Grand Sesterre):',
+          '• Format: `<hari 1-30> <bulan 1-6>` (Contoh: `15 3` atau `15 Akmesya`)',
           '',
-          'Daftar Bulan Allyssea:',
-          '1. Aurion       5. Luminara     9. Umbralis',
-          '2. Florentis    6. Verdantia   10. Crystelle',
-          '3. Zephyra      7. Solmora     11. Nocturne',
-          '4. Emberfall    8. Astravia    12. Everglen',
+          'Daftar 6 Bulan Allyssea:',
+          '1. Arotos (Semi)       4. Trygetion (Gugur)',
+          '2. Thallissean (Semi)  5. Katabasia (Dingin)',
+          '3. Akmesya (Panas)     6. Pallingena (Dingin)',
           '',
           '_Atau ketik *auto* untuk dipilihkan tanggal lahir acak secara otomatis._',
           '_(Ketik !prev untuk kembali ke langkah usia)_',
@@ -504,15 +473,21 @@ export class CharacterRegistrationWizardService {
           '─────────────────────────────────',
           `Karakter: *${d.name}*`,
           '',
-          'Pilih Ras untuk karaktermu:',
-          '1. Human        7. Fairy        13. Beastfolk',
-          '2. Elf          8. Vampire      14. Kitsune',
-          '3. Dark Elf     9. Pisces       15. Dryad',
-          '4. Dwarf       10. Harpy        16. Demon',
-          '5. Giant       11. Slime        17. Angel',
-          '6. Orc         12. Dragonborn',
+          'Pilih Ras untuk karaktermu (18 Ras Playable):',
           '',
-          'Balas dengan nomor (1-17) atau nama ras pilihanmu:',
+          '🏛️ *Astryans (Jalur Bebas):*',
+          'Human, Elf, Dwarf, Goblin, Serpentine, Siren',
+          '',
+          '🌿 *Primordial (Terkunci Arcanist):*',
+          'Giant, Orc, Beastfolk, Dryad, Fairy',
+          '',
+          '✨ *Celestials (Terkunci Adeon):*',
+          'Dragon, Valkyr',
+          '',
+          '🔮 *Hibrida & Asimilasi (Jalur Bebas):*',
+          'Beastkin, Half-Elf, Goliath, Half-Orc, Chimera',
+          '',
+          'Ketik nama ras atau nomor urut pilihanmu:',
           '_(Ketik !prev untuk kembali ke tanggal lahir)_',
         ].join('\n')
 
@@ -522,34 +497,41 @@ export class CharacterRegistrationWizardService {
           '─────────────────────────────────',
           `Karakter: *${d.name}* · Ras: *${d.race}*`,
           '',
-          'Pilih Kelas bertarung untuk karaktermu:',
+          'Pilih Spesialisasi Kelas (Bonus Atribut Awal +50 Poin):',
           '',
-          '⚔️ *Fisik:*',
-          'Knight, Samurai, Berserker, Guardian, Sentinel, Bulwark',
+          '⚔️ *Attacker:*',
+          'Warrior (+30 STR, +20 DEF) │ Brawler (+30 STR, +20 AGI)',
+          'Marksman (+30 AGI, +20 INT) │ Berserker (+30 STR, +20 RES)',
           '',
-          '🏹 *Jarak Jauh & Kelincahan:*',
-          'Archer, Gunslinger, Sniper, Thief, Assassin, Ninja',
+          '🛡️ *Defender:*',
+          'Guardian (+30 DEF, +20 RES) │ Juggernaut (+30 DEF, +20 STR)',
           '',
-          '🔮 *Sihir & Supranatural:*',
-          'Sorcerer, Necromancer, Illusionist, Summoner',
+          '🗡️ *Infiltrator:*',
+          'Assassin (+30 AGI, +20 STR) │ Trapper (+30 INT, +20 AGI)',
+          'Puppeteer (+30 AGI, +20 INT) │ Poisoner (+30 INT, +20 AGI)',
           '',
-          '✨ *Taktis & Suportif:*',
-          'Paladin, Bard, Cleric, Trapper, Mechanist, Saboteur, Puppeteer, Jester, Sigil Scribe, Beastmaster, Shapeshifter',
+          '🪄 *Supporter:*',
+          'Healer (+30 AP, +20 RES) │ Enchanter (+30 AP, +20 INT)',
+          'Debuffer (+30 AP, +20 INT) │ Summoner (+30 AP, +20 INT)',
+          'Engineer (+30 INT, +20 STR) │ Channeler (+30 AP, +20 INT)',
           '',
-          'Ketik nama kelas pilihanmu:',
+          'Ketik nama kelas spesialis pilihanmu:',
           '_(Ketik !prev untuk kembali ke pilihan ras)_',
         ].join('\n')
 
       case 'element': {
-        const isNatureAllowed = d.race === 'Dryad' || d.race === 'Elf'
-        const natureNote = isNatureAllowed ? ', Nature' : ''
         return [
           '📜 *REGISTRI WARGA BENUA ALLYSSEA* [7/9]',
           '─────────────────────────────────',
           `Karakter: *${d.name}* · Kelas: *${d.className}*`,
           '',
           'Pilih Elemen kekuatan karaktermu:',
-          `Fire, Water, Wind, Earth, Electro, Ice, Dark, Light, Sound, Bone, Sand, Mist, Fruits, Paper, Magma${natureNote}`,
+          '• Api: Fire, Magma, Ember, Blue Fire, Smoke',
+          '• Air: Water, Ice, Steam, Mist, Mud',
+          '• Tanah: Earth, Wood, Plant, Metal, Sand, Crystal',
+          '• Angin: Wind, Cloud, Haze',
+          '• Cahaya: Light, Lightning, Holy Light',
+          '• Kegelapan: Darkness, Shadow, Space, Gravity, Black Hole, Abyss',
           '',
           'Ketik nama elemen pilihanmu:',
           '_(Ketik !prev untuk kembali ke pilihan kelas)_',
@@ -562,10 +544,10 @@ export class CharacterRegistrationWizardService {
           '─────────────────────────────────',
           `Karakter: *${d.name}*`,
           '',
-          'Pilih Jalur Kehendak (*Will of Path*):',
-          '1. ☀️ *Light* (Penjaga Harmoni, Kebaikan)',
-          '2. 🌑 *Dark* (Pemberontak, Ambisi Gelap)',
-          '3. ⚖️ *Neutral* (Keseimbangan, Pengelana Bebas)',
+          'Pilih Poros Peradaban (*Poros*):',
+          '1. ☀️ *Light* (Royal Knight, Clergy, Magistrate - Hukum & Ketertiban)',
+          '2. 🌑 *Darkness* (Syndicate, Cultist, Outlaw - Jaringan Bawah Tanah)',
+          '3. ⚖️ *Neutral* (Civilian, Merchant, Adventurer, Artificer, Alchemist)',
           '',
           'Balas dengan angka *1*, *2*, atau *3*:',
           '_(Ketik !prev untuk kembali ke pilihan elemen)_',

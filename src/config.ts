@@ -38,6 +38,7 @@ const envSchema = z.object({
   SHUTDOWN_TIMEOUT_MS: positiveInt.default(15000),
   COMMAND_PREFIX: z.string().min(1).max(4).default('!'),
   DEFAULT_COMMAND_COOLDOWN_MS: positiveInt.default(3000),
+  BOT_PROFILE: z.enum(['general', 'roleplay']).default('general'),
   DIAGNOSTICS_ENABLED: booleanFromEnv.default(false),
   AI_ENABLED: booleanFromEnv.default(false),
   AI_FALLBACK_ENABLED: booleanFromEnv.default(false),

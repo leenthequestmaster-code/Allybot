@@ -2,32 +2,64 @@ export const CHARACTER_GENDERS = ['Male', 'Female', 'Non-Binary'] as const
 export type CharacterGender = (typeof CHARACTER_GENDERS)[number]
 
 export const CHARACTER_RACES = [
-  'Human', 'Elf', 'Dark Elf', 'Dwarf', 'Giant', 'Orc', 'Fairy', 'Vampire',
-  'Pisces', 'Harpy', 'Slime', 'Dragonborn', 'Beastfolk', 'Kitsune', 'Dryad', 'Demon', 'Angel',
+  // Astryans Lineage (Jalur Bebas)
+  'Human', 'Elf', 'Dwarf', 'Goblin', 'Serpentine', 'Siren',
+  // Primordial Lineage (Arcanist Lock)
+  'Giant', 'Orc', 'Beastfolk', 'Dryad', 'Fairy',
+  // Celestials Lineage (Adeon Lock)
+  'Dragon', 'Valkyr',
+  // Hibrida & Asimilasi (Jalur Bebas)
+  'Beastkin', 'Half-Elf', 'Goliath', 'Half-Orc', 'Chimera',
 ] as const
 export type CharacterRace = (typeof CHARACTER_RACES)[number]
 
+export const PRIMORDIAL_RACES: readonly CharacterRace[] = ['Giant', 'Orc', 'Beastfolk', 'Dryad', 'Fairy']
+export const CELESTIAL_RACES: readonly CharacterRace[] = ['Dragon', 'Valkyr']
+
 export const CHARACTER_ELEMENTS = [
-  'Fire', 'Water', 'Wind', 'Earth', 'Nature', 'Electro', 'Ice', 'Dark', 'Light',
-  'Sound', 'Blood', 'Bone', 'Sand', 'Mist', 'Fruits', 'Paper', 'Magma', 'Gel',
+  // Ishatu Branch (Fire Ancestry)
+  'Fire', 'Magma', 'Ember', 'Blue Fire', 'Smoke',
+  // Daryen Branch (Water Ancestry)
+  'Water', 'Ice', 'Steam', 'Mist', 'Mud',
+  // Qaqar Branch (Earth Ancestry)
+  'Earth', 'Wood', 'Plant', 'Metal', 'Sand', 'Crystal',
+  // Shutu Branch (Wind Ancestry)
+  'Wind', 'Cloud', 'Haze',
+  // Namura Branch (Light Ancestry)
+  'Light', 'Lightning', 'Holy Light',
+  // Ekhlev Branch (Darkness Ancestry)
+  'Darkness', 'Shadow', 'Space', 'Gravity', 'Black Hole', 'Abyss',
 ] as const
 export type CharacterElement = (typeof CHARACTER_ELEMENTS)[number]
 
 export const CHARACTER_CLASSES = [
-  'Knight', 'Samurai', 'Berserker', 'Ninja', 'Thief', 'Assassin', 'Archer', 'Gunslinger', 'Sniper',
-  'Sorcerer', 'Necromancer', 'Illusionist', 'Paladin', 'Bard', 'Cleric', 'Trapper', 'Mechanist',
-  'Saboteur', 'Puppeteer', 'Jester', 'Sigil Scribe', 'Guardian', 'Sentinel', 'Bulwark',
-  'Beastmaster', 'Shapeshifter', 'Summoner',
+  // Attacker
+  'Warrior', 'Brawler', 'Marksman', 'Berserker',
+  // Defender
+  'Guardian', 'Juggernaut',
+  // Infiltrator
+  'Assassin', 'Trapper', 'Puppeteer', 'Poisoner',
+  // Supporter
+  'Healer', 'Enchanter', 'Debuffer', 'Summoner', 'Engineer', 'Channeler',
 ] as const
 export type CharacterClass = (typeof CHARACTER_CLASSES)[number]
 
 export const CHARACTER_BIRTH_MONTHS = [
-  'Aurion', 'Florentis', 'Zephyra', 'Emberfall', 'Luminara', 'Verdantia',
-  'Solmora', 'Astravia', 'Umbralis', 'Crystelle', 'Nocturne', 'Everglen',
+  'Arotos', 'Thallissean', 'Akmesya', 'Trygetion', 'Katabasia', 'Pallingena',
 ] as const
 
-export const CHARACTER_WILL_OF_PATHS = ['Light', 'Dark', 'Neutral'] as const
+export const CHARACTER_WILL_OF_PATHS = ['Light', 'Darkness', 'Neutral'] as const
 export type CharacterWillOfPath = (typeof CHARACTER_WILL_OF_PATHS)[number]
+
+export const CHARACTER_CULTIVATION_PATHS = ['Astrevia', 'Astrevita'] as const
+export type CharacterCultivationPath = (typeof CHARACTER_CULTIVATION_PATHS)[number]
+
+export const CHARACTER_FACTIONS = [
+  'Royal Knight', 'Clergy', 'Magistrate',
+  'Alchemist', 'Artificer', 'Adventurer', 'Merchant', 'Civilian',
+  'Syndicate', 'Cultist', 'Outlaw',
+] as const
+export type CharacterFaction = (typeof CHARACTER_FACTIONS)[number]
 
 export interface CharacterSheetPayload {
   readonly name: string
@@ -39,6 +71,8 @@ export interface CharacterSheetPayload {
   readonly race: CharacterRace
   readonly className: CharacterClass
   readonly element: CharacterElement
+  readonly cultivationPath?: CharacterCultivationPath
+  readonly faction?: string
   readonly spirit?: string
   readonly crew?: string
   readonly willOfPath: CharacterWillOfPath
@@ -158,7 +192,7 @@ function parseFieldLine(line: string): { field?: string; value?: string; standal
 
 function parseBirthday(value: string): { day: number; month: string; year: number } | undefined {
   const normalized = unwrapFormatting(value).replace(/\s+/gu, ' ')
-  const match = normalized.match(/^(\d{1,2})\s+([\p{L}-]+)\s+(?:KAR\s*)?(\d{3,4})(?:\s*KAR)?$/iu)
+  const match = normalized.match(/^(\d{1,2})\s+([\p{L}-]+)\s+(?:(?:Sesterre|KAR)\s*)?(\d{1,4})(?:\s*(?:Sesterre|KAR))?$/iu)
   if (!match) return undefined
   const day = Number(match[1])
   const month = canonicalFromList(match[2] ?? '', CHARACTER_BIRTH_MONTHS)
@@ -188,7 +222,19 @@ function canonicalClass(value: string): CharacterClass | undefined {
 }
 
 function canonicalWill(value: string): CharacterWillOfPath | undefined {
+  const normalized = normalizeLabel(value)
+  if (normalized === 'light' || normalized === 'terang') return 'Light'
+  if (normalized === 'dark' || normalized === 'darkness' || normalized === 'kegelapan' || normalized === 'bayangan') return 'Darkness'
+  if (normalized === 'neutral' || normalized === 'netral') return 'Neutral'
   return canonicalFromList(value, CHARACTER_WILL_OF_PATHS) as CharacterWillOfPath | undefined
+}
+
+function canonicalCultivationPath(value: string | undefined): CharacterCultivationPath | undefined {
+  if (!value) return undefined
+  const normalized = normalizeLabel(value)
+  if (normalized === 'astrevia' || normalized === 'arcanist' || normalized === 'gate' || normalized === 'eksternal') return 'Astrevia'
+  if (normalized === 'astrevita' || normalized === 'adeon' || normalized === 'core' || normalized === 'internal') return 'Astrevita'
+  return undefined
 }
 
 function valueForField(fields: ReadonlyMap<string, string>, field: string): string | undefined {
@@ -265,6 +311,8 @@ export function parseCharacterSheet(input: string): CharacterParseResult {
   const classValue = valueForField(fields, 'class')
   const elementValue = valueForField(fields, 'element')
   const willValue = valueForField(fields, 'will')
+  const pathValue = valueForField(fields, 'path')
+  const factionValue = valueForField(fields, 'faction')
   const gender = genderValue ? canonicalGender(genderValue) : undefined
   const age = ageValue && /^\d{1,3}$/u.test(ageValue) ? Number(ageValue) : undefined
   const birthday = birthdayValue ? parseBirthday(birthdayValue) : undefined
@@ -272,20 +320,26 @@ export function parseCharacterSheet(input: string): CharacterParseResult {
   const className = classValue ? canonicalClass(classValue) : undefined
   const element = elementValue ? canonicalElement(elementValue) : undefined
   const will = willValue ? canonicalWill(willValue) : undefined
+  const cultivationPath = canonicalCultivationPath(pathValue)
 
   if (!name || name.length > 60) issues.push(issue('name', 'invalid', 'Name harus berisi 1 sampai 60 karakter.', name))
   if (!gender) issues.push(issue('gender', 'invalid', 'Gender harus Male, Female, atau Non-Binary.', genderValue))
   if (age === undefined || age < 5 || age > 500) issues.push(issue('age', 'invalid', 'Age harus berupa angka 5 sampai 500.', ageValue))
-  if (!birthday || birthday.day < 1 || birthday.day > 31 || birthday.year !== 800 - (age ?? 0)) {
-    issues.push(issue('birthday', 'invalid', 'Birthday harus berbentuk [Tanggal] [Bulan KAR] [Tahun KAR] dan tahun harus 800 dikurangi Age.', birthdayValue))
+  if (!birthday || birthday.day < 1 || birthday.day > 30 || birthday.year !== 478 - (age ?? 0)) {
+    issues.push(issue('birthday', 'invalid', 'Birthday harus berbentuk [Tanggal 1-30] [Bulan Sesterre] [Tahun Sesterre] dan tahun harus 478 dikurangi Age.', birthdayValue))
   }
   if (!race) issues.push(issue('race', 'invalid', `Race harus salah satu dari: ${CHARACTER_RACES.join(', ')}.`, raceValue))
   if (!className) issues.push(issue('class', 'invalid', `Class harus salah satu dari: ${CHARACTER_CLASSES.join(', ')}.`, classValue))
   if (!element) issues.push(issue('element', 'invalid', `Element harus salah satu dari: ${CHARACTER_ELEMENTS.join(', ')}.`, elementValue))
-  if (element === 'Nature' && race && !['Dryad', 'Elf'].includes(race)) issues.push(issue('element', 'invalid', 'Element Nature hanya untuk race Dryad atau Elf.', element))
-  if (element === 'Blood' && race !== 'Vampire') issues.push(issue('element', 'invalid', 'Element Blood hanya untuk race Vampire.', element))
-  if (element === 'Gel' && race !== 'Slime') issues.push(issue('element', 'invalid', 'Element Gel hanya untuk race Slime.', element))
-  if (!will) issues.push(issue('will', 'invalid', 'Will Of Path harus Light, Dark, atau Neutral.', willValue))
+  if (!will) issues.push(issue('will', 'invalid', 'Will Of Path harus Light, Darkness, atau Neutral.', willValue))
+
+  if (race && PRIMORDIAL_RACES.includes(race) && cultivationPath === 'Astrevita') {
+    issues.push(issue('path', 'invalid', `Ras ${race} berasal dari Primordial Lineage dan terkunci mutlak pada Jalur Astrevia (Arcanist).`))
+  }
+  if (race && CELESTIAL_RACES.includes(race) && cultivationPath === 'Astrevia') {
+    issues.push(issue('path', 'invalid', `Ras ${race} berasal dari Celestials Lineage dan terkunci mutlak pada Jalur Astrevita (Adeon).`))
+  }
+
   if (issues.length > 0 || !gender || age === undefined || !birthday || !race || !className || !element || !will || !name) {
     return { ok: false, issues }
   }
@@ -314,6 +368,8 @@ export function parseCharacterSheet(input: string): CharacterParseResult {
       className,
       element,
       willOfPath: will,
+      ...(cultivationPath ? { cultivationPath } : {}),
+      ...(factionValue ? { faction: factionValue } : {}),
       ...(optional('spirit', 120) ? { spirit: optional('spirit', 120) } : {}),
       ...(optional('crew', 120) ? { crew: optional('crew', 120) } : {}),
       ...(optional('profession', 120) ? { profession: optional('profession', 120) } : {}),
