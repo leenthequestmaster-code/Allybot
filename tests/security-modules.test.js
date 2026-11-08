@@ -55,8 +55,8 @@ test('Security Modules: banstc, antiraid, and detailed antispam', async (t) => {
 
     // Newcomer is quarantined for 24h
     assert.equal(suite.isQuarantined(group, '6285555555555@s.whatsapp.net', baseNow + 2000), true)
-    // After 24h + 1s, quarantine expires
-    assert.equal(suite.isQuarantined(group, '6285555555555@s.whatsapp.net', baseNow + 86_400_000 + 1000), false)
+    // After 24h + 1s from join time (baseNow + 2000), quarantine expires
+    assert.equal(suite.isQuarantined(group, '6285555555555@s.whatsapp.net', baseNow + 2000 + 86_400_000 + 1000), false)
   })
 
   await t.test('antispam: sliding-window rate limit and duplicate hash detection', () => {
