@@ -10,7 +10,7 @@ import type {
   WhatsAppSendOptions,
 } from '../contracts.js'
 import { isGroupJid } from '../validation.js'
-import { GroupModerationSuiteService } from '../../services/group-moderation-suite-service.js'
+import { GroupModerationSuiteService, type BanStcMode } from '../../services/group-moderation-suite-service.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
 
 import { normalizeForToxicDetection } from '../../utils/text-normalizer.js'
@@ -740,6 +740,70 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         },
       })
 
+      // 16. /banstc on/strict/off
+      context.commands.register({
+        name: 'banstc',
+        aliases: ['antisticker', 'bansticker'],
+        description: 'Atur kebijakan stiker di grup (on: non-admin dilarang, strict: semua dilarang, off: bebas)',
+        category: 'moderation',
+        menuOrder: 17,
+        permission: permissionNames.groupAdmin,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext)
+          if (!group) return
+
+          const suite = getSuiteService(commandContext.services)
+          const mode = commandContext.args[0]?.toLowerCase() as BanStcMode | undefined
+          if (mode !== 'on' && mode !== 'strict' && mode !== 'off') {
+            const current = suite.getSecuritySettings(group)
+            await commandContext.reply(
+              `Format: ${commandContext.prefix}banstc <on|strict|off>\n• *on*: Blokir stiker member biasa (admin bebas)\n• *strict*: Blokir stiker semua orang (termasuk admin)\n• *off*: Stiker diizinkan\n\nStatus saat ini: *${current.banstc.toUpperCase()}*`,
+            )
+            return
+          }
+
+          suite.setBanstc(group, mode)
+          await commandContext.reply(`🛡️ [BANSTC] Kebijakan stiker grup berhasil diubah ke: *${mode.toUpperCase()}*.`)
+        },
+      })
+
+      // 17. /antiraid on/off/status
+      context.commands.register({
+        name: 'antiraid',
+        description: 'Aktifkan sistem pertahanan anti-serbuan link dan karantina media 24 jam',
+        category: 'moderation',
+        menuOrder: 18,
+        permission: permissionNames.groupAdmin,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext)
+          if (!group) return
+
+          const suite = getSuiteService(commandContext.services)
+          const arg = commandContext.args[0]?.toLowerCase()
+          if (arg !== 'on' && arg !== 'off' && arg !== 'status') {
+            const current = suite.getSecuritySettings(group)
+            await commandContext.reply(
+              `Format: ${commandContext.prefix}antiraid <on|off|status>\nStatus antiraid saat ini: *${current.antiraid ? 'AKTIF (ON)' : 'NONAKTIF (OFF)'}*`,
+            )
+            return
+          }
+
+          if (arg === 'status') {
+            const current = suite.getSecuritySettings(group)
+            await commandContext.reply(
+              `🛡️ [ANTIRAID STATUS] ${current.antiraid ? 'AKTIF (ON)' : 'NONAKTIF (OFF)'}\n` +
+              `• *Join Velocity Guard*: Kunci grup otomatis + reset link jika >= 3 join dalam 10 detik\n` +
+              `• *Newcomer Quarantine*: Akun baru dilarang kirim media & link selama 24 jam pertama\n` +
+              `• *Auto-Evict*: Penyerang raid langsung ditendang seketika`,
+            )
+            return
+          }
+
+          suite.setAntiraid(group, arg === 'on')
+          await commandContext.reply(`🛡️ [ANTIRAID] Fitur pertahanan grup sekarang: *${arg === 'on' ? 'AKTIF (ON)' : 'NONAKTIF (OFF)'}*.`)
+        },
+      })
+
       // 16. /setlimit [jumlah]
       context.commands.register({
         name: 'setlimit',
@@ -960,7 +1024,7 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
       })
 
       // --- Inbound Event Listeners ---
-      // 1. Blacklist auto-kick on join
+      // 1. Blacklist auto-kick on join & Anti-Raid Join Velocity Guard
       context.events.on('group.participants.changed', async (event) => {
         if (event.action !== 'add') return
         const suite = getSuiteService(context.services)
@@ -979,6 +1043,50 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
               )
             } catch (err) {
               context.logger.warn({ err, jid }, 'failed to auto-kick banned participant')
+            }
+          }
+        }
+
+        // 2. Anti-Raid Join Velocity Guard & Newcomer Quarantine
+        const sec = suite.getSecuritySettings(event.groupJid)
+        if (sec.antiraid) {
+          const { recentJoins, triggerRaidLock } = suite.recordGroupJoins(
+            event.groupJid,
+            event.participantJids,
+          )
+
+          if (triggerRaidLock) {
+            try {
+              if (whatsapp.groupSettingUpdate) {
+                await whatsapp.groupSettingUpdate(event.groupJid, 'announcement')
+              }
+              if (whatsapp.groupRevokeInvite) {
+                await whatsapp.groupRevokeInvite(event.groupJid)
+                suite.invalidateGroupInviteLink(event.groupJid)
+              }
+              if (whatsapp.groupParticipantsUpdate && event.participantJids.length > 0) {
+                const raiderJids = event.participantJids
+                  .map((j) => jidNormalizedUser(j))
+                  .filter(Boolean)
+                if (raiderJids.length > 0) {
+                  await whatsapp.groupParticipantsUpdate(event.groupJid, raiderJids, 'remove')
+                }
+              }
+              let adminMentions: string[] = []
+              try {
+                const meta = await whatsapp.getGroupMetadata(event.groupJid)
+                adminMentions = meta.participants
+                  .filter((p) => p.role === 'admin' || p.role === 'superadmin')
+                  .map((p) => p.jid)
+              } catch {}
+
+              await whatsapp.sendText(
+                event.groupJid,
+                `🚨 [EMERGENCY RAID ALERT] Terdeteksi ${recentJoins} akun masuk serentak dalam 10 detik!\n🔒 Grup otomatis dikunci ke mode pengumuman.\n🔥 Link undangan telah di-reset & akun penyerang telah ditendang.`,
+                { mentions: adminMentions },
+              )
+            } catch (err) {
+              context.logger.error({ err, groupJid: event.groupJid }, 'failed to execute anti-raid lockdown')
             }
           }
         }
@@ -1008,11 +1116,98 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
           return
         }
 
+        // Cek Security Settings (banstc & antiraid quarantine)
+        const security = suite.getSecuritySettings(group)
+
+        // 1. banstc (Sticker Policy Enforcement)
+        if (message.media?.kind === 'sticker' && security.banstc !== 'off') {
+          let senderIsAdmin = false
+          try {
+            const metadata = await whatsapp.getGroupMetadata(group)
+            senderIsAdmin = isAdmin(metadata, sender)
+          } catch {}
+
+          const isExempt = security.banstc === 'on' && senderIsAdmin
+          if (!isExempt) {
+            if (whatsapp.deleteMessage) {
+              try {
+                await whatsapp.deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
+              } catch (err) {
+                context.logger.warn({ err, groupJid: group }, 'failed to delete banned sticker')
+              }
+            }
+
+            const strikes = suite.addStickerStrike(group, sender, 3_600_000)
+            const phone = normalizePhone(sender)
+            if (strikes >= 3 && !senderIsAdmin) {
+              if (whatsapp.groupParticipantsUpdate) {
+                try {
+                  await whatsapp.groupParticipantsUpdate(group, [jidNormalizedUser(sender)], 'remove')
+                  suite.clearStickerStrikes(group, sender)
+                  await whatsapp.sendText(
+                    group,
+                    `🔨 [BANSTC] @${phone} dikeluarkan dari grup karena melanggar larangan stiker (3/3).`,
+                    { mentions: [sender] },
+                  )
+                } catch (err) {
+                  context.logger.warn({ err, sender }, 'failed to kick sticker violator')
+                }
+              }
+            }
+            return
+          }
+        }
+
+        // 2. antiraid: Newcomer Media & Link Quarantine (24h Window)
+        if (security.antiraid && suite.isQuarantined(group, sender)) {
+          let senderIsAdmin = false
+          try {
+            const metadata = await whatsapp.getGroupMetadata(group)
+            senderIsAdmin = isAdmin(metadata, sender)
+          } catch {}
+
+          if (!senderIsAdmin) {
+            const isMedia = Boolean(
+              message.media?.kind === 'sticker' ||
+              message.media?.kind === 'image' ||
+              message.media?.kind === 'video' ||
+              message.media?.kind === 'document',
+            )
+            const hasLink = /(?:https?:\/\/|chat\.whatsapp\.com)[^\s<>]+/i.test(text || '')
+
+            if (isMedia || hasLink) {
+              if (whatsapp.deleteMessage) {
+                try {
+                  await whatsapp.deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
+                } catch {}
+              }
+              const phone = normalizePhone(sender)
+              if (whatsapp.groupParticipantsUpdate) {
+                try {
+                  await whatsapp.groupParticipantsUpdate(group, [jidNormalizedUser(sender)], 'remove')
+                  suite.removeQuarantine(group, sender)
+                  await whatsapp.sendText(
+                    group,
+                    `🛡️ [ANTIRAID] Akun @${phone} dikeluarkan otomatis karena mengirim media/link selama masa karantina 24 jam.`,
+                    { mentions: [sender] },
+                  )
+                } catch (err) {
+                  context.logger.warn({ err, sender }, 'failed to kick quarantined newcomer')
+                }
+              }
+              return
+            }
+          }
+        }
+
         // Cek automod settings dulu (SQLite lookup cepat)
         const automod = suite.getAutomod(group)
         if (!automod.antispam && !automod.antilink && !automod.antitoxic) return
 
-        const isSpam = automod.antispam ? suite.checkAndRecordSpam(group, sender, 5, 5000) : false
+        const spamEval = automod.antispam
+          ? suite.evaluateDetailedSpam(group, sender, text || '')
+          : { violated: false, tier: 0 as const, shouldWarn: false }
+        const isSpam = spamEval.violated
 
         let linkEval: ReturnType<typeof evaluateMessageLinks> | undefined
         if (automod.antilink && text) {
@@ -1064,7 +1259,6 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
 
         // Cek Antispam
         if (isSpam) {
-          suite.mute(group, sender, whatsapp.userJid ?? 'system', 5 * 60 * 1000)
           if (whatsapp.deleteMessage) {
             try {
               await whatsapp.deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
@@ -1073,11 +1267,20 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
             }
           }
           const phone = normalizePhone(sender)
-          await whatsapp.sendText(
-            group,
-            `⚠️ @${phone} terdeteksi mengirim pesan terlalu cepat (spam) dan di-mute otomatis selama 5 menit.`,
-            { mentions: [sender] },
-          )
+          if (spamEval.tier === 1 && spamEval.shouldWarn) {
+            await whatsapp.sendText(
+              group,
+              `⚠️ @${phone} Tenang dulu! Terdeteksi spam / pesan berulang terlalu cepat.`,
+              { mentions: [sender] },
+            )
+          } else if (spamEval.tier === 2) {
+            suite.mute(group, sender, whatsapp.userJid ?? 'system', 5 * 60 * 1000)
+            await whatsapp.sendText(
+              group,
+              `⚠️ @${phone} terdeteksi spam terus menerus dan di-mute otomatis selama 5 menit.`,
+              { mentions: [sender] },
+            )
+          }
           return
         }
 

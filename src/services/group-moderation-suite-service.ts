@@ -25,17 +25,38 @@ export interface AutomodSettings {
   readonly antitoxic: boolean
 }
 
+export type BanStcMode = 'off' | 'on' | 'strict'
+
+export interface GroupSecuritySettings {
+  readonly banstc: BanStcMode
+  readonly antiraid: boolean
+}
+
 export class GroupModerationSuiteService implements Service {
   readonly name = 'group-moderation-suite'
   private readonly db: DatabaseInstance
   private readonly logger: Logger
   private readonly spamHistory = new Map<string, number[]>()
   private readonly inviteLinkCache = new Map<string, { link: string; expiresAt: number }>()
+  private readonly stickerStrikes = new Map<string, { count: number; expiresAt: number }>()
+  private readonly raidJoinWindows = new Map<string, { timestamps: number[]; lastLockAt: number }>()
+  private readonly newcomerQuarantine = new Map<string, { joinedAt: number; expiresAt: number }>()
+  private readonly detailedSpamBuckets = new Map<string, {
+    timestamps: number[]
+    recentHashes: Array<{ hash: string; ts: number }>
+    tier1WarnedAt: number | null
+    lastWarnSentAt: number | null
+    mutedUntil: number | null
+    expiresAt: number
+  }>()
+  private readonly gcTimer: NodeJS.Timeout
 
   constructor(databasePath: string, logger: Logger) {
     this.db = initSqliteDatabase(databasePath)
     this.logger = logger.child({ service: 'group-moderation-suite' })
     this.migrate()
+    this.gcTimer = setInterval(() => this.pruneExpiredSecurity(), 30_000)
+    this.gcTimer.unref()
   }
 
   initialize(_context: ServiceContext): void {
@@ -106,6 +127,13 @@ export class GroupModerationSuiteService implements Service {
       );
 
       CREATE INDEX IF NOT EXISTS idx_audit_chain_group ON moderation_audit_chain (group_jid);
+
+      CREATE TABLE IF NOT EXISTS group_security_settings (
+        group_jid TEXT PRIMARY KEY,
+        banstc_mode TEXT NOT NULL DEFAULT 'off',
+        antiraid_enabled INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL
+      );
     `)
   }
 
@@ -556,5 +584,193 @@ export class GroupModerationSuiteService implements Service {
 
   invalidateGroupInviteLink(groupJid: string): void {
     this.inviteLinkCache.delete(groupJid)
+  }
+
+  // --- Group Security Settings (banstc, antiraid) ---
+  getSecuritySettings(groupJid: string): GroupSecuritySettings {
+    const row = this.db
+      .prepare('SELECT banstc_mode, antiraid_enabled FROM group_security_settings WHERE group_jid = ?')
+      .get(groupJid) as { banstc_mode: string; antiraid_enabled: number } | undefined
+
+    return {
+      banstc: (row?.banstc_mode as BanStcMode) || 'off',
+      antiraid: row ? Boolean(row.antiraid_enabled) : true,
+    }
+  }
+
+  setBanstc(groupJid: string, mode: BanStcMode): void {
+    const now = Date.now()
+    const current = this.getSecuritySettings(groupJid)
+    this.db
+      .prepare(
+        `INSERT INTO group_security_settings (group_jid, banstc_mode, antiraid_enabled, updated_at)
+         VALUES (@groupJid, @mode, @antiraid, @now)
+         ON CONFLICT(group_jid) DO UPDATE SET
+           banstc_mode = excluded.banstc_mode,
+           updated_at = excluded.updated_at`,
+      )
+      .run({ groupJid, mode, antiraid: current.antiraid ? 1 : 0, now })
+  }
+
+  setAntiraid(groupJid: string, enabled: boolean): void {
+    const now = Date.now()
+    const current = this.getSecuritySettings(groupJid)
+    this.db
+      .prepare(
+        `INSERT INTO group_security_settings (group_jid, banstc_mode, antiraid_enabled, updated_at)
+         VALUES (@groupJid, @mode, @enabled, @now)
+         ON CONFLICT(group_jid) DO UPDATE SET
+           antiraid_enabled = excluded.antiraid_enabled,
+           updated_at = excluded.updated_at`,
+      )
+      .run({ groupJid, mode: current.banstc, enabled: enabled ? 1 : 0, now })
+  }
+
+  // --- Sticker Strikes (1h TTL) ---
+  addStickerStrike(groupJid: string, senderJid: string, ttlMs = 3_600_000, now = Date.now()): number {
+    const clean = senderJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+    const key = `${groupJid}:${clean}`
+    const cur = this.stickerStrikes.get(key)
+    const count = cur && cur.expiresAt > now ? cur.count + 1 : 1
+    const expiresAt = now + ttlMs
+    this.stickerStrikes.set(key, { count, expiresAt })
+    return count
+  }
+
+  clearStickerStrikes(groupJid: string, senderJid: string): void {
+    const clean = senderJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+    this.stickerStrikes.delete(`${groupJid}:${clean}`)
+  }
+
+  // --- Join Velocity Guard & Newcomer Media Quarantine (24h Window) ---
+  recordGroupJoins(
+    groupJid: string,
+    participants: readonly string[],
+    windowMs = 10_000,
+    limit = 3,
+    quarantineMs = 86_400_000,
+    now = Date.now(),
+  ): { recentJoins: number; triggerRaidLock: boolean } {
+    const cutoff = now - windowMs
+    const win = this.raidJoinWindows.get(groupJid) ?? { timestamps: [], lastLockAt: 0 }
+    win.timestamps = win.timestamps.filter((t) => t > cutoff)
+
+    for (const jid of participants) {
+      const clean = jid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+      if (!clean) continue
+      win.timestamps.push(now)
+      const qKey = `${groupJid}:${clean}`
+      this.newcomerQuarantine.set(qKey, { joinedAt: now, expiresAt: now + quarantineMs })
+    }
+
+    const triggerRaidLock = win.timestamps.length >= limit && now - win.lastLockAt >= 60_000
+    if (triggerRaidLock) win.lastLockAt = now
+    this.raidJoinWindows.set(groupJid, win)
+
+    return { recentJoins: win.timestamps.length, triggerRaidLock }
+  }
+
+  isQuarantined(groupJid: string, senderJid: string, now = Date.now()): boolean {
+    const clean = senderJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+    const key = `${groupJid}:${clean}`
+    const q = this.newcomerQuarantine.get(key)
+    if (!q) return false
+    if (q.expiresAt <= now) {
+      this.newcomerQuarantine.delete(key)
+      return false
+    }
+    return true
+  }
+
+  removeQuarantine(groupJid: string, senderJid: string): void {
+    const clean = senderJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+    this.newcomerQuarantine.delete(`${groupJid}:${clean}`)
+  }
+
+  // --- Sliding-Window + Duplicate Text Hash Anti-Spam ---
+  evaluateDetailedSpam(
+    groupJid: string,
+    senderJid: string,
+    text: string,
+    config = {
+      maxMessages: 5,
+      rateWindowMs: 3_000,
+      duplicateLimit: 3,
+      duplicateWindowMs: 5_000,
+      warningCooldownMs: 15_000,
+      muteDurationMs: 300_000,
+    },
+    now = Date.now(),
+  ): {
+    violated: boolean
+    tier: 0 | 1 | 2
+    shouldWarn: boolean
+    reason?: 'rate_limit' | 'duplicate_hash'
+  } {
+    const clean = senderJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+    const key = `${groupJid}:${clean}`
+    const ttl = Math.max(config.muteDurationMs, config.warningCooldownMs * 2, 30_000)
+
+    let b = this.detailedSpamBuckets.get(key)
+    if (!b || b.expiresAt <= now) {
+      b = {
+        timestamps: [],
+        recentHashes: [],
+        tier1WarnedAt: null,
+        lastWarnSentAt: null,
+        mutedUntil: null,
+        expiresAt: now + ttl,
+      }
+    }
+
+    if (b.mutedUntil && b.mutedUntil > now) {
+      this.detailedSpamBuckets.set(key, b)
+      return { violated: true, tier: 2, shouldWarn: false, reason: 'rate_limit' }
+    }
+
+    b.timestamps = b.timestamps.filter((t) => t > now - config.rateWindowMs)
+    b.timestamps.push(now)
+    const rateExceeded = b.timestamps.length > config.maxMessages
+
+    let dupExceeded = false
+    if (text && text.trim().length > 0) {
+      b.recentHashes = b.recentHashes.filter((h) => h.ts > now - config.duplicateWindowMs)
+      const digest = createHash('sha256')
+        .update(text.trim().replace(/\s+/g, ' ').toLowerCase())
+        .digest('hex')
+      b.recentHashes.push({ hash: digest, ts: now })
+      if (b.recentHashes.length > 10) b.recentHashes = b.recentHashes.slice(-10)
+      const sameCount = b.recentHashes.filter((h) => h.hash === digest).length
+      if (sameCount >= config.duplicateLimit) dupExceeded = true
+    }
+
+    b.expiresAt = now + ttl
+    if (!rateExceeded && !dupExceeded) {
+      this.detailedSpamBuckets.set(key, b)
+      return { violated: false, tier: 0, shouldWarn: false }
+    }
+
+    const reason = dupExceeded ? 'duplicate_hash' : 'rate_limit'
+    const recentlyWarned = b.tier1WarnedAt !== null && now - b.tier1WarnedAt <= 30_000
+
+    if (!recentlyWarned) {
+      b.tier1WarnedAt = now
+      const shouldWarn = !b.lastWarnSentAt || now - b.lastWarnSentAt >= config.warningCooldownMs
+      if (shouldWarn) b.lastWarnSentAt = now
+      this.detailedSpamBuckets.set(key, b)
+      return { violated: true, tier: 1, shouldWarn, reason }
+    }
+
+    b.mutedUntil = now + config.muteDurationMs
+    b.expiresAt = Math.max(b.expiresAt, b.mutedUntil)
+    this.detailedSpamBuckets.set(key, b)
+    this.mute(groupJid, senderJid, 'system', config.muteDurationMs)
+    return { violated: true, tier: 2, shouldWarn: false, reason }
+  }
+
+  private pruneExpiredSecurity(now = Date.now()): void {
+    for (const [k, v] of this.stickerStrikes) if (v.expiresAt <= now) this.stickerStrikes.delete(k)
+    for (const [k, v] of this.newcomerQuarantine) if (v.expiresAt <= now) this.newcomerQuarantine.delete(k)
+    for (const [k, v] of this.detailedSpamBuckets) if (v.expiresAt <= now) this.detailedSpamBuckets.delete(k)
   }
 }
