@@ -49,6 +49,7 @@ export class GroupModerationSuiteService implements Service {
     mutedUntil: number | null
     expiresAt: number
   }>()
+  private readonly groupAdminsCache = new Map<string, { adminJids: Set<string>; expiresAt: number }>()
   private readonly gcTimer: NodeJS.Timeout
 
   constructor(databasePath: string, logger: Logger) {
@@ -768,9 +769,33 @@ export class GroupModerationSuiteService implements Service {
     return { violated: true, tier: 2, shouldWarn: false, reason }
   }
 
+  // --- In-Memory Group Admin Cache (15m TTL) ---
+  isSenderAdminCached(groupJid: string, senderJid: string): boolean | undefined {
+    const cached = this.groupAdminsCache.get(groupJid)
+    if (cached && cached.expiresAt > Date.now()) {
+      const clean = senderJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+      return cached.adminJids.has(clean)
+    }
+    return undefined
+  }
+
+  cacheGroupAdmins(groupJid: string, adminJids: readonly string[], ttlMs = 15 * 60 * 1000): void {
+    const set = new Set<string>()
+    for (const jid of adminJids) {
+      const clean = jid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+      if (clean) set.add(clean)
+    }
+    this.groupAdminsCache.set(groupJid, { adminJids: set, expiresAt: Date.now() + ttlMs })
+  }
+
+  invalidateGroupAdmins(groupJid: string): void {
+    this.groupAdminsCache.delete(groupJid)
+  }
+
   private pruneExpiredSecurity(now = Date.now()): void {
     for (const [k, v] of this.stickerStrikes) if (v.expiresAt <= now) this.stickerStrikes.delete(k)
     for (const [k, v] of this.newcomerQuarantine) if (v.expiresAt <= now) this.newcomerQuarantine.delete(k)
     for (const [k, v] of this.detailedSpamBuckets) if (v.expiresAt <= now) this.detailedSpamBuckets.delete(k)
+    for (const [k, v] of this.groupAdminsCache) if (v.expiresAt <= now) this.groupAdminsCache.delete(k)
   }
 }

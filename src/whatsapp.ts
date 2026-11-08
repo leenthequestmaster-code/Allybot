@@ -82,11 +82,60 @@ function defaultMimeType(kind: CoreMediaKind): string {
   }
 }
 
+function deepUnwrapMessageContent(content: WAMessage['message'] | null | undefined): Record<string, unknown> | null {
+  let current: any = content
+  let depth = 0
+  while (current && depth < 8) {
+    if (current.ephemeralMessage?.message) {
+      current = current.ephemeralMessage.message
+      depth++
+      continue
+    }
+    if (current.viewOnceMessage?.message) {
+      current = current.viewOnceMessage.message
+      depth++
+      continue
+    }
+    if (current.viewOnceMessageV2?.message) {
+      current = current.viewOnceMessageV2.message
+      depth++
+      continue
+    }
+    if (current.viewOnceMessageV2Extension?.message) {
+      current = current.viewOnceMessageV2Extension.message
+      depth++
+      continue
+    }
+    if (current.documentWithCaptionMessage?.message) {
+      current = current.documentWithCaptionMessage.message
+      depth++
+      continue
+    }
+    if (current.editedMessage?.message?.protocolMessage?.editedMessage) {
+      current = current.editedMessage.message.protocolMessage.editedMessage
+      depth++
+      continue
+    }
+    if (current.protocolMessage?.editedMessage) {
+      current = current.protocolMessage.editedMessage
+      depth++
+      continue
+    }
+    if (current.editedMessage?.message) {
+      current = current.editedMessage.message
+      depth++
+      continue
+    }
+    break
+  }
+  return (normalizeMessageContent(current) ?? current) as Record<string, unknown> | null
+}
+
 function mediaDescriptorFromContent(content: WAMessage['message'] | null | undefined, quoted = false): CoreMediaDescriptor | undefined {
-  const normalized = normalizeMessageContent(content) ?? content
-  if (!normalized) return undefined
+  const unwrapped = deepUnwrapMessageContent(content)
+  if (!unwrapped) return undefined
   for (const [kind, key] of MEDIA_DESCRIPTOR_KEYS) {
-    const candidate = (normalized as unknown as Record<string, unknown>)[key]
+    const candidate = unwrapped[key]
     if (!candidate || typeof candidate !== 'object') continue
     const value = candidate as Record<string, unknown>
     const descriptor: CoreMediaDescriptor = {
@@ -850,14 +899,8 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
     try {
       const isGroup = isGroupJid(remoteJid)
       let targetParticipant: string | undefined
-      if (isGroup) {
-        targetParticipant = key.participant
-        if (targetParticipant && !targetParticipant.endsWith('@lid') && (socket as any).signalRepository?.lidMapping?.getLIDForPN) {
-          try {
-            const mappedLid = await (socket as any).signalRepository.lidMapping.getLIDForPN(targetParticipant)
-            if (mappedLid) targetParticipant = mappedLid
-          } catch {}
-        }
+      if (isGroup && key.participant) {
+        targetParticipant = jidNormalizedUser(key.participant)
       }
       await withTimeout(
         socket.sendMessage(remoteJid, {

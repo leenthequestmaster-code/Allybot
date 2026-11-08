@@ -37,6 +37,14 @@ test('Security Modules: banstc, antiraid, and detailed antispam', async (t) => {
     // Clear strikes
     suite.clearStickerStrikes(group, user1)
     assert.equal(suite.addStickerStrike(group, user1), 1)
+
+    // Admin caching
+    assert.equal(suite.isSenderAdminCached(group, user1), undefined)
+    suite.cacheGroupAdmins(group, [user1])
+    assert.equal(suite.isSenderAdminCached(group, user1), true)
+    assert.equal(suite.isSenderAdminCached(group, user2), false)
+    suite.invalidateGroupAdmins(group)
+    assert.equal(suite.isSenderAdminCached(group, user1), undefined)
   })
 
   await t.test('antiraid: join velocity guard triggers on >=3 joins in 10s', () => {

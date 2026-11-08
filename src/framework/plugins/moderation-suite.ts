@@ -1026,8 +1026,14 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
       // --- Inbound Event Listeners ---
       // 1. Blacklist auto-kick on join & Anti-Raid Join Velocity Guard
       context.events.on('group.participants.changed', async (event) => {
-        if (event.action !== 'add') return
         const suite = getSuiteService(context.services)
+
+        // Invalidate admin cache on promote/demote/remove
+        if (event.action === 'promote' || event.action === 'demote' || event.action === 'remove') {
+          suite.invalidateGroupAdmins(event.groupJid)
+        }
+
+        if (event.action !== 'add') return
 
         for (const jid of event.participantJids) {
           if (suite.isBanned(event.groupJid, jid)) {
@@ -1120,38 +1126,84 @@ export function createModerationSuitePlugin(whatsapp: WhatsAppPort): Plugin {
         const security = suite.getSecuritySettings(group)
 
         // 1. banstc (Sticker Policy Enforcement)
-        if (message.media?.kind === 'sticker' && security.banstc !== 'off') {
-          let senderIsAdmin = false
-          try {
-            const metadata = await whatsapp.getGroupMetadata(group)
-            senderIsAdmin = isAdmin(metadata, sender)
-          } catch {}
+        const isSticker =
+          message.media?.kind === 'sticker' ||
+          (message.media?.kind === 'document' && message.media.mimeType === 'image/webp')
 
-          const isExempt = security.banstc === 'on' && senderIsAdmin
-          if (!isExempt) {
+        if (isSticker && security.banstc !== 'off') {
+          // Fast-Path: In strict mode, NOBODY is exempt (not even admins). Instant deletion!
+          if (security.banstc === 'strict') {
             if (whatsapp.deleteMessage) {
-              try {
-                await whatsapp.deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
-              } catch (err) {
-                context.logger.warn({ err, groupJid: group }, 'failed to delete banned sticker')
-              }
+              void whatsapp
+                .deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
+                .catch((err) => {
+                  context.logger.warn({ err, groupJid: group }, 'failed to delete banned sticker in strict mode')
+                })
             }
 
             const strikes = suite.addStickerStrike(group, sender, 3_600_000)
             const phone = normalizePhone(sender)
-            if (strikes >= 3 && !senderIsAdmin) {
+            if (strikes >= 3) {
               if (whatsapp.groupParticipantsUpdate) {
-                try {
-                  await whatsapp.groupParticipantsUpdate(group, [jidNormalizedUser(sender)], 'remove')
-                  suite.clearStickerStrikes(group, sender)
-                  await whatsapp.sendText(
-                    group,
-                    `🔨 [BANSTC] @${phone} dikeluarkan dari grup karena melanggar larangan stiker (3/3).`,
-                    { mentions: [sender] },
-                  )
-                } catch (err) {
-                  context.logger.warn({ err, sender }, 'failed to kick sticker violator')
-                }
+                void whatsapp
+                  .groupParticipantsUpdate(group, [jidNormalizedUser(sender)], 'remove')
+                  .then(async () => {
+                    suite.clearStickerStrikes(group, sender)
+                    await whatsapp.sendText(
+                      group,
+                      `🔨 [BANSTC] @${phone} dikeluarkan dari grup karena melanggar larangan stiker (3/3).`,
+                      { mentions: [sender] },
+                    )
+                  })
+                  .catch((err) => {
+                    context.logger.warn({ err, sender }, 'failed to kick sticker violator in strict mode')
+                  })
+              }
+            }
+            return
+          }
+
+          // In 'on' mode: Admins are exempt. Use fast in-memory cache!
+          let senderIsAdmin = suite.isSenderAdminCached(group, sender)
+          if (senderIsAdmin === undefined) {
+            try {
+              const metadata = await whatsapp.getGroupMetadata(group)
+              const adminJids = metadata.participants
+                .filter((p) => p.role === 'admin' || p.role === 'superadmin')
+                .map((p) => p.jid)
+              suite.cacheGroupAdmins(group, adminJids)
+              senderIsAdmin = suite.isSenderAdminCached(group, sender) ?? false
+            } catch {
+              senderIsAdmin = false
+            }
+          }
+
+          if (!senderIsAdmin) {
+            if (whatsapp.deleteMessage) {
+              void whatsapp
+                .deleteMessage(group, message.rawKey ?? { id: message.id, remoteJid: group, participant: sender })
+                .catch((err) => {
+                  context.logger.warn({ err, groupJid: group }, 'failed to delete banned sticker')
+                })
+            }
+
+            const strikes = suite.addStickerStrike(group, sender, 3_600_000)
+            const phone = normalizePhone(sender)
+            if (strikes >= 3) {
+              if (whatsapp.groupParticipantsUpdate) {
+                void whatsapp
+                  .groupParticipantsUpdate(group, [jidNormalizedUser(sender)], 'remove')
+                  .then(async () => {
+                    suite.clearStickerStrikes(group, sender)
+                    await whatsapp.sendText(
+                      group,
+                      `🔨 [BANSTC] @${phone} dikeluarkan dari grup karena melanggar larangan stiker (3/3).`,
+                      { mentions: [sender] },
+                    )
+                  })
+                  .catch((err) => {
+                    context.logger.warn({ err, sender }, 'failed to kick sticker violator')
+                  })
               }
             }
             return
