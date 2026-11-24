@@ -174,7 +174,9 @@ async function main(): Promise<void> {
   framework.registerService(new MinigamesService({ dbPath: config.DATABASE_PATH, redis }))
   const arcadeService = new ArcadeService({ dbPath: config.DATABASE_PATH, enableAutoTimers: true, whatsapp })
   framework.registerService(arcadeService)
-  framework.registerService(new WebCompanionService(logger, { whatsapp }))
+  if (config.WEB_COMPANION_ENABLED) {
+    framework.registerService(new WebCompanionService(logger, { whatsapp }))
+  }
   framework.registerService(new DownloaderService())
   framework.registerService(new QuotaService(config.DATABASE_PATH, logger, { botOwnerJid: config.BOT_OWNER_JID }))
   const chatHistoryService = new ChatHistoryService(logger, { redis })

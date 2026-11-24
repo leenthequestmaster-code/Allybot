@@ -33,6 +33,7 @@ import { createMenfessPlugin } from '../dist/framework/plugins/menfess.js'
 import { createRekapPlugin } from '../dist/framework/plugins/rekap.js'
 import { createChessPlugin } from '../dist/framework/plugins/chess.js'
 import { createMinigamesPlugin } from '../dist/framework/plugins/minigames.js'
+import { createArcadePlugin } from '../dist/framework/plugins/arcade.js'
 import { reminderPlugin } from '../dist/framework/plugins/reminder.js'
 import { certificatePlugin } from '../dist/framework/plugins/certificate.js'
 import { exifPlugin } from '../dist/framework/plugins/exif.js'
@@ -91,6 +92,8 @@ const SERVICE_NAMES = [
   'quota',
   'community',
   'chess',
+  'minigames',
+  'arcade',
   'reminder',
   'aegis-queue',
   'menfess',
@@ -194,10 +197,13 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
   framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
-  framework.registerPlugin(createChessPlugin(whatsapp))
-  framework.registerPlugin(createMinigamesPlugin(whatsapp))
   framework.registerPlugin(reminderPlugin)
   framework.registerPlugin(certificatePlugin)
+  framework.registerPlugin(createAfkPlugin(whatsapp))
+  framework.registerPlugin(createSuggestPlugin(whatsapp))
+  framework.registerPlugin(createChessPlugin(whatsapp))
+  framework.registerPlugin(createMinigamesPlugin(whatsapp))
+  framework.registerPlugin(createArcadePlugin(whatsapp, { service: stubService('arcade') }))
   framework.registerPlugin(exifPlugin)
   framework.registerPlugin(mediaPlugin)
   framework.registerPlugin(downloaderPlugin)
@@ -207,8 +213,6 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(quranPlugin)
   framework.registerPlugin(sholatPlugin)
   framework.registerPlugin(doaPlugin)
-  framework.registerPlugin(createAfkPlugin(whatsapp))
-  framework.registerPlugin(createSuggestPlugin(whatsapp))
   framework.registerPlugin(createMenfessPlugin(whatsapp))
   framework.registerPlugin(createVideoPlugin(whatsapp))
 

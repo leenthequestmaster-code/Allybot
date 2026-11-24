@@ -377,7 +377,7 @@ function buildStatsCardSvg(data: StatusCardPayload): string {
   out.push(
     `<rect x="${mx1}" y="${my1}" width="${mx2 - mx1}" height="${my2 - my1}" rx="10" fill="rgb(11,16,28)" stroke="rgb(30,41,59)" stroke-width="1" />`,
     drawHudCornersSvg([mx1, my1, mx2, my2], 16, [56, 189, 248], 2),
-    `<text x="${mx1 + 24}" y="${my1 + 33}" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="15" fill="rgb(0,229,255)">MATRIKS ATRIBUT TEMPUR (6 PILAR & STATUS)</text>`,
+    `<text x="${mx1 + 24}" y="${my1 + 33}" font-family="Inter, DejaVu Sans, sans-serif" font-weight="700" font-size="15" fill="rgb(0,229,255)">MATRIKS ATRIBUT TEMPUR (6 PILAR &amp; STATUS)</text>`,
   )
 
   const allocMap = (stats.allocatedTokens ?? {}) as Record<string, number>
