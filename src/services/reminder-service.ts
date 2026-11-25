@@ -36,6 +36,8 @@ export class ReminderService implements Service {
   initialize(_context?: ServiceContext): void {
     this.db = new Database(this.databasePath)
     this.db.pragma('journal_mode = WAL')
+    this.db.pragma('synchronous = NORMAL')
+    this.db.pragma('busy_timeout = 5000')
     this.ensureSchema()
     this.startPoller()
     this.logger?.info('ReminderService initialized successfully')

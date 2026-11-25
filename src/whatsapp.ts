@@ -835,7 +835,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       ...(description ? { description } : {}),
       participants,
     }
-    this.groupMetadataCache.set(groupJid, { metadata: result, expiresAt: Date.now() + 60_000 })
+    this.groupMetadataCache.set(groupJid, { metadata: result, expiresAt: Date.now() + 300_000 })
     return result
   }
 
@@ -1146,6 +1146,16 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
           await this.handleMessages(socket, messageUpsert, logger).catch((err) => {
             logger.warn({ err }, 'handleMessages persistence failed')
           })
+        }
+      }
+
+      const groupsUpdate = events['groups.update']
+      if (groupsUpdate) {
+        for (const update of groupsUpdate) {
+          if (update.id) {
+            this.groupMetadataCache.delete(update.id)
+            this.groupNameCache.delete(update.id)
+          }
         }
       }
 

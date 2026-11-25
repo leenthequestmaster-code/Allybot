@@ -196,10 +196,15 @@ export class CommandRegistry implements CommandRegistryLike {
     }
 
     let replyDelivered = false
+    let typingStartTimer: NodeJS.Timeout | null = null
     let heartbeatTimer: NodeJS.Timeout | null = null
     let isTyping = false
 
     const cleanupTyping = () => {
+      if (typingStartTimer) {
+        clearTimeout(typingStartTimer)
+        typingStartTimer = null
+      }
       if (heartbeatTimer) {
         clearInterval(heartbeatTimer)
         heartbeatTimer = null
@@ -210,14 +215,19 @@ export class CommandRegistry implements CommandRegistryLike {
       }
     }
 
-    // Universal Auto-Typing: Instantly announce composing presence on command invocation
-    if (this.whatsapp.sendPresenceUpdate) {
-      isTyping = true
-      void this.whatsapp.sendPresenceUpdate(message.remoteJid, 'composing')
-      heartbeatTimer = setInterval(() => {
+    // Deferred Auto-Typing: only emit composing if handler takes >800ms
+    if (this.whatsapp.sendPresenceUpdate && process.env.NODE_ENV !== 'test') {
+      typingStartTimer = setTimeout(() => {
+        typingStartTimer = null
+        if (replyDelivered) return
+        isTyping = true
         void this.whatsapp.sendPresenceUpdate?.(message.remoteJid, 'composing')
-      }, 8_000)
-      heartbeatTimer.unref?.()
+        heartbeatTimer = setInterval(() => {
+          void this.whatsapp.sendPresenceUpdate?.(message.remoteJid, 'composing')
+        }, 8_000)
+        heartbeatTimer.unref?.()
+      }, 800)
+      typingStartTimer.unref?.()
     }
 
     const context: CommandContext = {
@@ -230,16 +240,6 @@ export class CommandRegistry implements CommandRegistryLike {
       services: this.services,
       whatsapp: this.whatsapp,
       reply: async (replyText, options?: WhatsAppSendOptions) => {
-        // Natural human cadence: proportional delay while composing presence is active
-        const textLen = (replyText ?? '').length
-        const typingDelayMs = process.env.NODE_ENV === 'test'
-          ? 0
-          : Math.min(1000, Math.max(350, Math.round(textLen * 6)))
-
-        if (typingDelayMs > 0) {
-          await new Promise((resolve) => setTimeout(resolve, typingDelayMs))
-        }
-
         cleanupTyping()
         await this.whatsapp.sendText(message.remoteJid, replyText, options)
         replyDelivered = true
@@ -261,6 +261,10 @@ export class CommandRegistry implements CommandRegistryLike {
         }
       },
       sendPresence: async (type) => {
+        if (typingStartTimer) {
+          clearTimeout(typingStartTimer)
+          typingStartTimer = null
+        }
         if (heartbeatTimer) {
           clearInterval(heartbeatTimer)
           heartbeatTimer = null

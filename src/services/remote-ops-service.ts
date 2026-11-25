@@ -16,6 +16,8 @@ export interface RemoteInspectSession {
 export class RemoteOpsService implements Service {
   readonly name = 'remote-ops'
   private db?: DatabaseInstance
+  private readonly activeInspectGroups = new Map<string, number>()
+  private readonly sniffOnceGroups = new Set<string>()
 
   constructor(
     private readonly databasePath: string,
@@ -27,14 +29,42 @@ export class RemoteOpsService implements Service {
   initialize(_context: ServiceContext): void {
     this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
+    this.loadHotPathCaches()
     this.logger.info({ component: 'remote-ops' }, 'RemoteOpsService initialized')
   }
 
   shutdown(_context: ServiceContext): void {
+    this.activeInspectGroups.clear()
+    this.sniffOnceGroups.clear()
     if (this.db?.open) {
       this.db.close()
     }
     this.db = undefined
+  }
+
+  private loadHotPathCaches(): void {
+    const db = this.database()
+    const now = Math.floor(Date.now() / 1000)
+    this.activeInspectGroups.clear()
+    this.sniffOnceGroups.clear()
+
+    const inspectRows = db.prepare(`
+      SELECT group_jid, expires_at
+      FROM remote_inspect_sessions
+      WHERE expires_at > ?
+    `).all(now) as Array<{ group_jid: string; expires_at: number }>
+    for (const row of inspectRows) {
+      this.activeInspectGroups.set(row.group_jid, row.expires_at)
+    }
+
+    const sniffRows = db.prepare(`
+      SELECT jid
+      FROM community_groups
+      WHERE sniff_once = 1
+    `).all() as Array<{ jid: string }>
+    for (const row of sniffRows) {
+      this.sniffOnceGroups.add(row.jid)
+    }
   }
 
   private database(): DatabaseInstance {
@@ -91,6 +121,8 @@ export class RemoteOpsService implements Service {
         forwarded_count = 0
     `).run(groupJid, groupName, filterMode, ownerJid, now, expiresAt)
 
+    this.activeInspectGroups.set(groupJid, expiresAt)
+
     return {
       groupJid,
       groupName,
@@ -103,6 +135,7 @@ export class RemoteOpsService implements Service {
   }
 
   public stopInspect(groupJid: string): boolean {
+    this.activeInspectGroups.delete(groupJid)
     const db = this.database()
     const result = db.prepare('DELETE FROM remote_inspect_sessions WHERE group_jid = ?').run(groupJid)
     return result.changes > 0
@@ -176,6 +209,8 @@ export class RemoteOpsService implements Service {
         VALUES (?, ?, ?, unixepoch(), 'remote-ops', unixepoch())
         ON CONFLICT(jid) DO UPDATE SET sniff_once = excluded.sniff_once, updated_at = unixepoch()
       `).run(groupJid, groupJid, next)
+      if (next === 1) this.sniffOnceGroups.add(groupJid)
+      else this.sniffOnceGroups.delete(groupJid)
       return next === 1
     }
     const val = enable ? 1 : 0
@@ -184,6 +219,8 @@ export class RemoteOpsService implements Service {
       VALUES (?, ?, ?, unixepoch(), 'remote-ops', unixepoch())
       ON CONFLICT(jid) DO UPDATE SET sniff_once = excluded.sniff_once, updated_at = unixepoch()
     `).run(groupJid, groupJid, val)
+    if (enable) this.sniffOnceGroups.add(groupJid)
+    else this.sniffOnceGroups.delete(groupJid)
     return enable
   }
 
@@ -199,15 +236,29 @@ export class RemoteOpsService implements Service {
     if (message.fromMe || !isGroupJid(message.remoteJid)) return
 
     const groupJid = message.remoteJid
-    const db = this.database()
     const now = Math.floor(Date.now() / 1000)
 
-    // Check active inspect
-    const session = db.prepare(`
-      SELECT group_jid, group_name, filter_mode, owner_jid, started_at, expires_at, forwarded_count
-      FROM remote_inspect_sessions
-      WHERE group_jid = ? AND expires_at > ?
-    `).get(groupJid, now) as {
+    const inspectExpiresAt = this.activeInspectGroups.get(groupJid)
+    let hasActiveInspect = false
+    if (inspectExpiresAt !== undefined) {
+      if (inspectExpiresAt > now) {
+        hasActiveInspect = true
+      } else {
+        this.activeInspectGroups.delete(groupJid)
+      }
+    }
+
+    const hasSniffOnce = this.sniffOnceGroups.has(groupJid)
+    if (!hasActiveInspect && !hasSniffOnce) return
+
+    const db = this.database()
+    const text = message.text?.trim() ?? ''
+    const isCommand = text.startsWith('!')
+    const isMention = message.mentionedJids && wa.userJid
+      ? message.mentionedJids.some((m) => m.split(':')[0] === wa.userJid?.split(':')[0])
+      : false
+
+    let session: {
       group_jid: string
       group_name: string
       filter_mode: 'all' | 'cmd' | 'mention'
@@ -217,64 +268,70 @@ export class RemoteOpsService implements Service {
       forwarded_count: number
     } | undefined
 
-    const text = message.text?.trim() ?? ''
-    const isCommand = text.startsWith('!')
-    const isMention = message.mentionedJids && wa.userJid
-      ? message.mentionedJids.some((m) => m.split(':')[0] === wa.userJid?.split(':')[0])
-      : false
+    if (hasActiveInspect) {
+      session = db.prepare(`
+        SELECT group_jid, group_name, filter_mode, owner_jid, started_at, expires_at, forwarded_count
+        FROM remote_inspect_sessions
+        WHERE group_jid = ? AND expires_at > ?
+      `).get(groupJid, now) as typeof session
 
-    if (session) {
-      let shouldForward = false
-      if (session.filter_mode === 'all') shouldForward = true
-      else if (session.filter_mode === 'cmd' && isCommand) shouldForward = true
-      else if (session.filter_mode === 'mention' && isMention) shouldForward = true
+      if (!session) {
+        this.activeInspectGroups.delete(groupJid)
+      } else {
+        let shouldForward = false
+        if (session.filter_mode === 'all') shouldForward = true
+        else if (session.filter_mode === 'cmd' && isCommand) shouldForward = true
+        else if (session.filter_mode === 'mention' && isMention) shouldForward = true
 
-      if (shouldForward) {
-        db.prepare('UPDATE remote_inspect_sessions SET forwarded_count = forwarded_count + 1 WHERE group_jid = ?').run(groupJid)
-        const sender = message.senderJid ? message.senderJid.split(':')[0] : 'unknown'
-        const senderName = message.pushName || 'Anon'
-        const content = text || (message.media ? `[${message.media.kind}]` : '[non-text]')
+        if (shouldForward) {
+          db.prepare('UPDATE remote_inspect_sessions SET forwarded_count = forwarded_count + 1 WHERE group_jid = ?').run(groupJid)
+          const sender = message.senderJid ? message.senderJid.split(':')[0] : 'unknown'
+          const senderName = message.pushName || 'Anon'
+          const content = text || (message.media ? `[${message.media.kind}]` : '[non-text]')
 
-        const payload = [
-          `🕵️ *[INSPECT: ${session.group_name}]*`,
-          `👤 *Pengirim*: ${senderName} (\`${sender}\`)`,
-          `💬 *Pesan*: ${content}`,
-        ].join('\n')
+          const payload = [
+            `🕵️ *[INSPECT: ${session.group_name}]*`,
+            `👤 *Pengirim*: ${senderName} (\`${sender}\`)`,
+            `💬 *Pesan*: ${content}`,
+          ].join('\n')
 
-        try {
-          await wa.sendText(session.owner_jid, payload)
-        } catch (err) {
-          this.logger.debug({ groupJid, err }, 'failed forwarding inspect message')
+          try {
+            await wa.sendText(session.owner_jid, payload)
+          } catch (err) {
+            this.logger.debug({ groupJid, err }, 'failed forwarding inspect message')
+          }
         }
       }
     }
 
-    // Check sniff_once
-    const groupRow = db.prepare('SELECT name, sniff_once FROM community_groups WHERE jid = ?').get(groupJid) as {
-      name: string
-      sniff_once: number
-    } | undefined
+    if (hasSniffOnce) {
+      const groupRow = db.prepare('SELECT name, sniff_once FROM community_groups WHERE jid = ?').get(groupJid) as {
+        name: string
+        sniff_once: number
+      } | undefined
 
-    if (groupRow && groupRow.sniff_once === 1) {
-      // Consume sniff_once
-      db.prepare('UPDATE community_groups SET sniff_once = 0, updated_at = unixepoch() WHERE jid = ?').run(groupJid)
-      const targetOwner = session?.owner_jid || this.defaultOwnerJid
-      if (targetOwner) {
-        const sender = message.senderJid ? message.senderJid.split(':')[0] : 'unknown'
-        const senderName = message.pushName || 'Anon'
-        const content = text || (message.media ? `[${message.media.kind}]` : '[non-text]')
+      this.sniffOnceGroups.delete(groupJid)
+      if (groupRow && groupRow.sniff_once === 1) {
+        // Consume sniff_once
+        db.prepare('UPDATE community_groups SET sniff_once = 0, updated_at = unixepoch() WHERE jid = ?').run(groupJid)
+        const targetOwner = session?.owner_jid || this.defaultOwnerJid
+        if (targetOwner) {
+          const sender = message.senderJid ? message.senderJid.split(':')[0] : 'unknown'
+          const senderName = message.pushName || 'Anon'
+          const content = text || (message.media ? `[${message.media.kind}]` : '[non-text]')
 
-        const payload = [
-          `👃 *[SNIFF ONCE: ${groupRow.name || groupJid}]*`,
-          `👤 *Pengirim*: ${senderName} (\`${sender}\`)`,
-          `💬 *Pesan*: ${content}`,
-          '⚡ _Sniff-once otomatis nonaktif._',
-        ].join('\n')
+          const payload = [
+            `👃 *[SNIFF ONCE: ${groupRow.name || groupJid}]*`,
+            `👤 *Pengirim*: ${senderName} (\`${sender}\`)`,
+            `💬 *Pesan*: ${content}`,
+            '⚡ _Sniff-once otomatis nonaktif._',
+          ].join('\n')
 
-        try {
-          await wa.sendText(targetOwner, payload)
-        } catch (err) {
-          this.logger.debug({ groupJid, err }, 'failed forwarding sniff_once message')
+          try {
+            await wa.sendText(targetOwner, payload)
+          } catch (err) {
+            this.logger.debug({ groupJid, err }, 'failed forwarding sniff_once message')
+          }
         }
       }
     }
