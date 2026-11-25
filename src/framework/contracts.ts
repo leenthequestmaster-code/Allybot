@@ -178,6 +178,11 @@ export interface WhatsAppPort {
   sendImage?(remoteJid: string, imageUrl: string, caption?: string): Promise<void>
   downloadMedia?(message: CoreMessage, source: WhatsAppMediaSource, limits: WhatsAppMediaLimits): Promise<WhatsAppMediaPayload>
   sendMedia?(remoteJid: string, payload: WhatsAppMediaPayload): Promise<void>
+  sendMediaAlbum?(
+    remoteJid: string,
+    items: readonly WhatsAppMediaPayload[],
+    options?: WhatsAppSendOptions,
+  ): Promise<void>
   deleteMessage?(remoteJid: string, key: { readonly id: string; readonly remoteJid?: string; readonly fromMe?: boolean; readonly participant?: string }): Promise<void>
   deleteStoredMessage?(remoteJid: string, id: string): boolean
   sendReaction?(

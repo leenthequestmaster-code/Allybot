@@ -39,16 +39,16 @@ export const COMMAND_HELP_MAP: Readonly<Record<string, CommandHelpEntry>> = {
   },
   pin: {
     summary: 'Temukan ide foto dan inspirasi gaya dari Pinterest',
-    description: 'Cari ribuan gambar estetik, desain rumah, dan inspirasi pakaian langsung dari platform Pinterest.',
-    usage: 'Format: !pin <kata kunci pencarian>',
-    examples: ['!pin dekorasi ruang tamu minimalis', '!pin poster tipografi'],
+    description: 'Cari hingga 10 gambar estetik, desain rumah, dan inspirasi gaya sekaligus dari Pinterest (otomatis jadi album untuk 2-10 gambar).',
+    usage: 'Format: !pin <query> [1-10] (gunakan tanda kutip jika query berakhir angka)',
+    examples: ['!pin dekorasi ruang tamu minimalis', '!pin cyberpunk 5', '!pin "persona 5" 4'],
     type: 'Q',
   },
   pixiv: {
     summary: 'Cari gambar ilustrasi dan karya seni dari Pixiv',
-    description: 'Temukan karya seni gambar anime, ilustrasi pemandangan, dan karya digital populer dari Pixiv.',
-    usage: 'Format: !pixiv <kata kunci atau karakter>',
-    examples: ['!pixiv pemandangan senja', '!pixiv anime art'],
+    description: 'Temukan hingga 10 karya ilustrasi anime, pemandangan, dan karya digital sekaligus dari Pixiv (otomatis jadi album untuk 2-10 gambar).',
+    usage: 'Format: !pixiv <query> [1-10] (gunakan tanda kutip jika query berakhir angka)',
+    examples: ['!pixiv pemandangan senja', '!pixiv raiden shogun 4', '!pixiv "fate grand order" 5'],
     type: 'Q',
   },
   lirik: {

@@ -417,6 +417,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
   private readonly connectionListeners = new Set<(event: CoreConnectionState) => Promise<void> | void>()
   private lastDedupCleanupAt = 0
   private readonly sendGate: SendGate
+  private readonly albumQueueByJid = new Map<string, Promise<void>>()
 
   constructor(
     private readonly config: AppConfig,
@@ -750,6 +751,122 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
       this.lastSentMessageId = result?.key?.id ?? undefined
     } finally {
       releaseMediaSlot()
+    }
+  }
+
+  async sendMediaAlbum(
+    remoteJid: string,
+    items: readonly WhatsAppMediaPayload[],
+    options?: WhatsAppSendOptions,
+  ): Promise<void> {
+    if (!remoteJid || items.length === 0) return
+    const prev = this.albumQueueByJid.get(remoteJid) ?? Promise.resolve()
+    const run = prev.catch(() => {}).then(() => this._sendMediaAlbumInternal(remoteJid, items, options))
+    const tracked = run.catch(() => {})
+    this.albumQueueByJid.set(remoteJid, tracked)
+    try {
+      await run
+    } finally {
+      if (this.albumQueueByJid.get(remoteJid) === tracked) {
+        this.albumQueueByJid.delete(remoteJid)
+      }
+    }
+  }
+
+  private async _sendMediaAlbumInternal(
+    remoteJid: string,
+    items: readonly WhatsAppMediaPayload[],
+    _options?: WhatsAppSendOptions,
+  ): Promise<void> {
+    if (items.length === 0) return
+    if (items.length === 1) {
+      await this.sendMedia(remoteJid, items[0])
+      return
+    }
+
+    const validatedItems = items.map((payload) => {
+      const data = Buffer.from(payload.data)
+      if (data.length === 0 || data.length > MEDIA_SEND_MAX_BYTES) {
+        throw new Error('Media payload is out of bounds')
+      }
+      const mimeType = payload.mimeType.trim().toLowerCase()
+      if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*(?:;\s*[a-z0-9!#$&^_.+-]+=[a-z0-9!#$&^_.+-]+)*$/.test(mimeType)) {
+        throw new Error('Invalid media MIME type')
+      }
+      if (payload.caption && payload.caption.length > 1_000) {
+        throw new Error('Media caption is too long')
+      }
+      if (payload.kind === 'image') {
+        if (!mimeType.startsWith('image/')) throw new Error('Image payload MIME mismatch')
+      } else if (payload.kind === 'video') {
+        if (!mimeType.startsWith('video/')) throw new Error('Video payload MIME mismatch')
+      } else {
+        throw new Error('Album only supports image and video media payloads')
+      }
+      return { payload, data, mimeType }
+    })
+
+    const expectedImageCount = validatedItems.filter((entry) => entry.payload.kind === 'image').length
+    const expectedVideoCount = validatedItems.filter((entry) => entry.payload.kind === 'video').length
+    const socket = this.requireSocket()
+
+    let parentResult: Awaited<ReturnType<WASocket['sendMessage']>> | undefined
+    try {
+      await this.sendGate.acquireSendPermit()
+      parentResult = await withTimeout(
+        socket.sendMessage(remoteJid, {
+          album: {
+            ...(expectedImageCount > 0 ? { expectedImageCount } : {}),
+            ...(expectedVideoCount > 0 ? { expectedVideoCount } : {}),
+          },
+        }),
+        20_000,
+        'framework album parent response',
+      )
+    } catch (error) {
+      this.logger.warn(
+        { remoteJid, itemCount: items.length, errorName: error instanceof Error ? error.name : 'UnknownError' },
+        'Album parent send failed; falling back to sequential sendMedia',
+      )
+      for (const item of items) {
+        await this.sendMedia(remoteJid, item)
+      }
+      return
+    }
+
+    if (!parentResult?.key) {
+      this.logger.warn({ remoteJid, itemCount: items.length }, 'Album parent returned no message key; falling back to sequential sendMedia')
+      for (const item of items) {
+        await this.sendMedia(remoteJid, item)
+      }
+      return
+    }
+
+    for (const { payload, data, mimeType } of validatedItems) {
+      const releaseMediaSlot = await this.sendGate.acquireMediaSlot()
+      try {
+        await this.sendGate.acquireSendPermit()
+        const content = payload.kind === 'video'
+          ? {
+              video: data,
+              mimetype: mimeType,
+              ...(payload.caption ? { caption: payload.caption } : {}),
+              ...(payload.gifPlayback ? { gifPlayback: true } : {}),
+              ...(payload.mentions && payload.mentions.length > 0 ? { mentions: [...payload.mentions] } : {}),
+              albumParentKey: parentResult.key,
+            }
+          : {
+              image: data,
+              mimetype: mimeType,
+              ...(payload.caption ? { caption: payload.caption } : {}),
+              ...(payload.mentions && payload.mentions.length > 0 ? { mentions: [...payload.mentions] } : {}),
+              albumParentKey: parentResult.key,
+            }
+        const childResult = await withTimeout(socket.sendMessage(remoteJid, content), 120_000, 'framework album item response')
+        this.lastSentMessageId = childResult?.key?.id ?? this.lastSentMessageId
+      } finally {
+        releaseMediaSlot()
+      }
     }
   }
 

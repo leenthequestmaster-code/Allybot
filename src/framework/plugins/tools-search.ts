@@ -1,9 +1,140 @@
-import type { CommandContext, Plugin } from '../contracts.js'
-import { searchIllust, fetchImage } from '../../services/pixiv.js'
-import { searchPinterest, fetchBuffer } from '../../services/pinterest.js'
+import type { CommandContext, Plugin, WhatsAppMediaPayload } from '../contracts.js'
+import { isGroupJid } from '../validation.js'
+import { isSameJid } from '../../permissions.js'
+import type { RedisService } from '../../redis.js'
+import { searchIllust, fetchImage, type PixivItem } from '../../services/pixiv.js'
+import { searchPinterestPage, fetchBuffer, type PinterestPin } from '../../services/pinterest.js'
 
 const SEARCH_COOLDOWN_MS = 3_000
 const MAX_QUERY_LENGTH = 100
+const MAX_BATCH_COUNT = 10
+const MAX_SEARCH_PAGES = 3
+const BATCH_DOWNLOAD_CONCURRENCY = 4
+const GLOBAL_DOWNLOAD_CONCURRENCY = 6
+const SEEN_HISTORY_TTL_SECONDS = 86_400
+const SEEN_HISTORY_MAX_ITEMS = 200
+const SEEN_FALLBACK_MAX_KEYS = 1_000
+const IMAGE_BUDGET_WINDOW_MS = 60_000
+const USER_IMAGE_BUDGET_LIMIT = 20
+const GROUP_IMAGE_BUDGET_LIMIT = 40
+
+export interface ParsedSearchBatchArgs {
+  readonly query: string
+  readonly count: number
+}
+
+export function parseSearchBatchArgs(rawArgs: string): ParsedSearchBatchArgs {
+  const trimmed = rawArgs.trim()
+  if (!trimmed) return { query: '', count: 1 }
+
+  const clampCount = (n: number): number => Math.min(MAX_BATCH_COUNT, Math.max(1, n))
+
+  const quotedMatch = trimmed.match(/^(['"])(.*?)\1(?:\s+(\d+))?$/)
+  if (quotedMatch) {
+    const query = quotedMatch[2].trim()
+    const count = quotedMatch[3] ? clampCount(Number.parseInt(quotedMatch[3], 10)) : 1
+    return { query, count }
+  }
+
+  const tokens = trimmed.split(/\s+/)
+  if (tokens.length >= 2 && /^\d+$/.test(tokens[tokens.length - 1])) {
+    const count = clampCount(Number.parseInt(tokens[tokens.length - 1], 10))
+    const query = tokens.slice(0, -1).join(' ').trim()
+    return { query, count }
+  }
+
+  return { query: trimmed, count: 1 }
+}
+
+export interface ToolsSearchDependencies {
+  readonly searchPinterestPage?: typeof searchPinterestPage
+  readonly fetchPinBuffer?: typeof fetchBuffer
+  readonly searchPixivIllust?: typeof searchIllust
+  readonly fetchPixivImage?: typeof fetchImage
+  readonly clock?: () => number
+}
+
+class AsyncSemaphore {
+  private active = 0
+  private readonly waiters: Array<() => void> = []
+
+  constructor(private readonly maxConcurrent: number) {}
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.active >= this.maxConcurrent) {
+      await new Promise<void>((resolve) => {
+        this.waiters.push(resolve)
+      })
+    }
+    this.active += 1
+    try {
+      return await fn()
+    } finally {
+      this.active -= 1
+      const next = this.waiters.shift()
+      if (next) next()
+    }
+  }
+}
+
+function detectImageMime(buffer: Buffer): string {
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    return 'image/png'
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return 'image/webp'
+  }
+  return 'image/jpeg'
+}
+
+function canonicalPinterestId(pin: PinterestPin): string {
+  try {
+    const parsed = new URL(pin.imageUrl)
+    return `${parsed.origin}${parsed.pathname}`.toLowerCase()
+  } catch {
+    return pin.imageUrl.trim() || pin.id
+  }
+}
+
+function normalizeSearchQueryKey(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function getOptionalRedis(commandContext: CommandContext): RedisService | undefined {
+  try {
+    if (typeof commandContext.services?.has === 'function' && !commandContext.services.has('redis')) {
+      return undefined
+    }
+    return commandContext.services?.get<RedisService>('redis')
+  } catch {
+    return undefined
+  }
+}
+
+async function isOwnerOrGroupAdmin(commandContext: CommandContext): Promise<boolean> {
+  const senderJid = commandContext.message.senderJid
+  if (!senderJid) return false
+  if (commandContext.config.botOwnerJid && isSameJid(senderJid, commandContext.config.botOwnerJid)) {
+    return true
+  }
+  const remoteJid = commandContext.message.remoteJid
+  if (!isGroupJid(remoteJid) || !commandContext.whatsapp.getGroupMetadata) {
+    return false
+  }
+  try {
+    const metadata = await commandContext.whatsapp.getGroupMetadata(remoteJid)
+    if (!metadata) return false
+    if (metadata.ownerJid && isSameJid(senderJid, metadata.ownerJid)) return true
+    const participant = metadata.participants?.find((p) => isSameJid(p.jid, senderJid))
+    return participant?.role === 'admin' || participant?.role === 'superadmin'
+  } catch {
+    return false
+  }
+}
 
 function usage(context: CommandContext, command: string, example: string): string {
   return `Format: ${context.prefix}${command} ${example}`
@@ -41,10 +172,377 @@ function describeWeatherCode(code: number): string {
   }
 }
 
-export const toolsSearchPlugin: Plugin = {
-  name: 'tools-search',
-  version: '0.1.0',
-  load(context) {
+export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plugin {
+  const fetchPinPage = deps.searchPinterestPage ?? searchPinterestPage
+  const downloadPinBuffer = deps.fetchPinBuffer ?? fetchBuffer
+  const fetchPixivPage = deps.searchPixivIllust ?? searchIllust
+  const downloadPixivImage = deps.fetchPixivImage ?? fetchImage
+  const clock = deps.clock ?? (() => Date.now())
+
+  return {
+    name: 'tools-search',
+    version: '0.1.0',
+    load(context) {
+      const inFlightBatch = new Set<string>()
+      const inFlightClaimedIds = new Map<string, Set<string>>()
+      const globalDownloadSemaphore = new AsyncSemaphore(GLOBAL_DOWNLOAD_CONCURRENCY)
+      const seenFallback = new Map<string, { ids: string[]; expiresAt: number }>()
+      const seenMutexes = new Map<string, Promise<void>>()
+      const budgetFallback = new Map<string, number[]>()
+      const budgetMutexes = new Map<string, Promise<void>>()
+
+      async function withKeyMutex<T>(mutexMap: Map<string, Promise<void>>, key: string, fn: () => Promise<T>): Promise<T> {
+        const prev = mutexMap.get(key) ?? Promise.resolve()
+        let release!: () => void
+        const next = new Promise<void>((resolve) => {
+          release = resolve
+        })
+        const tail = prev.catch(() => {}).then(() => next)
+        mutexMap.set(key, tail)
+        await prev.catch(() => {})
+        try {
+          return await fn()
+        } finally {
+          release()
+          if (mutexMap.get(key) === tail) {
+            mutexMap.delete(key)
+          }
+        }
+      }
+
+      function getClaimedSet(claimKey: string): Set<string> {
+        let set = inFlightClaimedIds.get(claimKey)
+        if (!set) {
+          set = new Set<string>()
+          inFlightClaimedIds.set(claimKey, set)
+        }
+        return set
+      }
+
+      function releaseClaimedIds(claimKey: string, ids: Iterable<string>): void {
+        const set = inFlightClaimedIds.get(claimKey)
+        if (!set) return
+        for (const id of ids) set.delete(id)
+        if (set.size === 0) inFlightClaimedIds.delete(claimKey)
+      }
+
+      async function loadSeenIds(redis: RedisService | undefined, key: string): Promise<Set<string>> {
+        if (redis?.isEnabled && typeof redis.get === 'function') {
+          try {
+            const stored = await redis.get<string[]>(key)
+            if (Array.isArray(stored)) {
+              return new Set(stored.filter((v) => typeof v === 'string' && v.length > 0))
+            }
+          } catch {}
+        }
+        const entry = seenFallback.get(key)
+        if (!entry) return new Set()
+        if (entry.expiresAt <= clock()) {
+          seenFallback.delete(key)
+          return new Set()
+        }
+        return new Set(entry.ids)
+      }
+
+      async function saveSeenIds(redis: RedisService | undefined, key: string, ids: readonly string[]): Promise<void> {
+        const bounded = ids.slice(-SEEN_HISTORY_MAX_ITEMS)
+        if (redis?.isEnabled && typeof redis.set === 'function') {
+          try {
+            const ok = await redis.set(key, bounded, SEEN_HISTORY_TTL_SECONDS)
+            if (ok) return
+          } catch {}
+        }
+        if (seenFallback.size >= SEEN_FALLBACK_MAX_KEYS && !seenFallback.has(key)) {
+          const oldest = seenFallback.keys().next().value
+          if (oldest) seenFallback.delete(oldest)
+        }
+        seenFallback.set(key, {
+          ids: [...bounded],
+          expiresAt: clock() + SEEN_HISTORY_TTL_SECONDS * 1000,
+        })
+      }
+
+      async function appendSeenIds(redis: RedisService | undefined, key: string, newIds: readonly string[]): Promise<void> {
+        if (newIds.length === 0) return
+        await withKeyMutex(seenMutexes, key, async () => {
+          const current = await loadSeenIds(redis, key)
+          for (const id of newIds) {
+            current.delete(id)
+            current.add(id)
+          }
+          await saveSeenIds(redis, key, [...current])
+        })
+      }
+
+      async function clearSeenIds(redis: RedisService | undefined, key: string): Promise<void> {
+        await withKeyMutex(seenMutexes, key, async () => {
+          seenFallback.delete(key)
+          if (redis?.isEnabled && typeof redis.del === 'function') {
+            try {
+              await redis.del(key)
+              return
+            } catch {}
+          }
+          if (redis?.isEnabled && typeof redis.set === 'function') {
+            try {
+              await redis.set(key, [], SEEN_HISTORY_TTL_SECONDS)
+            } catch {}
+          }
+        })
+      }
+
+      async function loadWindowTimestamps(redis: RedisService | undefined, key: string, now: number): Promise<number[]> {
+        const cutoff = now - IMAGE_BUDGET_WINDOW_MS
+        let raw: number[] | null = null
+        if (redis?.isEnabled && typeof redis.get === 'function') {
+          try {
+            const stored = await redis.get<number[]>(key)
+            if (Array.isArray(stored)) raw = stored
+          } catch {}
+        }
+        if (!raw) {
+          raw = budgetFallback.get(key) ?? []
+        }
+        return raw.filter((ts) => typeof ts === 'number' && Number.isFinite(ts) && ts > cutoff).sort((a, b) => a - b)
+      }
+
+      async function saveWindowTimestamps(redis: RedisService | undefined, key: string, timestamps: number[]): Promise<void> {
+        budgetFallback.set(key, timestamps)
+        if (budgetFallback.size > 2_000) {
+          const oldest = budgetFallback.keys().next().value
+          if (oldest) budgetFallback.delete(oldest)
+        }
+        if (redis?.isEnabled && typeof redis.set === 'function') {
+          try {
+            await redis.set(key, timestamps, 120)
+          } catch {}
+        }
+      }
+
+      async function reserveImageBudget(
+        commandContext: CommandContext,
+        redis: RedisService | undefined,
+        chatJid: string,
+        senderJid: string,
+        requestedCount: number,
+      ): Promise<
+        | { allowed: true; refund: (unusedCount: number) => Promise<void> }
+        | { allowed: false; scope: 'user' | 'group'; remaining: number; waitSeconds: number }
+      > {
+        if (await isOwnerOrGroupAdmin(commandContext)) {
+          return { allowed: true, refund: async () => {} }
+        }
+
+        const userKey = `imgbudget:user:${senderJid}`
+        const groupKey = `imgbudget:group:${chatJid}`
+        const isGroup = isGroupJid(chatJid)
+        const lockKey = isGroup ? `budget:${groupKey}` : `budget:${userKey}`
+
+        return withKeyMutex(budgetMutexes, lockKey, async () => {
+          const now = clock()
+          const userTimestamps = await loadWindowTimestamps(redis, userKey, now)
+          if (userTimestamps.length + requestedCount > USER_IMAGE_BUDGET_LIMIT) {
+            const remaining = Math.max(0, USER_IMAGE_BUDGET_LIMIT - userTimestamps.length)
+            const neededToExpire = userTimestamps.length + requestedCount - USER_IMAGE_BUDGET_LIMIT
+            const expireAt = (userTimestamps[neededToExpire - 1] ?? now) + IMAGE_BUDGET_WINDOW_MS
+            const waitSeconds = Math.max(1, Math.ceil((expireAt - now) / 1000))
+            return { allowed: false, scope: 'user', remaining, waitSeconds }
+          }
+
+          let groupTimestamps: number[] = []
+          if (isGroup) {
+            groupTimestamps = await loadWindowTimestamps(redis, groupKey, now)
+            if (groupTimestamps.length + requestedCount > GROUP_IMAGE_BUDGET_LIMIT) {
+              const remaining = Math.max(0, GROUP_IMAGE_BUDGET_LIMIT - groupTimestamps.length)
+              const neededToExpire = groupTimestamps.length + requestedCount - GROUP_IMAGE_BUDGET_LIMIT
+              const expireAt = (groupTimestamps[neededToExpire - 1] ?? now) + IMAGE_BUDGET_WINDOW_MS
+              const waitSeconds = Math.max(1, Math.ceil((expireAt - now) / 1000))
+              return { allowed: false, scope: 'group', remaining, waitSeconds }
+            }
+          }
+
+          const tokenStamp = now
+          const added = Array.from({ length: requestedCount }, () => tokenStamp)
+          await saveWindowTimestamps(redis, userKey, [...userTimestamps, ...added])
+          if (isGroup) {
+            await saveWindowTimestamps(redis, groupKey, [...groupTimestamps, ...added])
+          }
+
+          let refunded = false
+          const refund = async (unusedCount: number) => {
+            if (refunded || unusedCount <= 0) return
+            refunded = true
+            await withKeyMutex(budgetMutexes, lockKey, async () => {
+              const currentNow = clock()
+              const removeTokens = (list: number[], countToRemove: number): number[] => {
+                let left = countToRemove
+                const next: number[] = []
+                for (let i = list.length - 1; i >= 0; i--) {
+                  if (left > 0 && list[i] === tokenStamp) {
+                    left -= 1
+                    continue
+                  }
+                  next.push(list[i])
+                }
+                return next.reverse()
+              }
+              const uTs = await loadWindowTimestamps(redis, userKey, currentNow)
+              await saveWindowTimestamps(redis, userKey, removeTokens(uTs, unusedCount))
+              if (isGroup) {
+                const gTs = await loadWindowTimestamps(redis, groupKey, currentNow)
+                await saveWindowTimestamps(redis, groupKey, removeTokens(gTs, unusedCount))
+              }
+            })
+          }
+
+          return { allowed: true, refund }
+        })
+      }
+
+      async function collectUniqueBatch<TCandidate>(options: {
+        readonly requestedCount: number
+        readonly claimKey: string
+        readonly seenKey: string
+        readonly redis: RedisService | undefined
+        readonly fetchPages: () => Promise<{
+          readonly candidates: TCandidate[]
+          readonly fetchMore: () => Promise<TCandidate[]>
+          readonly hasMore: () => boolean
+        }>
+        readonly getId: (candidate: TCandidate) => string
+        readonly download: (candidate: TCandidate) => Promise<Buffer | null>
+      }): Promise<{
+        readonly fetchedAny: boolean
+        readonly downloaded: Array<{ candidate: TCandidate; id: string; buffer: Buffer }>
+        readonly releaseClaims: () => void
+        readonly commitSeen: () => Promise<void>
+      }> {
+        const { requestedCount, claimKey, seenKey, redis, fetchPages, getId, download } = options
+        const myClaimedIds = new Set<string>()
+        const attemptedIds = new Set<string>()
+        const failedDownloadIds = new Set<string>()
+        const valid: Array<{ candidate: TCandidate; id: string; buffer: Buffer }> = []
+
+        const pager = await fetchPages()
+        const pool: TCandidate[] = [...pager.candidates]
+        const poolIds = new Set<string>(pool.map(getId))
+
+        const appendToPool = (more: TCandidate[]) => {
+          for (const item of more) {
+            const id = getId(item)
+            if (!id || poolIds.has(id)) continue
+            poolIds.add(id)
+            pool.push(item)
+          }
+        }
+
+        if (pool.length === 0) {
+          return {
+            fetchedAny: false,
+            downloaded: [],
+            releaseClaims: () => releaseClaimedIds(claimKey, myClaimedIds),
+            commitSeen: async () => {},
+          }
+        }
+
+        let seenSet = await loadSeenIds(redis, seenKey)
+
+        const countUnseenUnclaimedInPool = (): number => {
+          const claimedSet = inFlightClaimedIds.get(claimKey)
+          let count = 0
+          for (const item of pool) {
+            const id = getId(item)
+            if (!seenSet.has(id) && !attemptedIds.has(id) && !claimedSet?.has(id)) {
+              count += 1
+            }
+          }
+          return count
+        }
+
+        while (countUnseenUnclaimedInPool() < requestedCount && pager.hasMore()) {
+          appendToPool(await pager.fetchMore())
+        }
+
+        const claimNextBatch = (needed: number): Array<{ candidate: TCandidate; id: string }> => {
+          const claimedSet = getClaimedSet(claimKey)
+          const batch: Array<{ candidate: TCandidate; id: string }> = []
+          for (const item of pool) {
+            if (batch.length >= needed) break
+            const id = getId(item)
+            if (seenSet.has(id) || attemptedIds.has(id) || failedDownloadIds.has(id) || claimedSet.has(id)) continue
+            claimedSet.add(id)
+            myClaimedIds.add(id)
+            attemptedIds.add(id)
+            batch.push({ candidate: item, id })
+          }
+          return batch
+        }
+
+        const runDownloadLoop = async () => {
+          while (valid.length < requestedCount) {
+            const stillNeeded = requestedCount - valid.length
+            let batch = claimNextBatch(stillNeeded)
+            if (batch.length === 0 && pager.hasMore()) {
+              appendToPool(await pager.fetchMore())
+              batch = claimNextBatch(stillNeeded)
+            }
+            if (batch.length === 0) break
+
+            // Download batch with max BATCH_DOWNLOAD_CONCURRENCY (4) and global semaphore (6)
+            const queue = [...batch]
+            const workers = Array.from({ length: Math.min(BATCH_DOWNLOAD_CONCURRENCY, queue.length) }, async () => {
+              while (queue.length > 0) {
+                const entry = queue.shift()
+                if (!entry) break
+                const buffer = await globalDownloadSemaphore.run(() => download(entry.candidate))
+                if (buffer && buffer.length > 0) {
+                  valid.push({ candidate: entry.candidate, id: entry.id, buffer })
+                } else {
+                  failedDownloadIds.add(entry.id)
+                  releaseClaimedIds(claimKey, [entry.id])
+                  myClaimedIds.delete(entry.id)
+                }
+              }
+            })
+            await Promise.all(workers)
+          }
+        }
+
+        try {
+          // If every candidate across all fetched pages was already seen (and not merely locked in-flight),
+          // reset seen history for this query so the cycle starts fresh cleanly.
+          const claimedNow = inFlightClaimedIds.get(claimKey)
+          const totalUnseenEvenIfClaimed = pool.filter((item) => !seenSet.has(getId(item))).length
+          if (totalUnseenEvenIfClaimed === 0 && pool.length > 0 && !claimedNow?.size) {
+            await clearSeenIds(redis, seenKey)
+            seenSet = new Set<string>()
+          }
+
+          await runDownloadLoop()
+
+          // Also auto-reset if all remaining unseen candidates failed to download while prior seen history exists
+          if (valid.length === 0 && seenSet.size > 0 && pool.length > 0 && !inFlightClaimedIds.get(claimKey)?.size) {
+            await clearSeenIds(redis, seenKey)
+            seenSet = new Set<string>()
+            attemptedIds.clear()
+            await runDownloadLoop()
+          }
+        } catch (err) {
+          releaseClaimedIds(claimKey, myClaimedIds)
+          throw err
+        }
+
+        // Preserve pool order and trim if concurrent workers slightly exceeded (shouldn't happen since claimed == stillNeeded)
+        const finalValid = valid.slice(0, requestedCount)
+        return {
+          fetchedAny: true,
+          downloaded: finalValid,
+          releaseClaims: () => releaseClaimedIds(claimKey, myClaimedIds),
+          commitSeen: async () => {
+            await appendSeenIds(redis, seenKey, finalValid.map((item) => item.id))
+          },
+        }
+      }
     // 1. Google Web Search (AI-Powered)
     context.commands.register({
       name: 'google',
@@ -263,55 +761,98 @@ export const toolsSearchPlugin: Plugin = {
     })
 
     // 6. Pinterest
-    const recentPinIdsByChat = new Map<string, Set<string>>()
-
     context.commands.register({
       name: 'pin',
       aliases: ['pinterest'],
-      description: 'Cari gambar acak di Pinterest',
+      description: 'Cari gambar acak di Pinterest (hingga 10 gambar)',
       category: 'tools',
       menuOrder: 6,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
-        const query = boundText(commandContext.args.join(' '))
+        const parsed = parseSearchBatchArgs(commandContext.args.join(' '))
+        const query = boundText(parsed.query)
         if (!query) {
-          await commandContext.reply(usage(commandContext, 'pin', '<kata kunci>') + '\nContoh: `!pin anime girl`')
+          await commandContext.reply(
+            usage(commandContext, 'pin', '<query> [1-10]') + '\nContoh: `!pin cyberpunk 5` atau `!pin "persona 5" 4`',
+          )
           return
         }
 
         const chatJid = commandContext.message.remoteJid
+        const senderJid = commandContext.message.senderJid ?? chatJid
+        const lockKey = `${chatJid}:${senderJid}:pinterest`
+        if (inFlightBatch.has(lockKey)) {
+          await commandContext.reply('Batch Pinterest kamu sebelumnya masih diproses nih, tunggu sebentar ya~ ⏳')
+          return
+        }
+
+        const redis = getOptionalRedis(commandContext)
+        const budget = await reserveImageBudget(commandContext, redis, chatJid, senderJid, parsed.count)
+        if (!budget.allowed) {
+          const limitLabel = budget.scope === 'group' ? 'grup (40 gambar/menit)' : 'kamu (20 gambar/menit)'
+          await commandContext.reply(
+            `Batas kirim gambar ${limitLabel} tercapai (sisa ${budget.remaining}). Coba lagi dalam ${budget.waitSeconds} detik ya~ ⏳`,
+          )
+          return
+        }
+
+        inFlightBatch.add(lockKey)
         await commandContext.react('⏳')
 
+        let releaseClaims: (() => void) | undefined
+        let sentCount = 0
+
         try {
-          const results = await searchPinterest(query, { randomize: true })
-          if (!results || results.length === 0) {
-            await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pinterest nih, coba kata kunci lain ya~ 🔍`)
+          const normalizedQuery = normalizeSearchQueryKey(query)
+          const claimKey = `pinterest:${chatJid}`
+          const seenKey = `imgseen:pinterest:${chatJid}:${normalizedQuery}`
+
+          const batchResult = await collectUniqueBatch<PinterestPin>({
+            requestedCount: parsed.count,
+            claimKey,
+            seenKey,
+            redis,
+            getId: (pin) => canonicalPinterestId(pin),
+            download: (pin) => downloadPinBuffer(pin.imageUrl, 15_000, {
+              logger: commandContext.logger,
+              pinId: pin.id,
+            }),
+            fetchPages: async () => {
+              let pagesFetched = 0
+              let nextBookmark: string | null = null
+              const filterImages = (items: PinterestPin[]) => items.filter((p) => p.mediaType === 'image')
+
+              const firstPage = await fetchPinPage(query, { randomize: true })
+              pagesFetched = 1
+              nextBookmark = firstPage.nextBookmark
+
+              return {
+                candidates: filterImages(firstPage.items),
+                hasMore: () => pagesFetched < MAX_SEARCH_PAGES && Boolean(nextBookmark),
+                fetchMore: async () => {
+                  if (!nextBookmark || pagesFetched >= MAX_SEARCH_PAGES) return []
+                  pagesFetched += 1
+                  const next = await fetchPinPage(query, { randomize: true, bookmark: nextBookmark })
+                  nextBookmark = next.nextBookmark
+                  return filterImages(next.items)
+                },
+              }
+            },
+          })
+
+          releaseClaims = batchResult.releaseClaims
+
+          if (!batchResult.fetchedAny || batchResult.downloaded.length === 0) {
+            if (!batchResult.fetchedAny) {
+              await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pinterest nih, coba kata kunci lain ya~ 🔍`)
+            } else {
+              await commandContext.reply(`Hasil ketemu tapi gambarnya gagal diunduh nih: ${query}`)
+            }
             return
           }
 
-          let recentIds = recentPinIdsByChat.get(chatJid)
-          if (!recentIds) {
-            recentIds = new Set<string>()
-            recentPinIdsByChat.set(chatJid, recentIds)
-          }
-
-          // Prioritaskan gambar yang belum pernah dikirim ke chat ini
-          let candidates = results.filter((pin) => !recentIds.has(pin.id))
-          if (candidates.length === 0) {
-            recentIds.clear()
-            candidates = [...results]
-          }
-
-          let sent = false
-          for (const pin of candidates) {
-            if (pin.mediaType !== 'image') continue
-
-            const buf = await fetchBuffer(pin.imageUrl, 15_000, {
-              logger: commandContext.logger,
-              pinId: pin.id,
-            })
-            if (!buf) continue
-
+          if (batchResult.downloaded.length === 1) {
+            const { candidate: pin, buffer } = batchResult.downloaded[0]
             const captionLines: string[] = []
             if (pin.title) captionLines.push(pin.title.slice(0, 120))
             if (pin.author) captionLines.push(`by @${pin.author}`)
@@ -321,86 +862,150 @@ export const toolsSearchPlugin: Plugin = {
             if (commandContext.whatsapp.sendMedia) {
               await commandContext.whatsapp.sendMedia(chatJid, {
                 kind: 'image',
-                data: new Uint8Array(buf),
-                mimeType: 'image/jpeg',
+                data: new Uint8Array(buffer),
+                mimeType: detectImageMime(buffer),
                 caption,
               })
             } else {
               await commandContext.reply(`${caption}\n${pin.imageUrl}`)
             }
+          } else {
+            const albumPayloads: WhatsAppMediaPayload[] = batchResult.downloaded.map(({ buffer }) => ({
+              kind: 'image',
+              data: new Uint8Array(buffer),
+              mimeType: detectImageMime(buffer),
+              caption: undefined,
+            }))
 
-            recentIds.add(pin.id)
-            if (recentIds.size > 50) {
-              const firstVal = recentIds.values().next().value
-              if (firstVal) recentIds.delete(firstVal)
+            if (commandContext.whatsapp.sendMediaAlbum) {
+              await commandContext.whatsapp.sendMediaAlbum(chatJid, albumPayloads)
+            } else if (commandContext.whatsapp.sendMedia) {
+              for (const payload of albumPayloads) {
+                await commandContext.whatsapp.sendMedia(chatJid, payload)
+              }
+            } else {
+              await commandContext.reply(batchResult.downloaded.map((d) => d.candidate.imageUrl).join('\n'))
             }
-
-            sent = true
-            break
           }
 
-          if (!sent) {
-            await commandContext.reply(`Hasil ketemu tapi gambarnya gagal diunduh nih: ${query}`)
-          }
+          sentCount = batchResult.downloaded.length
+          await batchResult.commitSeen()
         } catch (error) {
           commandContext.logger.warn({ error }, 'pinterest command failed')
           await commandContext.reply('Waduh, gagal ngambil gambar dari Pinterest nih. Coba sebentar lagi ya~ 🙏')
+        } finally {
+          releaseClaims?.()
+          inFlightBatch.delete(lockKey)
+          if (sentCount < parsed.count) {
+            await budget.refund(parsed.count - sentCount).catch(() => {})
+          }
         }
       },
     })
 
     // 7. Pixiv
-    const recentPixivIdsByChat = new Map<string, Set<string>>()
-
     context.commands.register({
       name: 'pixiv',
-      description: 'Cari ilustrasi acak di Pixiv',
+      description: 'Cari ilustrasi acak di Pixiv (hingga 10 gambar)',
       category: 'tools',
       menuOrder: 7,
       cooldownMs: SEARCH_COOLDOWN_MS,
       handler: async (commandContext) => {
-        const query = boundText(commandContext.args.join(' '))
+        const parsed = parseSearchBatchArgs(commandContext.args.join(' '))
+        const query = boundText(parsed.query)
         if (!query) {
-          await commandContext.reply(usage(commandContext, 'pixiv', '<kata kunci>') + '\nContoh: `!pixiv miku`')
+          await commandContext.reply(
+            usage(commandContext, 'pixiv', '<query> [1-10]') + '\nContoh: `!pixiv raiden shogun 4` atau `!pixiv "fate grand order" 5`',
+          )
           return
         }
 
         const chatJid = commandContext.message.remoteJid
+        const senderJid = commandContext.message.senderJid ?? chatJid
+        const lockKey = `${chatJid}:${senderJid}:pixiv`
+        if (inFlightBatch.has(lockKey)) {
+          await commandContext.reply('Batch Pixiv kamu sebelumnya masih diproses nih, tunggu sebentar ya~ ⏳')
+          return
+        }
+
+        const redis = getOptionalRedis(commandContext)
+        const budget = await reserveImageBudget(commandContext, redis, chatJid, senderJid, parsed.count)
+        if (!budget.allowed) {
+          const limitLabel = budget.scope === 'group' ? 'grup (40 gambar/menit)' : 'kamu (20 gambar/menit)'
+          await commandContext.reply(
+            `Batas kirim gambar ${limitLabel} tercapai (sisa ${budget.remaining}). Coba lagi dalam ${budget.waitSeconds} detik ya~ ⏳`,
+          )
+          return
+        }
+
+        inFlightBatch.add(lockKey)
         await commandContext.react('⏳')
 
+        let releaseClaims: (() => void) | undefined
+        let sentCount = 0
+
         try {
-          const result = await searchIllust(query, { randomize: true })
-          if (!result.items || result.items.length === 0) {
+          const normalizedQuery = normalizeSearchQueryKey(query)
+          const claimKey = `pixiv:${chatJid}`
+          const seenKey = `imgseen:pixiv:${chatJid}:${normalizedQuery}`
+
+          const batchResult = await collectUniqueBatch<PixivItem>({
+            requestedCount: parsed.count,
+            claimKey,
+            seenKey,
+            redis,
+            getId: (item) => item.id,
+            download: async (item) => {
+              const firstImageUrl = item.imageUrls[0]
+              if (!firstImageUrl) return null
+              return downloadPixivImage(firstImageUrl, {
+                logger: commandContext.logger,
+                illustId: item.id,
+              })
+            },
+            fetchPages: async () => {
+              let pagesFetched = 0
+              const candidateOffsets = [0, 30, 60]
+              let nextOffset: number | null = null
+              const filterValid = (items: readonly PixivItem[]) => items.filter((item) => Boolean(item.id && item.imageUrls[0]))
+
+              const firstPage = await fetchPixivPage(query, { randomize: true })
+              pagesFetched = 1
+              nextOffset = typeof firstPage.nextOffset === 'number'
+                ? firstPage.nextOffset
+                : (candidateOffsets[pagesFetched] ?? null)
+
+              return {
+                candidates: filterValid(firstPage.items),
+                hasMore: () => pagesFetched < MAX_SEARCH_PAGES && nextOffset !== null,
+                fetchMore: async () => {
+                  if (pagesFetched >= MAX_SEARCH_PAGES || nextOffset === null) return []
+                  const off = nextOffset
+                  pagesFetched += 1
+                  const next = await fetchPixivPage(query, { randomize: true, offset: off })
+                  nextOffset = typeof next.nextOffset === 'number'
+                    ? next.nextOffset
+                    : (pagesFetched < MAX_SEARCH_PAGES ? (off + 30) : null)
+                  return filterValid(next.items)
+                },
+              }
+            },
+          })
+
+          releaseClaims = batchResult.releaseClaims
+
+          if (!batchResult.fetchedAny) {
             await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pixiv nih, coba kata kunci lain ya~ 🔍`)
             return
           }
 
-          let recentIds = recentPixivIdsByChat.get(chatJid)
-          if (!recentIds) {
-            recentIds = new Set<string>()
-            recentPixivIdsByChat.set(chatJid, recentIds)
+          if (batchResult.downloaded.length === 0) {
+            await commandContext.reply('Waduh, gambarnya gagal dimuat nih. Coba kata kunci lain atau tunggu sebentar ya~ 🙏')
+            return
           }
 
-          // Prioritaskan gambar yang belum pernah dikirim ke chat ini
-          let candidates = result.items.filter((item) => !recentIds.has(item.id))
-          if (candidates.length === 0) {
-            recentIds.clear()
-            candidates = [...result.items]
-          }
-
-          let sent = false
-          // Kirim 1 hasil acak
-          for (const item of candidates) {
-            const firstImageUrl = item.imageUrls[0]
-            if (!firstImageUrl) continue
-
-            const imageBuffer = await fetchImage(firstImageUrl, {
-              logger: commandContext.logger,
-              illustId: item.id,
-            })
-
-            if (!imageBuffer) continue
-
+          if (batchResult.downloaded.length === 1) {
+            const { candidate: item, buffer } = batchResult.downloaded[0]
             const tagsStr = item.tags.length > 0
               ? item.tags.slice(0, 5).map((t) => `#${t.replace(/[\s#]+/g, '_')}`).join(' ')
               : ''
@@ -409,34 +1014,50 @@ export const toolsSearchPlugin: Plugin = {
             if (commandContext.whatsapp.sendMedia) {
               await commandContext.whatsapp.sendMedia(chatJid, {
                 kind: 'image',
-                data: new Uint8Array(imageBuffer),
-                mimeType: 'image/jpeg',
+                data: new Uint8Array(buffer),
+                mimeType: detectImageMime(buffer),
                 caption,
               })
             } else {
-              await commandContext.reply(`${caption}\n${firstImageUrl}`)
+              await commandContext.reply(`${caption}\n${item.imageUrls[0]}`)
             }
+          } else {
+            const albumPayloads: WhatsAppMediaPayload[] = batchResult.downloaded.map(({ buffer }) => ({
+              kind: 'image',
+              data: new Uint8Array(buffer),
+              mimeType: detectImageMime(buffer),
+              caption: undefined,
+            }))
 
-            recentIds.add(item.id)
-            if (recentIds.size > 50) {
-              const firstVal = recentIds.values().next().value
-              if (firstVal) recentIds.delete(firstVal)
+            if (commandContext.whatsapp.sendMediaAlbum) {
+              await commandContext.whatsapp.sendMediaAlbum(chatJid, albumPayloads)
+            } else if (commandContext.whatsapp.sendMedia) {
+              for (const payload of albumPayloads) {
+                await commandContext.whatsapp.sendMedia(chatJid, payload)
+              }
+            } else {
+              await commandContext.reply(batchResult.downloaded.map((d) => d.candidate.imageUrls[0]).join('\n'))
             }
-
-            sent = true
-            break
           }
 
-          if (!sent) {
-            await commandContext.reply('Waduh, gambarnya gagal dimuat nih. Coba kata kunci lain atau tunggu sebentar ya~ 🙏')
-          }
+          sentCount = batchResult.downloaded.length
+          await batchResult.commitSeen()
         } catch (error) {
           commandContext.logger.warn({ error }, 'pixiv command failed')
           await commandContext.reply('Waduh, gagal ngambil gambar dari Pixiv nih. Coba sebentar lagi ya~ 🙏')
+        } finally {
+          releaseClaims?.()
+          inFlightBatch.delete(lockKey)
+          if (sentCount < parsed.count) {
+            await budget.refund(parsed.count - sentCount).catch(() => {})
+          }
         }
       },
     })
-  },
+    },
+  }
 }
+
+export const toolsSearchPlugin: Plugin = createToolsSearchPlugin()
 
 export default toolsSearchPlugin

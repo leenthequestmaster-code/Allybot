@@ -15,12 +15,14 @@ export interface PixivItem {
 
 export interface PixivSearchOptions {
   readonly page?: number
+  readonly offset?: number
   readonly randomize?: boolean
 }
 
 export interface PixivSearchResult {
   readonly items: readonly PixivItem[]
   readonly nextPage: string | null
+  readonly nextOffset?: number | null
 }
 
 export class PixivError extends Error {
@@ -136,9 +138,12 @@ export class AppPixivAPI {
   ): Promise<PixivSearchResult> {
     const page = options.page || 1
     const shouldRandomize = Boolean(options.randomize)
-    let offset = Math.max(0, (page - 1) * 5)
+    const explicitOffset = typeof options.offset === 'number' && Number.isFinite(options.offset)
+      ? Math.max(0, Math.floor(options.offset))
+      : undefined
+    let offset = explicitOffset !== undefined ? explicitOffset : Math.max(0, (page - 1) * 5)
 
-    if (shouldRandomize) {
+    if (shouldRandomize && explicitOffset === undefined) {
       // Pick between offset 0 or 30 (covers 60 latest artworks) without risking deep empty pagination
       const candidateOffsets = [0, 30]
       offset = candidateOffsets[Math.floor(Math.random() * candidateOffsets.length)]
@@ -234,10 +239,24 @@ export class AppPixivAPI {
         }
       })
 
+      let nextOffset: number | null = null
+      if (typeof data.next_url === 'string' && data.next_url) {
+        try {
+          const parsedNext = new URL(data.next_url)
+          const rawNextOffset = parsedNext.searchParams.get('offset')
+          if (rawNextOffset !== null && /^\d+$/.test(rawNextOffset)) {
+            nextOffset = Number.parseInt(rawNextOffset, 10)
+          }
+        } catch {}
+      }
+      if (nextOffset === null && rawIllusts.length >= 30) {
+        nextOffset = offset + rawIllusts.length
+      }
+
       const hasNext = (rawIllusts.length > 5) || Boolean(data.next_url)
       const nextPage = hasNext ? String(page + 1) : null
 
-      return { items, nextPage }
+      return { items, nextPage, nextOffset }
     } catch (err) {
       if (err instanceof PixivError) throw err
       if (attempt < 1) {

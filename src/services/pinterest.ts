@@ -25,50 +25,65 @@ const FETCH_HEADERS = {
 export interface PinterestSearchOptions {
   readonly limit?: number
   readonly randomize?: boolean
+  readonly bookmark?: string
+}
+
+export interface PinterestSearchPageResult {
+  readonly items: PinterestPin[]
+  readonly nextBookmark: string | null
 }
 
 const PIN_CACHE_TTL_MS = 600_000 // 10 minutes
 const PIN_CACHE_MAX_ENTRIES = 500
-const _pinCache = new Map<string, { ts: number; data: PinterestPin[] }>()
+const _pinCache = new Map<string, { ts: number; data: PinterestPin[]; nextBookmark: string | null }>()
 
-function getCachedPins(key: string): PinterestPin[] | null {
+function getCachedPins(key: string): { items: PinterestPin[]; nextBookmark: string | null } | null {
   const entry = _pinCache.get(key)
   if (!entry) return null
   if (Date.now() - entry.ts > PIN_CACHE_TTL_MS) {
     _pinCache.delete(key)
     return null
   }
-  return entry.data
+  return { items: entry.data, nextBookmark: entry.nextBookmark }
 }
 
-function putCachedPins(key: string, data: PinterestPin[]): void {
+function putCachedPins(key: string, data: PinterestPin[], nextBookmark: string | null): void {
   if (_pinCache.size >= PIN_CACHE_MAX_ENTRIES) {
     const oldestKey = _pinCache.keys().next().value
     if (oldestKey) _pinCache.delete(oldestKey)
   }
-  _pinCache.set(key, { ts: Date.now(), data })
+  _pinCache.set(key, { ts: Date.now(), data, nextBookmark })
 }
 
 export async function searchPinterest(
   query: string,
   options?: PinterestSearchOptions | number,
 ): Promise<PinterestPin[]> {
+  const page = await searchPinterestPage(query, options)
+  return page.items
+}
+
+export async function searchPinterestPage(
+  query: string,
+  options?: PinterestSearchOptions | number,
+): Promise<PinterestSearchPageResult> {
   const opts: PinterestSearchOptions = typeof options === 'number' ? { limit: options } : (options || {})
   const limit = opts.limit || 5
   const shouldRandomize = Boolean(opts.randomize)
   const pageSize = shouldRandomize ? 25 : Math.min(Math.max(1, limit), 25)
+  const bookmark = opts.bookmark?.trim() || ''
 
-  const cacheKey = `${query.trim().toLowerCase()}::${pageSize}`
+  const cacheKey = `${query.trim().toLowerCase()}::${pageSize}::${bookmark}`
   const cached = getCachedPins(cacheKey)
   if (cached) {
-    const pool = [...cached]
+    const pool = [...cached.items]
     if (shouldRandomize && pool.length > 1) {
       for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1))
         ;[pool[i], pool[j]] = [pool[j], pool[i]]
       }
     }
-    return pool
+    return { items: pool, nextBookmark: cached.nextBookmark }
   }
 
   const sourceUrl = `/search/pins/?q=${encodeURIComponent(query)}`
@@ -76,7 +91,7 @@ export async function searchPinterest(
     query,
     scope: 'pins',
     page_size: pageSize,
-    bookmarks: [],
+    bookmarks: bookmark ? [bookmark] : [],
   }
 
   const params = new URLSearchParams({
@@ -147,11 +162,14 @@ export async function searchPinterest(
     })
   }
 
+  const rawBookmark = typeof resourceResponse?.bookmark === 'string' ? resourceResponse.bookmark.trim() : ''
+  const nextBookmark = rawBookmark && rawBookmark !== '-end-' ? rawBookmark : null
+
   if (out.length > 0) {
-    putCachedPins(cacheKey, out)
+    putCachedPins(cacheKey, out, nextBookmark)
   }
 
-  return out
+  return { items: out, nextBookmark }
 }
 
 export async function fetchBuffer(
