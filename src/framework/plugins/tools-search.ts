@@ -782,6 +782,7 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
         const senderJid = commandContext.message.senderJid ?? chatJid
         const lockKey = `${chatJid}:${senderJid}:pinterest`
         if (inFlightBatch.has(lockKey)) {
+          await commandContext.react('❌').catch(() => {})
           await commandContext.reply('Batch Pinterest kamu sebelumnya masih diproses nih, tunggu sebentar ya~ ⏳')
           return
         }
@@ -790,6 +791,7 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
         const budget = await reserveImageBudget(commandContext, redis, chatJid, senderJid, parsed.count)
         if (!budget.allowed) {
           const limitLabel = budget.scope === 'group' ? 'grup (40 gambar/menit)' : 'kamu (20 gambar/menit)'
+          await commandContext.react('❌').catch(() => {})
           await commandContext.reply(
             `Batas kirim gambar ${limitLabel} tercapai (sisa ${budget.remaining}). Coba lagi dalam ${budget.waitSeconds} detik ya~ ⏳`,
           )
@@ -843,6 +845,7 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
           releaseClaims = batchResult.releaseClaims
 
           if (!batchResult.fetchedAny || batchResult.downloaded.length === 0) {
+            await commandContext.react('❌').catch(() => {})
             if (!batchResult.fetchedAny) {
               await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pinterest nih, coba kata kunci lain ya~ 🔍`)
             } else {
@@ -890,8 +893,10 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
 
           sentCount = batchResult.downloaded.length
           await batchResult.commitSeen()
+          await commandContext.react('✅').catch(() => {})
         } catch (error) {
           commandContext.logger.warn({ error }, 'pinterest command failed')
+          await commandContext.react('❌').catch(() => {})
           await commandContext.reply('Waduh, gagal ngambil gambar dari Pinterest nih. Coba sebentar lagi ya~ 🙏')
         } finally {
           releaseClaims?.()
@@ -924,6 +929,7 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
         const senderJid = commandContext.message.senderJid ?? chatJid
         const lockKey = `${chatJid}:${senderJid}:pixiv`
         if (inFlightBatch.has(lockKey)) {
+          await commandContext.react('❌').catch(() => {})
           await commandContext.reply('Batch Pixiv kamu sebelumnya masih diproses nih, tunggu sebentar ya~ ⏳')
           return
         }
@@ -932,6 +938,7 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
         const budget = await reserveImageBudget(commandContext, redis, chatJid, senderJid, parsed.count)
         if (!budget.allowed) {
           const limitLabel = budget.scope === 'group' ? 'grup (40 gambar/menit)' : 'kamu (20 gambar/menit)'
+          await commandContext.react('❌').catch(() => {})
           await commandContext.reply(
             `Batas kirim gambar ${limitLabel} tercapai (sisa ${budget.remaining}). Coba lagi dalam ${budget.waitSeconds} detik ya~ ⏳`,
           )
@@ -995,11 +1002,13 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
           releaseClaims = batchResult.releaseClaims
 
           if (!batchResult.fetchedAny) {
+            await commandContext.react('❌').catch(() => {})
             await commandContext.reply(`Gambar untuk "${query}" nggak ketemu di Pixiv nih, coba kata kunci lain ya~ 🔍`)
             return
           }
 
           if (batchResult.downloaded.length === 0) {
+            await commandContext.react('❌').catch(() => {})
             await commandContext.reply('Waduh, gambarnya gagal dimuat nih. Coba kata kunci lain atau tunggu sebentar ya~ 🙏')
             return
           }
@@ -1042,8 +1051,10 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
 
           sentCount = batchResult.downloaded.length
           await batchResult.commitSeen()
+          await commandContext.react('✅').catch(() => {})
         } catch (error) {
           commandContext.logger.warn({ error }, 'pixiv command failed')
+          await commandContext.react('❌').catch(() => {})
           await commandContext.reply('Waduh, gagal ngambil gambar dari Pixiv nih. Coba sebentar lagi ya~ 🙏')
         } finally {
           releaseClaims?.()

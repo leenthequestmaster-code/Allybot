@@ -43,6 +43,7 @@ function createFakeRedis() {
 
 function createPluginHarness(deps = {}, options = {}) {
   const sent = []
+  const reacts = []
   const redis = options.redis
   const groupMetadata = options.groupMetadata ?? {
     jid: '120363000000000001@g.us',
@@ -95,12 +96,12 @@ function createPluginHarness(deps = {}, options = {}) {
       services,
       whatsapp,
       async reply(text) { await whatsapp.sendText(msg.remoteJid, text) },
-      async react() {},
+      async react(emoji) { reacts.push({ remoteJid: msg.remoteJid, emoji }) },
     }
     await cmd.handler(ctx)
   }
 
-  return { commands, whatsapp, sent, redis, invokeRaw }
+  return { commands, whatsapp, sent, reacts, redis, invokeRaw }
 }
 
 test('parseSearchBatchArgs handles default, 1-10, clamp >10, quotes, and single numeric token', () => {
@@ -354,4 +355,50 @@ test('WhatsAppConnection.sendMediaAlbum falls back to sequential sendMedia when 
   assert.equal(sent.length, 2)
   assert.equal(Buffer.isBuffer(sent[0].content.image), true)
   assert.equal(sent[0].content.albumParentKey, undefined)
+})
+
+test('!pin and !pixiv emit ✅ after-react on success and ❌ on failure/empty', async () => {
+  const harness = createPluginHarness({
+    searchPinterestPage: async (q) => {
+      if (q === 'empty') return { items: [], nextBookmark: null }
+      return {
+        items: [{ id: 'ok1', title: 'Ok', author: 'a', imageUrl: 'https://i.pinimg.com/originals/ok1.jpg', mediaType: 'image' }],
+        nextBookmark: null,
+      }
+    },
+    fetchPinBuffer: async (url) => Buffer.concat([FAKE_JPEG, Buffer.from(url)]),
+    searchPixivIllust: async (q) => {
+      if (q === 'fail') throw new Error('network error')
+      return {
+        items: [{ id: 'px1', title: 'Pix', author: 'a', tags: [], imageUrls: ['https://i.pixiv.re/px1.jpg'], pageCount: 1 }],
+        nextPage: null,
+        nextOffset: null,
+      }
+    },
+    fetchPixivImage: async (url) => Buffer.concat([FAKE_JPEG, Buffer.from(url)]),
+  })
+
+  await harness.invokeRaw('pin', '!pin sakura', '628111111111@s.whatsapp.net')
+  assert.deepEqual(
+    harness.reacts.slice(-2).map((s) => s.emoji),
+    ['⏳', '✅'],
+  )
+
+  await harness.invokeRaw('pin', '!pin empty', '628111111111@s.whatsapp.net')
+  assert.deepEqual(
+    harness.reacts.slice(-2).map((s) => s.emoji),
+    ['⏳', '❌'],
+  )
+
+  await harness.invokeRaw('pixiv', '!pixiv miku', '628111111111@s.whatsapp.net')
+  assert.deepEqual(
+    harness.reacts.slice(-2).map((s) => s.emoji),
+    ['⏳', '✅'],
+  )
+
+  await harness.invokeRaw('pixiv', '!pixiv fail', '628111111111@s.whatsapp.net')
+  assert.deepEqual(
+    harness.reacts.slice(-2).map((s) => s.emoji),
+    ['⏳', '❌'],
+  )
 })
