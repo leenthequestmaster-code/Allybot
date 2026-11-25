@@ -292,11 +292,23 @@ test('new media commands: tomp3, stickerwm, tovideo, compress, qr, emojimix, and
   assert.equal(iqcSent?.payload?.kind, 'image')
   assert.equal(iqcSent?.payload?.mimeType, 'image/png')
 
+  await harness.commands.dispatch(message('!iqc -s --bat=77 --carrier=Telkomsel Tes flag stiker', 'iqc-sticker@s.whatsapp.net'))
+  const iqcStickerSent = harness.sent.at(-1)
+  assert.equal(iqcStickerSent?.type, 'media')
+  assert.equal(iqcStickerSent?.payload?.kind, 'sticker')
+  assert.equal(iqcStickerSent?.payload?.mimeType, 'image/webp')
+
   await harness.commands.dispatch(message('!iqcs Tes stiker chat iOS', 'iqcs-run@s.whatsapp.net'))
   const iqcsSent = harness.sent.at(-1)
   assert.equal(iqcsSent?.type, 'media')
   assert.equal(iqcsSent?.payload?.kind, 'sticker')
   assert.equal(iqcsSent?.payload?.mimeType, 'image/webp')
+
+  await harness.commands.dispatch(message('!iqcs -i Tes gambar chat iOS', 'iqcs-img@s.whatsapp.net'))
+  const iqcsImgSent = harness.sent.at(-1)
+  assert.equal(iqcsImgSent?.type, 'media')
+  assert.equal(iqcsImgSent?.payload?.kind, 'image')
+  assert.equal(iqcsImgSent?.payload?.mimeType, 'image/png')
 
   // 12. x and tweet alias validation
   await harness.commands.dispatch(message('!x', 'x-empty@s.whatsapp.net'))

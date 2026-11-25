@@ -180,6 +180,83 @@ export function registerMediaCardCommands(context: PluginContext): void {
         },
       })
 
+      const parseQuoteCardFlags = (args: readonly string[]) => {
+        const cleanTokens: string[] = []
+        let asSticker = false
+        let asImage = false
+        let light = false
+        let isOutgoing = false
+        let customTime: string | undefined
+        let battery: number | undefined
+        let carrier: string | undefined
+
+        for (const token of args) {
+          const lower = token.toLowerCase()
+          if (lower === '--sticker' || lower === '-s') {
+            asSticker = true
+          } else if (lower === '--img' || lower === '--image' || lower === '-i') {
+            asImage = true
+          } else if (lower === '--light') {
+            light = true
+          } else if (lower === '--me' || lower === '--out') {
+            isOutgoing = true
+          } else if (lower.startsWith('--time=')) {
+            customTime = token.slice(7).trim() || undefined
+          } else if (lower.startsWith('--bat=')) {
+            const parsed = Number.parseInt(token.slice(6), 10)
+            if (Number.isFinite(parsed)) battery = parsed
+          } else if (lower.startsWith('--carrier=')) {
+            carrier = token.slice(10).trim() || undefined
+          } else {
+            cleanTokens.push(token)
+          }
+        }
+        return {
+          cleanText: cleanTokens.join(' ').trim(),
+          asSticker,
+          asImage,
+          theme: (light ? 'light' : 'dark') as 'dark' | 'light',
+          isOutgoing,
+          customTime,
+          battery,
+          carrier,
+        }
+      }
+
+      const resolveCardSenderName = (
+        commandContext: Parameters<Parameters<typeof context.commands.register>[0]['handler']>[0],
+        targetSenderJid: string,
+        explicitName: string,
+        hasQuoted: boolean,
+      ): string => {
+        if (explicitName) return explicitName
+        if (targetSenderJid && targetSenderJid === commandContext.message.senderJid && commandContext.message.pushName) {
+          return commandContext.message.pushName
+        }
+        if (!hasQuoted && commandContext.message.pushName) {
+          return commandContext.message.pushName
+        }
+        if (targetSenderJid) {
+          const known = commandContext.whatsapp.getDisplayName?.(targetSenderJid)?.trim()
+          if (known) return known
+          const num = targetSenderJid.split('@')[0]?.split(':')[0]
+          return num ? `+${num}` : 'User'
+        }
+        return 'User'
+      }
+
+      const resolveQuoteMentions = (
+        commandContext: Parameters<Parameters<typeof context.commands.register>[0]['handler']>[0],
+        rawText: string,
+      ): string => {
+        return rawText.replace(/@(\d{6,18})/g, (_m, digits: string) => {
+          const name =
+            commandContext.whatsapp.getDisplayName?.(`${digits}@s.whatsapp.net`)?.trim() ||
+            commandContext.whatsapp.getDisplayName?.(`${digits}@lid`)?.trim()
+          return name ? `@${name}` : `@${digits}`
+        })
+      }
+
       context.commands.register({
         name: 'qc',
         aliases: ['quotly', 'qchat'],
@@ -188,20 +265,35 @@ export function registerMediaCardCommands(context: PluginContext): void {
         menuOrder: 22,
         cooldownMs: 3_000,
         handler: async (commandContext) => {
-          const rawArgs = commandContext.args.join(' ').trim()
+          const parsed = parseQuoteCardFlags(commandContext.args)
+          const rawArgs = parsed.cleanText
           const quotedText = commandContext.message.quotedText?.trim()
           const quotedSenderJid = commandContext.message.quotedSenderJid
 
           let targetText = ''
           let targetSenderJid = ''
+          let explicitName = ''
 
           if (quotedText) {
             targetText = quotedText
             targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
+            if (rawArgs) explicitName = rawArgs
           } else if (rawArgs) {
-            targetText = rawArgs
+            if (rawArgs.includes('|')) {
+              const split = rawArgs.split('|')
+              explicitName = split[0]?.trim() ?? ''
+              targetText = split.slice(1).join('|').trim()
+            } else {
+              targetText = rawArgs
+            }
             targetSenderJid = commandContext.message.senderJid || ''
           } else {
+            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}qc, atau ketik ${commandContext.prefix}qc <teks>`)
+            return
+          }
+
+          targetText = resolveQuoteMentions(commandContext, targetText)
+          if (!targetText) {
             await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}qc, atau ketik ${commandContext.prefix}qc <teks>`)
             return
           }
@@ -216,36 +308,10 @@ export function registerMediaCardCommands(context: PluginContext): void {
             return
           }
 
-          // Format name and target text
-          let senderName = ''
-          if (quotedText && rawArgs) {
-            senderName = rawArgs
-          } else if (!quotedText && rawArgs.includes('|')) {
-            const split = rawArgs.split('|')
-            senderName = split[0].trim()
-            targetText = split.slice(1).join('|').trim()
-          }
-
-          if (!senderName) {
-            if (targetSenderJid === commandContext.message.senderJid && commandContext.message.pushName) {
-              senderName = commandContext.message.pushName
-            } else if (commandContext.message.pushName && !quotedText) {
-              senderName = commandContext.message.pushName
-            } else if (targetSenderJid) {
-              const num = targetSenderJid.split('@')[0].split(':')[0]
-              senderName = num ? `+${num}` : 'User'
-            } else {
-              senderName = 'User'
-            }
-          }
-
-          // Format time
+          const senderName = resolveCardSenderName(commandContext, targetSenderJid, explicitName, Boolean(quotedText))
           const now = new Date()
-          const hours = String(now.getHours()).padStart(2, '0')
-          const minutes = String(now.getMinutes()).padStart(2, '0')
-          const timeStr = `${hours}:${minutes}`
+          const timeStr = parsed.customTime || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 
-          // Fetch avatar in-memory
           let avatarBuffer: Buffer | undefined
           if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
             try {
@@ -267,6 +333,7 @@ export function registerMediaCardCommands(context: PluginContext): void {
               senderName,
               time: timeStr,
               avatarBuffer,
+              isOutgoing: parsed.isOutgoing,
             })
 
             const rawWebp = await VisualCardService.pngToWebpSticker(png, 512)
@@ -284,6 +351,115 @@ export function registerMediaCardCommands(context: PluginContext): void {
         },
       })
 
+      const handleIqcCommand = async (
+        commandContext: Parameters<Parameters<typeof context.commands.register>[0]['handler']>[0],
+        defaultSticker: boolean,
+      ): Promise<void> => {
+        const parsed = parseQuoteCardFlags(commandContext.args)
+        const rawArgs = parsed.cleanText
+        const quotedText = commandContext.message.quotedText?.trim()
+        const quotedSenderJid = commandContext.message.quotedSenderJid
+        const asSticker = defaultSticker ? !parsed.asImage : parsed.asSticker
+
+        let targetText = ''
+        let targetSenderJid = ''
+        let explicitName = ''
+
+        if (quotedText) {
+          targetText = quotedText
+          targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
+          if (rawArgs) explicitName = rawArgs
+        } else if (rawArgs) {
+          if (rawArgs.includes('|')) {
+            const split = rawArgs.split('|')
+            explicitName = split[0]?.trim() ?? ''
+            targetText = split.slice(1).join('|').trim()
+          } else {
+            targetText = rawArgs
+          }
+          targetSenderJid = commandContext.message.senderJid || ''
+        } else {
+          const cmdLabel = defaultSticker ? 'iqcs' : 'iqc'
+          await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}${cmdLabel}, atau ketik ${commandContext.prefix}${cmdLabel} <teks>`)
+          return
+        }
+
+        targetText = resolveQuoteMentions(commandContext, targetText)
+        if (!targetText) {
+          const cmdLabel = defaultSticker ? 'iqcs' : 'iqc'
+          await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}${cmdLabel}, atau ketik ${commandContext.prefix}${cmdLabel} <teks>`)
+          return
+        }
+
+        if (targetText.length > 250) {
+          await commandContext.reply('Teksnya kepanjangan nih, maksimal 250 karakter ya~ ✍️')
+          return
+        }
+
+        if (!commandContext.whatsapp.sendMedia) {
+          await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
+          return
+        }
+
+        const senderName = resolveCardSenderName(commandContext, targetSenderJid, explicitName, Boolean(quotedText))
+        const now = new Date()
+        const timeStr = parsed.customTime || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+        let avatarBuffer: Buffer | undefined
+        if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
+          try {
+            const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
+            if (ppUrl) {
+              const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
+              if (ppRes.ok) {
+                avatarBuffer = Buffer.from(await ppRes.arrayBuffer())
+              }
+            }
+          } catch {
+            // ignore avatar errors
+          }
+        }
+
+        try {
+          const png = await VisualCardService.renderIqc({
+            text: targetText,
+            senderName,
+            time: timeStr,
+            avatarBuffer,
+            stickerMode: asSticker,
+            theme: parsed.theme,
+            battery: parsed.battery,
+            carrier: parsed.carrier,
+            isOutgoing: parsed.isOutgoing,
+          })
+
+          if (asSticker) {
+            const webp = await VisualCardService.pngToWebpSticker(png, 512)
+            const finalWebp = setStickerExif(webp, 'iOS Quote Chat', senderName)
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'sticker',
+              data: new Uint8Array(finalWebp),
+              mimeType: 'image/webp',
+            })
+          } else {
+            await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+              kind: 'image',
+              data: new Uint8Array(png),
+              mimeType: 'image/png',
+              caption: `*iOS Quote Chat* — ${senderName}`,
+            })
+          }
+        } catch (error) {
+          const cmdLabel = defaultSticker ? 'iqcs' : 'iqc'
+          commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, `${cmdLabel} command failed`)
+          await commandContext.reply(
+            defaultSticker
+              ? 'Waduh, gagal bikin stiker iOS quote chat nih. Coba lagi ya~ 🙏'
+              : 'Waduh, gagal bikin iOS quote chat nih. Coba lagi ya~ 🙏',
+          )
+        }
+      }
+
       context.commands.register({
         name: 'iqc',
         aliases: ['iosqc', 'fakechat'],
@@ -291,107 +467,7 @@ export function registerMediaCardCommands(context: PluginContext): void {
         category: 'tools',
         menuOrder: 23,
         cooldownMs: 3_000,
-        handler: async (commandContext) => {
-          const rawArgs = commandContext.args.join(' ').trim()
-          const quotedText = commandContext.message.quotedText?.trim()
-          const quotedSenderJid = commandContext.message.quotedSenderJid
-
-          let targetText = ''
-          let targetSenderJid = ''
-
-          if (quotedText) {
-            targetText = quotedText
-            targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
-          } else if (rawArgs) {
-            targetText = rawArgs
-            targetSenderJid = commandContext.message.senderJid || ''
-          } else {
-            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}iqc, atau ketik ${commandContext.prefix}iqc <teks>`)
-            return
-          }
-
-          if (targetText.length > 250) {
-            await commandContext.reply('Teksnya kepanjangan nih, maksimal 250 karakter ya~ ✍️')
-            return
-          }
-
-          if (!commandContext.whatsapp.sendMedia) {
-            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
-            return
-          }
-
-          let senderName = ''
-          if (quotedText && rawArgs && !rawArgs.startsWith('--')) {
-            senderName = rawArgs
-          } else if (!quotedText && rawArgs.includes('|')) {
-            const split = rawArgs.split('|')
-            senderName = split[0].trim()
-            targetText = split.slice(1).join('|').trim()
-          }
-
-          if (!senderName) {
-            if (targetSenderJid === commandContext.message.senderJid && commandContext.message.pushName) {
-              senderName = commandContext.message.pushName
-            } else if (commandContext.message.pushName && !quotedText) {
-              senderName = commandContext.message.pushName
-            } else if (targetSenderJid) {
-              const num = targetSenderJid.split('@')[0].split(':')[0]
-              senderName = num ? `+${num}` : 'User'
-            } else {
-              senderName = 'User'
-            }
-          }
-
-          const now = new Date()
-          const hours = String(now.getHours()).padStart(2, '0')
-          const minutes = String(now.getMinutes()).padStart(2, '0')
-          const timeStr = `${hours}:${minutes}`
-
-          let avatarBuffer: Buffer | undefined
-          if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
-            try {
-              const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
-              if (ppUrl) {
-                const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
-                if (ppRes.ok) {
-                  avatarBuffer = Buffer.from(await ppRes.arrayBuffer())
-                }
-              }
-            } catch {
-              // ignore avatar errors
-            }
-          }
-
-          try {
-            const png = await VisualCardService.renderIqc({
-              text: targetText,
-              senderName,
-              time: timeStr,
-              avatarBuffer,
-            })
-
-            const asSticker = commandContext.args.includes('--sticker') || commandContext.args.includes('-s')
-            if (asSticker) {
-              const webp = await VisualCardService.pngToWebpSticker(png, 512)
-              const finalWebp = setStickerExif(webp, 'iOS Quote Chat', senderName)
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'sticker',
-                data: new Uint8Array(finalWebp),
-                mimeType: 'image/webp',
-              })
-            } else {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(png),
-                mimeType: 'image/png',
-                caption: `*iOS Quote Chat* — ${senderName}`,
-              })
-            }
-          } catch (error) {
-            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'iqc command failed')
-            await commandContext.reply('Waduh, gagal bikin iOS quote chat nih. Coba lagi ya~ 🙏')
-          }
-        },
+        handler: async (commandContext) => handleIqcCommand(commandContext, false),
       })
 
       context.commands.register({
@@ -401,107 +477,7 @@ export function registerMediaCardCommands(context: PluginContext): void {
         category: 'tools',
         menuOrder: 24,
         cooldownMs: 3_000,
-        handler: async (commandContext) => {
-          const rawArgs = commandContext.args.join(' ').trim()
-          const quotedText = commandContext.message.quotedText?.trim()
-          const quotedSenderJid = commandContext.message.quotedSenderJid
-
-          let targetText = ''
-          let targetSenderJid = ''
-
-          if (quotedText) {
-            targetText = quotedText
-            targetSenderJid = quotedSenderJid || commandContext.message.senderJid || ''
-          } else if (rawArgs) {
-            targetText = rawArgs
-            targetSenderJid = commandContext.message.senderJid || ''
-          } else {
-            await commandContext.reply(`Balas pesan teks dengan ${commandContext.prefix}iqcs, atau ketik ${commandContext.prefix}iqcs <teks>`)
-            return
-          }
-
-          if (targetText.length > 250) {
-            await commandContext.reply('Teksnya kepanjangan nih, maksimal 250 karakter ya~ ✍️')
-            return
-          }
-
-          if (!commandContext.whatsapp.sendMedia) {
-            await commandContext.reply('Fitur media belum tersedia saat ini nih 😅')
-            return
-          }
-
-          let senderName = ''
-          if (quotedText && rawArgs && !rawArgs.startsWith('--')) {
-            senderName = rawArgs
-          } else if (!quotedText && rawArgs.includes('|')) {
-            const split = rawArgs.split('|')
-            senderName = split[0].trim()
-            targetText = split.slice(1).join('|').trim()
-          }
-
-          if (!senderName) {
-            if (targetSenderJid === commandContext.message.senderJid && commandContext.message.pushName) {
-              senderName = commandContext.message.pushName
-            } else if (commandContext.message.pushName && !quotedText) {
-              senderName = commandContext.message.pushName
-            } else if (targetSenderJid) {
-              const num = targetSenderJid.split('@')[0].split(':')[0]
-              senderName = num ? `+${num}` : 'User'
-            } else {
-              senderName = 'User'
-            }
-          }
-
-          const now = new Date()
-          const hours = String(now.getHours()).padStart(2, '0')
-          const minutes = String(now.getMinutes()).padStart(2, '0')
-          const timeStr = `${hours}:${minutes}`
-
-          let avatarBuffer: Buffer | undefined
-          if (targetSenderJid && commandContext.whatsapp.getProfilePictureUrl) {
-            try {
-              const ppUrl = await commandContext.whatsapp.getProfilePictureUrl(targetSenderJid, 'image', 3000)
-              if (ppUrl) {
-                const ppRes = await fetch(ppUrl, { signal: AbortSignal.timeout(4000) })
-                if (ppRes.ok) {
-                  avatarBuffer = Buffer.from(await ppRes.arrayBuffer())
-                }
-              }
-            } catch {
-              // ignore avatar errors
-            }
-          }
-
-          try {
-            const png = await VisualCardService.renderIqc({
-              text: targetText,
-              senderName,
-              time: timeStr,
-              avatarBuffer,
-            })
-
-            const asImage = commandContext.args.includes('--img') || commandContext.args.includes('-i')
-            if (asImage) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(png),
-                mimeType: 'image/png',
-                caption: `*iOS Quote Chat* — ${senderName}`,
-              })
-            } else {
-              const webp = await VisualCardService.pngToWebpSticker(png, 512)
-              const finalWebp = setStickerExif(webp, 'iOS Quote Chat', senderName)
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'sticker',
-                data: new Uint8Array(finalWebp),
-                mimeType: 'image/webp',
-              })
-            }
-          } catch (error) {
-            commandContext.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'iqcs command failed')
-            await commandContext.reply('Waduh, gagal bikin stiker iOS quote chat nih. Coba lagi ya~ 🙏')
-          }
-        },
+        handler: async (commandContext) => handleIqcCommand(commandContext, true),
       })
 
       context.commands.register({

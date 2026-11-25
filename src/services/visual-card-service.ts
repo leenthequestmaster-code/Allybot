@@ -5,12 +5,24 @@ import { Resvg } from '@resvg/resvg-js'
 import sharp from 'sharp'
 import opentype from '@shuding/opentype.js'
 
+export interface IqcReplyPreview {
+  readonly sender: string
+  readonly text: string
+}
+
 export interface IqcOptions {
   readonly text: string
   readonly senderName?: string
   readonly time?: string
   readonly avatarBuffer?: Buffer
   readonly menuItems?: readonly string[]
+  readonly stickerMode?: boolean
+  readonly theme?: 'dark' | 'light'
+  readonly battery?: number
+  readonly carrier?: string
+  readonly signalStrength?: number
+  readonly isOutgoing?: boolean
+  readonly reply?: IqcReplyPreview
 }
 
 export interface QcOptions {
@@ -18,6 +30,7 @@ export interface QcOptions {
   readonly senderName: string
   readonly time?: string
   readonly avatarBuffer?: Buffer
+  readonly isOutgoing?: boolean
 }
 
 export interface TweetOptions {
@@ -50,15 +63,16 @@ export interface ProfileCardOptions {
 
 // Bounded in-memory emoji cache (max 500 entries)
 const MAX_EMOJI_CACHE_ENTRIES = 500
-const emojiSvgCache = new Map<string, string>()
+const emojiAssetCache = new Map<string, string>()
+const APPLE_EMOJI_BASE_URL = process.env.APPLE_EMOJI_BASE_URL ?? 'https://cdn.jsdelivr.net/npm/emoji-datasource-apple@16.0.0/img/apple/64'
 const TWEMOJI_BASE_URL = process.env.TWEMOJI_BASE_URL ?? 'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg'
 
 function cacheEmoji(key: string, val: string): void {
-  if (emojiSvgCache.size >= MAX_EMOJI_CACHE_ENTRIES) {
-    const first = emojiSvgCache.keys().next().value
-    if (first) emojiSvgCache.delete(first)
+  if (emojiAssetCache.size >= MAX_EMOJI_CACHE_ENTRIES) {
+    const first = emojiAssetCache.keys().next().value
+    if (first) emojiAssetCache.delete(first)
   }
-  emojiSvgCache.set(key, val)
+  emojiAssetCache.set(key, val)
 }
 
 // Pre-loaded font cache (loaded once at module init)
@@ -128,32 +142,67 @@ async function prepareAvatarDataUrl(buf?: Buffer, maxSize = 120): Promise<string
   }
 }
 
+function buildEmojiCodepointCandidates(segment: string): string[] {
+  const exact = [...segment]
+    .map((c) => c.codePointAt(0)?.toString(16).toLowerCase())
+    .filter((x): x is string => Boolean(x))
+  const stripped = [...segment.replace(/\uFE0F/g, '')]
+    .map((c) => c.codePointAt(0)?.toString(16).toLowerCase())
+    .filter((x): x is string => Boolean(x))
+
+  const candidates: string[] = []
+  const pushUnique = (val: string) => {
+    if (val && !candidates.includes(val)) candidates.push(val)
+  }
+  if (exact.length > 0) pushUnique(exact.join('-'))
+  if (stripped.length > 0) pushUnique(stripped.join('-'))
+  if (exact.length === 1 && !exact[0]!.includes('fe0f')) {
+    pushUnique(`${exact[0]}-fe0f`)
+  }
+  return candidates
+}
+
 async function loadEmojiAsset(code: string, segment: string): Promise<string> {
   if (code !== 'emoji') return ''
 
-  const codepoints = [...(segment.includes('\u200d') ? segment : segment.replace(/\uFE0F/g, ''))]
-    .map((c) => c.codePointAt(0)?.toString(16))
-    .filter(Boolean)
-    .join('-')
+  const candidates = buildEmojiCodepointCandidates(segment)
+  if (candidates.length === 0) return ''
 
-  if (!codepoints) return ''
-
-  if (emojiSvgCache.has(codepoints)) {
-    return emojiSvgCache.get(codepoints)!
+  const cacheKey = candidates[0]!
+  if (emojiAssetCache.has(cacheKey)) {
+    return emojiAssetCache.get(cacheKey)!
   }
 
-  const url = `${TWEMOJI_BASE_URL}/${codepoints}.svg`
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(3000) })
-    if (res.ok) {
-      const text = await res.text()
-      const b64 = Buffer.from(text).toString('base64')
-      const dataUrl = `data:image/svg+xml;base64,${b64}`
-      cacheEmoji(codepoints, dataUrl)
-      return dataUrl
+  // 1. Primary: Latest Apple Color Emoji v16.0.0 (iOS 18+/26 style)
+  for (const cp of candidates) {
+    try {
+      const res = await fetch(`${APPLE_EMOJI_BASE_URL}/${cp}.png`, { signal: AbortSignal.timeout(2500) })
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer())
+        if (buf.length > 0) {
+          const dataUrl = `data:image/png;base64,${buf.toString('base64')}`
+          cacheEmoji(cacheKey, dataUrl)
+          return dataUrl
+        }
+      }
+    } catch {
+      // continue to next candidate or fallback
     }
-  } catch {
-    // Network or timeout failure, return empty string so Satori ignores missing glyph
+  }
+
+  // 2. Fallback: Twemoji SVG
+  for (const cp of candidates) {
+    try {
+      const res = await fetch(`${TWEMOJI_BASE_URL}/${cp}.svg`, { signal: AbortSignal.timeout(2500) })
+      if (res.ok) {
+        const text = await res.text()
+        const dataUrl = `data:image/svg+xml;base64,${Buffer.from(text).toString('base64')}`
+        cacheEmoji(cacheKey, dataUrl)
+        return dataUrl
+      }
+    } catch {
+      // ignore fallback failure
+    }
   }
   return ''
 }
@@ -184,71 +233,263 @@ function getAccentColor(name: string): string {
 
 export class VisualCardService {
   /**
-   * Render WhatsApp iOS Context-Menu style Quote Chat (!iqc)
+   * Render WhatsApp iOS 26 (Liquid Glass) IQC Phone Screen / Sticker (!iqc & !iqcs)
    */
   static async renderIqc(options: IqcOptions): Promise<Buffer> {
     const fonts = loadFonts()
-    const time = options.time ?? new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    const time = options.time?.trim().slice(0, 12) || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     const text = options.text.trim().slice(0, 500)
     if (!text) throw new Error('IQC text must not be empty')
 
-    const W = 920
+    const isSticker = Boolean(options.stickerMode)
+    const isLight = options.theme === 'light'
+    const isOutgoing = Boolean(options.isOutgoing)
     const senderName = options.senderName?.trim().slice(0, 50)
+    const displayContact = senderName || 'WhatsApp'
     const nameColor = senderName ? getAccentColor(senderName) : '#53bdeb'
+    const battery = Math.max(1, Math.min(100, Math.round(options.battery ?? 88)))
+    const signalStrength = Math.max(1, Math.min(4, Math.round(options.signalStrength ?? 4)))
+    const carrier = (options.carrier?.trim().slice(0, 14) || '5G').toUpperCase()
 
-    const bgSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 1200" preserveAspectRatio="none">
-<defs><filter id="b" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="40"/></filter></defs>
-<rect width="920" height="1200" fill="#0b141a"/>
-<g filter="url(#b)">
-  <rect x="250" y="-40" width="700" height="240" rx="60" fill="#0d4a36"/>
-  <rect x="40" y="240" width="600" height="140" rx="50" fill="#1f2c34"/>
-  <rect x="60" y="400" width="550" height="140" rx="50" fill="#1f2c34"/>
-  <rect x="50" y="550" width="650" height="120" rx="40" fill="#182229"/>
-</g>
+    const W = isSticker ? 580 : 680
+    const H = 1360
+    const avatarBase64 = await prepareAvatarDataUrl(options.avatarBuffer, 96)
+
+    const palette = isLight
+      ? {
+          bg: '#efeae2',
+          doodleStroke: 'rgba(130, 118, 102, 0.14)',
+          dimOverlay: 'rgba(225, 222, 216, 0.72)',
+          statusFg: '#111b21',
+          batteryFill: battery <= 20 ? '#ff3b30' : '#111b21',
+          batteryText: '#ffffff',
+          glassBg: 'rgba(255, 255, 255, 0.78)',
+          glassBorder: 'rgba(255, 255, 255, 0.92)',
+          glassHighlight: 'rgba(0, 0, 0, 0.06)',
+          menuText: '#111b21',
+          menuIcon: '#1c1c1e',
+          menuDivider: 'rgba(0, 0, 0, 0.08)',
+          plusBg: 'rgba(120, 120, 128, 0.16)',
+          plusFg: '#3a3a3c',
+          bubbleBg: isOutgoing ? '#d9fdd3' : '#ffffff',
+          bubbleFg: '#111b21',
+          metaFg: '#667781',
+          replyBg: 'rgba(0, 0, 0, 0.05)',
+          replyFg: '#54656f',
+          inputBg: 'rgba(255, 255, 255, 0.78)',
+          accentGreen: '#1dab61',
+          bgBubbleOther: 'rgba(255, 255, 255, 0.55)',
+          bgBubbleSelf: 'rgba(217, 253, 211, 0.55)',
+        }
+      : {
+          bg: '#0b141a',
+          doodleStroke: 'rgba(255, 255, 255, 0.055)',
+          dimOverlay: 'rgba(7, 11, 14, 0.72)',
+          statusFg: '#ffffff',
+          batteryFill: battery <= 20 ? '#ff453a' : '#ffffff',
+          batteryText: '#0b141a',
+          glassBg: 'rgba(42, 46, 50, 0.84)',
+          glassBorder: 'rgba(255, 255, 255, 0.15)',
+          glassHighlight: 'rgba(255, 255, 255, 0.10)',
+          menuText: '#f2f4f5',
+          menuIcon: '#d1d5db',
+          menuDivider: 'rgba(255, 255, 255, 0.09)',
+          plusBg: 'rgba(92, 98, 104, 0.88)',
+          plusFg: '#e5e7eb',
+          bubbleBg: isOutgoing ? '#005c4b' : '#202c33',
+          bubbleFg: '#e9edef',
+          metaFg: isOutgoing ? '#a4c4bd' : '#8696a0',
+          replyBg: 'rgba(11, 20, 26, 0.42)',
+          replyFg: '#aebac1',
+          inputBg: 'rgba(34, 40, 44, 0.82)',
+          accentGreen: '#25d366',
+          bgBubbleOther: 'rgba(32, 44, 51, 0.48)',
+          bgBubbleSelf: 'rgba(0, 92, 75, 0.46)',
+        }
+
+    // Authentic WhatsApp Doodle Wallpaper (organic rotated scatter + blurred focus overlay)
+    const wallpaperSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+  <defs>
+    <pattern id="doodle" width="220" height="220" patternUnits="userSpaceOnUse" patternTransform="rotate(-14)">
+      <g stroke="${palette.doodleStroke}" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="32" cy="30" r="11"/>
+        <circle cx="28" cy="27" r="1" fill="${palette.doodleStroke}"/>
+        <circle cx="36" cy="27" r="1" fill="${palette.doodleStroke}"/>
+        <path d="M27 33 Q32 37 37 33"/>
+        <g transform="translate(110 18) rotate(22)">
+          <path d="M12 6 c-4-5-12-3-12 4 0 7 12 14 12 14s12-7 12-14c0-7-8-9-12-4z"/>
+        </g>
+        <g transform="translate(178 36) rotate(-18)">
+          <path d="M0 10 l10 -12 l8 14 l-14 4 z"/>
+        </g>
+        <g transform="translate(22 104) rotate(12)">
+          <rect x="0" y="0" width="22" height="17" rx="4"/>
+          <path d="M0 6 h22 M6 -4 v5 M16 -4 v5"/>
+        </g>
+        <g transform="translate(95 92) rotate(-25)">
+          <path d="M12 0 l3 7 l8 1 l-5 5 l1 8 l-7 -4 l-7 4 l1 -8 l-5 -5 l8 -1 z"/>
+        </g>
+        <g transform="translate(166 118) rotate(28)">
+          <path d="M4 4 c6-7 16 2 8 12 c-4 5-12 2-8-12z"/>
+        </g>
+        <g transform="translate(42 170) rotate(-15)">
+          <path d="M12 0 a11 11 0 1 0 11 11 a8 8 0 1 1 -11 -11z"/>
+        </g>
+        <g transform="translate(124 162) rotate(16)">
+          <path d="M4 18 v-14 l15 -4 v14"/>
+          <circle cx="2" cy="19" r="3.5"/>
+          <circle cx="17" cy="15" r="3.5"/>
+        </g>
+        <g transform="translate(185 184) rotate(-8)">
+          <path d="M0 4 h20 l-3 11 h-14 z"/>
+        </g>
+      </g>
+    </pattern>
+    <filter id="bgBlur" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+    <filter id="doodleBlur" x="-5%" y="-5%" width="110%" height="110%">
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+  </defs>
+  <rect width="${W}" height="${H}" fill="${palette.bg}"/>
+  <rect width="${W}" height="${H}" fill="url(#doodle)" filter="url(#doodleBlur)"/>
+  <g filter="url(#bgBlur)" opacity="0.88">
+    <rect x="275" y="182" width="130" height="30" rx="15" fill="${palette.bgBubbleOther}"/>
+    <rect x="28" y="236" width="330" height="70" rx="18" fill="${palette.bgBubbleOther}"/>
+    <rect x="${W - 340}" y="324" width="312" height="60" rx="18" fill="${palette.bgBubbleSelf}"/>
+    <rect x="28" y="404" width="250" height="58" rx="18" fill="${palette.bgBubbleOther}"/>
+    <rect x="${W - 290}" y="1030" width="262" height="64" rx="18" fill="${palette.bgBubbleSelf}"/>
+    <rect x="28" y="1112" width="310" height="62" rx="18" fill="${palette.bgBubbleOther}"/>
+  </g>
+  <rect width="${W}" height="${H}" fill="${palette.dimOverlay}"/>
 </svg>`
-    const bgDataUrl = 'data:image/svg+xml;base64,' + b64(bgSvg)
+    const wallpaperDataUrl = 'data:image/svg+xml;base64,' + b64(wallpaperSvg)
 
     const iconMap: Record<string, string> = {
       Balas: '<path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
       Teruskan: '<path d="m15 17 5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/>',
-      Salin: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+      Salin: '<rect width="13" height="13" x="9" y="9" rx="2.5"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+      Info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
       'Beri Bintang': '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
       Sematkan: '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
       Laporkan: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
       Hapus: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+      'Lainnya...': '<circle cx="12" cy="12" r="10"/><circle cx="8" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="16" cy="12" r="1" fill="currentColor"/>',
       Edit: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>',
-      Info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
     }
 
-    const defaultMenu = ['Balas', 'Teruskan', 'Salin', 'Beri Bintang', 'Sematkan', 'Laporkan', 'Hapus']
+    const defaultMenu = isOutgoing
+      ? ['Balas', 'Teruskan', 'Salin', 'Info', 'Sematkan', 'Hapus', 'Lainnya...']
+      : ['Balas', 'Teruskan', 'Salin', 'Info', 'Sematkan', 'Laporkan', 'Hapus', 'Lainnya...']
     const rawItems = options.menuItems && options.menuItems.length > 0 ? options.menuItems : defaultMenu
     const menuItems: [string, string][] = rawItems.map((item) => [
       item,
       iconMap[item] ?? '<path d="m9 18 6-6-6-6"/>',
     ])
 
+    // Incoming/outgoing speech tail seamlessly fused to bottom bubble corner
+    const bubbleTailSvg = isOutgoing
+      ? {
+          type: 'img',
+          props: {
+            width: 14,
+            height: 20,
+            style: { marginLeft: -2, marginBottom: 0 },
+            src:
+              'data:image/svg+xml;base64,' +
+              b64(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 20"><path d="M0 0 L0 20 C7 20, 12 18, 14 15 C8 12, 4 6, 3 0 Z" fill="${palette.bubbleBg}"/></svg>`),
+          },
+        }
+      : {
+          type: 'img',
+          props: {
+            width: 14,
+            height: 20,
+            style: { marginRight: -2, marginBottom: 0 },
+            src:
+              'data:image/svg+xml;base64,' +
+              b64(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 20"><path d="M14 0 L14 20 C7 20, 2 18, 0 15 C6 12, 10 6, 11 0 Z" fill="${palette.bubbleBg}"/></svg>`),
+          },
+        }
+
+    const replyPreviewNode = options.reply?.text
+      ? {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              flexDirection: 'row',
+              backgroundColor: palette.replyBg,
+              borderRadius: 10,
+              overflow: 'hidden',
+              marginBottom: 8,
+            },
+            children: [
+              {
+                type: 'div',
+                props: {
+                  style: {
+                    width: 4,
+                    backgroundColor: '#ff4d6d',
+                  },
+                },
+              },
+              {
+                type: 'div',
+                props: {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '6px 10px',
+                    maxWidth: 420,
+                  },
+                  children: [
+                    {
+                      type: 'span',
+                      props: {
+                        style: { fontSize: 17, fontWeight: 700, color: '#ff4d6d', marginBottom: 2 },
+                        children: options.reply.sender.slice(0, 40),
+                      },
+                    },
+                    {
+                      type: 'span',
+                      props: {
+                        style: { fontSize: 17, color: palette.replyFg, lineHeight: 1.25 },
+                        children: options.reply.text.trim().slice(0, 110),
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        }
+      : null
+
     const bubbleChildren = [
-      senderName
+      !isOutgoing && senderName
         ? {
             type: 'span',
             props: {
               style: {
                 fontWeight: 700,
-                fontSize: 26,
+                fontSize: 21,
                 color: nameColor,
-                marginBottom: 6,
+                marginBottom: 4,
               },
               children: senderName,
             },
           }
         : null,
+      replyPreviewNode,
       {
         type: 'div',
         props: {
           style: {
-            fontSize: 32,
-            lineHeight: 1.35,
-            color: '#e9edef',
+            fontSize: 27,
+            lineHeight: 1.32,
+            color: palette.bubbleFg,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
           },
@@ -262,19 +503,277 @@ export class VisualCardService {
             display: 'flex',
             justifyContent: 'flex-end',
             alignItems: 'center',
-            gap: 6,
-            marginTop: 8,
+            gap: 5,
+            marginTop: 6,
           },
           children: [
             {
               type: 'span',
-              props: { style: { fontSize: 20, color: '#8696a0' }, children: time },
+              props: { style: { fontSize: 17, color: palette.metaFg }, children: time },
             },
-            svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 20, '0 0 24 24', 2.5),
-          ],
+            isOutgoing
+              ? svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 18, '0 0 24 24', 2.4)
+              : null,
+          ].filter(Boolean),
         },
       },
     ].filter(Boolean)
+
+    // Reaction Pill (iOS 26 Liquid Glass, 7 Apple emojis + '+' tucked button)
+    const reactionBar = {
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          height: 78,
+          padding: '0 14px 0 18px',
+          borderRadius: 39,
+          backgroundColor: palette.glassBg,
+          border: `1.5px solid ${palette.glassBorder}`,
+          boxShadow: '0 10px 28px rgba(0, 0, 0, 0.36)',
+          marginBottom: 14,
+          gap: 11,
+        },
+        children: [
+          ...['👍', '❤️', '😂', '😮', '😢', '🙏', '💯'].map((e) => ({
+            type: 'span',
+            props: { style: { fontSize: 38, lineHeight: 1 }, children: e },
+          })),
+          {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                width: 46,
+                height: 46,
+                borderRadius: 23,
+                backgroundColor: palette.plusBg,
+                border: `1.5px solid ${palette.glassBorder}`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginLeft: 2,
+              },
+              children: [svgIcon('<path d="M12 5v14M5 12h14"/>', palette.plusFg, 24, '0 0 24 24', 2.4)],
+            },
+          },
+        ],
+      },
+    }
+
+    const bubbleRow = {
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'flex-end',
+          justifyContent: isOutgoing ? 'flex-end' : 'flex-start',
+          marginBottom: 14,
+        },
+        children: isOutgoing
+          ? [
+              {
+                type: 'div',
+                props: {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minWidth: 130,
+                    maxWidth: isSticker ? 470 : 510,
+                    padding: '12px 18px 10px',
+                    borderRadius: '20px 20px 0 20px',
+                    backgroundColor: palette.bubbleBg,
+                  },
+                  children: bubbleChildren,
+                },
+              },
+              bubbleTailSvg,
+            ]
+          : [
+              bubbleTailSvg,
+              {
+                type: 'div',
+                props: {
+                  style: {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minWidth: 130,
+                    maxWidth: isSticker ? 470 : 510,
+                    padding: '12px 18px 10px',
+                    borderRadius: '20px 20px 20px 0',
+                    backgroundColor: palette.bubbleBg,
+                  },
+                  children: bubbleChildren,
+                },
+              },
+            ],
+      },
+    }
+
+    const contextMenuCard = {
+      type: 'div',
+      props: {
+        style: {
+          display: 'flex',
+          flexDirection: 'column',
+          width: 368,
+          borderRadius: 28,
+          backgroundColor: palette.glassBg,
+          border: `1.5px solid ${palette.glassBorder}`,
+          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.44)',
+          padding: '8px',
+        },
+        children: menuItems.map(([label, iconD], idx) => {
+          const isFirst = idx === 0
+          const isDelete = label === 'Hapus'
+          const isMore = label === 'Lainnya...'
+          const prevIsDelete = idx > 0 && menuItems[idx - 1]?.[0] === 'Hapus'
+          const fg = isDelete ? '#ff453a' : palette.menuText
+          const iconFg = isDelete ? '#ff453a' : palette.menuIcon
+
+          return {
+            type: 'div',
+            props: {
+              style: {
+                display: 'flex',
+                flexDirection: 'column',
+              },
+              children: [
+                isMore || prevIsDelete
+                  ? {
+                      type: 'div',
+                      props: {
+                        style: {
+                          height: 1,
+                          backgroundColor: palette.menuDivider,
+                          margin: '4px 12px',
+                        },
+                      },
+                    }
+                  : null,
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 16,
+                      padding: '13px 18px',
+                      borderRadius: 18,
+                      backgroundColor: 'transparent',
+                    },
+                    children: [
+                      svgIcon(iconD, iconFg, 24, '0 0 24 24', 2),
+                      {
+                        type: 'span',
+                        props: {
+                          style: {
+                            fontSize: 23,
+                            color: fg,
+                            fontWeight: 400,
+                          },
+                          children: label,
+                        },
+                      },
+                    ],
+                  },
+                },
+              ].filter(Boolean),
+            },
+          }
+        }),
+      },
+    }
+
+    // Sticker mode: centered transparent cutout with clean margins (zero letterbox)
+    if (isSticker) {
+      const stickerVdom = {
+        type: 'div',
+        props: {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            width: W,
+            padding: '28px 28px',
+            backgroundColor: 'transparent',
+            alignItems: 'center',
+          },
+          children: [
+            {
+              type: 'div',
+              props: {
+                style: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: isOutgoing ? 'flex-end' : 'flex-start',
+                },
+                children: [reactionBar, bubbleRow, contextMenuCard],
+              },
+            },
+          ],
+        },
+      }
+      const svg = await satori(stickerVdom as any, {
+        width: W,
+        fonts,
+        loadAdditionalAsset: loadEmojiAsset,
+      })
+      const resvg = new Resvg(svg, { fitTo: { mode: 'original' } })
+      const rawPng = resvg.render().asPng()
+      return sharp(rawPng)
+        .trim({ threshold: 1 })
+        .extend({ top: 24, bottom: 24, left: 24, right: 24, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+        .png()
+        .toBuffer()
+        .catch(() => rawPng)
+    }
+
+    // Full IQC iPhone Screen (iOS 26 Status Bar + Floating Header + Focus Overlay + Input Bar + Home Indicator)
+    const signalSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="18" viewBox="0 0 26 18">
+      <rect x="1" y="12" width="4.5" height="5" rx="1.2" fill="${palette.statusFg}" opacity="${signalStrength >= 1 ? 1 : 0.3}"/>
+      <rect x="7.5" y="9" width="4.5" height="8" rx="1.2" fill="${palette.statusFg}" opacity="${signalStrength >= 2 ? 1 : 0.3}"/>
+      <rect x="14" y="5" width="4.5" height="12" rx="1.2" fill="${palette.statusFg}" opacity="${signalStrength >= 3 ? 1 : 0.3}"/>
+      <rect x="20.5" y="1" width="4.5" height="16" rx="1.2" fill="${palette.statusFg}" opacity="${signalStrength >= 4 ? 1 : 0.3}"/>
+    </svg>`
+
+    const batteryTrack = isLight ? 'rgba(0, 0, 0, 0.22)' : 'rgba(255, 255, 255, 0.28)'
+    const batteryColor = battery <= 20 ? '#ff3b30' : isLight ? '#1c1c1e' : '#ffffff'
+    const batterySvg = `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="22" viewBox="0 0 44 22">
+      <rect x="1" y="1" width="38" height="20" rx="6" fill="${batteryTrack}"/>
+      <rect x="1" y="1" width="${Math.max(8, Math.round((38 * battery) / 100))}" height="20" rx="6" fill="${batteryColor}"/>
+      <path d="M40.5 7.5 C42.2 8, 42.2 14, 40.5 14.5 Z" fill="${batteryTrack}"/>
+    </svg>`
+
+    const headerAvatarNode = avatarBase64
+      ? {
+          type: 'img',
+          props: {
+            width: 42,
+            height: 42,
+            src: avatarBase64,
+            style: { borderRadius: 21, objectFit: 'cover' },
+          },
+        }
+      : {
+          type: 'div',
+          props: {
+            style: {
+              display: 'flex',
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: nameColor,
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: 19,
+            },
+            children: displayContact.charAt(0).toUpperCase(),
+          },
+        }
 
     const vdom = {
       type: 'div',
@@ -282,116 +781,350 @@ export class VisualCardService {
         style: {
           display: 'flex',
           flexDirection: 'column',
+          justifyContent: 'space-between',
           width: W,
-          position: 'relative',
-          backgroundImage: `url('${bgDataUrl}')`,
+          height: H,
+          backgroundImage: `url('${wallpaperDataUrl}')`,
           backgroundSize: '100% 100%',
-          padding: '45px 40px',
-          alignItems: 'flex-start',
+          padding: '16px 24px 14px',
         },
         children: [
-          // Reactions bar (iOS floating pill)
+          // Top chrome: Status Bar + WhatsApp iOS 26 Liquid Glass Header
           {
             type: 'div',
             props: {
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                gap: 20,
-                height: 92,
-                padding: '0 24px',
-                borderRadius: 46,
-                backgroundColor: '#202528',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                marginBottom: 20,
-              },
+              style: { display: 'flex', flexDirection: 'column', gap: 14 },
               children: [
-                ...['👍', '❤️', '😂', '😮', '😢', '🙏'].map((e) => ({
-                  type: 'span',
-                  props: { style: { fontSize: 46 }, children: e },
-                })),
+                // iPhone Status Bar
                 {
                   type: 'div',
                   props: {
                     style: {
                       display: 'flex',
-                      width: 50,
-                      height: 50,
-                      borderRadius: 25,
-                      backgroundColor: '#2c3236',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'space-between',
+                      padding: '4px 6px',
+                      height: 48,
                     },
-                    children: [svgIcon('<path d="M12 5v14M5 12h14"/>', '#8696a0', 26)],
+                    children: [
+                      {
+                        type: 'div',
+                        props: {
+                          style: { display: 'flex', alignItems: 'center', gap: 6, width: 170 },
+                          children: [
+                            {
+                              type: 'span',
+                              props: {
+                                style: { fontSize: 22, fontWeight: 700, color: palette.statusFg },
+                                children: time,
+                              },
+                            },
+                            svgIcon('<polygon points="3 11 22 2 13 21 11 13 3 11"/>', palette.statusFg, 15, '0 0 24 24', 2),
+                          ],
+                        },
+                      },
+                      // Dynamic Island (clean matte black pill)
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            width: 168,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: '#000000',
+                          },
+                        },
+                      },
+                      // Signal + Carrier + Battery
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: 8,
+                            width: 185,
+                          },
+                          children: [
+                            {
+                              type: 'img',
+                              props: { width: 24, height: 17, src: 'data:image/svg+xml;base64,' + b64(signalSvg) },
+                            },
+                            {
+                              type: 'span',
+                              props: {
+                                style: { fontSize: 17, fontWeight: 700, color: palette.statusFg },
+                                children: carrier,
+                              },
+                            },
+                            {
+                              type: 'div',
+                              props: {
+                                style: {
+                                  display: 'flex',
+                                  position: 'relative',
+                                  width: 44,
+                                  height: 22,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                },
+                                children: [
+                                  {
+                                    type: 'img',
+                                    props: {
+                                      width: 44,
+                                      height: 22,
+                                      src: 'data:image/svg+xml;base64,' + b64(batterySvg),
+                                      style: { position: 'absolute', left: 0, top: 0 },
+                                    },
+                                  },
+                                  {
+                                    type: 'span',
+                                    props: {
+                                      style: {
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        color: palette.batteryText,
+                                        marginRight: 3,
+                                      },
+                                      children: String(battery),
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+
+                // WhatsApp iOS 26 Floating Liquid Glass Header (dimmed behind overlay)
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      display: 'flex',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      opacity: 0.38,
+                    },
+                    children: [
+                      // Back + unread capsule
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            height: 54,
+                            padding: '0 14px',
+                            borderRadius: 27,
+                            backgroundColor: palette.glassBg,
+                            border: `1px solid ${palette.glassBorder}`,
+                          },
+                          children: [
+                            svgIcon('<path d="m15 18-6-6 6-6"/>', palette.menuText, 22, '0 0 24 24', 2.4),
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: 19, fontWeight: 700, color: palette.menuText }, children: '1' },
+                            },
+                          ],
+                        },
+                      },
+                      // Contact capsule
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            height: 58,
+                            padding: '0 18px 0 8px',
+                            borderRadius: 29,
+                            backgroundColor: palette.glassBg,
+                            border: `1px solid ${palette.glassBorder}`,
+                            maxWidth: 340,
+                          },
+                          children: [
+                            headerAvatarNode,
+                            {
+                              type: 'div',
+                              props: {
+                                style: { display: 'flex', flexDirection: 'column' },
+                                children: [
+                                  {
+                                    type: 'span',
+                                    props: {
+                                      style: { fontSize: 19, fontWeight: 700, color: palette.menuText },
+                                      children: displayContact.slice(0, 22),
+                                    },
+                                  },
+                                  {
+                                    type: 'span',
+                                    props: {
+                                      style: { fontSize: 14, color: palette.metaFg },
+                                      children: isOutgoing ? 'online' : 'Grup WhatsApp • ketuk info',
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                      // Call actions capsule
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 18,
+                            height: 54,
+                            padding: '0 18px',
+                            borderRadius: 27,
+                            backgroundColor: palette.glassBg,
+                            border: `1px solid ${palette.glassBorder}`,
+                          },
+                          children: [
+                            svgIcon('<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>', palette.menuText, 22),
+                            svgIcon('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>', palette.menuText, 20),
+                          ],
+                        },
+                      },
+                    ],
                   },
                 },
               ],
             },
           },
 
-          // Bubble (iOS WhatsApp dark bubble)
+          // Center Focus Stack: Reaction Pill + Bubble + Context Menu
           {
             type: 'div',
             props: {
               style: {
                 display: 'flex',
                 flexDirection: 'column',
-                minWidth: 260,
-                maxWidth: 720,
-                padding: '16px 24px 14px',
-                borderRadius: 22,
-                backgroundColor: '#202c34',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-                marginBottom: 25,
+                alignItems: isOutgoing ? 'flex-end' : 'flex-start',
+                justifyContent: 'center',
+                width: '100%',
               },
-              children: bubbleChildren,
+              children: [reactionBar, bubbleRow, contextMenuCard],
             },
           },
 
-          // Action Menu Card (iOS Context Menu)
+          // Bottom Chrome: Blurred Input Bar + Home Indicator
           {
             type: 'div',
             props: {
               style: {
                 display: 'flex',
                 flexDirection: 'column',
-                width: 480,
-                borderRadius: 18,
-                backgroundColor: '#202528',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-                overflow: 'hidden',
+                alignItems: 'center',
+                gap: 16,
               },
-              children: menuItems.map(([label, iconD], idx) => {
-                const isDelete = label === 'Hapus'
-                return {
+              children: [
+                {
                   type: 'div',
                   props: {
                     style: {
                       display: 'flex',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '18px 24px',
-                      borderBottom: idx < menuItems.length - 1 ? '1px solid rgba(255, 255, 255, 0.06)' : 'none',
+                      gap: 12,
+                      width: '100%',
+                      opacity: 0.38,
                     },
                     children: [
                       {
-                        type: 'span',
+                        type: 'div',
                         props: {
                           style: {
-                            fontSize: 24,
-                            color: isDelete ? '#ff453a' : '#e9edef',
-                            fontWeight: isDelete ? 700 : 400,
+                            display: 'flex',
+                            width: 52,
+                            height: 52,
+                            borderRadius: 26,
+                            backgroundColor: palette.inputBg,
+                            border: `1px solid ${palette.glassBorder}`,
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           },
-                          children: label,
+                          children: [svgIcon('<path d="M12 5v14M5 12h14"/>', palette.menuText, 24)],
                         },
                       },
-                      svgIcon(iconD, isDelete ? '#ff453a' : '#8696a0', 24),
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            flex: 1,
+                            height: 52,
+                            borderRadius: 26,
+                            backgroundColor: palette.inputBg,
+                            border: `1px solid ${palette.glassBorder}`,
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0 18px',
+                          },
+                          children: [
+                            {
+                              type: 'span',
+                              props: { style: { fontSize: 19, color: palette.metaFg }, children: 'Pesan' },
+                            },
+                            {
+                              type: 'div',
+                              props: {
+                                style: { display: 'flex', alignItems: 'center', gap: 14 },
+                                children: [
+                                  svgIcon('<path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z"/><path d="M15 3v6h6"/>', palette.menuIcon, 20),
+                                  svgIcon('<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>', palette.menuIcon, 20),
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                      {
+                        type: 'div',
+                        props: {
+                          style: {
+                            display: 'flex',
+                            width: 52,
+                            height: 52,
+                            borderRadius: 26,
+                            backgroundColor: palette.accentGreen,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          },
+                          children: [svgIcon('<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>', '#ffffff', 22)],
+                        },
+                      },
                     ],
                   },
-                }
-              }),
+                },
+                // iOS Home Indicator
+                {
+                  type: 'div',
+                  props: {
+                    style: {
+                      width: 190,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: palette.statusFg,
+                      opacity: 0.78,
+                    },
+                  },
+                },
+              ],
             },
           },
         ],
@@ -400,6 +1133,7 @@ export class VisualCardService {
 
     const svg = await satori(vdom as any, {
       width: W,
+      height: H,
       fonts,
       loadAdditionalAsset: loadEmojiAsset,
     })
@@ -409,26 +1143,38 @@ export class VisualCardService {
   }
 
   /**
-   * Render WhatsApp Native Dark Bubble Quote Chat (!qc)
+   * Render WhatsApp Native Dark Bubble Quote Chat (!qc) — High-Res & Proportional for 512x512 Stickers
    */
   static async renderQc(options: QcOptions): Promise<Buffer> {
     const fonts = loadFonts()
-    const time = options.time ?? new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    const time = options.time?.trim().slice(0, 12) || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     const text = options.text.trim().slice(0, 500)
     if (!text) throw new Error('QC text must not be empty')
     const senderName = options.senderName.trim().slice(0, 50) || 'User'
     const nameColor = getAccentColor(senderName)
+    const isOutgoing = Boolean(options.isOutgoing)
 
-    const avatarBase64 = await prepareAvatarDataUrl(options.avatarBuffer, 80)
+    // Adapt canvas width & typography to text length so short/medium quotes fill 512x512 stickers clearly
+    const textLen = text.length
+    const hasNewlines = text.includes('\n')
+    const scaleTier = textLen <= 28 && !hasNewlines ? 'short' : textLen <= 120 ? 'medium' : 'long'
+    const canvasW = scaleTier === 'short' ? 420 : scaleTier === 'medium' ? 500 : 560
+    const avatarSize = scaleTier === 'short' ? 70 : scaleTier === 'medium' ? 74 : 72
+    const nameFontSize = scaleTier === 'short' ? 22 : scaleTier === 'medium' ? 23 : 21
+    const bodyFontSize = scaleTier === 'short' ? 28 : scaleTier === 'medium' ? 25 : 22
+    const timeFontSize = scaleTier === 'short' ? 16 : 16
+    const maxBubbleWidth = canvasW - avatarSize - 44
+
+    const avatarBase64 = await prepareAvatarDataUrl(options.avatarBuffer, 120)
 
     const avatarNode = avatarBase64
       ? {
           type: 'img',
           props: {
-            width: 50,
-            height: 50,
+            width: avatarSize,
+            height: avatarSize,
             src: avatarBase64,
-            style: { borderRadius: 25, objectFit: 'cover' },
+            style: { borderRadius: avatarSize / 2, objectFit: 'cover' },
           },
         }
       : {
@@ -436,30 +1182,30 @@ export class VisualCardService {
           props: {
             style: {
               display: 'flex',
-              width: 50,
-              height: 50,
-              borderRadius: 25,
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
               backgroundColor: nameColor,
               alignItems: 'center',
               justifyContent: 'center',
               color: '#ffffff',
               fontWeight: 700,
-              fontSize: 22,
+              fontSize: Math.round(avatarSize * 0.44),
             },
             children: senderName.charAt(0).toUpperCase(),
           },
         }
 
-    // Triangular tail connecting avatar to bubble
+    // Smooth curved WhatsApp top-left speech tail separated cleanly from avatar (no overlap!)
     const tailSvg = {
       type: 'img',
       props: {
-        width: 10,
-        height: 16,
-        style: { marginTop: 12, marginRight: -2 },
+        width: 14,
+        height: 18,
+        style: { marginLeft: 10, marginTop: 0, marginRight: -1 },
         src:
           'data:image/svg+xml;base64,' +
-          b64('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 16"><path d="M10 0 C6 6, 2 12, 0 16 L10 16 Z" fill="#202c33"/></svg>'),
+          b64('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 18"><path d="M0 0 C5 0, 10 0, 14 0 L14 18 C10 11, 5 6, 0 2 C-0.5 1.4, -0.4 0, 0 0 Z" fill="#202c33"/></svg>'),
       },
     }
 
@@ -470,9 +1216,9 @@ export class VisualCardService {
           display: 'flex',
           flexDirection: 'row',
           alignItems: 'flex-start',
-          padding: '24px 20px',
+          padding: '20px 20px',
           backgroundColor: 'transparent',
-          width: 512,
+          width: canvasW,
         },
         children: [
           avatarNode,
@@ -484,10 +1230,10 @@ export class VisualCardService {
                 display: 'flex',
                 flexDirection: 'column',
                 backgroundColor: '#202c33',
-                borderRadius: '0 14px 14px 14px',
-                padding: '10px 16px',
-                minWidth: 160,
-                maxWidth: 410,
+                borderRadius: '0 20px 20px 20px',
+                padding: '14px 20px 12px',
+                maxWidth: maxBubbleWidth,
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.22)',
               },
               children: [
                 {
@@ -495,7 +1241,7 @@ export class VisualCardService {
                   props: {
                     style: {
                       fontWeight: 700,
-                      fontSize: 16,
+                      fontSize: nameFontSize,
                       color: nameColor,
                       marginBottom: 4,
                     },
@@ -507,9 +1253,9 @@ export class VisualCardService {
                   props: {
                     style: {
                       fontWeight: 400,
-                      fontSize: 18,
+                      fontSize: bodyFontSize,
                       color: '#e9edef',
-                      lineHeight: 1.35,
+                      lineHeight: 1.32,
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word',
                     },
@@ -523,16 +1269,18 @@ export class VisualCardService {
                       display: 'flex',
                       justifyContent: 'flex-end',
                       alignItems: 'center',
-                      gap: 4,
+                      gap: 5,
                       marginTop: 6,
                     },
                     children: [
                       {
                         type: 'span',
-                        props: { style: { fontSize: 12, color: '#8696a0' }, children: time },
+                        props: { style: { fontSize: timeFontSize, color: '#8696a0' }, children: time },
                       },
-                      svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 14, '0 0 24 24', 2.5),
-                    ],
+                      isOutgoing
+                        ? svgIcon('<path d="M20 6 9 17l-5-5"/><path d="m20 12-7 7-3-3"/>', '#53bdeb', 16, '0 0 24 24', 2.5)
+                        : null,
+                    ].filter(Boolean),
                   },
                 },
               ],
@@ -543,13 +1291,20 @@ export class VisualCardService {
     }
 
     const svg = await satori(vdom as any, {
-      width: 512,
+      width: canvasW,
       fonts,
       loadAdditionalAsset: loadEmojiAsset,
     })
 
-    const resvg = new Resvg(svg, { fitTo: { mode: 'original' } })
-    return resvg.render().asPng()
+    const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: canvasW * 2 } })
+    const rawPng = resvg.render().asPng()
+    // Trim excess whitespace then restore clean transparent outer margin so avatar & shadow never clip
+    return sharp(rawPng)
+      .trim({ threshold: 1 })
+      .extend({ top: 18, bottom: 20, left: 20, right: 20, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer()
+      .catch(() => rawPng)
   }
 
   /**

@@ -5,44 +5,60 @@ import { VisualCardService } from '../dist/services/visual-card-service.js'
 import { buildZipArchive } from '../dist/services/spack-session.js'
 
 describe('VisualCardService Suite (Satori + Resvg)', () => {
-  it('renders WhatsApp iOS context-menu fake chat (!iqc) as PNG with blurred background and 920px width', async () => {
+  it('renders WhatsApp iOS 26 IQC Phone screen (!iqc) with 680x1360 portrait dimensions and transparent stickerMode', async () => {
     const png = await VisualCardService.renderIqc({
-      text: 'Halo Cyrus! Ini testing IQC via Satori flexbox.',
-      time: '10:45 AM',
+      text: 'Halo Cyrus! Ini testing IQC iOS 26 Liquid Glass 🔥💯',
+      time: '10:45',
       senderName: 'Cyrus',
+      battery: 92,
+      carrier: '5G',
+      reply: { sender: 'Chlona', text: 'Sudah akurat belum tampilannya?' },
     })
 
     assert.ok(Buffer.isBuffer(png))
-    assert.ok(png.length > 5000, `Expected PNG buffer > 5000 bytes, got ${png.length}`)
-    // Check PNG signature: 89 50 4E 47
+    assert.ok(png.length > 10000, `Expected PNG buffer > 10000 bytes, got ${png.length}`)
     assert.equal(png[0], 0x89)
     assert.equal(png[1], 0x50)
     assert.equal(png[2], 0x4e)
     assert.equal(png[3], 0x47)
 
     const meta = await sharp(png).metadata()
-    assert.equal(meta.width, 920)
+    assert.equal(meta.width, 680)
+    assert.equal(meta.height, 1360)
 
-    // Dynamic menu items test
-    const dynamicPng = await VisualCardService.renderIqc({
+    // Transparent stickerMode + dynamic menu items + light mode test
+    const stickerPng = await VisualCardService.renderIqc({
       text: 'Testing dynamic menu items',
       senderName: 'Adventurer',
+      stickerMode: true,
+      theme: 'light',
       menuItems: ['Balas', 'Salin', 'Hapus'],
     })
-    assert.ok(Buffer.isBuffer(dynamicPng))
-    const dynamicMeta = await sharp(dynamicPng).metadata()
-    assert.equal(dynamicMeta.width, 920)
+    assert.ok(Buffer.isBuffer(stickerPng))
+    const stickerMeta = await sharp(stickerPng).metadata()
+    assert.ok((stickerMeta.width ?? 0) >= 480 && (stickerMeta.width ?? 0) <= 580)
+    assert.ok((stickerMeta.height ?? 0) < 900)
   })
 
-  it('renders WhatsApp dark-mode quote chat (!qc) as PNG with speech tail and auto-width', async () => {
+  it('renders WhatsApp dark-mode quote chat (!qc) at high-res proportional scale for 512x512 stickers', async () => {
+    const shortPng = await VisualCardService.renderQc({
+      text: 'ok',
+      senderName: 'Cyrus',
+      time: '08:30',
+    })
+    const shortMeta = await sharp(shortPng).metadata()
+    assert.ok(Buffer.isBuffer(shortPng))
+    assert.ok((shortMeta.width ?? 0) >= 400)
+    assert.ok((shortMeta.height ?? 0) >= 160)
+
     const png = await VisualCardService.renderQc({
-      text: 'Pagi! Hari ini bot Allybot berjalan lancar dan stabil.',
+      text: 'Pagi! Hari ini bot Allybot berjalan lancar dan stabil. 🔥✨',
       senderName: 'Cyrus Developer',
       time: '08:30',
     })
 
     assert.ok(Buffer.isBuffer(png))
-    assert.ok(png.length > 3000, `Expected PNG buffer > 3000 bytes, got ${png.length}`)
+    assert.ok(png.length > 5000, `Expected PNG buffer > 5000 bytes, got ${png.length}`)
     assert.equal(png[0], 0x89)
     assert.equal(png[1], 0x50)
   })
