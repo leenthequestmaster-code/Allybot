@@ -14,14 +14,11 @@ import { codebasePlugin } from '../dist/framework/plugins/codebase.js'
 import { diagnosticsPlugin } from '../dist/framework/plugins/diagnostics.js'
 import { menuPlugin } from '../dist/framework/plugins/menu.js'
 import { groupPlugin } from '../dist/framework/plugins/group.js'
-import { createGroupContextPlugin } from '../dist/framework/plugins/group-context.js'
-import { createCharacterGuidePlugin } from '../dist/framework/plugins/character-guide.js'
 import { createWelcomeLeavePlugin } from '../dist/framework/plugins/welcome-leave.js'
 import { createGroupSafetyPlugin } from '../dist/framework/plugins/group-safety.js'
 import { createGroupModerationPlugin } from '../dist/framework/plugins/group-moderation.js'
 import { createModerationSuitePlugin } from '../dist/framework/plugins/moderation-suite.js'
 import { createGroupSetupMissionPlugin } from '../dist/framework/plugins/group-setup-mission.js'
-import { economyPlugin } from '../dist/framework/plugins/economy.js'
 import { utilityPlugin } from '../dist/framework/plugins/utility.js'
 import { mediaPlugin } from '../dist/framework/plugins/media.js'
 import { toolsSearchPlugin } from '../dist/framework/plugins/tools-search.js'
@@ -78,16 +75,12 @@ const SERVICE_NAMES = [
   'suggestion',
   'group-configuration',
   'developer-mode',
-  'economy',
-  'group-context',
-  'character-guide',
   'platform-guardrails',
   'group-moderation',
   'redis',
   'group-safety',
   'group-moderation-suite',
   'chat-history',
-  'web-companion',
   'downloader',
   'quota',
   'community',
@@ -186,8 +179,6 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(diagnosticsPlugin)
   framework.registerPlugin(menuPlugin)
   framework.registerPlugin(groupPlugin)
-  framework.registerPlugin(createGroupContextPlugin(whatsapp))
-  framework.registerPlugin(createCharacterGuidePlugin(whatsapp))
   framework.registerPlugin(createCommunityPlugin(whatsapp))
   framework.registerPlugin(remoteOpsPlugin)
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
@@ -195,7 +186,6 @@ test('every active production plugin reaches ready without network or production
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
   framework.registerPlugin(createModerationSuitePlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
-  framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(reminderPlugin)
   framework.registerPlugin(certificatePlugin)

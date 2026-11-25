@@ -5,9 +5,9 @@ import test from 'node:test'
 const entrypoint = await readFile(new URL('../src/index.ts', import.meta.url), 'utf8')
 
 test('bootstrap keeps Economy and removes retired category plugin registrations', () => {
-  assert.match(entrypoint, /framework\.registerPlugin\(economyPlugin\)/)
-  assert.match(entrypoint, /framework\.registerPlugin\(createGroupContextPlugin\(whatsapp\)\)/)
-  assert.match(entrypoint, /framework\.registerPlugin\(createCharacterGuidePlugin\(whatsapp\)\)/)
+  assert.doesNotMatch(entrypoint, /framework.registerPlugin\(economyPlugin\)/)
+  assert.doesNotMatch(entrypoint, /framework.registerPlugin\(createGroupContextPlugin\(whatsapp\)\)/)
+  assert.doesNotMatch(entrypoint, /framework.registerPlugin\(createCharacterGuidePlugin\(whatsapp\)\)/)
   assert.doesNotMatch(entrypoint, /createCollaborationPlugin|createEventPlugin|createAnnouncementPlugin/)
   assert.doesNotMatch(entrypoint, /framework\.registerPlugin\(onboardingPlugin\)/)
   assert.doesNotMatch(entrypoint, /createKnowledgePlugin|createScenePlugin|createGroupGovernancePlugin|suggestionRelayPlugin/)
@@ -16,9 +16,9 @@ test('bootstrap keeps Economy and removes retired category plugin registrations'
 })
 
 test('bootstrap preserves services required by the active Economy and Suggestion Relay paths', () => {
-  assert.match(entrypoint, /new EconomyService\(/)
-  assert.match(entrypoint, /new GroupContextService\(/)
-  assert.match(entrypoint, /new CharacterGuideService\(/)
+  assert.doesNotMatch(entrypoint, /new EconomyService\(/)
+  assert.doesNotMatch(entrypoint, /new GroupContextService\(/)
+  assert.doesNotMatch(entrypoint, /new CharacterGuideService\(/)
   assert.doesNotMatch(entrypoint, /new KnowledgeService|new SceneService|new GroupGovernanceService|new SuggestionRelayService/)
   assert.doesNotMatch(entrypoint, /new CollaborationService\(/)
   assert.doesNotMatch(entrypoint, /new EventService\(/)

@@ -4,7 +4,6 @@ import { AppLifecycle } from './lifecycle.js'
 import { ApplicationFramework } from './framework/application.js'
 import { diagnosticsPlugin } from './framework/plugins/diagnostics.js'
 import { createAiPlugin } from './framework/plugins/ai.js'
-import { economyPlugin } from './framework/plugins/economy.js'
 import { developerModePlugin } from './framework/plugins/developer-mode.js'
 import { codebasePlugin } from './framework/plugins/codebase.js'
 import { technicalPlugin } from './framework/plugins/technical.js'
@@ -47,16 +46,6 @@ import { GroupModerationService } from './services/group-moderation-service.js'
 import { GroupModerationSuiteService } from './services/group-moderation-suite-service.js'
 import { WhatsAppConnection } from './whatsapp.js'
 import { RedisService } from './redis.js'
-import { EconomyService } from './services/economy-service.js'
-import { createSqliteEconomyClient } from './services/economy-sqlite-client.js'
-import { createPostgresEconomyClient } from './services/economy-postgres-client.js'
-import { CharacterGuideService } from './services/character-guide-service.js'
-import { createPostgresCharacterClient } from './services/character-postgres-client.js'
-import { GroupContextService } from './services/group-context-service.js'
-import { createPostgresGroupContextClient } from './services/group-context-postgres-client.js'
-import { createGroupContextPlugin } from './framework/plugins/group-context.js'
-import { createCharacterGuidePlugin } from './framework/plugins/character-guide.js'
-import { WebCompanionService } from './services/web-companion-service.js'
 import { DownloaderService } from "./services/downloader-service.js"
 import { VideoService, FlowVideoProvider, MockVideoProvider } from './services/video-service.js'
 import { createVideoPlugin } from './framework/plugins/video.js' 
@@ -135,33 +124,6 @@ async function main(): Promise<void> {
   framework.registerService(new GroupConfigurationService(config.DATABASE_PATH, logger))
   framework.registerService(new DeveloperModeService(config.DATABASE_PATH, logger))
   framework.registerService(new CommunityService(config.DATABASE_PATH, logger))
-  const economyClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
-    ? () => createPostgresEconomyClient({ postgresUrl: config.POSTGRES_URL! })
-    : () => createSqliteEconomyClient(config.DATABASE_PATH)
-
-  framework.registerService(new EconomyService(logger, {
-    env: { ...process.env, ECONOMY_ENABLED: config.ECONOMY_ENABLED ? 'true' : 'false' },
-    cacheTtlSeconds: 15,
-    createClient: economyClient,
-    whatsapp,
-  }))
-  const groupContextClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
-    ? () => createPostgresGroupContextClient({ postgresUrl: config.POSTGRES_URL! })
-    : undefined
-
-  framework.registerService(new GroupContextService(logger, {
-    env: { ...process.env, GROUP_CONTEXT_ENABLED: config.GROUP_CONTEXT_ENABLED ? 'true' : 'false' },
-    createClient: groupContextClient,
-  }))
-
-  const characterClient = config.POSTGRES_ENABLED && config.POSTGRES_URL
-    ? () => createPostgresCharacterClient({ postgresUrl: config.POSTGRES_URL!, redis })
-    : undefined
-
-  framework.registerService(new CharacterGuideService(logger, {
-    env: { ...process.env, CHARACTER_GUIDE_ENABLED: config.CHARACTER_GUIDE_ENABLED ? 'true' : 'false' },
-    createClient: characterClient,
-  }))
   framework.registerService(new PlatformGuardrailService(config.DATABASE_PATH, logger))
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(redis)
@@ -174,9 +136,6 @@ async function main(): Promise<void> {
   framework.registerService(new MinigamesService({ dbPath: config.DATABASE_PATH, redis }))
   const arcadeService = new ArcadeService({ dbPath: config.DATABASE_PATH, enableAutoTimers: true, whatsapp })
   framework.registerService(arcadeService)
-  if (config.WEB_COMPANION_ENABLED) {
-    framework.registerService(new WebCompanionService(logger, { whatsapp }))
-  }
   framework.registerService(new DownloaderService())
   framework.registerService(new QuotaService(config.DATABASE_PATH, logger, { botOwnerJid: config.BOT_OWNER_JID }))
   const chatHistoryService = new ChatHistoryService(logger, { redis })
@@ -209,8 +168,6 @@ async function main(): Promise<void> {
   if (config.DIAGNOSTICS_ENABLED) framework.registerPlugin(diagnosticsPlugin)
   framework.registerPlugin(menuPlugin)
   framework.registerPlugin(groupPlugin)
-  framework.registerPlugin(createGroupContextPlugin(whatsapp))
-  framework.registerPlugin(createCharacterGuidePlugin(whatsapp))
   framework.registerPlugin(createCommunityPlugin(whatsapp))
   framework.registerPlugin(remoteOpsPlugin)
   framework.registerPlugin(createWelcomeLeavePlugin(whatsapp))
@@ -218,7 +175,6 @@ async function main(): Promise<void> {
   framework.registerPlugin(createGroupModerationPlugin(whatsapp))
   framework.registerPlugin(createModerationSuitePlugin(whatsapp))
   framework.registerPlugin(createGroupSetupMissionPlugin(whatsapp))
-  framework.registerPlugin(economyPlugin)
   framework.registerPlugin(utilityPlugin)
   framework.registerPlugin(reminderPlugin)
   framework.registerPlugin(certificatePlugin)

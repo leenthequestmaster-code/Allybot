@@ -13,7 +13,6 @@ import {
 } from '../group-setup.js'
 import { MissionEngine, SqliteMissionStore } from '../mission.js'
 import type { GroupConfigurationService } from '../../services/group-configuration-service.js'
-import type { GroupContextService } from '../../services/group-context-service.js'
 import { isGroupJid } from '../validation.js'
 
 const INITIAL_PROMPT = 'Group Setup Mission dimulai. Kirim aturan grup, atau ketik `skip` untuk melewati.'
@@ -43,26 +42,10 @@ export function createGroupSetupMissionPlugin(whatsapp: WhatsAppPort): Plugin {
       const store = new SqliteMissionStore(database)
       engine = new MissionEngine(store)
       const configuration = context.services.get<GroupConfigurationService>('group-configuration')
-      const groupContext = context.services.has('group-context')
-        ? context.services.get<GroupContextService>('group-context')
-        : undefined
 
       engine.register(createGroupSetupMissionDefinition({
         apply: async (draft) => {
           configuration.applySetup(draft)
-          if (draft.mode && groupContext && groupContext.hasBackend) {
-            try {
-              await groupContext.set(
-                draft.groupJid,
-                draft.mode,
-                draft.icSubtype as any,
-                draft.mode === 'ic' ? 'strict' : 'disabled',
-                draft.updatedBy,
-              )
-            } catch (err) {
-              context.logger.warn({ err }, 'failed to apply group context mode during setup')
-            }
-          }
         },
       }))
 

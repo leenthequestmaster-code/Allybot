@@ -2,7 +2,6 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import sharp from 'sharp'
 import { VisualCardService } from '../dist/services/visual-card-service.js'
-import { renderStatusCardImage } from '../dist/services/status-card-renderer.js'
 import { buildZipArchive } from '../dist/services/spack-session.js'
 
 describe('VisualCardService Suite (Satori + Resvg)', () => {
@@ -158,46 +157,6 @@ describe('VisualCardService Suite (Satori + Resvg)', () => {
     const leaveMeta = await sharp(leavePng).metadata()
     assert.equal(leaveMeta.width, 1024)
     assert.equal(leaveMeta.height, 611)
-  })
-
-  it('renders Solo-Leveling Character & Stats HUD cards natively in TypeScript (960x1280 PNG)', async () => {
-    const charPng = await renderStatusCardImage('character', {
-      name: 'Argon',
-      gender: 'Male',
-      age: 22,
-      birthday: '15 Zephyra 778',
-      race: 'Dragonborn',
-      className: 'Knight',
-      element: 'Fire',
-      rank: 'S',
-      level: 45,
-      willOfPath: 'Light',
-      titles: ['Sang Penjaga'],
-      motto: 'Menembus batas langit dan bumi.',
-      stats: { hp: 1200, maxHp: 1500, se: 400, maxSe: 500, str: 25, def: 20, mp: 15, res: 18, spd: 22, int: 19, lck: 14 },
-    })
-    assert.ok(Buffer.isBuffer(charPng))
-    const charMeta = await sharp(charPng).metadata()
-    assert.equal(charMeta.width, 960)
-    assert.equal(charMeta.height, 1280)
-
-    const statsPng = await renderStatusCardImage('stats', {
-      name: 'Argon',
-      gender: 'Male',
-      age: 22,
-      birthday: '15 Zephyra 778',
-      race: 'Dragonborn',
-      className: 'Knight',
-      element: 'Fire',
-      rank: 'S',
-      level: 45,
-      willOfPath: 'Light',
-      stats: { hp: 1200, maxHp: 1500, se: 400, maxSe: 500, str: 25, def: 20, mp: 15, res: 18, spd: 22, int: 19, lck: 14, statTokens: 5, allocatedTokens: { str: 5 } },
-    })
-    assert.ok(Buffer.isBuffer(statsPng))
-    const statsMeta = await sharp(statsPng).metadata()
-    assert.equal(statsMeta.width, 960)
-    assert.equal(statsMeta.height, 1280)
   })
 
   it('renders native TypeScript Smeme static WebP sticker and builds in-memory .wastickers ZIP archive', async () => {

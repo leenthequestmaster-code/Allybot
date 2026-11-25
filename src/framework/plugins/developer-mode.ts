@@ -159,8 +159,6 @@ export const developerModePlugin: Plugin = {
             matrix.postgres?.available
               ? [
                   `• Status     : Connected (${matrix.postgres.latencyMs} ms)`,
-                  `• Profiles   : ${matrix.postgres.characterCount} active`,
-                  `• Economy    : ${matrix.postgres.economyAccounts} accounts (${matrix.postgres.economyTotalVela} Vela)`,
                 ].join('\n')
               : `• Status     : ${matrix.postgres?.error ? `Offline (${matrix.postgres.error})` : 'Standalone (SQLite Fallback)'}`,
             '',

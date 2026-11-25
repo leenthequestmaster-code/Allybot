@@ -215,7 +215,7 @@ test('menu uses a text fallback with numeric navigation', async () => {
 
   assert.equal(whatsapp.sentQuickReplies.length, 0)
   assert.equal(whatsapp.sentTexts.length, 2)
-  assert.match(whatsapp.sentTexts[1].text, /YOUR CHARACTER/)
+  assert.match(whatsapp.sentTexts[1].text, /TOOLS/)
   assert.match(whatsapp.sentTexts[1].text, /!status/)
   await framework.stop()
 })

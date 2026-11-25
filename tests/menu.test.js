@@ -62,7 +62,7 @@ test('!menu mengirim satu thumbnail dengan biodata dan deskripsi menu', async ()
   assert.ok(whatsapp.media[0].payload.data.length > 1000)
   assert.match(whatsapp.media[0].payload.caption, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
   assert.match(whatsapp.media[0].payload.caption, /Nama : \*Allybot\*/)
-  assert.match(whatsapp.media[0].payload.caption, /YOUR CHARACTER/)
+  assert.match(whatsapp.media[0].payload.caption, /TOOLS/)
   assert.doesNotMatch(whatsapp.media[0].payload.caption, /DEVELOPER/)
 })
 
@@ -73,7 +73,7 @@ test('!menu fallback ke satu pesan teks jika thumbnail tidak tersedia atau gagal
   await unavailableRegistry.dispatch(message('text-menu', '120363012345678902@g.us', '!menu'))
   assert.equal(unavailableWhatsapp.sent.length, 1)
   assert.match(unavailableWhatsapp.sent[0].text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
-  assert.match(unavailableWhatsapp.sent[0].text, /YOUR CHARACTER/)
+  assert.match(unavailableWhatsapp.sent[0].text, /TOOLS/)
 
   const failedWhatsapp = fakeWhatsapp({ media: true, mediaFailure: true })
   const { registry: failedRegistry } = createRegistry(failedWhatsapp)
@@ -92,7 +92,7 @@ test('navigasi kategori hanya menerima angka dan menampilkan submenu yang benar'
 
   await registry.dispatch(message('main', '120363012345678904@g.us', '!menu'))
   assert.match(whatsapp.sent[0].text, /\[1\] 👥 GROUP/)
-  assert.match(whatsapp.sent[0].text, /\[2\] 🎭 YOUR CHARACTER/)
+  assert.match(whatsapp.sent[0].text, /\[2\] 🧰 TOOLS/)
 
   await registry.dispatch(message('group-submenu', '120363012345678904@g.us', '!menu 1'))
   assert.match(whatsapp.sent[1].text, /GROUP/)
@@ -100,11 +100,11 @@ test('navigasi kategori hanya menerima angka dan menampilkan submenu yang benar'
   assert.doesNotMatch(whatsapp.sent[1].text, /!ping/)
 
   await registry.dispatch(message('character-submenu', '120363012345678904@g.us', '!menu 2'))
-  assert.match(whatsapp.sent[2].text, /YOUR CHARACTER/)
+  assert.match(whatsapp.sent[2].text, /TOOLS/)
   assert.match(whatsapp.sent[2].text, /!ping/)
 
-  await registry.dispatch(message('named-category', '120363012345678904@g.us', '!menu tools-media'))
-  assert.match(whatsapp.sent[3].text, /Kategori nomor \*tools-media\* tidak ditemukan/)
+  await registry.dispatch(message('named-category', '120363012345678904@g.us', '!menu unknowncat'))
+  assert.match(whatsapp.sent[3].text, /Kategori nomor \*unknowncat\* tidak ditemukan/)
 
   await registry.dispatch(message('out-of-range', '120363012345678904@g.us', '!menu 99'))
   assert.match(whatsapp.sent[4].text, /Kategori nomor \*99\* tidak ditemukan/)
@@ -223,7 +223,7 @@ test('!menu <category> delivers clean category interface without interactive but
   await registry.dispatch(message('airich-menu', '120363012345678905@g.us', '!menu 1'))
 
   assert.equal(whatsapp.sent.length, 1)
-  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
+  assert.match(whatsapp.sent[0].text, /TOOLS/)
   assert.match(whatsapp.sent[0].text, /command tersedia/)
   assert.match(whatsapp.sent[0].text, /© Allybot/)
   assert.doesNotMatch(whatsapp.sent[0].text, /Versi :/)
@@ -245,7 +245,7 @@ test('!menu <category> in group delivers clean category text without interactive
 
   assert.equal(whatsapp.sent.length, 1)
   assert.match(whatsapp.sent[0].text, /!ping/)
-  assert.match(whatsapp.sent[0].text, /YOUR CHARACTER/)
+  assert.match(whatsapp.sent[0].text, /TOOLS/)
   assert.doesNotMatch(whatsapp.sent[0].text, /Menu Utama/)
   assert.doesNotMatch(whatsapp.sent[0].text, /Semua Command/)
 })

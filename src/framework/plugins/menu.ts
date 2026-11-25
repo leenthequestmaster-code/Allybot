@@ -24,8 +24,6 @@ const MENU_THUMBNAIL_MIME_TYPE = 'image/jpeg'
 const ROADMAP_CATEGORY_NAMES = [
   'group',
   'moderation',
-  'roleplay',
-  'your-character',
   'tools',
   'fun',
   'developer',
@@ -35,8 +33,6 @@ const ROADMAP_CATEGORY_NAMES = [
 const categoryPresentation: Record<string, CategoryPresentation> = {
   group: { label: 'GROUP', icon: '👥' },
   moderation: { label: 'ADMIN TOOLS', icon: '🛡️' },
-  roleplay: { label: 'ROLEPLAY', icon: '🎭' },
-  'your-character': { label: 'YOUR CHARACTER', icon: '🎭' },
   tools: { label: 'TOOLS', icon: '🧰' },
   fun: { label: 'FUN', icon: '🎲' },
   developer: { label: 'DEVELOPER', icon: '🛠️' },
@@ -48,18 +44,11 @@ const CATEGORY_ALIASES: Record<string, string> = {
   'admin-tools': 'moderation',
   admintools: 'moderation',
   ai: 'tools',
-  bank: 'your-character',
   creativity: 'fun',
   download: 'tools',
-  economy: 'your-character',
-  general: 'your-character',
   governance: 'moderation',
   media: 'tools',
   moderation: 'moderation',
-  personalization: 'your-character',
-  roleplay: 'roleplay',
-  rpg: 'roleplay',
-  scene: 'roleplay',
   search: 'tools',
   sticker: 'tools',
   tools: 'tools',
@@ -67,8 +56,6 @@ const CATEGORY_ALIASES: Record<string, string> = {
   'tools-media': 'tools',
   'tools-search': 'tools',
   'tools-sticker': 'tools',
-  vela: 'your-character',
-  yourcharacter: 'your-character',
 }
 
 let menuThumbnailPromise: Promise<Uint8Array | undefined> | undefined
@@ -114,7 +101,7 @@ function normalizeCategory(command: CommandDefinition): string {
     return 'moderation'
   }
   const category = command.category?.trim().toLowerCase()
-  if (!category || !/^[a-z][a-z0-9_-]{0,31}$/.test(category)) return 'your-character'
+  if (!category || !/^[a-z][a-z0-9_-]{0,31}$/.test(category)) return 'tools'
   return CATEGORY_ALIASES[category] ?? (category in categoryPresentation ? category : 'tools')
 }
 
@@ -216,13 +203,7 @@ const SUBCAT_DESCRIPTIONS: Record<string, string> = {
   'Automod Protection': 'Jaga obrolan dari kiriman tautan asing, pesan beruntun, dan kata kasar',
   'Chat & Member Control': 'Atur izin kirim pesan, kunci obrolan, dan kelola admin grup',
   'Group Rules & Settings': 'Atur pesan sambutan anggota baru dan setelan dasar bot di grup',
-  'Character & Roleplay Admin': 'Bantu kelola lembar karakter dan pembagian poin pemain cerita',
   'Feedback & Reports': 'Terima pesan kendala dan dengarkan saran dari anggota grup',
-
-  // Your Character
-  'Status & Profile': 'Lihat lembar perkembangan karakter dan kemampuan milikmu',
-  'Progression & Registration': 'Daftarkan karakter ceritamu dan tingkatkan kemampuannya',
-  'Economy & Vela': 'Kelola saldo dompet, simpanan bank, dan pembayaran di grup',
 
   // Fallback
   'Other Commands': 'Perintah pendukung dan fungsi tambahan sistem',
@@ -321,26 +302,8 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
       commands: ['link', 'invite', 'setprefix', 'setrules', 'clearrules', 'welcome', 'left', 'leavetoggle', 'setwelcome', 'clearwelcome', 'setleave', 'clearleave', 'leave', 'botleave'],
     },
     {
-      title: 'Character & Roleplay Admin',
-      commands: ['inspectchar', 'charinfo', 'chardebug', 'charinspect', 'setlevel', 'chlevel', 'lvl', 'setrank', 'chrank', 'rankset', 'resetstats', 'resetsheet', 'statreset', 'givetoken', 'addtoken', 'tokenreward', 'forceretire', 'killchar', 'wipechar', 'setgroup', 'whitelistooc', 'oocwhitelist'],
-    },
-    {
       title: 'Feedback & Reports',
       commands: ['setkotaksaran', 'setreportbox', 'replysaran', 'replyreport', 'blocksaran', 'blockreport', 'modstatus'],
-    },
-  ],
-  'your-character': [
-    {
-      title: 'Status & Profile',
-      commands: ['character', 'char', 'yourcharacter', 'stats', 'mystats', 'characterstats'],
-    },
-    {
-      title: 'Progression & Registration',
-      commands: ['daftar', 'registercharacter', 'createcharacter', 'confirm', 'next', 'skip', 'lewati', 'prev', 'kembali', 'retry', 'retrycharacter', 'cancel', 'cancelcharacter', 'alokasi', 'addstat', 'upstat', 'allocatestat', 'deletecharacter', 'deletechar', 'offcharacter', 'pensiun', 'savecharacter', 'savechar', 'timerp'],
-    },
-    {
-      title: 'Economy & Vela',
-      commands: ['vela', 'wallet', 'bank', 'pay', 'tax', 'taxbayar', 'bayarpajak', 'bankreward', 'bankpolicy', 'banksweep'],
     },
   ],
   tools: [

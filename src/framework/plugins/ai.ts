@@ -294,7 +294,7 @@ function buildPublicMenuCatalogPrompt(context: PluginContext, message: CoreMessa
 
   return [
     '\n[INSTRUKSI SMART ROUTER FITUR BOT]:',
-    'Jika pengguna secara eksplisit meminta kamu menjalankan salah satu fitur/command bot dari daftar di bawah ini (misalnya membuat stiker, memutar lagu, cek cuaca, cek jadwal sholat, cek karakter/vela, kalkulator, dll.), balas HANYA dengan satu baris persis dalam format:',
+    'Jika pengguna secara eksplisit meminta kamu menjalankan salah satu fitur/command bot dari daftar di bawah ini (misalnya membuat stiker, memutar lagu, cek cuaca, cek jadwal sholat, kalkulator, dll.), balas HANYA dengan satu baris persis dalam format:',
     '[RUN_CMD: <nama_command> <argumen_jika_ada>]',
     'Contoh: [RUN_CMD: sticker] atau [RUN_CMD: play Duka Last Child] atau [RUN_CMD: cuaca Medan].',
     'PENTING: Jika pengguna hanya menyapa, bertanya kabar/hari/pengetahuan umum, curhat, atau mengobrol biasa (seperti "Halo Chlona, hari ini hari apa?"), JANGAN gunakan [RUN_CMD:...], melainkan balas langsung dengan obrolan natural sebagai Chlona.',
