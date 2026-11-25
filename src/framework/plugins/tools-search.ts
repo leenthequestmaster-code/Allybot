@@ -88,7 +88,28 @@ function detectImageMime(buffer: Buffer): string {
   ) {
     return 'image/webp'
   }
+  if (buffer.length >= 6 && (buffer.subarray(0, 6).toString('ascii') === 'GIF87a' || buffer.subarray(0, 6).toString('ascii') === 'GIF89a')) {
+    return 'image/gif'
+  }
   return 'image/jpeg'
+}
+
+function isSupportedImageBuffer(buffer: Buffer | null): buffer is Buffer {
+  if (!buffer || buffer.length < 8) return false
+  // JPEG
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return true
+  // PNG
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return true
+  // WebP
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) return true
+  // GIF
+  const head6 = buffer.subarray(0, 6).toString('ascii')
+  if (head6 === 'GIF87a' || head6 === 'GIF89a') return true
+  return false
 }
 
 function canonicalPinterestId(pin: PinterestPin): string {
@@ -815,14 +836,18 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
             seenKey,
             redis,
             getId: (pin) => canonicalPinterestId(pin),
-            download: (pin) => downloadPinBuffer(pin.imageUrl, 15_000, {
-              logger: commandContext.logger,
-              pinId: pin.id,
-            }),
+            download: async (pin) => {
+              const buf = await downloadPinBuffer(pin.imageUrl, 15_000, {
+                logger: commandContext.logger,
+                pinId: pin.id,
+              })
+              return isSupportedImageBuffer(buf) ? buf : null
+            },
             fetchPages: async () => {
               let pagesFetched = 0
               let nextBookmark: string | null = null
-              const filterImages = (items: PinterestPin[]) => items.filter((p) => p.mediaType === 'image')
+              const filterImages = (items: PinterestPin[]) =>
+                items.filter((p) => p.mediaType === 'image' && !/\.(?:heic|heif|avif)(?:$|[?#])/i.test(p.imageUrl))
 
               const firstPage = await fetchPinPage(query, { randomize: true })
               pagesFetched = 1
@@ -965,10 +990,11 @@ export function createToolsSearchPlugin(deps: ToolsSearchDependencies = {}): Plu
             download: async (item) => {
               const firstImageUrl = item.imageUrls[0]
               if (!firstImageUrl) return null
-              return downloadPixivImage(firstImageUrl, {
+              const buf = await downloadPixivImage(firstImageUrl, {
                 logger: commandContext.logger,
                 illustId: item.id,
               })
+              return isSupportedImageBuffer(buf) ? buf : null
             },
             fetchPages: async () => {
               let pagesFetched = 0

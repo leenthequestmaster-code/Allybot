@@ -123,6 +123,7 @@ test('!pin and !pixiv dedupe within batch, paginate, replace failed downloads, e
       { id: 'p1', title: 'Pin 1', author: 'a1', imageUrl: 'https://i.pinimg.com/originals/1.jpg?foo=1', mediaType: 'image' },
       // Duplicate canonical URL with different pin id & query param
       { id: 'p1dup', title: 'Pin 1 Dup', author: 'a1', imageUrl: 'https://i.pinimg.com/originals/1.jpg?foo=2', mediaType: 'image' },
+      { id: 'p2-heic', title: 'Pin 2 HEIC', author: 'a2', imageUrl: 'https://i.pinimg.com/originals/bad.heic', mediaType: 'image' },
       { id: 'p2-fail', title: 'Pin 2 Fail', author: 'a2', imageUrl: 'https://i.pinimg.com/originals/fail.jpg', mediaType: 'image' },
       { id: 'p3', title: 'Pin 3', author: 'a3', imageUrl: 'https://i.pinimg.com/originals/3.jpg', mediaType: 'image' },
       { id: 'p4', title: 'Pin 4', author: 'a4', imageUrl: 'https://i.pinimg.com/originals/4.jpg', mediaType: 'image' },
