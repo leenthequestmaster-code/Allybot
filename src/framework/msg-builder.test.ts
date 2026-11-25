@@ -315,6 +315,30 @@ describe('MsgBuilder regression guards', () => {
     assert.throws(() => MsgBuilder.to('628123456789@s.whatsapp.net').text('   ').build(), /must not be empty/)
   })
 
+  it('supports multiple single_select lists ordered before quick_reply and cta_url buttons', () => {
+    const built = MsgBuilder.to('628123456789@s.whatsapp.net')
+      .text('Menu Utama')
+      .footer('Allybot')
+      .button({ type: 'reply', id: '!about', text: 'Info' })
+      .button({ type: 'url', text: 'Grup Resmi', url: 'https://chat.whatsapp.com/example' })
+      .list({
+        buttonText: 'List Command',
+        sections: [{ title: 'Kategori', rows: [{ id: '!menu 1', title: 'TOOLS' }] }],
+      })
+      .list({
+        buttonText: 'Information Bot',
+        sections: [{ title: 'Info', rows: [{ id: '!ping', title: 'Ping' }] }],
+      })
+      .build()
+
+    assert.equal(built.kind, 'interactive')
+    if (built.kind !== 'interactive') return
+    const buttons = built.payload.interactiveMessage.nativeFlowMessage?.buttons ?? []
+    assert.deepEqual(buttons.map((b) => b.name), ['single_select', 'single_select', 'quick_reply', 'cta_url'])
+    assert.equal(JSON.parse(buttons[0]?.buttonParamsJson ?? '{}').title, 'List Command')
+    assert.equal(JSON.parse(buttons[1]?.buttonParamsJson ?? '{}').title, 'Information Bot')
+  })
+
   it('rejects duplicate reply button IDs that would make dispatch ambiguous', () => {
     assert.throws(
       () =>

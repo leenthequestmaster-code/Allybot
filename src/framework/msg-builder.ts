@@ -183,7 +183,7 @@ export class MsgBuilder {
   private _headerTitle?: string
   private _headerSubtitle?: string
   private _footerText?: string
-  private _listOptions?: ListOptions
+  private _lists: ListOptions[] = []
   private _carouselCards?: readonly CarouselCardDef[]
   private _mediaData?: Uint8Array
   private _mediaMimeType?: string
@@ -257,7 +257,7 @@ export class MsgBuilder {
         ids.add(rowId)
       }
     }
-    this._listOptions = options
+    this._lists.push(options)
     return this
   }
 
@@ -275,9 +275,9 @@ export class MsgBuilder {
     if (this._headerSubtitle) parts.push(`_${this._headerSubtitle}_`)
     if (this._text.trim()) parts.push(this._text.trim())
 
-    if (this._listOptions) {
-      parts.push(`\n[${this._listOptions.buttonText}]`)
-      for (const section of this._listOptions.sections) {
+    for (const list of this._lists) {
+      parts.push(`\n[${list.buttonText}]`)
+      for (const section of list.sections) {
         parts.push(`*${section.title}*`)
         for (const row of section.rows) {
           parts.push(`• ${row.title} (${row.id})${row.description ? ` - ${row.description}` : ''}`)
@@ -306,27 +306,19 @@ export class MsgBuilder {
 
   build(): BuiltMessagePayload {
     const hasButtons = this._buttons.length > 0
-    const hasList = Boolean(this._listOptions)
+    const hasList = this._lists.length > 0
     const hasCarousel = Boolean(this._carouselCards?.length)
 
     if (hasButtons || hasList || hasCarousel) {
       const nativeButtons: NativeFlowButton[] = []
       const replyIds = new Set<string>()
 
-      for (const btn of this._buttons) {
-        if (!btn.type || btn.type === 'reply') {
-          if (replyIds.has(btn.id)) throw new Error(`Duplicate reply button ID: ${btn.id}`)
-          replyIds.add(btn.id)
-        }
-        nativeButtons.push(toNativeFlowButton(btn))
-      }
-
-      if (this._listOptions) {
+      for (const list of this._lists) {
         nativeButtons.push({
           name: 'single_select',
           buttonParamsJson: JSON.stringify({
-            title: this._listOptions.buttonText,
-            sections: this._listOptions.sections.map((s) => ({
+            title: list.buttonText,
+            sections: list.sections.map((s) => ({
               title: s.title,
               rows: s.rows.map((r) => ({
                 id: r.id,
@@ -336,6 +328,14 @@ export class MsgBuilder {
             })),
           }),
         })
+      }
+
+      for (const btn of this._buttons) {
+        if (!btn.type || btn.type === 'reply') {
+          if (replyIds.has(btn.id)) throw new Error(`Duplicate reply button ID: ${btn.id}`)
+          replyIds.add(btn.id)
+        }
+        nativeButtons.push(toNativeFlowButton(btn))
       }
 
       const interactive = proto.Message.InteractiveMessage.create({

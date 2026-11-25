@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import { formatCommandHelp } from '../command-help-registry.js'
+import { COMMAND_HELP_MAP, formatCommandHelp } from '../command-help-registry.js'
 import { proto, prepareWAMessageMedia, type WASocket } from '@whiskeysockets/baileys'
 import type { CommandContext, CommandDefinition, Plugin } from '../contracts.js'
 import type { DeveloperModeService } from '../../services/developer-mode-service.js'
@@ -211,9 +211,10 @@ const SUBCAT_DESCRIPTIONS: Record<string, string> = {
 
 function formatCommand(command: CommandDefinition, prefix: string, position: number): string {
   const aliasPart = command.aliases && command.aliases.length > 0
-    ? ` (${command.aliases.join(', ')})`
+    ? ` (${command.aliases.slice(0, 3).join(', ')})`
     : ''
-  return `${position}. *${prefix}${command.name}*${aliasPart}`
+  const desc = commandDescription(command)
+  return `${position}. *${prefix}${command.name}*${aliasPart}\n   _${desc}_`
 }
 
 function formatUptime(seconds: number): string {
@@ -230,24 +231,41 @@ function formatUptime(seconds: number): string {
   return parts.join(' ')
 }
 
-function renderBotProfile(): string {
-  return [
-    '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
-    '─֪──໋࣭─𝆭──꫶',
-    `> ⟐┃ Nama : *${BOT_NAME}*`,
-    `> ⟐┃ Uptime : *${formatUptime(process.uptime())}*`,
-    '> ⟐┃ Owner : *6283197859955*',
-    `> ⟐┃ Versi : *v${BOT_VERSION}*`,
-    '*─┼────────────────┼─*',
-  ].join('\n')
+function resolveUserDisplay(commandContext: CommandContext): string {
+  const pushName = commandContext.message.pushName?.trim()
+  if (pushName) return pushName
+  const senderJid = commandContext.message.senderJid ?? commandContext.message.remoteJid
+  const contactName = commandContext.whatsapp.getDisplayName?.(senderJid)?.trim()
+  if (contactName) return contactName
+  const bare = senderJid.split('@')[0]?.split(':')[0]
+  return bare || 'Member'
 }
 
 function renderMainMenu(
-  _categories: readonly MenuCategory[],
-  _prefix: string,
-  _commandContext: Pick<CommandContext, 'config'>,
+  categories: readonly MenuCategory[],
+  prefix: string,
+  commandContext: CommandContext,
+  userRoleLabel: string,
 ): string {
-  return renderBotProfile()
+  const userName = resolveUserDisplay(commandContext)
+  const categoryLines = categories.map((cat, idx) => {
+    const { icon, label } = presentationFor(cat.name)
+    return `[${idx + 1}] ${icon} ${label} _(${cat.commands.length})_`
+  })
+
+  return [
+    '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
+    '─֪──໋࣭─𝆭──꫶',
+    `> ⟐┃ User : *${userName}* (${userRoleLabel})`,
+    `> ⟐┃ Nama : *${BOT_NAME}*`,
+    `> ⟐┃ Uptime : *${formatUptime(process.uptime())}*`,
+    `> ⟐┃ Versi : *v${BOT_VERSION}*`,
+    '*─┼────────────────┼─*',
+    '*📋 Daftar Kategori*',
+    ...categoryLines,
+    '',
+    `_Tekan tombol Menu atau ketik *${prefix}menu <nomor|kata kunci>*_`,
+  ].join('\n')
 }
 
 function resolveCategory(categories: readonly MenuCategory[], identifier: string | undefined): MenuCategory | undefined {
@@ -313,7 +331,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
         'ai', 'ally', 'tanya', 'translate', 'summarize', 'aidetection', 'tts', 'suara',
         'text2img', 'draw', 'buatgambar', 't2i', 'anime', 'logo',
         'i2i', 'bgchange', 'restore', 'cosplay', 'charedit', 'remix',
-        'img2text', 'ocr'
+        'img2text', 'ocr',
       ],
     },
     {
@@ -321,7 +339,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
       commands: [
         'vid', 'video', 'omnivid', 'vidomni', 'i2v',
         'vcompress', 'vshrink', 'vtrim', 'vcut', 'vspeed', 'vtempo', 'vmute', 'vsilence',
-        'vvn', 'videotovn', 'vidstatus', 'vidmodels'
+        'vvn', 'videotovn', 'vidstatus', 'vidmodels',
       ],
     },
     {
@@ -341,13 +359,6 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
       commands: ['botprofile', 'bprofile', 'ping', 'health', 'diag', 'diagnostics', 'about', 'version', 'support', 'commands', 'cmds', 'searchcmd', 'calc', 'convert', 'time', 'date'],
     },
   ],
-}
-
-function renderSubCategoryHeader(title: string): string {
-  return [
-    `𓏼 *\`${title}\`*`,
-    '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
-  ].join('\n')
 }
 
 function renderCategoryMenu(category: MenuCategory, prefix: string): string {
@@ -421,41 +432,142 @@ function renderCategoryMenu(category: MenuCategory, prefix: string): string {
   return [...header, content, ...footer].join('\n')
 }
 
+function searchAllowedCommands(
+  categories: readonly MenuCategory[],
+  rawQuery: string,
+): readonly CommandDefinition[] {
+  const needle = rawQuery.trim().toLowerCase()
+  if (!needle) return []
+  const matches: CommandDefinition[] = []
+  const seen = new Set<string>()
+
+  for (const cat of categories) {
+    for (const cmd of cat.commands) {
+      if (seen.has(cmd.name)) continue
+      const help = COMMAND_HELP_MAP[cmd.name]
+      const haystack = [
+        cmd.name,
+        ...(cmd.aliases ?? []),
+        commandDescription(cmd),
+        cmd.description ?? '',
+        help?.summary ?? '',
+        help?.description ?? '',
+      ]
+        .join(' ')
+        .toLowerCase()
+      if (haystack.includes(needle)) {
+        seen.add(cmd.name)
+        matches.push(cmd)
+        if (matches.length >= 10) return matches
+      }
+    }
+  }
+  return matches
+}
+
+function renderKeywordSearchMenu(
+  query: string,
+  matches: readonly CommandDefinition[],
+  prefix: string,
+): string {
+  const lines = matches.map((cmd, idx) => {
+    const aliasPart = cmd.aliases && cmd.aliases.length > 0
+      ? ` (${cmd.aliases.slice(0, 3).join(', ')})`
+      : ''
+    const desc = commandDescription(cmd)
+    const example = COMMAND_HELP_MAP[cmd.name]?.examples?.[0]
+    const exampleLine = example
+      ? `\n   Contoh: \`${example.replace(/^!/, prefix)}\``
+      : ''
+    return `${idx + 1}. *${prefix}${cmd.name}*${aliasPart}\n   _${desc}_${exampleLine}`
+  })
+
+  return [
+    `🔍 *Hasil Pencarian: "${query}"*`,
+    `_${matches.length} command ditemukan_`,
+    '──────── · ✦ · ────────',
+    lines.join('\n\n'),
+    '',
+    `*© ${BOT_NAME}*`,
+  ].join('\n')
+}
+
+function buildCategoryListOptions(
+  buttonText: string,
+  sectionTitle: string,
+  categories: readonly MenuCategory[],
+  prefix: string,
+) {
+  return {
+    buttonText,
+    sections: [
+      {
+        title: sectionTitle,
+        rows: categories.slice(0, 10).map((cat, idx) => {
+          const { icon, label } = presentationFor(cat.name)
+          return {
+            id: `${prefix}menu ${idx + 1}`,
+            title: `${icon} ${label}`.slice(0, 24),
+            description: `${cat.commands.length} command tersedia`,
+          }
+        }),
+      },
+    ],
+  }
+}
+
 async function sendMenu(
   commandContext: CommandContext,
   body: string,
   options?: {
     readonly isMain?: boolean
+    readonly isSearch?: boolean
     readonly prefix?: string
     readonly category?: MenuCategory
     readonly categories?: readonly MenuCategory[]
     readonly thumbnail?: Uint8Array
   },
 ): Promise<void> {
-  const thumbnailRaw = options?.thumbnail ?? (commandContext.whatsapp.sendMedia ? await loadMenuThumbnail() : undefined)
-  const thumbnail = await getOrPrepareMenuThumbnail(commandContext.whatsapp, thumbnailRaw)
   const jid = commandContext.message.remoteJid
   const prefix = options?.prefix ?? commandContext.prefix
 
   if (options?.isMain) {
-    // Main Menu: structured presentation with thumbnail image header and interactive category buttons
+    const thumbnailRaw = options.thumbnail ?? (commandContext.whatsapp.sendMedia ? await loadMenuThumbnail() : undefined)
+    const thumbnail = await getOrPrepareMenuThumbnail(commandContext.whatsapp, thumbnailRaw)
     const builder = MsgBuilder.to(jid)
       .text(body)
+      .footer(BOT_NAME)
 
     if (thumbnail) {
       builder.image(thumbnail, MENU_THUMBNAIL_MIME_TYPE)
     }
 
     const availableCategories = options.categories ?? []
-    const buttonLimit = Math.min(availableCategories.length, 9)
-    for (let idx = 0; idx < buttonLimit; idx++) {
-      const cat = availableCategories[idx]
-      const { icon, label } = presentationFor(cat.name)
-      const buttonText = `${icon} ${label}`.slice(0, 20)
+    if (availableCategories.length > 0) {
+      builder.list(buildCategoryListOptions('📋 List Command', 'Pilih Kategori Menu', availableCategories, prefix))
+    }
+
+    builder.list({
+      buttonText: 'ℹ️ Information Bot',
+      sections: [
+        {
+          title: 'Informasi & Utilitas Bot',
+          rows: [
+            { id: `${prefix}about`, title: 'ℹ️ Info Bot', description: 'Profil dan fitur utama Allybot' },
+            { id: `${prefix}botprofile`, title: '🤖 Profil Bot', description: 'Identitas resmi & kontak pengembang' },
+            { id: `${prefix}support`, title: '🛟 Bantuan & Support', description: 'Pusat bantuan kendala bot' },
+            { id: `${prefix}ping`, title: '⚡ Ping & Latensi', description: 'Cek kecepatan respons bot' },
+          ],
+        },
+      ],
+    })
+
+    const inviteUrl = commandContext.config.officialOocInviteLink?.trim()
+    if (inviteUrl && inviteUrl.startsWith('https://')) {
       builder.button({
-        type: 'reply',
-        id: `${prefix}menu ${idx + 1}`,
-        text: buttonText,
+        type: 'url',
+        text: '🏛️ Grup Resmi',
+        url: inviteUrl,
       })
     }
 
@@ -464,21 +576,45 @@ async function sendMenu(
   }
 
   if (options?.category) {
-    // Hilangkan button "Menu Utama" atau "Semua Command" HANYA PADA Submenu Kategori saja, bukan menu utama.
-    // Profile bot tidak usah ditampilkan lagi pada submenu.
-    const builder = MsgBuilder.to(jid).text(body)
+    const builder = MsgBuilder.to(jid)
+      .text(body)
+      .footer(BOT_NAME)
+
+    const availableCategories = options.categories ?? []
+    if (availableCategories.length > 0) {
+      builder.list(buildCategoryListOptions('📋 Ganti Kategori', 'Kategori Tersedia', availableCategories, prefix))
+    }
+    builder.button({
+      type: 'reply',
+      id: `${prefix}menu`,
+      text: '⬅️ Menu Utama',
+    })
+
     await builder.send(commandContext.whatsapp as any)
     return
   }
 
-  // Fallback for not found or simple notice
+  if (options?.isSearch) {
+    const builder = MsgBuilder.to(jid)
+      .text(body)
+      .footer(BOT_NAME)
+      .button({
+        type: 'reply',
+        id: `${prefix}menu`,
+        text: '⬅️ Menu Utama',
+      })
+
+    await builder.send(commandContext.whatsapp as any)
+    return
+  }
+
   const builder = MsgBuilder.to(jid).text(body)
   await builder.send(commandContext.whatsapp as any)
 }
 
 export const menuPlugin: Plugin = {
   name: 'menu',
-  version: '0.5.0',
+  version: '0.6.0',
   load(context) {
     const handleMenu = async (commandContext: CommandContext): Promise<void> => {
       const visibleCommands = context.commands.list().filter((command) => command.name !== 'menu' && !command.hidden)
@@ -490,43 +626,68 @@ export const menuPlugin: Plugin = {
         }
       }
       const categories = allowedCategories
+      const rawArgText = commandContext.args.join(' ').trim()
 
-      // Jalur bantuan langsung: !help <command> atau !menu <command>
-      if (commandContext.args[0] && !/^\d+$/.test(commandContext.args[0])) {
-        const query = commandContext.args[0].trim().toLowerCase()
-        const targetCmd = context.commands.get(query)
-        if (targetCmd) {
-          const helpText = formatCommandHelp(targetCmd.name, targetCmd.aliases, commandContext.prefix)
-          if (helpText) {
-            await commandContext.reply(helpText)
+      if (rawArgText) {
+        if (/^\d+$/.test(rawArgText)) {
+          const category = resolveCategory(categories, rawArgText)
+          if (category) {
+            const body = renderCategoryMenu(category, commandContext.prefix)
+            await sendMenu(commandContext, body, { category, categories, prefix: commandContext.prefix })
             return
           }
+          const body = `Kategori nomor *${rawArgText}* tidak ditemukan.\nBalas *${commandContext.prefix}menu* untuk melihat daftar kategori.`
+          await sendMenu(commandContext, body)
+          return
         }
+
+        const categoryByName = commandContext.args.length === 1
+          ? resolveCategory(categories, rawArgText)
+          : undefined
+        if (categoryByName) {
+          const body = renderCategoryMenu(categoryByName, commandContext.prefix)
+          await sendMenu(commandContext, body, { category: categoryByName, categories, prefix: commandContext.prefix })
+          return
+        }
+
+        const allowedCommandSet = new Set(categories.flatMap((c) => c.commands.map((cmd) => cmd.name)))
+        if (commandContext.args.length === 1) {
+          const query = rawArgText.toLowerCase()
+          const targetCmd = context.commands.get(query)
+          if (targetCmd && !targetCmd.hidden && allowedCommandSet.has(targetCmd.name)) {
+            const helpText = formatCommandHelp(targetCmd.name, targetCmd.aliases, commandContext.prefix)
+            if (helpText) {
+              await commandContext.reply(helpText)
+              return
+            }
+          }
+        }
+
+        const matches = searchAllowedCommands(categories, rawArgText)
+        if (matches.length > 0) {
+          const body = renderKeywordSearchMenu(rawArgText, matches, commandContext.prefix)
+          await sendMenu(commandContext, body, { isSearch: true, prefix: commandContext.prefix })
+          return
+        }
+
+        const body = `Kategori atau command untuk *"${rawArgText}"* tidak ditemukan.\nBalas *${commandContext.prefix}menu* untuk melihat daftar kategori.`
+        await sendMenu(commandContext, body, { isSearch: true, prefix: commandContext.prefix })
+        return
       }
 
-      const category = resolveCategory(categories, commandContext.args[0])
+      const isOwner = isBotOwner(commandContext)
+      const isAdmin = !isOwner && await isGroupAdminOrOwner(commandContext)
+      const userRoleLabel = isOwner ? 'Owner' : isAdmin ? 'Admin Grup' : 'Member'
+
       const thumbnail = await loadMenuThumbnail()
-
-      if (category) {
-        const body = renderCategoryMenu(category, commandContext.prefix)
-        await sendMenu(commandContext, body, { category, prefix: commandContext.prefix })
-        return
-      }
-
-      if (commandContext.args[0]) {
-        const body = `Kategori nomor *${commandContext.args[0]}* tidak ditemukan.\nBalas *${commandContext.prefix}menu* untuk melihat daftar kategori.`
-        await sendMenu(commandContext, body)
-        return
-      }
-
-      const body = renderMainMenu(categories, commandContext.prefix, commandContext)
+      const body = renderMainMenu(categories, commandContext.prefix, commandContext, userRoleLabel)
       await sendMenu(commandContext, body, { isMain: true, prefix: commandContext.prefix, categories, thumbnail })
     }
 
     context.commands.register({
       name: 'menu',
       aliases: ['m', 'help', 'bantuan'],
-      description: 'Tampilkan menu kategori atau bantuan perintah',
+      description: 'Tampilkan menu kategori, pencarian, atau bantuan perintah',
       category: 'system',
       menuOrder: 1,
       hidden: true,
