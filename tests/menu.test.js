@@ -207,6 +207,7 @@ test('!menu utama menggunakan multi single_select list di posisi awal bottom-she
   const im = relayed[0].msg.interactiveMessage
   assert.ok(im)
   assert.match(im.body?.text, /𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂/)
+  assert.doesNotMatch(im.body?.text, /Daftar Kategori/)
   const buttons = im.nativeFlowMessage?.buttons ?? []
   assert.equal(buttons.length, 3)
   assert.equal(buttons[0]?.name, 'single_select')

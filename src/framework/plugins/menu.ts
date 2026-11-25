@@ -242,16 +242,12 @@ function resolveUserDisplay(commandContext: CommandContext): string {
 }
 
 function renderMainMenu(
-  categories: readonly MenuCategory[],
+  _categories: readonly MenuCategory[],
   prefix: string,
   commandContext: CommandContext,
   userRoleLabel: string,
 ): string {
   const userName = resolveUserDisplay(commandContext)
-  const categoryLines = categories.map((cat, idx) => {
-    const { icon, label } = presentationFor(cat.name)
-    return `[${idx + 1}] ${icon} ${label} _(${cat.commands.length})_`
-  })
 
   return [
     '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
@@ -260,11 +256,8 @@ function renderMainMenu(
     `> ⟐┃ Nama : *${BOT_NAME}*`,
     `> ⟐┃ Uptime : *${formatUptime(process.uptime())}*`,
     `> ⟐┃ Versi : *v${BOT_VERSION}*`,
-    '*─┼────────────────┼─*',
-    '*📋 Daftar Kategori*',
-    ...categoryLines,
     '',
-    `_Tekan tombol Menu atau ketik *${prefix}menu <nomor|kata kunci>*_`,
+    `_Buka tombol *Menu* di bawah atau ketik *${prefix}menu <kata kunci>*_`,
   ].join('\n')
 }
 
@@ -507,7 +500,7 @@ function buildCategoryListOptions(
           const { icon, label } = presentationFor(cat.name)
           return {
             id: `${prefix}menu ${idx + 1}`,
-            title: `${icon} ${label}`.slice(0, 24),
+            title: `[${idx + 1}] ${icon} ${label}`.slice(0, 24),
             description: `${cat.commands.length} command tersedia`,
           }
         }),
