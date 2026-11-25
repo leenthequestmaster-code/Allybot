@@ -748,6 +748,7 @@ export function registerMediaCardCommands(context: PluginContext): void {
               avatarUrl?: string
               verified?: boolean
             } | null = null
+            let upstreamBlocked = false
 
             // Try direct web_profile_info
             try {
@@ -759,7 +760,9 @@ export function registerMediaCardCommands(context: PluginContext): void {
                 },
                 signal: AbortSignal.timeout(6_000),
               })
-              if (res.ok) {
+              if (res.status === 429 || res.status === 401 || res.status === 403) {
+                upstreamBlocked = true
+              } else if (res.ok) {
                 const data = (await res.json()) as any
                 const user = data?.data?.user
                 if (user) {
@@ -775,7 +778,9 @@ export function registerMediaCardCommands(context: PluginContext): void {
                   }
                 }
               }
-            } catch {}
+            } catch {
+              upstreamBlocked = true
+            }
 
             // Fallback: DuckDuckGo search query for site:instagram.com/${username}
             if (!profileData) {
@@ -784,7 +789,9 @@ export function registerMediaCardCommands(context: PluginContext): void {
                   headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
                   signal: AbortSignal.timeout(6_000),
                 })
-                if (ddgRes.ok) {
+                if (ddgRes.status === 202 || !ddgRes.ok) {
+                  upstreamBlocked = true
+                } else {
                   const html = await ddgRes.text()
                   const descMatch = html.match(/([0-9,.]+[KMBkmb]?)\s+Followers,\s*([0-9,.]+[KMBkmb]?)\s+Following,\s*([0-9,.]+[KMBkmb]?)\s+Posts\s*-\s*([^(@]+)\s*\(@([^)]+)\)\s*(?:on Instagram)?(?::\s*\"?([^\"]*)\"?)?/i)
                   if (descMatch) {
@@ -799,11 +806,17 @@ export function registerMediaCardCommands(context: PluginContext): void {
                     }
                   }
                 }
-              } catch {}
+              } catch {
+                upstreamBlocked = true
+              }
             }
 
             if (!profileData) {
-              await commandContext.reply(`Profil Instagram @${username} tidak ditemukan atau privat nih 🥺`)
+              if (upstreamBlocked) {
+                await commandContext.reply(`Instagram sedang membatasi akses sementara (rate-limit/anti-bot), jadi profil @${username} belum bisa dicek sekarang. Coba lagi beberapa menit lagi ya~ 🙏`)
+              } else {
+                await commandContext.reply(`Profil Instagram @${username} tidak ditemukan atau privat nih 🥺`)
+              }
               return
             }
 

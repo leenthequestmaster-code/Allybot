@@ -12,7 +12,7 @@ export interface MediaResolveResult {
   readonly musicUrl?: string
   readonly coverUrl?: string
   readonly duration?: number
-  readonly platform: 'tiktok' | 'youtube' | 'instagram' | 'twitter' | 'facebook' | 'reddit' | 'unknown'
+  readonly platform: 'tiktok' | 'youtube' | 'instagram' | 'twitter' | 'facebook' | 'reddit' | 'bandcamp' | 'unknown'
 }
 
 export const PLATFORM_PATTERNS: Record<string, RegExp> = {
@@ -22,13 +22,14 @@ export const PLATFORM_PATTERNS: Record<string, RegExp> = {
   twitter: /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[^\s]+\/status\/[^\s]+/i,
   facebook: /https?:\/\/(?:www\.)?(?:facebook\.com|fb\.watch)\/[^\s]+/i,
   reddit: /https?:\/\/(?:www\.)?reddit\.com\/r\/[^\s]+/i,
+  bandcamp: /https?:\/\/[a-z0-9-]+\.bandcamp\.com\/(?:track|album)\/[^\s]+/i,
 }
 
 export function detectPlatform(url: string): string | null {
   let parsed: URL
   try { parsed = new URL(url) } catch { return null }
   if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) return null
-  const hosts: Record<string, string[]> = { tiktok: ['tiktok.com'], instagram: ['instagram.com'], youtube: ['youtube.com', 'youtu.be'], twitter: ['twitter.com', 'x.com'], facebook: ['facebook.com', 'fb.watch'], reddit: ['reddit.com'] }
+  const hosts: Record<string, string[]> = { tiktok: ['tiktok.com'], instagram: ['instagram.com'], youtube: ['youtube.com', 'youtu.be'], twitter: ['twitter.com', 'x.com'], facebook: ['facebook.com', 'fb.watch'], reddit: ['reddit.com'], bandcamp: ['bandcamp.com'] }
   for (const [name, pat] of Object.entries(PLATFORM_PATTERNS)) {
     if (hosts[name]?.some(h => parsed.hostname === h || parsed.hostname.endsWith('.' + h)) && pat.test(parsed.href)) return name
   }
@@ -146,11 +147,35 @@ export async function resolveYtDlp(url: string, platform = 'unknown'): Promise<M
 
     const formats: any[] = Array.isArray(target.formats) ? target.formats : []
     const mp4Formats = formats.filter((f) => f.ext === 'mp4' && f.url)
-    mp4Formats.sort((a, b) => (b.height || 0) - (a.height || 0))
+    mp4Formats.sort((a, b) => {
+      const aHasAudio = a.acodec && a.acodec !== 'none' ? 1 : 0
+      const bHasAudio = b.acodec && b.acodec !== 'none' ? 1 : 0
+      if (bHasAudio !== aHasAudio) return bHasAudio - aHasAudio
+      return (b.height || 0) - (a.height || 0)
+    })
 
-    const playUrl = mp4Formats[0]?.url || target.url
+    const audioFormats = formats.filter(
+      (f) => f.url && f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'),
+    )
+    const audioExtRank = (ext: unknown): number => {
+      if (ext === 'mp3') return 3
+      if (ext === 'm4a') return 2
+      if (ext === 'opus') return 1
+      return 0
+    }
+    audioFormats.sort((a, b) => {
+      const extDiff = audioExtRank(b.ext) - audioExtRank(a.ext)
+      if (extDiff !== 0) return extDiff
+      return (b.abr || b.tbr || 0) - (a.abr || a.tbr || 0)
+    })
+
+    const bestAudioUrl = audioFormats[0]?.url
+    const playUrl = platform === 'bandcamp'
+      ? (bestAudioUrl || target.url)
+      : (mp4Formats[0]?.url || bestAudioUrl || target.url)
+    const musicUrl = bestAudioUrl || (platform === 'bandcamp' ? playUrl : undefined)
     const title = String(target.title || '').trim()
-    const author = String(target.uploader || target.channel || target.uploader_id || '').trim()
+    const author = String(target.uploader || target.channel || target.artist || target.uploader_id || '').trim()
     const coverUrl = target.thumbnail
     const id = target.id ? String(target.id) : undefined
     const duration = typeof target.duration === 'number' ? target.duration : undefined
@@ -160,6 +185,7 @@ export async function resolveYtDlp(url: string, platform = 'unknown'): Promise<M
       title,
       author,
       playUrl,
+      ...(musicUrl ? { musicUrl } : {}),
       coverUrl,
       duration,
       platform: (platform as any) || 'unknown',

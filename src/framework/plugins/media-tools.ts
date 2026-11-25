@@ -229,6 +229,7 @@ export function registerMediaToolCommands(context: PluginContext, transformer?: 
         description: 'Hapus latar belakang gambar',
         category: 'tools',
         menuOrder: 21,
+        hidden: !process.env.REMOVEBG_API_KEY?.trim(),
         cooldownMs: MEDIA_COMMAND_COOLDOWN_MS,
         handler: async (commandContext) => {
           const selected = sourceFor(commandContext)
