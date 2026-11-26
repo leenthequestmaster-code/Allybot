@@ -271,12 +271,11 @@ export const remoteOpsPlugin: Plugin = {
             `*DEV // WALLED-GARDEN GROUPS* (Mode: \`${mode}\`)`,
             '─꯭──꯭──    .  .  .    ▭▬▭▬▭',
             ...groups.map((g, idx) => {
-              const tags = []
+              const tags = [g.groupKind.toUpperCase()]
               if (g.isOocHub) tags.push('OOC Hub')
-              if (g.remoteSilenced) tags.push('Silenced')
+              if (g.remoteSilenced) tags.push('SILENT')
               if (g.sniffOnce) tags.push('Sniff-Once')
-              const tagStr = tags.length ? ` [${tags.join(', ')}]` : ''
-              return `${idx + 1}. *${g.name || 'Unnamed Group'}*${tagStr}\n   • \`${g.jid}\` (${g.memberCount} members)`
+              return `${idx + 1}. *${g.name || 'Unnamed Group'}* [${tags.join(' | ')}]\n   • \`${g.jid}\` (${g.memberCount} members)`
             }),
             '━━━━━━━━━━━━━━━━━━━━',
             '_Gunakan `!auth add <jid> [name]` atau `!auth remove <jid>`._',
@@ -305,6 +304,19 @@ export const remoteOpsPlugin: Plugin = {
           }
           const removed = gatekeeper.removeGroup(jid)
           await commandContext.reply(removed ? `Grup \`${jid}\` berhasil dihapus dari daftar resmi.` : `Grup \`${jid}\` tidak ditemukan.`)
+          return
+        }
+
+        if (subcommand === 'kind') {
+          const jid = targetJid || (commandContext.message.remoteJid.endsWith('@g.us') ? commandContext.message.remoteJid : '')
+          const kind = (nameParts[0] || '').toLowerCase()
+          const validKinds = new Set(['announcement', 'ooc', 'bot', 'guide', 'archive', 'rp', 'general'])
+          if (!jid || !validKinds.has(kind)) {
+            await commandContext.reply('Usage: `!auth kind <group-jid@g.us> <announcement|ooc|bot|guide|archive|rp|general>`')
+            return
+          }
+          const updated = gatekeeper.setGroupKind(jid, kind as any)
+          await commandContext.reply(updated ? `Jenis grup \`${jid}\` diubah menjadi *${kind.toUpperCase()}*.` : `Grup \`${jid}\` tidak ditemukan.`)
           return
         }
 

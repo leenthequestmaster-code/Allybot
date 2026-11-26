@@ -6,10 +6,12 @@ import { isGroupJid } from '../framework/validation.js'
 import type { RedisService } from '../redis.js'
 
 export type GateMode = 'strict' | 'permissive' | 'strict_walled_garden'
+export type GroupKind = 'announcement' | 'ooc' | 'bot' | 'guide' | 'archive' | 'rp' | 'general'
 
 export interface OfficialGroupRecord {
   readonly jid: string
   readonly name: string
+  readonly groupKind: GroupKind
   readonly isOocHub: boolean
   readonly remoteSilenced: boolean
   readonly sniffOnce: boolean
@@ -159,6 +161,7 @@ export class GatekeeperService implements Service {
     if (!colNames.has('sniff_once')) db.exec('ALTER TABLE community_groups ADD COLUMN sniff_once INTEGER NOT NULL DEFAULT 0')
     if (!colNames.has('member_count')) db.exec('ALTER TABLE community_groups ADD COLUMN member_count INTEGER NOT NULL DEFAULT 0')
     if (!colNames.has('updated_at')) db.exec('ALTER TABLE community_groups ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0')
+    if (!colNames.has('group_kind')) db.exec("ALTER TABLE community_groups ADD COLUMN group_kind TEXT NOT NULL DEFAULT 'general'")
 
     // Indexes
     db.exec(`
@@ -411,17 +414,23 @@ export class GatekeeperService implements Service {
     `).run(link)
   }
 
-  public registerGroup(jid: string, name: string, addedBy: string): void {
+  public registerGroup(jid: string, name: string, addedBy: string, groupKind: GroupKind = 'general'): void {
     const db = this.database()
     const now = Math.floor(Date.now() / 1000)
     db.prepare(`
-      INSERT INTO community_groups (jid, name, added_at, added_by, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO community_groups (jid, name, added_at, added_by, updated_at, group_kind)
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(jid) DO UPDATE SET
         name = excluded.name,
         updated_at = excluded.updated_at
-    `).run(jid, name, now, addedBy, now)
+    `).run(jid, name, now, addedBy, now, groupKind)
     this.officialGroupsSet.add(jid)
+  }
+
+  public setGroupKind(jid: string, kind: GroupKind): boolean {
+    const db = this.database()
+    const res = db.prepare('UPDATE community_groups SET group_kind = ?, updated_at = unixepoch() WHERE jid = ?').run(kind, jid)
+    return res.changes > 0
   }
 
   public removeGroup(jid: string): boolean {
@@ -450,11 +459,12 @@ export class GatekeeperService implements Service {
   public listOfficialGroups(): OfficialGroupRecord[] {
     const db = this.database()
     const rows = db.prepare(`
-      SELECT jid, name, is_ooc_hub, remote_silenced, sniff_once, member_count, added_at, added_by
-      FROM community_groups ORDER BY added_at ASC
+      SELECT jid, name, group_kind, is_ooc_hub, remote_silenced, sniff_once, member_count, added_at, added_by
+      FROM community_groups ORDER BY group_kind ASC, name ASC
     `).all() as Array<{
       jid: string
       name: string
+      group_kind: string | null
       is_ooc_hub: number
       remote_silenced: number
       sniff_once: number
@@ -465,6 +475,7 @@ export class GatekeeperService implements Service {
     return rows.map((r) => ({
       jid: r.jid,
       name: r.name,
+      groupKind: (r.group_kind as GroupKind) || 'general',
       isOocHub: r.is_ooc_hub === 1,
       remoteSilenced: r.remote_silenced === 1,
       sniffOnce: r.sniff_once === 1,

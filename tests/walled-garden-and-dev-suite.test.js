@@ -42,10 +42,12 @@ test('GatekeeperService: gate modes, official groups, and shadowban', async () =
     gk.registerGroup(officialGroupJid, 'Allyssea Roleplay', ownerJid)
     assert.equal(gk.isGroupOfficial(officialGroupJid), true)
 
+    gk.setGroupKind(officialGroupJid, 'rp')
     const list = gk.listOfficialGroups()
     assert.equal(list.length, 1)
     assert.equal(list[0].jid, officialGroupJid)
     assert.equal(list[0].name, 'Allyssea Roleplay')
+    assert.equal(list[0].groupKind, 'rp')
 
     // Silence group
     assert.equal(gk.isGroupSilenced(officialGroupJid), false)
