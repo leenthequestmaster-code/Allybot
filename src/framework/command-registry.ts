@@ -29,6 +29,16 @@ function normalizeName(value: string): string {
   return value.trim().toLowerCase()
 }
 
+const MODERATION_CONTEXT_EXTRA_COMMANDS = new Set([
+  'rules', 'ruleshistory', 'groupinfo', 'ginfo', 'admins', 'adminlist',
+  'membercount', 'members', 'memberlist', 'memberinfo', 'info', 'role', 'permissions',
+  'botleave', 'auth',
+])
+const OOC_LIMITED_ALLOWED_COMMANDS = new Set([
+  'ai', 'ask', 'chlona', 'chat', 'menu', 'help', 'ping', 'about', 'botprofile', 'support',
+  'report', 'suggest', 'afk', 'away',
+])
+
 export class CommandRegistry implements CommandRegistryLike {
   private readonly commands = new Map<string, CommandDefinition>()
   private readonly middleware: CommandMiddleware
@@ -136,8 +146,17 @@ export class CommandRegistry implements CommandRegistryLike {
     if (!body) return false
 
     const [token, ...args] = body.split(/\s+/)
+    const isGroup = isGroupJid(message.remoteJid)
+    const isOwner = this.isBotOwner(message.senderJid ?? message.remoteJid)
+    const contextPolicy = (isGroup && !isOwner && typeof this.services?.has === 'function' && this.services.has('gatekeeper'))
+      ? (this.services.get('gatekeeper') as { getContextPolicy?: (jid: string) => string }).getContextPolicy?.(message.remoteJid)
+      : undefined
+
     const command = this.get(token ?? '')
     if (!command) {
+      if (contextPolicy === 'silent' || contextPolicy === 'moderator_only') {
+        return false
+      }
       if (token && token.length >= 2 && token.length <= 32) {
         await this.handleTypoSuggestion(message, token, inputPrefix)
       }
@@ -156,7 +175,6 @@ export class CommandRegistry implements CommandRegistryLike {
       }
     }
 
-    const isGroup = isGroupJid(message.remoteJid)
     const effectiveScope: CommandScope = command.scope ?? (
       command.category === 'your-character'
         ? 'both'
@@ -164,8 +182,6 @@ export class CommandRegistry implements CommandRegistryLike {
           ? 'group'
           : 'both'
     )
-
-    const isOwner = this.isBotOwner(message.senderJid ?? message.remoteJid)
 
     if (!isOwner) {
       if (effectiveScope === 'group' && !isGroup) {
@@ -180,6 +196,30 @@ export class CommandRegistry implements CommandRegistryLike {
 
       if (effectiveScope === 'internal') {
         return false
+      }
+
+      if (contextPolicy === 'silent') {
+        return false
+      }
+
+      if (contextPolicy === 'moderator_only') {
+        const isModerationCmd = command.category === 'moderation' || MODERATION_CONTEXT_EXTRA_COMMANDS.has(command.name.toLowerCase())
+        if (!isModerationCmd) {
+          return false
+        }
+      }
+
+      if (contextPolicy === 'ooc_limited') {
+        const isAllowedOoc = command.category === 'moderation'
+          || command.category === 'group'
+          || OOC_LIMITED_ALLOWED_COMMANDS.has(command.name.toLowerCase())
+        if (!isAllowedOoc) {
+          await this.whatsapp.sendText(
+            message.remoteJid,
+            `⚠️ Grup *OOC* hanya mengizinkan AI Chlona, *${inputPrefix}menu*, *${inputPrefix}report/${inputPrefix}suggest*, *${inputPrefix}afk*, & moderasi. Untuk Game, Media & Downloader lengkap, silakan gunakan *Voice & Bot Room*.`,
+          )
+          return true
+        }
       }
 
       if (this.config.officialOocGroupJid) {

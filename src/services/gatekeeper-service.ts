@@ -6,7 +6,8 @@ import { isGroupJid } from '../framework/validation.js'
 import type { RedisService } from '../redis.js'
 
 export type GateMode = 'strict' | 'permissive' | 'strict_walled_garden'
-export type GroupKind = 'announcement' | 'ooc' | 'bot' | 'guide' | 'archive' | 'rp' | 'general'
+export type GroupKind = 'announcement' | 'ooc' | 'bot_room' | 'guide' | 'database_update' | 'rp' | 'general'
+export type AllybotContextPolicy = 'silent' | 'moderator_only' | 'ooc_limited' | 'full'
 
 export interface OfficialGroupRecord {
   readonly jid: string
@@ -53,6 +54,7 @@ export class GatekeeperService implements Service {
   private readonly officialGroupsSet = new Set<string>()
   private readonly silencedGroupsSet = new Set<string>()
   private readonly officialMembersSet = new Set<string>()
+  private readonly groupKindsMap = new Map<string, GroupKind>()
   private readonly shadowbanSet = new Set<string>()
   private readonly lidToPhoneMap = new Map<string, string>()
   private readonly phoneToLidMap = new Map<string, string>()
@@ -183,17 +185,20 @@ export class GatekeeperService implements Service {
     const db = this.database()
     this.officialGroupsSet.clear()
     this.silencedGroupsSet.clear()
+    this.groupKindsMap.clear()
     this.shadowbanSet.clear()
 
-    const groups = db.prepare('SELECT jid, is_ooc_hub, remote_silenced FROM community_groups').all() as Array<{
+    const groups = db.prepare('SELECT jid, is_ooc_hub, remote_silenced, group_kind FROM community_groups').all() as Array<{
       jid: string
       is_ooc_hub: number
       remote_silenced: number
+      group_kind: string | null
     }>
     for (const g of groups) {
       this.officialGroupsSet.add(g.jid)
       if (g.remote_silenced === 1) this.silencedGroupsSet.add(g.jid)
       if (g.is_ooc_hub === 1) this.oocGroupJid = g.jid
+      this.groupKindsMap.set(g.jid, (g.group_kind as GroupKind) || 'general')
     }
 
     const bans = db.prepare('SELECT target_id FROM shadowbanned_users').all() as Array<{ target_id: string }>
@@ -425,12 +430,29 @@ export class GatekeeperService implements Service {
         updated_at = excluded.updated_at
     `).run(jid, name, now, addedBy, now, groupKind)
     this.officialGroupsSet.add(jid)
+    if (!this.groupKindsMap.has(jid)) this.groupKindsMap.set(jid, groupKind)
   }
 
   public setGroupKind(jid: string, kind: GroupKind): boolean {
     const db = this.database()
     const res = db.prepare('UPDATE community_groups SET group_kind = ?, updated_at = unixepoch() WHERE jid = ?').run(kind, jid)
+    if (res.changes > 0) this.groupKindsMap.set(jid, kind)
     return res.changes > 0
+  }
+
+  public getGroupKind(jid: string): GroupKind {
+    if (this.groupKindsMap.has(jid)) return this.groupKindsMap.get(jid)!
+    if (jid === this.oocGroupJid) return 'ooc'
+    return 'general'
+  }
+
+  public getContextPolicy(jid: string): AllybotContextPolicy {
+    if (this.silencedGroupsSet.has(jid)) return 'silent'
+    const kind = this.getGroupKind(jid)
+    if (kind === 'announcement') return 'silent'
+    if (kind === 'rp' || kind === 'guide' || kind === 'database_update') return 'moderator_only'
+    if (kind === 'ooc') return 'ooc_limited'
+    return 'full'
   }
 
   public removeGroup(jid: string): boolean {
@@ -438,6 +460,7 @@ export class GatekeeperService implements Service {
     const result = db.prepare('DELETE FROM community_groups WHERE jid = ?').run(jid)
     this.officialGroupsSet.delete(jid)
     this.silencedGroupsSet.delete(jid)
+    this.groupKindsMap.delete(jid)
     return result.changes > 0
   }
 

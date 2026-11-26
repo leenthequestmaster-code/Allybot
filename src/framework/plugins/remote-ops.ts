@@ -310,9 +310,9 @@ export const remoteOpsPlugin: Plugin = {
         if (subcommand === 'kind') {
           const jid = targetJid || (commandContext.message.remoteJid.endsWith('@g.us') ? commandContext.message.remoteJid : '')
           const kind = (nameParts[0] || '').toLowerCase()
-          const validKinds = new Set(['announcement', 'ooc', 'bot', 'guide', 'archive', 'rp', 'general'])
+          const validKinds = new Set(['announcement', 'ooc', 'bot_room', 'guide', 'database_update', 'rp', 'general'])
           if (!jid || !validKinds.has(kind)) {
-            await commandContext.reply('Usage: `!auth kind <group-jid@g.us> <announcement|ooc|bot|guide|archive|rp|general>`')
+            await commandContext.reply('Usage: `!auth kind <group-jid@g.us> <announcement|ooc|bot_room|guide|database_update|rp|general>`')
             return
           }
           const updated = gatekeeper.setGroupKind(jid, kind as any)

@@ -248,6 +248,15 @@ function renderMainMenu(
   userRoleLabel: string,
 ): string {
   const userName = resolveUserDisplay(commandContext)
+  let oocNote = ''
+  if (typeof commandContext.services?.has === 'function' && commandContext.services.has('gatekeeper')) {
+    try {
+      const gk = commandContext.services.get('gatekeeper') as { getContextPolicy?: (jid: string) => string }
+      if (gk.getContextPolicy?.(commandContext.message.remoteJid) === 'ooc_limited') {
+        oocNote = '\n⚠️ _Grup OOC mode terbatas: untuk Game, Media & Downloader lengkap, gunakan *Voice & Bot Room*._'
+      }
+    } catch {}
+  }
 
   return [
     '✦ • • `𝐀𝗹𝗹𝘆𝗯𝗼𝘁 𝐌𝗲𝗻𝘂`',
@@ -257,7 +266,7 @@ function renderMainMenu(
     `> ⟐┃ Uptime : *${formatUptime(process.uptime())}*`,
     `> ⟐┃ Versi : *v${BOT_VERSION}*`,
     '',
-    `_Buka tombol *Menu* di bawah atau ketik *${prefix}menu <kata kunci>*_`,
+    `_Buka tombol *Menu* di bawah atau ketik *${prefix}menu <kata kunci>*_${oocNote}`,
   ].join('\n')
 }
 

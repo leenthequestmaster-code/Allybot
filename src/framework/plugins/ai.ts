@@ -601,6 +601,16 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         if (!detection.triggered) return
 
         const senderJid = message.senderJid ?? message.remoteJid
+        if (isGroupJid(message.remoteJid) && typeof context.services?.has === 'function' && context.services.has('gatekeeper')) {
+          const gk = context.services.get('gatekeeper') as {
+            isOwner?: (jid: string) => boolean
+            getContextPolicy?: (jid: string) => string
+          }
+          const policy = gk.getContextPolicy?.(message.remoteJid)
+          if (!gk.isOwner?.(senderJid) && (policy === 'silent' || policy === 'moderator_only')) {
+            return
+          }
+        }
 
         // Guard: If user is replying to a chess board or playing in an active chess game, do NOT hijack with AI Chlona
         if (detection.triggerKind === 'reply') {

@@ -48,6 +48,7 @@ test('GatekeeperService: gate modes, official groups, and shadowban', async () =
     assert.equal(list[0].jid, officialGroupJid)
     assert.equal(list[0].name, 'Allyssea Roleplay')
     assert.equal(list[0].groupKind, 'rp')
+    assert.equal(gk.getContextPolicy(officialGroupJid), 'moderator_only')
 
     // Silence group
     assert.equal(gk.isGroupSilenced(officialGroupJid), false)
@@ -367,6 +368,128 @@ test('Gatekeeper + ApplicationFramework E2E simulation: unofficial group deaf br
     sent.length = 0; pingRuns = 0
     await emitMsg({ id: 's8', remoteJid: LIAR_GROUP, senderJid: ownerJid, text: '!ping' })
     assert.equal(pingRuns, 1)
+  } finally {
+    await framework.stop().catch(() => {})
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('Allybot Group_Context policies: RP moderator_only vs OOC ooc_limited vs Bot Room full vs Announcement silent', async () => {
+  const { ApplicationFramework } = await import('../dist/framework/application.js')
+  const dir = mkdtempSync(join(tmpdir(), 'allybot-ctx-policy-'))
+  const dbPath = join(dir, 'ctx.sqlite')
+  const OOC_GROUP = '120363990000000010@g.us'
+  const RP_GROUP = '120363990000000011@g.us'
+  const BOT_GROUP = '120363990000000012@g.us'
+  const ANN_GROUP = '120363990000000013@g.us'
+  const OWNER = '6283197859955@s.whatsapp.net'
+  const MEMBER = '6281111222333@s.whatsapp.net'
+
+  const sent = []
+  let warnRuns = 0
+  let pinRuns = 0
+  let aiRuns = 0
+  const msgListeners = new Set()
+
+  const mockWa = {
+    isConnected: true,
+    userJid: '6289999999999@s.whatsapp.net',
+    onMessage(cb) { msgListeners.add(cb); return () => msgListeners.delete(cb) },
+    onGroupParticipantUpdate() { return () => {} },
+    onConnectionState() { return () => {} },
+    async start() {},
+    async close() {},
+    async sendText(remoteJid, text) { sent.push({ remoteJid, text }) },
+    async getGroupMetadata(jid) {
+      return { jid, subject: 'Group', participants: [{ jid: MEMBER, role: 'member' }] }
+    },
+    async getGroupInviteLink() { return 'https://chat.whatsapp.com/J9TKYBfvTtt4zLRBOHHNVd' },
+  }
+
+  const framework = new ApplicationFramework({
+    commandPrefix: '!',
+    defaultCooldownMs: 0,
+    botOwnerJid: OWNER,
+    databasePath: dbPath,
+    officialOocGroupJid: OOC_GROUP,
+    officialOocInviteLink: 'https://chat.whatsapp.com/J9TKYBfvTtt4zLRBOHHNVd',
+    officialGroupJids: [OOC_GROUP, RP_GROUP, BOT_GROUP, ANN_GROUP],
+  }, logger, mockWa)
+
+  const gk = new GatekeeperService(dbPath, logger, OWNER, { whatsapp: mockWa })
+  framework.registerService(gk)
+  framework.registerPlugin({
+    name: 'ctx-test-commands',
+    version: '1.0.0',
+    load(ctx) {
+      ctx.messageGates.register('gatekeeper-guard', async (msg) => {
+        const res = await gk.evaluateMessage(msg, mockWa)
+        if (!res.allowed) {
+          if (res.replyText) await mockWa.sendText(msg.remoteJid, res.replyText)
+          return { allowed: false, reason: res.reason }
+        }
+        return { allowed: true }
+      })
+      ctx.commands.register({
+        name: 'warn', category: 'moderation', description: 'Warn user',
+        handler: async (c) => { warnRuns += 1; await c.reply('warned') },
+      })
+      ctx.commands.register({
+        name: 'pin', category: 'tools', description: 'Search pin',
+        handler: async (c) => { pinRuns += 1; await c.reply('pin ok') },
+      })
+      ctx.commands.register({
+        name: 'ai', category: 'tools', description: 'Ask Chlona',
+        handler: async (c) => { aiRuns += 1; await c.reply('ai ok') },
+      })
+    },
+  })
+
+  await framework.start()
+  try {
+    gk.setGateMode('strict')
+    gk.registerGroup(OOC_GROUP, 'OOC Talk', OWNER, 'ooc')
+    gk.setOocGroup(OOC_GROUP)
+    gk.registerGroup(RP_GROUP, '◈ Landmark RP', OWNER, 'rp')
+    gk.registerGroup(BOT_GROUP, 'Voice & Bot Room', OWNER, 'bot_room')
+    gk.registerGroup(ANN_GROUP, 'Announcements', OWNER, 'announcement')
+    gk.setGroupSilenced(ANN_GROUP, true)
+    await gk.syncGroupMembers(mockWa)
+
+    const dispatch = async (remoteJid, text) => {
+      const msg = { id: `id-${Math.random()}`, remoteJid, senderJid: MEMBER, text, timestamp: Date.now(), fromMe: false }
+      for (const cb of msgListeners) await cb(msg)
+    }
+
+    // 1. RP Group (moderator_only): !pin, !ai & typo are silently dropped; !warn works
+    await dispatch(RP_GROUP, '!pin anime')
+    await dispatch(RP_GROUP, '!ai halo')
+    await dispatch(RP_GROUP, '!wran') // typo must be silent
+    assert.equal(pinRuns, 0)
+    assert.equal(aiRuns, 0)
+    assert.equal(sent.length, 0)
+
+    await dispatch(RP_GROUP, '!warn @user')
+    assert.equal(warnRuns, 1)
+
+    // 2. OOC Group (ooc_limited): !ai & !warn work; !pin blocked with Voice & Bot Room notice
+    sent.length = 0
+    await dispatch(OOC_GROUP, '!ai halo')
+    assert.equal(aiRuns, 1)
+    await dispatch(OOC_GROUP, '!pin anime')
+    assert.equal(pinRuns, 0)
+    assert.match(sent.at(-1)?.text ?? '', /Voice & Bot Room/)
+
+    // 3. Bot Room (full): !pin works freely
+    sent.length = 0
+    await dispatch(BOT_GROUP, '!pin anime')
+    assert.equal(pinRuns, 1)
+
+    // 4. Announcement (silent): !warn also dropped silently
+    sent.length = 0
+    await dispatch(ANN_GROUP, '!warn @user')
+    assert.equal(warnRuns, 1)
+    assert.equal(sent.length, 0)
   } finally {
     await framework.stop().catch(() => {})
     rmSync(dir, { recursive: true, force: true })

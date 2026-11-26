@@ -121,6 +121,17 @@ export function createWelcomeLeavePlugin(whatsapp: WhatsAppPort): Plugin {
       context.events.on('group.participants.changed', async (event) => {
         if (event.action !== 'add' && event.action !== 'remove') return
 
+        // Modul welcome_leave_ooc hanya boleh aktif di grup bertipe OOC
+        if (typeof context.services?.has === 'function' && context.services.has('gatekeeper')) {
+          const gk = context.services.get('gatekeeper') as {
+            isGroupOfficial?: (jid: string) => boolean
+            getGroupKind?: (jid: string) => string
+          }
+          if (gk.isGroupOfficial?.(event.groupJid) && gk.getGroupKind?.(event.groupJid) !== 'ooc') {
+            return
+          }
+        }
+
         // Jangan terpicu untuk bot sendiri saat join/leave
         if (whatsapp.userJid) {
           const botBare = jidNormalizedUser(whatsapp.userJid)
