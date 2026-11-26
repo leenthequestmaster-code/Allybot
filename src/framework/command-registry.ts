@@ -177,8 +177,13 @@ export class CommandRegistry implements CommandRegistryLike {
         const oocJid = this.config.officialOocGroupJid
         const officialGroups = new Set([oocJid, ...(this.config.officialGroupJids ?? [])])
         const isOfficialGroup = isGroup && officialGroups.has(message.remoteJid)
+        const hasActiveGatekeeper = this.services.has('gatekeeper') &&
+          (this.services.get('gatekeeper') as { getGateMode?: () => string }).getGateMode?.() !== 'permissive'
 
-        if (!isOfficialGroup) {
+        // When Gatekeeper is active on private DMs, 12h Guest Trial + funnel is managed by GatekeeperService
+        const skipDmForGatekeeperTrial = !isGroup && hasActiveGatekeeper
+
+        if (!isOfficialGroup && !skipDmForGatekeeperTrial) {
           const actorJid = message.senderJid ?? message.remoteJid
           const isMember = await this.isOocMember(oocJid, actorJid)
           if (!isMember) {

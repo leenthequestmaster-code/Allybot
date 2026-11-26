@@ -349,6 +349,10 @@ export class GatekeeperService implements Service {
     return this.gateMode
   }
 
+  public getWhatsApp(): WhatsAppPort | undefined {
+    return this.options.whatsapp
+  }
+
   public setGateMode(mode: GateMode): void {
     this.gateMode = mode
     const db = this.database()
@@ -537,7 +541,7 @@ export class GatekeeperService implements Service {
     }
 
     // Sender is not in official member set
-    const text = message.text?.trim() ?? ''
+    const text = (message.text ?? message.buttonId)?.trim() ?? ''
     const commandName = this.extractCommandName(text)
 
     // Regular DM chatter from non-member without command -> silent drop
@@ -616,7 +620,7 @@ export class GatekeeperService implements Service {
   }
 
   private extractCommandName(text: string): string | undefined {
-    if (!text.startsWith('!')) return undefined
+    if (!text.startsWith('!') && !text.startsWith('.')) return undefined
     const parts = text.slice(1).trim().split(/\s+/)
     const cmd = parts[0]?.toLowerCase()
     return cmd && /^[a-z0-9_-]+$/.test(cmd) ? cmd : undefined

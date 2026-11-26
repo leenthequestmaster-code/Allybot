@@ -485,6 +485,14 @@ function renderKeywordSearchMenu(
   ].join('\n')
 }
 
+function buildOwnerChatUrl(botOwnerJid?: string): string | undefined {
+  if (!botOwnerJid) return undefined
+  const localPart = botOwnerJid.split('@')[0]?.split(':')[0] ?? ''
+  const digits = localPart.replace(/[^0-9]/g, '')
+  if (digits.length < 8) return undefined
+  return `https://wa.me/${digits}`
+}
+
 function buildCategoryListOptions(
   buttonText: string,
   sectionTitle: string,
@@ -536,30 +544,55 @@ async function sendMenu(
     }
 
     const availableCategories = options.categories ?? []
-    if (availableCategories.length > 0) {
-      builder.list(buildCategoryListOptions('📋 List Command', 'Pilih Kategori Menu', availableCategories, prefix))
+    const categoryRows = availableCategories.slice(0, 10).map((cat, idx) => {
+      const { icon, label } = presentationFor(cat.name)
+      return {
+        id: `${prefix}menu ${idx + 1}`,
+        title: `[${idx + 1}] ${icon} ${label}`.slice(0, 24),
+        description: `${cat.commands.length} command tersedia`,
+      }
+    })
+    const infoRows = [
+      { id: `${prefix}about`, title: 'ℹ️ Info Bot', description: 'Profil dan fitur utama Allybot' },
+      { id: `${prefix}botprofile`, title: '🤖 Profil Bot', description: 'Identitas resmi & kontak pengembang' },
+      { id: `${prefix}support`, title: '🛟 Bantuan & Support', description: 'Pusat bantuan kendala bot' },
+      { id: `${prefix}ping`, title: '⚡ Ping & Latensi', description: 'Cek kecepatan respons bot' },
+    ].slice(0, Math.max(0, 10 - categoryRows.length))
+
+    const listSections = [
+      ...(categoryRows.length > 0 ? [{ title: 'Pilih Kategori Menu', rows: categoryRows }] : []),
+      ...(infoRows.length > 0 ? [{ title: 'Informasi & Utilitas Bot', rows: infoRows }] : []),
+    ]
+    if (listSections.length > 0) {
+      builder.list({
+        buttonText: '📋 Daftar Menu',
+        sections: listSections,
+      })
     }
 
-    builder.list({
-      buttonText: 'ℹ️ Information Bot',
-      sections: [
-        {
-          title: 'Informasi & Utilitas Bot',
-          rows: [
-            { id: `${prefix}about`, title: 'ℹ️ Info Bot', description: 'Profil dan fitur utama Allybot' },
-            { id: `${prefix}botprofile`, title: '🤖 Profil Bot', description: 'Identitas resmi & kontak pengembang' },
-            { id: `${prefix}support`, title: '🛟 Bantuan & Support', description: 'Pusat bantuan kendala bot' },
-            { id: `${prefix}ping`, title: '⚡ Ping & Latensi', description: 'Cek kecepatan respons bot' },
-          ],
-        },
-      ],
-    })
+    const ownerUrl = buildOwnerChatUrl(commandContext.config.botOwnerJid)
+    if (ownerUrl) {
+      builder.button({
+        type: 'url',
+        text: '👤 Chat Owner',
+        url: ownerUrl,
+      })
+    }
 
-    const inviteUrl = commandContext.config.officialOocInviteLink?.trim()
+    let inviteUrl = commandContext.config.officialOocInviteLink?.trim()
+    if ((!inviteUrl || !inviteUrl.startsWith('https://')) && commandContext.services.has('gatekeeper')) {
+      try {
+        const gk = (commandContext.services.get('gatekeeper') as { resolveLiveOocLink?: (wa?: unknown) => Promise<string> })
+        const resolved = await gk.resolveLiveOocLink?.(commandContext.whatsapp)
+        if (resolved && resolved.startsWith('https://') && !resolved.includes('Placeholder')) {
+          inviteUrl = resolved
+        }
+      } catch {}
+    }
     if (inviteUrl && inviteUrl.startsWith('https://')) {
       builder.button({
         type: 'url',
-        text: '🏛️ Grup Resmi',
+        text: '💬 Grup Official Allyssea',
         url: inviteUrl,
       })
     }

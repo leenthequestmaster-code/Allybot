@@ -87,6 +87,42 @@ export const remoteOpsPlugin: Plugin = {
       return { allowed: true }
     })
 
+    // 0b. Auto-sync OOC & Official Group members on connect and participant changes
+    context.events.on('connection.changed', async (event: unknown) => {
+      const state = event as { status?: string }
+      if (state?.status !== 'connected' || !context.services.has('gatekeeper')) return
+      try {
+        const gk = context.services.get<GatekeeperService>('gatekeeper')
+        const wa = gk.getWhatsApp()
+        if (wa) {
+          const count = await gk.syncGroupMembers(wa)
+          context.logger.info({ memberCount: count }, 'Gatekeeper auto-synced official community members on connect')
+        }
+      } catch (err) {
+        context.logger.warn({ err }, 'Gatekeeper auto-sync on connect failed')
+      }
+    })
+
+    context.events.on('group.participants.changed', async (event: unknown) => {
+      if (!context.services.has('gatekeeper')) return
+      const update = event as { groupJid?: string; action?: string; participantJids?: readonly string[] }
+      if (!update?.groupJid) return
+      try {
+        const gk = context.services.get<GatekeeperService>('gatekeeper')
+        if (!gk.isGroupOfficial(update.groupJid)) return
+        if (update.action === 'add' && update.participantJids?.length) {
+          gk.addOfficialMembers(update.participantJids)
+        } else if (update.action === 'remove' || update.action === 'leave') {
+          const wa = gk.getWhatsApp()
+          if (wa) {
+            await gk.syncGroupMembers(wa)
+          }
+        }
+      } catch (err) {
+        context.logger.debug({ err, groupJid: update.groupJid }, 'Gatekeeper participant sync hook failed')
+      }
+    })
+
     // 1. !vps / !host / !sysinfo
     context.commands.register({
       name: 'vps',

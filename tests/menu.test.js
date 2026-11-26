@@ -198,8 +198,11 @@ test('menu mengikuti effective prefix tanpa mengandalkan nama kategori', async (
   assert.match(whatsapp.sent[1].text, /##ping/)
 })
 
-test('!menu utama menggunakan multi single_select list di posisi awal bottom-sheet & cta_url kondisional', async () => {
-  const { registry, relayed } = socketWhatsapp({ officialOocInviteLink: 'https://chat.whatsapp.com/TestInvite123' })
+test('!menu utama menampilkan bar berjejer: Daftar Menu, Chat Owner & Grup Official Allyssea', async () => {
+  const { registry, relayed } = socketWhatsapp({
+    botOwnerJid: '6283197859955@s.whatsapp.net',
+    officialOocInviteLink: 'https://chat.whatsapp.com/TestInvite123',
+  })
   registerCommand(registry, 'ping', 'general', 'Check bot latency')
   await registry.dispatch(message('interactive-menu', '120363012345678907@g.us', '!menu'))
 
@@ -210,22 +213,24 @@ test('!menu utama menggunakan multi single_select list di posisi awal bottom-she
   assert.doesNotMatch(im.body?.text, /Daftar Kategori/)
   const buttons = im.nativeFlowMessage?.buttons ?? []
   assert.equal(buttons.length, 3)
-  assert.equal(buttons[0]?.name, 'single_select')
-  assert.equal(buttons[1]?.name, 'single_select')
-  assert.equal(buttons[2]?.name, 'cta_url')
-  assert.equal(JSON.parse(buttons[0]?.buttonParamsJson ?? '{}').title, '📋 List Command')
-  assert.equal(JSON.parse(buttons[1]?.buttonParamsJson ?? '{}').title, 'ℹ️ Information Bot')
-  assert.equal(JSON.parse(buttons[2]?.buttonParamsJson ?? '{}').display_text, '🏛️ Grup Resmi')
+  assert.deepEqual(buttons.map((b) => b.name), ['single_select', 'cta_url', 'cta_url'])
+  const listParams = JSON.parse(buttons[0]?.buttonParamsJson ?? '{}')
+  assert.equal(listParams.title, '📋 Daftar Menu')
+  assert.equal(listParams.sections.length, 2)
+  assert.equal(JSON.parse(buttons[1]?.buttonParamsJson ?? '{}').display_text, '👤 Chat Owner')
+  assert.equal(JSON.parse(buttons[1]?.buttonParamsJson ?? '{}').url, 'https://wa.me/6283197859955')
+  assert.equal(JSON.parse(buttons[2]?.buttonParamsJson ?? '{}').display_text, '💬 Grup Official Allyssea')
+  assert.equal(JSON.parse(buttons[2]?.buttonParamsJson ?? '{}').url, 'https://chat.whatsapp.com/TestInvite123')
 })
 
-test('!menu tanpa officialOocInviteLink tidak memasang tombol cta_url mati', async () => {
-  const { registry, relayed } = socketWhatsapp({ officialOocInviteLink: '' })
+test('!menu tanpa officialOocInviteLink dan botOwnerJid tidak memasang tombol cta_url mati', async () => {
+  const { registry, relayed } = socketWhatsapp({ botOwnerJid: '', officialOocInviteLink: '' })
   registerCommand(registry, 'ping', 'general', 'Check bot latency')
   await registry.dispatch(message('interactive-menu-no-url', '120363012345678908@g.us', '!menu'))
 
   assert.equal(relayed.length, 1)
   const buttons = relayed[0].msg.interactiveMessage?.nativeFlowMessage?.buttons ?? []
-  assert.deepEqual(buttons.map((b) => b.name), ['single_select', 'single_select'])
+  assert.deepEqual(buttons.map((b) => b.name), ['single_select'])
 })
 
 test('!menu <category> menampilkan deskripsi singkat per command, list ganti kategori & tombol Menu Utama', async () => {

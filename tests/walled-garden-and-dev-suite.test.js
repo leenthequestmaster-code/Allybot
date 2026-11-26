@@ -126,6 +126,13 @@ test('GatekeeperService: Walled-Garden access evaluation and 12h Guest Trial', a
     )
     assert.equal(firstCmdResult.allowed, true)
 
+    // 7. Dot prefix & interactive buttonId commands also recognized cleanly
+    const dotCmdResult = await gk.evaluateMessage(
+      { id: '7', remoteJid: '628999999999@s.whatsapp.net', senderJid: '628999999999@s.whatsapp.net', buttonId: '.menu', timestamp: Date.now(), fromMe: false },
+      mockWa
+    )
+    assert.equal(dotCmdResult.allowed, true)
+
     gk.shutdown({ logger })
   } finally {
     rmSync(dir, { recursive: true, force: true })
