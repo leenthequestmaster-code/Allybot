@@ -122,9 +122,13 @@ export class ApplicationFramework {
       }),
       this.whatsapp.onGroupParticipantUpdate(async (event) => {
         if (this.services.has('gatekeeper')) {
-          const gk = this.services.get('gatekeeper') as { getGateMode?: () => string; isGroupOfficial?: (jid: string) => boolean }
-          if (gk.getGateMode?.() !== 'permissive' && !gk.isGroupOfficial?.(event.groupJid)) {
-            this.logger.debug({ groupJid: event.groupJid, action: event.action }, 'participant update blocked for unofficial group')
+          const gk = this.services.get('gatekeeper') as {
+            getGateMode?: () => string
+            isGroupOfficial?: (jid: string) => boolean
+            isGroupSilenced?: (jid: string) => boolean
+          }
+          if (gk.getGateMode?.() !== 'permissive' && (!gk.isGroupOfficial?.(event.groupJid) || gk.isGroupSilenced?.(event.groupJid))) {
+            this.logger.debug({ groupJid: event.groupJid, action: event.action }, 'participant update blocked for unofficial or silenced group')
             return
           }
         }

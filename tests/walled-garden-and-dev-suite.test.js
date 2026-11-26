@@ -317,9 +317,13 @@ test('Gatekeeper + ApplicationFramework E2E simulation: unofficial group deaf br
     assert.equal(pingRuns, 0)
     assert.equal(sent.length, 0)
 
-    // 2. Participant update di grup luar -> diblokir sebelum welcome/leave/antiraid
+    // 2. Participant update di grup luar maupun grup silenced (Announcements) -> diblokir sebelum welcome/leave/antiraid
+    const ANNOUNCE_GROUP = '120363421413903577@g.us'
+    gk.registerGroup(ANNOUNCE_GROUP, 'Announcements', ownerJid)
+    gk.silenceGroup(ANNOUNCE_GROUP, true)
     participantEventsSeen = 0
     await emitPart({ groupJid: LIAR_GROUP, action: 'add', participantJids: [STRANGER_PN] })
+    await emitPart({ groupJid: ANNOUNCE_GROUP, action: 'add', participantJids: [STRANGER_PN] })
     assert.equal(participantEventsSeen, 0)
 
     // 3. Grup resmi selain OOC, user non-OOC -> ditolak dengan link OOC
