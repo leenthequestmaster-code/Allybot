@@ -212,3 +212,157 @@ test('DeveloperModeService: storage matrix, log redaction, and V8 memory', async
     rmSync(dir, { recursive: true, force: true })
   }
 })
+
+test('Gatekeeper + ApplicationFramework E2E simulation: unofficial group deaf brick, participant guard, LID/PN OOC check & 12h DM trial', async () => {
+  const { ApplicationFramework } = await import('../dist/framework/application.js')
+  const { remoteOpsPlugin } = await import('../dist/framework/plugins/remote-ops.js')
+  const Database = (await import('better-sqlite3')).default
+  const dir = mkdtempSync(join(tmpdir(), 'gk-e2e-sim-'))
+  const dbPath = join(dir, 'sim.sqlite')
+
+  const OOC_GROUP = '120363405355522626@g.us'
+  const RP_GROUP = '120363405381639593@g.us'
+  const LIAR_GROUP = '999999999999999999@g.us'
+  const MEMBER_PN = '628111111111@s.whatsapp.net'
+  const MEMBER_LID = '777777777777@lid'
+  const STRANGER_PN = '628222222222@s.whatsapp.net'
+  const EXPIRED_PN = '628333333333@s.whatsapp.net'
+
+  const sent = []
+  const msgListeners = new Set()
+  const partListeners = new Set()
+  const connListeners = new Set()
+
+  const simWa = {
+    isConnected: true,
+    userJid: '6285181696890@s.whatsapp.net',
+    onMessage(cb) { msgListeners.add(cb); return () => msgListeners.delete(cb) },
+    onGroupParticipantUpdate(cb) { partListeners.add(cb); return () => partListeners.delete(cb) },
+    onConnectionState(cb) { connListeners.add(cb); return () => connListeners.delete(cb) },
+    async start() {},
+    async close() {},
+    async sendText(remoteJid, text) { sent.push({ remoteJid, text }) },
+    async getGroupMetadata(jid) {
+      if (jid === OOC_GROUP) {
+        return { jid, subject: 'The Horizon - OOC Room', participants: [{ jid: MEMBER_LID, role: 'member' }] }
+      }
+      if (jid === RP_GROUP) {
+        return { jid, subject: 'Pillars Of Allyssea', participants: [{ jid: MEMBER_PN, role: 'member' }, { jid: STRANGER_PN, role: 'member' }] }
+      }
+      throw new Error('not-in-group')
+    },
+    async getGroupInviteLink() { throw new Error('not-admin') },
+  }
+
+  const framework = new ApplicationFramework({
+    commandPrefix: '!',
+    defaultCooldownMs: 0,
+    botOwnerJid: ownerJid,
+    databasePath: dbPath,
+    officialOocGroupJid: OOC_GROUP,
+    officialOocInviteLink: 'https://chat.whatsapp.com/J9TKYBfvTtt4zLRBOHHNVd',
+  }, logger, simWa)
+
+  const gk = new GatekeeperService(dbPath, logger, ownerJid, { whatsapp: simWa })
+  framework.registerService(gk)
+  framework.registerPlugin(remoteOpsPlugin)
+
+  let pingRuns = 0
+  let participantEventsSeen = 0
+  framework.registerPlugin({
+    name: 'sim-probe',
+    load(ctx) {
+      ctx.commands.register({
+        name: 'ping',
+        scope: 'both',
+        handler: async (c) => { pingRuns++; await c.reply('pong') },
+      })
+      ctx.commands.register({
+        name: 'suggest',
+        scope: 'private',
+        handler: async (c) => { await c.reply('suggest ok') },
+      })
+      ctx.commands.register({
+        name: 'menfess',
+        scope: 'private',
+        handler: async (c) => { await c.reply('menfess ok') },
+      })
+      ctx.events.on('group.participants.changed', () => { participantEventsSeen++ })
+    },
+  })
+
+  try {
+    await framework.start()
+    gk.setGateMode('strict')
+    gk.registerGroup(OOC_GROUP, 'The Horizon - OOC Room', ownerJid)
+    gk.registerGroup(RP_GROUP, 'Pillars Of Allyssea', ownerJid)
+    gk.setOocGroup(OOC_GROUP)
+    gk.setOocStaticLink('https://chat.whatsapp.com/J9TKYBfvTtt4zLRBOHHNVd')
+
+    const rawDb = new Database(dbPath)
+    rawDb.prepare('INSERT INTO identity_map (lid_jid, phone_jid, updated_at) VALUES (?, ?, unixepoch())').run(MEMBER_LID, MEMBER_PN)
+    rawDb.prepare('INSERT INTO trial_guests (canonical_id, phone_jid, started_at, expires_at, command_count, last_seen_at) VALUES (?, ?, 100, 200, 3, 200)').run(EXPIRED_PN, EXPIRED_PN)
+    rawDb.close()
+
+    for (const cb of connListeners) await cb({ status: 'connected' })
+    await new Promise((r) => setTimeout(r, 50))
+
+    const emitMsg = async (m) => { for (const cb of msgListeners) await cb({ timestamp: Date.now(), fromMe: false, ...m }) }
+    const emitPart = async (e) => { for (const cb of partListeners) await cb({ at: Date.now(), ...e }) }
+
+    // 1. Grup luar non-Allyssea -> silent drop total
+    sent.length = 0; pingRuns = 0
+    await emitMsg({ id: 's1', remoteJid: LIAR_GROUP, senderJid: STRANGER_PN, text: '!ping' })
+    await emitMsg({ id: 's1b', remoteJid: LIAR_GROUP, senderJid: MEMBER_PN, text: '!ping' })
+    assert.equal(pingRuns, 0)
+    assert.equal(sent.length, 0)
+
+    // 2. Participant update di grup luar -> diblokir sebelum welcome/leave/antiraid
+    participantEventsSeen = 0
+    await emitPart({ groupJid: LIAR_GROUP, action: 'add', participantJids: [STRANGER_PN] })
+    assert.equal(participantEventsSeen, 0)
+
+    // 3. Grup resmi selain OOC, user non-OOC -> ditolak dengan link OOC
+    sent.length = 0; pingRuns = 0
+    await emitMsg({ id: 's3', remoteJid: RP_GROUP, senderJid: STRANGER_PN, text: '!ping' })
+    assert.equal(pingRuns, 0)
+    assert.match(sent.at(-1)?.text ?? '', /J9TKYBfvTtt4zLRBOHHNVd/)
+
+    // 4. Grup resmi selain OOC, member OOC terhubung via LID<->PN dinamis -> diizinkan
+    sent.length = 0; pingRuns = 0
+    await emitMsg({ id: 's4', remoteJid: RP_GROUP, senderJid: MEMBER_PN, text: '!ping' })
+    assert.equal(pingRuns, 1)
+
+    // 5. PC non-OOC chat biasa -> silent drop
+    sent.length = 0
+    await emitMsg({ id: 's5', remoteJid: STRANGER_PN, senderJid: STRANGER_PN, text: 'halo' })
+    assert.equal(sent.length, 0)
+
+    // 6. PC non-OOC command pertama -> 12h Guest Trial jalan
+    sent.length = 0; pingRuns = 0
+    await emitMsg({ id: 's6', remoteJid: STRANGER_PN, senderJid: STRANGER_PN, text: '!ping' })
+    assert.equal(pingRuns, 1)
+
+    // 7. PC non-OOC !suggest diblokir, !menfess diizinkan, trial expired diblokir
+    sent.length = 0
+    await emitMsg({ id: 's7a', remoteJid: STRANGER_PN, senderJid: STRANGER_PN, text: '!suggest fitur' })
+    assert.match(sent.at(-1)?.text ?? '', /J9TKYBfvTtt4zLRBOHHNVd/)
+
+    sent.length = 0
+    await emitMsg({ id: 's7b', remoteJid: STRANGER_PN, senderJid: STRANGER_PN, text: '!menfess halo' })
+    assert.equal(sent.at(-1)?.text, 'menfess ok')
+
+    sent.length = 0; pingRuns = 0
+    await emitMsg({ id: 's7c', remoteJid: EXPIRED_PN, senderJid: EXPIRED_PN, text: '!ping' })
+    assert.equal(pingRuns, 0)
+    assert.match(sent.at(-1)?.text ?? '', /J9TKYBfvTtt4zLRBOHHNVd/)
+
+    // 8. Owner di grup luar tetap bypass
+    sent.length = 0; pingRuns = 0
+    await emitMsg({ id: 's8', remoteJid: LIAR_GROUP, senderJid: ownerJid, text: '!ping' })
+    assert.equal(pingRuns, 1)
+  } finally {
+    await framework.stop().catch(() => {})
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

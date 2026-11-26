@@ -109,7 +109,9 @@ export const remoteOpsPlugin: Plugin = {
       if (!update?.groupJid) return
       try {
         const gk = context.services.get<GatekeeperService>('gatekeeper')
-        if (!gk.isGroupOfficial(update.groupJid)) return
+        const oocJid = gk.getOocGroupJid()
+        const isAuthoritative = oocJid ? update.groupJid === oocJid : gk.isGroupOfficial(update.groupJid)
+        if (!isAuthoritative) return
         if (update.action === 'add' && update.participantJids?.length) {
           gk.addOfficialMembers(update.participantJids)
         } else if (update.action === 'remove' || update.action === 'leave') {

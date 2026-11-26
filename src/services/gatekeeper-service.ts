@@ -214,6 +214,37 @@ export class GatekeeperService implements Service {
     }
   }
 
+  private lookupIdentityMapping(jid: string): string | undefined {
+    const bare = jid.split(':')[0] ?? jid
+    const cached = this.lidToPhoneMap.get(jid) ?? this.phoneToLidMap.get(jid)
+      ?? this.lidToPhoneMap.get(bare) ?? this.phoneToLidMap.get(bare)
+    if (cached) return cached
+    if (!this.db?.open) return undefined
+    try {
+      const row = this.db.prepare(
+        'SELECT lid_jid, phone_jid FROM identity_map WHERE lid_jid = ? OR phone_jid = ? LIMIT 1',
+      ).get(bare, bare) as { lid_jid: string; phone_jid: string } | undefined
+      if (row) {
+        this.lidToPhoneMap.set(row.lid_jid, row.phone_jid)
+        this.phoneToLidMap.set(row.phone_jid, row.lid_jid)
+        return row.lid_jid === bare ? row.phone_jid : row.lid_jid
+      }
+    } catch {}
+    return undefined
+  }
+
+  public getIdentityAliases(jid?: string): string[] {
+    if (!jid) return []
+    const bare = jid.split(':')[0] ?? jid
+    const out = new Set<string>([jid, bare])
+    const mapped = this.lookupIdentityMapping(jid)
+    if (mapped) {
+      out.add(mapped)
+      out.add(mapped.split(':')[0] ?? mapped)
+    }
+    return [...out]
+  }
+
   public isOwner(jid?: string): boolean {
     if (!jid || !this.ownerJid) return false
     const cleanId = (val: string): string => {
@@ -227,7 +258,7 @@ export class GatekeeperService implements Service {
     // Primary owner or authorized tester
     if (cleanOwner === cleanSender || cleanSender === "6282145982720" || cleanSender === "249607007260899") return true
 
-    // Normalize JID lookups in identity maps
+    // Normalize JID lookups in identity maps (including live SQLite fallback)
     const candidates = [
       jid,
       jid.split(':')[0],
@@ -236,7 +267,7 @@ export class GatekeeperService implements Service {
     ].filter((c): c is string => Boolean(c))
 
     for (const cand of candidates) {
-      const mapped = this.lidToPhoneMap.get(cand) ?? this.phoneToLidMap.get(cand)
+      const mapped = this.lookupIdentityMapping(cand)
       if (mapped && cleanId(mapped) === cleanOwner) return true
     }
 
@@ -245,10 +276,9 @@ export class GatekeeperService implements Service {
 
   public isShadowbanned(jid?: string): boolean {
     if (!jid) return false
-    const bare = jid.split(':')[0]
-    if (this.shadowbanSet.has(jid) || this.shadowbanSet.has(bare)) return true
-    const mapped = this.lidToPhoneMap.get(jid) ?? this.phoneToLidMap.get(jid)
-    if (mapped && (this.shadowbanSet.has(mapped) || this.shadowbanSet.has(mapped.split(':')[0]))) return true
+    for (const alias of this.getIdentityAliases(jid)) {
+      if (this.shadowbanSet.has(alias)) return true
+    }
     return false
   }
 
@@ -318,10 +348,9 @@ export class GatekeeperService implements Service {
 
   public isOfficialMember(jid?: string): boolean {
     if (!jid) return false
-    const bare = jid.split(':')[0]
-    if (this.officialMembersSet.has(jid) || this.officialMembersSet.has(bare)) return true
-    const mapped = this.lidToPhoneMap.get(jid) ?? this.phoneToLidMap.get(jid)
-    if (mapped && (this.officialMembersSet.has(mapped) || this.officialMembersSet.has(mapped.split(':')[0]))) return true
+    for (const alias of this.getIdentityAliases(jid)) {
+      if (this.officialMembersSet.has(alias)) return true
+    }
     return false
   }
 
@@ -445,29 +474,49 @@ export class GatekeeperService implements Service {
     }))
   }
 
+  public getOocGroupJid(): string {
+    return this.oocGroupJid
+  }
+
   public async syncGroupMembers(whatsapp: WhatsAppPort): Promise<number> {
-    const nextMembers = new Set<string>()
-    for (const groupJid of this.officialGroupsSet) {
+    const oocMembers = new Set<string>()
+    const allCommunityMembers = new Set<string>()
+    let oocSynced = false
+
+    const groupsToScan = new Set(this.officialGroupsSet)
+    if (this.oocGroupJid) groupsToScan.add(this.oocGroupJid)
+
+    for (const groupJid of groupsToScan) {
       try {
         const metadata = await whatsapp.getGroupMetadata(groupJid)
         if (metadata && metadata.participants) {
+          const isHub = Boolean(this.oocGroupJid && groupJid === this.oocGroupJid)
+          if (isHub) oocSynced = true
           for (const p of metadata.participants) {
             if (p.jid) {
               const bare = p.jid.split(':')[0]
-              nextMembers.add(p.jid)
-              nextMembers.add(bare)
+              allCommunityMembers.add(p.jid)
+              allCommunityMembers.add(bare)
+              if (isHub) {
+                oocMembers.add(p.jid)
+                oocMembers.add(bare)
+              }
             }
           }
-          this.database().prepare(
-            'UPDATE community_groups SET name = ?, member_count = ?, updated_at = unixepoch() WHERE jid = ?',
-          ).run(metadata.subject, metadata.participants.length, groupJid)
+          if (this.officialGroupsSet.has(groupJid)) {
+            this.database().prepare(
+              'UPDATE community_groups SET name = ?, member_count = ?, updated_at = unixepoch() WHERE jid = ?',
+            ).run(metadata.subject, metadata.participants.length, groupJid)
+          }
         }
       } catch (err) {
         this.logger.debug({ groupJid, err }, 'unable to sync group metadata for official group')
       }
     }
+
+    const authoritativeMembers = oocSynced ? oocMembers : allCommunityMembers
     this.officialMembersSet.clear()
-    for (const m of nextMembers) {
+    for (const m of authoritativeMembers) {
       this.officialMembersSet.add(m)
     }
     return this.officialMembersSet.size
@@ -607,7 +656,7 @@ export class GatekeeperService implements Service {
 
     const oocLink = await this.resolveLiveOocLink(whatsapp)
     const funnelText = [
-      'Akses fitur privat Allybot khusus untuk anggota resmi Komunitas Allyssea. ✨',
+      'Akses fitur privat bot ini khusus untuk anggota resmi Komunitas Allyssea. ✨',
       'Yuk bergabung di grup OOC resmi kami untuk membuka akses penuh tanpa batas:',
       oocLink,
     ].join('\n\n')

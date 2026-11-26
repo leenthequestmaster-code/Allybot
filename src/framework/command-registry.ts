@@ -105,12 +105,21 @@ export class CommandRegistry implements CommandRegistryLike {
 
   private async isOocMember(oocJid: string, actorJid: string): Promise<boolean> {
     if (!this.whatsapp.getGroupMetadata) return true
+    const aliases = this.services.has('gatekeeper')
+      ? ((this.services.get('gatekeeper') as { getIdentityAliases?: (jid?: string) => string[] }).getIdentityAliases?.(actorJid) ?? [actorJid])
+      : [actorJid]
     try {
       const meta = await this.whatsapp.getGroupMetadata(oocJid)
       if (!meta || !meta.participants) return false
-      return meta.participants.some((p) => isSameJid(p.jid, actorJid))
+      return meta.participants.some((p) => aliases.some((alias) => isSameJid(p.jid, alias)))
     } catch (err) {
       this.logger.warn({ err, oocJid, actorJid }, 'failed checking OOC group membership')
+      if (this.services.has('gatekeeper')) {
+        const gk = this.services.get('gatekeeper') as { isOfficialMember?: (jid?: string) => boolean }
+        if (typeof gk.isOfficialMember === 'function') {
+          return gk.isOfficialMember(actorJid)
+        }
+      }
       return false
     }
   }
