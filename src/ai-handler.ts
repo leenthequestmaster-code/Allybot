@@ -18,7 +18,7 @@ export const PRIMARY_MODEL = 'gemini-3.5-flash-lite'
 export const FALLBACK_MODEL = 'gemini-3.8-flash'
 export const MAX_AI_INPUT_LENGTH = 1_200
 export const MAX_AI_OUTPUT_LENGTH = 2_000
-export const MAX_AI_CONTEXT_TOKENS = 120_000
+export const MAX_AI_CONTEXT_TOKENS = 800_000
 export const DEFAULT_MAX_OUTPUT_TOKENS = 1_000
 export const AI_REQUEST_TIMEOUT_MS = 25_000
 

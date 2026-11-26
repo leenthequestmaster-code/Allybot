@@ -21,6 +21,7 @@
     "knip": "knip"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.96",
     "@cacheable/node-cache": "1.7.5",
     "@cedricdsst/twitter-video-downloader": "^0.1.0",
     "@modernized/fluent-ffmpeg": "^1.0.3",
@@ -30,6 +31,7 @@
     "@whiskeysockets/baileys": "7.0.0-rc14",
     "@zenaveline/scraper": "^1.4.9",
     "@zibot/scdl": "^0.1.6",
+    "ai": "^7.0.183",
     "better-sqlite3": "12.4.1",
     "cheerio": "^1.2.0",
     "chrono-node": "^2.10.3",

@@ -29,6 +29,9 @@ import { isSameJid } from '../../permissions.js'
 import { isGroupJid } from '../validation.js'
 import { GroupConfigurationService } from '../../services/group-configuration-service.js'
 import { AiMemoryService } from '../../services/ai-memory-service.js'
+import { AllybotMemoryService } from '../../services/allybot-memory-service.js'
+import { AllysseaAgentService } from '../../services/allyssea-agent-service.js'
+import { detectChlonaWake } from '../../services/chlona-wake-gate.js'
 import {
   buildPersonaSystemPrompt,
   type PersonaProfile,
@@ -308,56 +311,8 @@ function buildPublicMenuCatalogPrompt(context: PluginContext, message: CoreMessa
 function detectBotMentionOrReply(
   message: CoreMessage,
   whatsapp: WhatsAppPort | undefined,
-): { triggered: boolean; cleanText: string; triggerKind: 'mention' | 'reply' | 'audio' | 'none' } {
-  const rawText = message.text?.trim() ?? ''
-  const isAudio = message.media?.kind === 'audio'
-
-  const botJid = whatsapp?.userJid
-  const botLid = whatsapp?.userLid
-  const botPhone = botJid?.split('@')[0]?.split(':')[0]
-  const botLidBare = botLid?.split('@')[0]?.split(':')[0]
-
-  // 1. Check native WhatsApp @mention in mentionedJids
-  const mentionedBotNatively = (message.mentionedJids ?? []).some(
-    (jid) => (botJid && isSameJid(jid, botJid)) || (botLid && isSameJid(jid, botLid)),
-  )
-
-  // 2. Check text @Chlona / Chlona / @Allybot / @ally / @<botPhone> / @<botLid>
-  const textMentionRegex = new RegExp(
-    `(?:^|\\s)@?(?:chlona|allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b`,
-    'i',
-  )
-  const mentionedInText = textMentionRegex.test(rawText)
-
-  if (mentionedBotNatively || mentionedInText) {
-    const stripRegex = new RegExp(
-      `(?:^|\\s)@?(?:chlona|allybot|ally${botPhone ? `|${botPhone}` : ''}${botLidBare ? `|${botLidBare}` : ''})\\b[,:!\\s]*`,
-      'gi',
-    )
-    const cleaned = rawText.replace(stripRegex, ' ').replace(/\s+/g, ' ').trim()
-    return { triggered: true, cleanText: cleaned, triggerKind: 'mention' }
-  }
-
-  // 3. Check direct reply to bot's own message
-  const quotedSender = message.quotedSenderJid ?? message.rawQuotedSenderJid
-  const repliedToBotJid =
-    Boolean(quotedSender) &&
-    ((Boolean(botJid) && isSameJid(quotedSender, botJid)) || (Boolean(botLid) && isSameJid(quotedSender, botLid)))
-  const quotedLooksLikeAi = Boolean(
-    message.quotedText && /(?:Chlona|Allybot|\bAI\b|^🤖)/i.test(message.quotedText.trim()),
-  )
-
-  if (repliedToBotJid || (!quotedSender && quotedLooksLikeAi)) {
-    return { triggered: true, cleanText: rawText, triggerKind: isAudio ? 'audio' : 'reply' }
-  }
-
-  if (isAudio && !isGroupJid(message.remoteJid)) {
-    return { triggered: true, cleanText: '', triggerKind: 'audio' }
-  }
-
-  if (!rawText) return { triggered: false, cleanText: '', triggerKind: 'none' }
-
-  return { triggered: false, cleanText: rawText, triggerKind: 'none' }
+): { triggered: boolean; cleanText: string; triggerKind: 'mention' | 'reply' | 'audio' | 'dm' | 'none'; reason: string; mentionsBotToken: boolean } {
+  return detectChlonaWake(message, whatsapp)
 }
 
 export interface AiPluginOptions {
@@ -384,6 +339,42 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           if (!context.services.has('ai-memory')) return undefined
           try {
             return context.services.get<AiMemoryService>('ai-memory')
+          } catch {
+            return undefined
+          }
+        }
+        return undefined
+      }
+
+      const getAgentService = (): AllysseaAgentService | undefined => {
+        if (options.transport) return undefined
+        if (typeof context.services?.has === 'function' && context.services.has('allyssea-agent')) {
+          try {
+            const svc = context.services.get<AllysseaAgentService>('allyssea-agent')
+            return svc.isReady ? svc : undefined
+          } catch {
+            return undefined
+          }
+        }
+        return undefined
+      }
+
+      const getContextPolicyFor = (remoteJid: string): 'full' | 'ooc_limited' | 'moderator_only' | 'silent' => {
+        if (!isGroupJid(remoteJid)) return 'full'
+        if (typeof context.services?.has === 'function' && context.services.has('gatekeeper')) {
+          try {
+            const gk = context.services.get('gatekeeper') as { getContextPolicy?: (jid: string) => string }
+            const p = gk.getContextPolicy?.(remoteJid)
+            if (p === 'ooc_limited' || p === 'moderator_only' || p === 'silent') return p
+          } catch {}
+        }
+        return 'full'
+      }
+
+      const getLtmMemoryService = (): AllybotMemoryService | undefined => {
+        if (typeof context.services?.has === 'function' && context.services.has('allybot-memory')) {
+          try {
+            return context.services.get<AllybotMemoryService>('allybot-memory')
           } catch {
             return undefined
           }
@@ -506,21 +497,38 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
           try {
             await commandContext.sendPresence?.('composing')
-            const history = await memory?.getHistory(commandContext.message.remoteJid, senderJid)
-            const personaPrompt =
-              buildPersonaSystemPrompt(
-                {
-                  senderName: commandContext.message.pushName,
-                  isGroup: isGroupJid(commandContext.message.remoteJid),
-                  groupName: commandContext.message.groupName,
-                },
-                options.persona ?? DEFAULT_CHLONA_PERSONA,
-              ) + buildPublicMenuCatalogPrompt(context, commandContext.message)
+            const history = (await memory?.getHistory(commandContext.message.remoteJid, senderJid)) ?? []
+            const agentSvc = getAgentService()
+            let rawReply: string
+            if (agentSvc) {
+              const agentRes = await agentSvc.runMemberAgent({
+                message: commandContext.message,
+                instruction: finalPrompt,
+                prefix: commandContext.prefix,
+                contextPolicy: getContextPolicyFor(commandContext.message.remoteJid),
+                history,
+                persona: options.persona,
+                services: context.services,
+                commands: context.commands,
+                whatsapp: commandContext.whatsapp,
+              })
+              rawReply = agentRes.text
+            } else {
+              const personaPrompt =
+                buildPersonaSystemPrompt(
+                  {
+                    senderName: commandContext.message.pushName,
+                    isGroup: isGroupJid(commandContext.message.remoteJid),
+                    groupName: commandContext.message.groupName,
+                  },
+                  options.persona ?? DEFAULT_CHLONA_PERSONA,
+                ) + buildPublicMenuCatalogPrompt(context, commandContext.message)
 
-            const rawReply = await handler(finalPrompt, {
-              history,
-              systemPrompt: personaPrompt,
-            })
+              rawReply = await handler(finalPrompt, {
+                history,
+                systemPrompt: personaPrompt,
+              })
+            }
 
             // Check if the LLM routed the request to a public !menu command: [RUN_CMD: <name> <args>]
             const cmdMatch = rawReply.trim().match(/^\[RUN_CMD:\s*([a-z0-9_-]+)(?:\s+([^\]]*))?\]$/i)
@@ -598,6 +606,16 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         }
 
         const detection = detectBotMentionOrReply(message, whatsapp)
+        if (detection.mentionsBotToken && isGroupJid(message.remoteJid) && rawText) {
+          const ltm = getLtmMemoryService()
+          void ltm?.logWakeCorpus(
+            message.remoteJid,
+            message.senderJid ?? message.remoteJid,
+            rawText,
+            detection.triggered ? 'wake' : 'ignore',
+            detection.reason,
+          )
+        }
         if (!detection.triggered) return
 
         const senderJid = message.senderJid ?? message.remoteJid
@@ -767,21 +785,38 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
               ? `Rujukan pesan yang dibalas:\n"${message.quotedText.trim()}"\n\nPesan pengguna:\n${boundedInstruction}`
               : boundedInstruction
 
-          const history = await memory?.getHistory(message.remoteJid, senderJid)
-          const personaPrompt =
-            buildPersonaSystemPrompt(
-              {
-                senderName: message.pushName,
-                isGroup: isGroupJid(message.remoteJid),
-                groupName: message.groupName,
-              },
-              options.persona ?? DEFAULT_CHLONA_PERSONA,
-            ) + buildPublicMenuCatalogPrompt(context, message)
+          const history = (await memory?.getHistory(message.remoteJid, senderJid)) ?? []
+          const agentSvc = getAgentService()
+          let rawReply: string
+          if (agentSvc) {
+            const agentRes = await agentSvc.runMemberAgent({
+              message,
+              instruction: promptWithQuote.slice(0, MAX_AI_INPUT_LENGTH),
+              prefix,
+              contextPolicy: getContextPolicyFor(message.remoteJid),
+              history,
+              persona: options.persona,
+              services: context.services,
+              commands: context.commands,
+              whatsapp,
+            })
+            rawReply = agentRes.text
+          } else {
+            const personaPrompt =
+              buildPersonaSystemPrompt(
+                {
+                  senderName: message.pushName,
+                  isGroup: isGroupJid(message.remoteJid),
+                  groupName: message.groupName,
+                },
+                options.persona ?? DEFAULT_CHLONA_PERSONA,
+              ) + buildPublicMenuCatalogPrompt(context, message)
 
-          const rawReply = await handler(promptWithQuote.slice(0, MAX_AI_INPUT_LENGTH), {
-            history,
-            systemPrompt: personaPrompt,
-          })
+            rawReply = await handler(promptWithQuote.slice(0, MAX_AI_INPUT_LENGTH), {
+              history,
+              systemPrompt: personaPrompt,
+            })
+          }
 
           // Check if the LLM routed the request to a public !menu command: [RUN_CMD: <name> <args>]
           const cmdMatch = rawReply.trim().match(/^\[RUN_CMD:\s*([a-z0-9_-]+)(?:\s+([^\]]*))?\]$/i)

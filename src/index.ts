@@ -61,6 +61,10 @@ import { MinigamesService } from './services/minigames/index.js'
 import { createArcadePlugin } from './framework/plugins/arcade.js'
 import { ArcadeService } from './services/arcade/arcade-service.js'
 import { AiMemoryService } from './services/ai-memory-service.js'
+import { AllybotMemoryService } from './services/allybot-memory-service.js'
+import { AllysseaRpBridgeService } from './services/allyssea-rp-bridge.js'
+import { SandboxComputeService } from './services/sandbox-compute-service.js'
+import { AllysseaAgentService } from './services/allyssea-agent-service.js'
 import { AegisQueueService } from './services/aegis-queue/index.js'
 import { ReminderService } from './services/reminder-service.js'
 import { reminderPlugin } from './framework/plugins/reminder.js'
@@ -128,6 +132,28 @@ async function main(): Promise<void> {
   framework.registerService(new GroupModerationService(config.DATABASE_PATH, logger))
   framework.registerService(redis)
   framework.registerService(new AiMemoryService({ redis }))
+  const allybotMemory = new AllybotMemoryService({
+    postgresUrl: config.POSTGRES_ENABLED ? config.POSTGRES_URL : undefined,
+    logger,
+  })
+  framework.registerService(allybotMemory)
+  framework.registerService(
+    new AllysseaRpBridgeService({
+      postgresUrl: config.POSTGRES_ENABLED ? config.POSTGRES_URL : undefined,
+      landmarkSqlitePath: config.ALLY_RP_SQLITE_PATH,
+      logger,
+    }),
+  )
+  framework.registerService(new SandboxComputeService())
+  framework.registerService(
+    new AllysseaAgentService({
+      baseUrl: config.AI_BASE_URL,
+      modelId: config.AI_MODEL,
+      dailyTokenBudget: config.AI_DAILY_BUDGET_TOKENS,
+      archiveTokenBudget: config.AI_ARCHIVE_BUDGET_TOKENS,
+      logger,
+    }),
+  )
   framework.registerService(new AegisQueueService(whatsapp, logger, { redis }))
   framework.registerService(new ReminderService(config.DATABASE_PATH, whatsapp, logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
@@ -138,7 +164,7 @@ async function main(): Promise<void> {
   framework.registerService(arcadeService)
   framework.registerService(new DownloaderService())
   framework.registerService(new QuotaService(config.DATABASE_PATH, logger, { botOwnerJid: config.BOT_OWNER_JID }))
-  const chatHistoryService = new ChatHistoryService(logger, { redis })
+  const chatHistoryService = new ChatHistoryService(logger, { redis, allybotMemory })
   framework.registerService(chatHistoryService)
   whatsapp.onMessage(async (msg) => {
     await chatHistoryService.recordMessage(msg)

@@ -20,8 +20,8 @@ interface MemoryBucket {
   expiresAt: number
 }
 
-const DEFAULT_MAX_TURNS = 8
-const DEFAULT_TTL_SECONDS = 30 * 60 // 30 minutes
+const DEFAULT_MAX_TURNS = 60
+const DEFAULT_TTL_SECONDS = 24 * 60 * 60 // 24 hours
 const MAX_LOCAL_BUCKETS = 1_000
 
 export class AiMemoryService implements Service {
@@ -100,8 +100,8 @@ export class AiMemoryService implements Service {
     const existing = await this.getHistory(remoteJid, senderJid)
     const updated: AiTurn[] = [
       ...existing,
-      { role: 'user' as const, content: userContent.trim().slice(0, 600), at: now },
-      { role: 'assistant' as const, content: assistantContent.trim().slice(0, 1_000), at: now },
+      { role: 'user' as const, content: userContent.trim().slice(0, 4_000), at: now },
+      { role: 'assistant' as const, content: assistantContent.trim().slice(0, 4_000), at: now },
     ].slice(-this.maxTurns)
 
     this.localStore.set(key, {
