@@ -402,4 +402,71 @@ export class AllybotMemoryService implements Service {
       // fail-soft passive logger
     }
   }
+
+  async saveAutoReopenLock(lock: {
+    readonly groupJid: string
+    readonly reopenAtMs: number
+    readonly lockedAtMs: number
+    readonly sopId: string
+    readonly reason: string
+  }): Promise<void> {
+    if (!this.sql) return
+    await this.sql`
+      INSERT INTO allybot_memory.moderation_auto_reopen (group_jid, reopen_at_ms, locked_at_ms, sop_id, reason)
+      VALUES (${lock.groupJid}, ${lock.reopenAtMs}, ${lock.lockedAtMs}, ${lock.sopId}, ${lock.reason.slice(0, 300)})
+      ON CONFLICT (group_jid) DO UPDATE SET
+        reopen_at_ms = EXCLUDED.reopen_at_ms,
+        locked_at_ms = EXCLUDED.locked_at_ms,
+        sop_id = EXCLUDED.sop_id,
+        reason = EXCLUDED.reason
+    `
+    await this.sql`
+      INSERT INTO allybot_memory.moderation_lock_cooldown (group_jid, last_locked_at_ms)
+      VALUES (${lock.groupJid}, ${lock.lockedAtMs})
+      ON CONFLICT (group_jid) DO UPDATE SET
+        last_locked_at_ms = GREATEST(allybot_memory.moderation_lock_cooldown.last_locked_at_ms, EXCLUDED.last_locked_at_ms)
+    `
+  }
+
+  async deleteAutoReopenLock(groupJid: string): Promise<void> {
+    if (!this.sql) return
+    await this.sql`
+      DELETE FROM allybot_memory.moderation_auto_reopen
+      WHERE group_jid = ${groupJid}
+    `
+  }
+
+  async listAutoReopenLocks(): Promise<readonly {
+    readonly groupJid: string
+    readonly reopenAtMs: number
+    readonly lockedAtMs: number
+    readonly sopId: string
+    readonly reason: string
+  }[]> {
+    if (!this.sql) return []
+    const rows = await this.sql`
+      SELECT group_jid, reopen_at_ms, locked_at_ms, sop_id, reason
+      FROM allybot_memory.moderation_auto_reopen
+      ORDER BY reopen_at_ms ASC
+    `
+    return rows.map((r) => ({
+      groupJid: String(r.group_jid),
+      reopenAtMs: Number(r.reopen_at_ms),
+      lockedAtMs: Number(r.locked_at_ms),
+      sopId: String(r.sop_id),
+      reason: String(r.reason),
+    }))
+  }
+
+  async getLastLockCooldownMs(groupJid: string): Promise<number | undefined> {
+    if (!this.sql) return undefined
+    const rows = await this.sql`
+      SELECT last_locked_at_ms
+      FROM allybot_memory.moderation_lock_cooldown
+      WHERE group_jid = ${groupJid}
+      LIMIT 1
+    `
+    if (!rows[0]) return undefined
+    return Number(rows[0].last_locked_at_ms)
+  }
 }

@@ -65,6 +65,7 @@ import { AllybotMemoryService } from './services/allybot-memory-service.js'
 import { AllysseaRpBridgeService } from './services/allyssea-rp-bridge.js'
 import { SandboxComputeService } from './services/sandbox-compute-service.js'
 import { AllysseaAgentService } from './services/allyssea-agent-service.js'
+import { LivingModeratorService } from './services/living-moderator-service.js'
 import { AegisQueueService } from './services/aegis-queue/index.js'
 import { ReminderService } from './services/reminder-service.js'
 import { reminderPlugin } from './framework/plugins/reminder.js'
@@ -157,7 +158,8 @@ async function main(): Promise<void> {
   framework.registerService(new AegisQueueService(whatsapp, logger, { redis }))
   framework.registerService(new ReminderService(config.DATABASE_PATH, whatsapp, logger))
   framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
-  framework.registerService(new GroupModerationSuiteService(config.DATABASE_PATH, logger))
+  const moderationSuiteService = new GroupModerationSuiteService(config.DATABASE_PATH, logger)
+  framework.registerService(moderationSuiteService)
   framework.registerService(new ChessService(config.DATABASE_PATH, logger))
   framework.registerService(new MinigamesService({ dbPath: config.DATABASE_PATH, redis }))
   const arcadeService = new ArcadeService({ dbPath: config.DATABASE_PATH, enableAutoTimers: true, whatsapp })
@@ -169,7 +171,18 @@ async function main(): Promise<void> {
   whatsapp.onMessage(async (msg) => {
     await chatHistoryService.recordMessage(msg)
   })
-  framework.registerService(new GatekeeperService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, { whatsapp, redis }))
+  const gatekeeperService = new GatekeeperService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, { whatsapp, redis })
+  framework.registerService(gatekeeperService)
+  framework.registerService(
+    new LivingModeratorService({
+      databasePath: config.DATABASE_PATH,
+      whatsapp,
+      botOwnerJid: config.BOT_OWNER_JID,
+      baseUrl: config.AI_BASE_URL,
+      modelId: config.AI_MODEL,
+      logger,
+    }),
+  )
   framework.registerService(new RemoteOpsService(config.DATABASE_PATH, logger, config.BOT_OWNER_JID, whatsapp))
   const videoProvider = config.VIDEO_ENABLED
     ? new FlowVideoProvider({
@@ -229,6 +242,18 @@ async function main(): Promise<void> {
   
   try {
     await lifecycle.start()
+    const oocDefaultsTargets = new Set<string>(
+      gatekeeperService.listOfficialGroups().filter((g) => g.groupKind === 'ooc').map((g) => g.jid),
+    )
+    if (config.OFFICIAL_OOC_GROUP_JID) oocDefaultsTargets.add(config.OFFICIAL_OOC_GROUP_JID)
+    for (const oocJid of oocDefaultsTargets) {
+      moderationSuiteService.ensureGroupDefaults(oocJid, {
+        antilink: true,
+        antispam: true,
+        antitoxic: true,
+        warnLimit: 5,
+      })
+    }
   } catch (error) {
     sentry.captureError('lifecycle:start', error)
     await sentry.close()

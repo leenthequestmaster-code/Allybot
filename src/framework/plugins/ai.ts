@@ -32,6 +32,7 @@ import { AiMemoryService } from '../../services/ai-memory-service.js'
 import { AllybotMemoryService } from '../../services/allybot-memory-service.js'
 import { AllysseaAgentService } from '../../services/allyssea-agent-service.js'
 import { detectChlonaWake } from '../../services/chlona-wake-gate.js'
+import { isModerationReportIntent, LivingModeratorService } from '../../services/living-moderator-service.js'
 import {
   buildPersonaSystemPrompt,
   type PersonaProfile,
@@ -375,6 +376,19 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         if (typeof context.services?.has === 'function' && context.services.has('allybot-memory')) {
           try {
             return context.services.get<AllybotMemoryService>('allybot-memory')
+          } catch {
+            return undefined
+          }
+        }
+        return undefined
+      }
+
+      const getLivingModeratorService = (): LivingModeratorService | undefined => {
+        if (options.transport) return undefined
+        if (typeof context.services?.has === 'function' && context.services.has('living-moderator')) {
+          try {
+            const svc = context.services.get<LivingModeratorService>('living-moderator')
+            return svc.isReady ? svc : undefined
           } catch {
             return undefined
           }
@@ -776,6 +790,22 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
               await whatsapp.sendText(message.remoteJid, 'Gambarnya kurang jelas atau gagal diproses nih, coba kirim ulang ya~ 🔍📷')
             }
             return
+          }
+
+          // Stage 3.5: Living Moderator SOP Triage (Report -> Verify -> Execute)
+          const livingMod = getLivingModeratorService()
+          if (livingMod && isModerationReportIntent(instruction)) {
+            const modRes = await livingMod.handleReport({
+              message,
+              instruction,
+              services: context.services,
+              botOwnerJid: context.config.botOwnerJid,
+            })
+            if (modRes.handled) {
+              const formattedReply = formatToWhatsApp(modRes.replyText)
+              await whatsapp.sendText(message.remoteJid, formattedReply)
+              return
+            }
           }
 
           // Stage 4: Single-Call Conversational Persona + Smart LLM Command Router

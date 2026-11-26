@@ -136,9 +136,12 @@ export function detectChlonaWake(
     }
   }
 
-  // 4. Audio or direct DM text without prefix
+  // 4. Audio or direct DM report/audio without prefix
   if (isAudio && !isGroup) {
     return { triggered: true, cleanText: '', triggerKind: 'audio', reason: 'dm_audio', mentionsBotToken: false }
+  }
+  if (!isGroup && rawText && /\b(?:spam|rusuh|toxic|toksik|promosi|poaching|nsfw|gore|doxx?(?:ing)?|sara|ragebait|lapor(?:in|kan)?|melanggar|uu\s*ooc)\b/i.test(rawText)) {
+    return { triggered: true, cleanText: rawText, triggerKind: 'dm', reason: 'dm_moderation_report', mentionsBotToken: false }
   }
 
   return { triggered: false, cleanText: rawText, triggerKind: 'none', reason: 'no_wake_signal', mentionsBotToken: false }

@@ -488,6 +488,35 @@ export class GroupModerationSuiteService implements Service {
       .run({ groupJid, antilink, antispam, antitoxic, now })
   }
 
+  ensureGroupDefaults(
+    groupJid: string,
+    defaults: { readonly antilink: boolean; readonly antispam: boolean; readonly antitoxic: boolean; readonly warnLimit: number },
+  ): void {
+    const now = Date.now()
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO group_automod_settings (group_jid, antilink, antispam, antitoxic, updated_at)
+         VALUES (@groupJid, @antilink, @antispam, @antitoxic, @now)`,
+      )
+      .run({
+        groupJid,
+        antilink: defaults.antilink ? 1 : 0,
+        antispam: defaults.antispam ? 1 : 0,
+        antitoxic: defaults.antitoxic ? 1 : 0,
+        now,
+      })
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO group_warn_limits (group_jid, limit_count, updated_at)
+         VALUES (@groupJid, @limit, @now)`,
+      )
+      .run({
+        groupJid,
+        limit: defaults.warnLimit,
+        now,
+      })
+  }
+
   getAutomod(groupJid: string): AutomodSettings {
     const row = this.db
       .prepare('SELECT antilink, antispam, antitoxic FROM group_automod_settings WHERE group_jid = ?')
