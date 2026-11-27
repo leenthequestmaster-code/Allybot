@@ -1,6 +1,4 @@
 import { createHash } from 'node:crypto'
-import { existsSync } from 'node:fs'
-import Database from 'better-sqlite3'
 import postgres, { type Sql } from 'postgres'
 import type { Logger } from 'pino'
 import type { Service, ServiceContext } from '../framework/contracts.js'
@@ -47,16 +45,10 @@ export interface RpWorldPulseSummary {
     readonly icSubtype: string | null
     readonly oocPolicy: string
   }[]
-  readonly activeLandmarks: readonly {
-    readonly alias: string
-    readonly name: string
-    readonly occupantCount: number
-  }[]
 }
 
 export interface AllysseaRpBridgeOptions {
   readonly postgresUrl?: string
-  readonly landmarkSqlitePath?: string
   readonly logger?: Logger
 }
 
@@ -73,11 +65,9 @@ export class AllysseaRpBridgeService implements Service {
   private sql: Sql | null = null
   private logger?: Logger
   private readonly postgresUrl?: string
-  private readonly landmarkSqlitePath: string
 
   constructor(options: AllysseaRpBridgeOptions = {}) {
     this.postgresUrl = options.postgresUrl
-    this.landmarkSqlitePath = options.landmarkSqlitePath ?? '/opt/Allyssea-RP/data/landmark-instance.sqlite'
     this.logger = options.logger
   }
 
@@ -89,7 +79,7 @@ export class AllysseaRpBridgeService implements Service {
       idle_timeout: 20,
       connect_timeout: 5,
     })
-    this.logger?.info({ landmarkSqlitePath: this.landmarkSqlitePath }, 'AllysseaRpBridgeService initialized (read-only)')
+    this.logger?.info('AllysseaRpBridgeService initialized (read-only)')
   }
 
   async shutdown(): Promise<void> {
@@ -209,40 +199,9 @@ export class AllysseaRpBridgeService implements Service {
       }))
     }
 
-    let activeLandmarks: { alias: string; name: string; occupantCount: number }[] = []
-    if (existsSync(this.landmarkSqlitePath)) {
-      let db: Database.Database | null = null
-      try {
-        db = new Database(this.landmarkSqlitePath, { readonly: true, fileMustExist: true })
-        db.pragma('busy_timeout = 3000')
-        const rows = db.prepare(`
-          SELECT l.alias, l.name, COUNT(o.user_jid) AS occupant_count
-          FROM landmarks l
-          LEFT JOIN occupants o ON o.landmark_alias = l.alias
-          GROUP BY l.alias, l.name
-          ORDER BY occupant_count DESC, l.name ASC
-          LIMIT 25
-        `).all() as { alias: string; name: string; occupant_count: number }[]
-        activeLandmarks = rows
-          .filter((r) => !cleanQ || r.name.toLowerCase().includes(cleanQ) || r.alias.toLowerCase().includes(cleanQ))
-          .map((r) => ({
-            alias: String(r.alias),
-            name: String(r.name),
-            occupantCount: Number(r.occupant_count ?? 0),
-          }))
-      } catch (err) {
-        this.logger?.debug({ err: err instanceof Error ? err.message : 'UnknownError' }, 'failed to read landmark SQLite')
-      } finally {
-        try {
-          db?.close()
-        } catch {}
-      }
-    }
-
     return {
       totalRpGroups,
       rpGroups,
-      activeLandmarks,
     }
   }
 }

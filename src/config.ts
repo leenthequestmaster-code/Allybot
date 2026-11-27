@@ -48,7 +48,6 @@ const envSchema = z.object({
   AI_MAX_CONTEXT_TOKENS: boundedInt(1_000, 1_000_000).default(800_000),
   AI_DAILY_BUDGET_TOKENS: boundedInt(1_000, 500_000).default(40_000),
   AI_ARCHIVE_BUDGET_TOKENS: boundedInt(1_000, 800_000).default(180_000),
-  ALLY_RP_SQLITE_PATH: z.string().min(1).default('/opt/Allyssea-RP/data/landmark-instance.sqlite'),
   VIDEO_ENABLED: booleanFromEnv.default(false),
   FLOW_PROJECT_URL: z.string().url().default('https://flow.google.com/project/3cab9aef-ddc7-4d9b-bc81-e79de3726581'),
   FLOW_COOKIES_PATH: z.string().min(1).default('./data/flow-cookies.json'),

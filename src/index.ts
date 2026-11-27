@@ -142,7 +142,6 @@ async function main(): Promise<void> {
   framework.registerService(
     new AllysseaRpBridgeService({
       postgresUrl: config.POSTGRES_ENABLED ? config.POSTGRES_URL : undefined,
-      landmarkSqlitePath: config.ALLY_RP_SQLITE_PATH,
       logger,
     }),
   )

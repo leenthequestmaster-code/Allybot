@@ -384,13 +384,13 @@ export class AllysseaAgentService implements Service {
       }),
 
       rp_world_pulse: tool({
-        description: 'Lihat daftar lokasi RP aktif dan jumlah penghuni di landmark Allyssea (read-only).',
+        description: 'Lihat daftar lokasi/grup RP aktif di dunia Allyssea (read-only).',
         inputSchema: z.object({
           locationQuery: z.string().max(60).optional(),
         }),
         execute: async ({ locationQuery }) => {
           toolsCalled.push('rp_world_pulse')
-          if (!rpBridge) return { totalRpGroups: 0, rpGroups: [], activeLandmarks: [] }
+          if (!rpBridge) return { totalRpGroups: 0, rpGroups: [] }
           return await rpBridge.getWorldPulse(locationQuery)
         },
       }),

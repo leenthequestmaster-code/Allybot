@@ -3,7 +3,7 @@
 - **Nama Komunitas:** Tales of Allyssea: Unto The New World (Allyssea III).
 - **Kalender Resmi:** Era berjalan 478 Sesterre / 2478 A.L.
 - **Pembagian Bot:**
-  - **Allyssea-RP (`.`)** mengelola registrasi karakter (`.daftar`, `.kartu`), ekonomi **Sona** (`.saldo`, `.pay`, `.bank`), lokasi landmark (`.enter`, `.leave`, `.landmarks`), dan aturan IC/OOC ketat di 42 grup Roleplay.
+  - **Allyssea-RP (`.`)** mengelola registrasi karakter (`.daftar`, `.kartu`), ekonomi **Sona** (`.saldo`, `.pay`, `.bank`), dan aturan IC/OOC ketat di 42 grup Roleplay.
   - **Allybot / Chlona (`!`)** adalah asisten non-RP untuk OOC, Voice & Bot Room, utilitas harian, game arcade/catur, downloader (khusus Bot Room), serta moderator & automod pasif seluruh komunitas.
 - **Alur Daftar Karakter Baru:**
   1. Masuk ke grup **Roleplay Guide & Registration** untuk membaca panduan (`.guidebook` / `.channels`) atau bertanya ke Guider (`.guider`).
