@@ -66,6 +66,7 @@ import { AllysseaRpBridgeService } from './services/allyssea-rp-bridge.js'
 import { SandboxComputeService } from './services/sandbox-compute-service.js'
 import { AllysseaAgentService } from './services/allyssea-agent-service.js'
 import { LivingModeratorService } from './services/living-moderator-service.js'
+import { SleepConsolidationService } from './services/sleep-consolidation-service.js'
 import { AegisQueueService } from './services/aegis-queue/index.js'
 import { ReminderService } from './services/reminder-service.js'
 import { reminderPlugin } from './framework/plugins/reminder.js'
@@ -157,7 +158,12 @@ async function main(): Promise<void> {
   )
   framework.registerService(new AegisQueueService(whatsapp, logger, { redis }))
   framework.registerService(new ReminderService(config.DATABASE_PATH, whatsapp, logger))
-  framework.registerService(new GroupSafetyService(config.DATABASE_PATH, logger))
+  const groupSafetyService = new GroupSafetyService(config.DATABASE_PATH, logger, {
+    whatsapp,
+    botOwnerJid: config.BOT_OWNER_JID,
+    officialOocInviteLink: config.OFFICIAL_OOC_INVITE_LINK,
+  })
+  framework.registerService(groupSafetyService)
   const moderationSuiteService = new GroupModerationSuiteService(config.DATABASE_PATH, logger)
   framework.registerService(moderationSuiteService)
   framework.registerService(new ChessService(config.DATABASE_PATH, logger))
@@ -178,6 +184,13 @@ async function main(): Promise<void> {
       databasePath: config.DATABASE_PATH,
       whatsapp,
       botOwnerJid: config.BOT_OWNER_JID,
+      baseUrl: config.AI_BASE_URL,
+      modelId: config.AI_MODEL,
+      logger,
+    }),
+  )
+  framework.registerService(
+    new SleepConsolidationService({
       baseUrl: config.AI_BASE_URL,
       modelId: config.AI_MODEL,
       logger,
@@ -254,6 +267,12 @@ async function main(): Promise<void> {
         warnLimit: 5,
       })
     }
+    groupSafetyService.attachRuntime({
+      whatsapp,
+      botOwnerJid: config.BOT_OWNER_JID,
+      officialOocInviteLink: config.OFFICIAL_OOC_INVITE_LINK,
+      autoEnforceWarnings: true,
+    })
   } catch (error) {
     sentry.captureError('lifecycle:start', error)
     await sentry.close()

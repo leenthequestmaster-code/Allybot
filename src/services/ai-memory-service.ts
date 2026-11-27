@@ -16,8 +16,16 @@ export interface AiMemoryOptions {
 }
 
 interface MemoryBucket {
+  remoteJid: string
+  senderJid: string
   turns: AiTurn[]
   expiresAt: number
+}
+
+export interface ActiveMemorySession {
+  readonly remoteJid: string
+  readonly senderJid: string
+  readonly turns: readonly AiTurn[]
 }
 
 const DEFAULT_MAX_TURNS = 60
@@ -105,6 +113,8 @@ export class AiMemoryService implements Service {
     ].slice(-this.maxTurns)
 
     this.localStore.set(key, {
+      remoteJid,
+      senderJid,
       turns: updated,
       expiresAt: now + this.ttlSeconds * 1_000,
     })
@@ -122,5 +132,15 @@ export class AiMemoryService implements Service {
     if (this.redis?.isEnabled) {
       await this.redis.del(key).catch(() => {})
     }
+  }
+
+  listActiveSessions(): readonly ActiveMemorySession[] {
+    const now = this.clock()
+    this.pruneExpired(now)
+    return [...this.localStore.values()].map((bucket) => ({
+      remoteJid: bucket.remoteJid,
+      senderJid: bucket.senderJid,
+      turns: [...bucket.turns],
+    }))
   }
 }

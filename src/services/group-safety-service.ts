@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Logger } from 'pino'
 import type { RedisService } from '../redis.js'
-import type { Service, ServiceContext } from '../framework/contracts.js'
+import type { Service, ServiceContext, ServiceRegistryLike, WhatsAppPort } from '../framework/contracts.js'
 import { PlatformGuardrailService } from './platform-guardrail-service.js'
 import { initSqliteDatabase, sha256, validateJid, validateGroupJid as validateGroupJidCommon, normalizeBoundedText, type DatabaseInstance } from '../storage-helpers.js'
 
@@ -14,6 +14,41 @@ export interface GroupSafetyOptions {
   readonly warningTtlMs?: number
   readonly maxReasonLength?: number
   readonly maxListLimit?: number
+  readonly spBanDurationMs?: number
+  readonly pollIntervalMs?: number
+  readonly whatsapp?: WhatsAppPort
+  readonly botOwnerJid?: string
+  readonly officialOocInviteLink?: string
+}
+
+export interface SpStateRecord {
+  readonly groupJid: string
+  readonly targetBareJid: string
+  readonly spLevel: number
+  readonly updatedAt: number
+}
+
+export interface SpScheduleRecord {
+  readonly id: string
+  readonly groupJid: string
+  readonly targetBareJid: string
+  readonly targetJid: string
+  readonly spLevel: number
+  readonly reason: string
+  readonly kickedAt: number
+  readonly reentryAt: number
+  readonly status: 'scheduled' | 'completed' | 'cancelled' | 'escalated'
+  readonly completedAt?: number
+  readonly note?: string
+}
+
+export interface WarnThresholdResult {
+  readonly action: 'below_limit' | 'immune_skip' | 'kicked_sp' | 'escalated_sp3'
+  readonly activeCount: number
+  readonly limit: number
+  readonly spLevel?: number
+  readonly reentryAt?: number
+  readonly scheduleId?: string
 }
 
 export interface SafetySettingsRecord {
@@ -114,8 +149,15 @@ interface AppealRow {
 }
 
 const DEFAULT_WARNING_TTL_MS = 7 * 24 * 60 * 60 * 1_000
+const DEFAULT_SP_BAN_DURATION_MS = 7 * 24 * 60 * 60 * 1_000
+const DEFAULT_SP_POLL_INTERVAL_MS = 30_000
 const DEFAULT_MAX_REASON_LENGTH = 240
 const DEFAULT_MAX_LIST_LIMIT = 25
+
+function bareSafetyJid(jid: string | undefined): string {
+  if (!jid) return ''
+  return jid.trim().toLowerCase().replace(/:\d+(?=@)/u, '')
+}
 const MAX_ID_LENGTH = 64
 const MAX_EVIDENCE_MESSAGE_ID_LENGTH = 160
 const SECRET_LIKE_REASON = /(bearer\s+|^eyj[a-z0-9_-]+\.[a-z0-9_-]+\.[a-z0-9_-]+$|(?:api[_-]?key|token|password)\s*[:=])/i
@@ -129,20 +171,34 @@ export class GroupSafetyService implements Service {
   private readonly databasePath: string
   private readonly clock: () => number
   private readonly warningTtlMs: number
+  private readonly spBanDurationMs: number
+  private readonly pollIntervalMs: number
   private readonly maxReasonLength: number
   private readonly maxListLimit: number
   private readonly logger: Logger
   private db: DatabaseInstance | undefined
   private guardrails: PlatformGuardrailService | undefined
   private redis: RedisService | undefined
+  private services: ServiceRegistryLike | undefined
+  private whatsapp: WhatsAppPort | undefined
+  private botOwnerJid: string | undefined
+  private officialOocInviteLink: string | undefined
+  private spPollerTimer: NodeJS.Timeout | undefined
+  private autoEnforceWarnings = false
+  private isRecoveringSp = false
   private readonly dryRunCaseWindows = new Map<string, number>()
 
   constructor(databasePath: string, logger: Logger, options: GroupSafetyOptions = {}) {
     this.databasePath = databasePath
     this.clock = options.clock ?? (() => Date.now())
     this.warningTtlMs = options.warningTtlMs ?? DEFAULT_WARNING_TTL_MS
+    this.spBanDurationMs = options.spBanDurationMs ?? DEFAULT_SP_BAN_DURATION_MS
+    this.pollIntervalMs = options.pollIntervalMs ?? DEFAULT_SP_POLL_INTERVAL_MS
     this.maxReasonLength = options.maxReasonLength ?? DEFAULT_MAX_REASON_LENGTH
     this.maxListLimit = options.maxListLimit ?? DEFAULT_MAX_LIST_LIMIT
+    this.whatsapp = options.whatsapp
+    this.botOwnerJid = options.botOwnerJid
+    this.officialOocInviteLink = options.officialOocInviteLink
     this.logger = logger.child({ component: 'group-safety' })
     if (!Number.isInteger(this.warningTtlMs) || this.warningTtlMs < 1) throw new Error('warningTtlMs must be a positive integer')
     if (!Number.isInteger(this.maxReasonLength) || this.maxReasonLength < 1) throw new Error('maxReasonLength must be a positive integer')
@@ -150,21 +206,59 @@ export class GroupSafetyService implements Service {
   }
 
   initialize(context: ServiceContext): void {
+    this.services = context.services
     this.guardrails = context.services.get<PlatformGuardrailService>('platform-guardrails')
     this.redis = typeof context.services.has === 'function' && context.services.has('redis')
       ? context.services.get<RedisService>('redis')
       : undefined
+    if (context.config?.botOwnerJid) this.botOwnerJid = context.config.botOwnerJid
+    if (context.config?.officialOocInviteLink) this.officialOocInviteLink = context.config.officialOocInviteLink
     this.db = initSqliteDatabase(this.databasePath, { foreignKeys: true })
     this.migrate()
     this.guardrails.registerRateProfile({ id: ANTI_SPAM_PROFILE_ID, maxRequests: 5, windowMs: 10_000 })
+    if (this.whatsapp) {
+      this.startSpPoller()
+      void this.recoverSpReentries()
+    }
     this.logger.info('group safety storage initialized')
   }
 
+  attachRuntime(runtime: {
+    readonly whatsapp: WhatsAppPort
+    readonly services?: ServiceRegistryLike
+    readonly botOwnerJid?: string
+    readonly officialOocInviteLink?: string
+    readonly autoEnforceWarnings?: boolean
+  }): void {
+    this.whatsapp = runtime.whatsapp
+    if (runtime.services) this.services = runtime.services
+    if (runtime.botOwnerJid) this.botOwnerJid = runtime.botOwnerJid
+    if (runtime.officialOocInviteLink) this.officialOocInviteLink = runtime.officialOocInviteLink
+    if (runtime.autoEnforceWarnings !== undefined) this.autoEnforceWarnings = runtime.autoEnforceWarnings
+    if (this.db?.open) {
+      this.startSpPoller()
+      void this.recoverSpReentries()
+    }
+  }
+
+  private startSpPoller(): void {
+    if (this.spPollerTimer || this.pollIntervalMs <= 0) return
+    this.spPollerTimer = setInterval(() => {
+      void this.recoverSpReentries()
+    }, this.pollIntervalMs)
+    this.spPollerTimer.unref()
+  }
+
   shutdown(_context: ServiceContext): void {
+    if (this.spPollerTimer) {
+      clearInterval(this.spPollerTimer)
+      this.spPollerTimer = undefined
+    }
     if (this.db?.open) this.db.close()
     this.db = undefined
     this.guardrails = undefined
     this.redis = undefined
+    this.services = undefined
     this.dryRunCaseWindows.clear()
   }
 
@@ -210,6 +304,23 @@ export class GroupSafetyService implements Service {
       return this.getWarning(id, now) as WarningRecord
     })
     this.auditBestEffort('group.safety.warning.issued', issuedBy, targetJid, 'changed', { warningId: id })
+    if (this.autoEnforceWarnings && this.whatsapp && issuedBy !== '__plugin_manual_warn__') {
+      const limit = this.resolveWarnLimit(groupJid)
+      const activeCount = this.countActiveWarnings(groupJid, targetJid, now)
+      if (activeCount >= limit) {
+        void this.enforceWarnThreshold({
+          groupJid,
+          targetJid,
+          actorJid: issuedBy,
+          reason: normalizedReason,
+          limit,
+          now,
+          announceInGroup: true,
+        }).catch((err) => {
+          this.logger.warn({ err, groupJid, targetJid }, 'deterministic Pasal 34 threshold enforcement failed')
+        })
+      }
+    }
     return record
   }
 
@@ -255,6 +366,279 @@ export class GroupSafetyService implements Service {
     validateGroupJid(groupJid)
     validateJid(targetJid, 'warning target')
     return (this.database().prepare(`SELECT COUNT(*) AS count FROM group_safety_warnings WHERE group_jid = ? AND target_jid = ? AND status = 'active' AND expires_at > ?`).get(groupJid, targetJid, now) as { count: number }).count
+  }
+
+  private resolveWarnLimit(groupJid: string): number {
+    if (this.services && typeof this.services.has === 'function' && this.services.has('group-moderation-suite')) {
+      try {
+        const suite = this.services.get<{ readonly name: string; getWarnLimit?: (g: string) => number }>('group-moderation-suite')
+        if (suite?.getWarnLimit) return suite.getWarnLimit(groupJid)
+      } catch {}
+    }
+    return 3
+  }
+
+  getSpState(groupJid: string, targetJid: string): SpStateRecord {
+    validateGroupJid(groupJid)
+    const bare = bareSafetyJid(targetJid)
+    const row = this.database()
+      .prepare('SELECT group_jid, target_bare_jid, sp_level, updated_at FROM group_safety_sp_state WHERE group_jid = ? AND target_bare_jid = ?')
+      .get(groupJid, bare) as { group_jid: string; target_bare_jid: string; sp_level: number; updated_at: number } | undefined
+    return row
+      ? { groupJid: row.group_jid, targetBareJid: row.target_bare_jid, spLevel: Number(row.sp_level), updatedAt: Number(row.updated_at) }
+      : { groupJid, targetBareJid: bare, spLevel: 0, updatedAt: 0 }
+  }
+
+  getActiveSpSchedule(groupJid: string, targetJid: string): SpScheduleRecord | undefined {
+    validateGroupJid(groupJid)
+    const bare = bareSafetyJid(targetJid)
+    const row = this.database()
+      .prepare("SELECT * FROM group_safety_sp_schedules WHERE group_jid = ? AND target_bare_jid = ? AND status = 'scheduled' ORDER BY kicked_at DESC LIMIT 1")
+      .get(groupJid, bare) as Record<string, unknown> | undefined
+    return row ? mapSpSchedule(row) : undefined
+  }
+
+  listSpSchedules(groupJid: string, status?: SpScheduleRecord['status']): readonly SpScheduleRecord[] {
+    validateGroupJid(groupJid)
+    const rows = status
+      ? (this.database()
+          .prepare('SELECT * FROM group_safety_sp_schedules WHERE group_jid = ? AND status = ? ORDER BY reentry_at ASC LIMIT 25')
+          .all(groupJid, status) as Array<Record<string, unknown>>)
+      : (this.database()
+          .prepare('SELECT * FROM group_safety_sp_schedules WHERE group_jid = ? ORDER BY kicked_at DESC LIMIT 25')
+          .all(groupJid) as Array<Record<string, unknown>>)
+    return rows.map(mapSpSchedule)
+  }
+
+  cancelSpSchedule(groupJid: string, targetJid: string, actorJid: string, resetSpLevel = false, now = this.clock()): {
+    readonly cancelledCount: number
+    readonly spLevel: number
+  } {
+    validateGroupJid(groupJid)
+    validateJid(actorJid, 'sp cancel actor')
+    const bare = bareSafetyJid(targetJid)
+    const cancelledCount = this.transaction(() => {
+      const res = this.database()
+        .prepare("UPDATE group_safety_sp_schedules SET status = 'cancelled', completed_at = ?, note = ? WHERE group_jid = ? AND target_bare_jid = ? AND status = 'scheduled'")
+        .run(now, `cancelled_by:${bareSafetyJid(actorJid)}`, groupJid, bare)
+      if (resetSpLevel) {
+        this.database()
+          .prepare('INSERT INTO group_safety_sp_state (group_jid, target_bare_jid, sp_level, updated_at) VALUES (?, ?, 0, ?) ON CONFLICT(group_jid, target_bare_jid) DO UPDATE SET sp_level = 0, updated_at = excluded.updated_at')
+          .run(groupJid, bare, now)
+      }
+      return res.changes
+    })
+    this.auditBestEffort('group.safety.sp.cancelled', actorJid, targetJid, 'changed', { cancelledCount, resetSpLevel })
+    return { cancelledCount, spLevel: this.getSpState(groupJid, targetJid).spLevel }
+  }
+
+  private async isTargetImmune(groupJid: string, targetJid: string, whatsapp?: WhatsAppPort): Promise<boolean> {
+    const targetBare = bareSafetyJid(targetJid)
+    if (!targetBare) return true
+    if (whatsapp?.userJid && bareSafetyJid(whatsapp.userJid) === targetBare) return true
+    if (whatsapp?.userLid && bareSafetyJid(whatsapp.userLid) === targetBare) return true
+    if (this.botOwnerJid && bareSafetyJid(this.botOwnerJid) === targetBare) return true
+    if (!whatsapp?.getGroupMetadata) return false
+    try {
+      const meta = await whatsapp.getGroupMetadata(groupJid)
+      if (meta.ownerJid && bareSafetyJid(meta.ownerJid) === targetBare) return true
+      return meta.participants.some(
+        (p) => bareSafetyJid(p.jid) === targetBare && (p.role === 'admin' || p.role === 'superadmin'),
+      )
+    } catch {
+      // Fail-closed: if metadata lookup fails during automated kick threshold, do not kick!
+      return true
+    }
+  }
+
+  async enforceWarnThreshold(params: {
+    readonly groupJid: string
+    readonly targetJid: string
+    readonly actorJid: string
+    readonly reason: string
+    readonly limit?: number
+    readonly now?: number
+    readonly whatsapp?: WhatsAppPort
+    readonly announceInGroup?: boolean
+  }): Promise<WarnThresholdResult> {
+    const now = params.now ?? this.clock()
+    const limit = params.limit ?? this.resolveWarnLimit(params.groupJid)
+    const activeCount = this.countActiveWarnings(params.groupJid, params.targetJid, now)
+    if (activeCount < limit) {
+      return { action: 'below_limit', activeCount, limit }
+    }
+
+    const wa = params.whatsapp ?? this.whatsapp
+    if (await this.isTargetImmune(params.groupJid, params.targetJid, wa)) {
+      return { action: 'immune_skip', activeCount, limit }
+    }
+
+    const bare = bareSafetyJid(params.targetJid)
+    const currentSp = this.getSpState(params.groupJid, params.targetJid).spLevel
+
+    // SP 3+ is OUTSIDE Chlona/Allybot authority: mute + escalate to Staff/Report Box (NO auto-kick)
+    if (currentSp >= 2) {
+      const nextSp = currentSp + 1
+      const id = randomUUID()
+      this.transaction(() => {
+        this.database()
+          .prepare('INSERT INTO group_safety_sp_state (group_jid, target_bare_jid, sp_level, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(group_jid, target_bare_jid) DO UPDATE SET sp_level = excluded.sp_level, updated_at = excluded.updated_at')
+          .run(params.groupJid, bare, nextSp, now)
+        this.database()
+          .prepare("INSERT INTO group_safety_sp_schedules (id, group_jid, target_bare_jid, target_jid, sp_level, reason, kicked_at, reentry_at, status, completed_at, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'escalated', ?, 'sp3_outside_bot_authority')")
+          .run(id, params.groupJid, bare, params.targetJid, nextSp, params.reason.slice(0, 240), now, now, now)
+      })
+
+      if (this.services && typeof this.services.has === 'function' && this.services.has('group-moderation-suite')) {
+        try {
+          const suite = this.services.get<{ readonly name: string; mute?: (g: string, t: string, a: string, d: number) => void }>('group-moderation-suite')
+          suite.mute?.(params.groupJid, params.targetJid, wa?.userJid ?? params.actorJid, 30 * 60 * 1_000)
+        } catch {}
+      }
+
+      if (this.services && typeof this.services.has === 'function' && this.services.has('suggestion') && wa) {
+        try {
+          const suggest = this.services.get<{ readonly name: string; getBoxGroup?: (type: string, botJid?: string) => string | undefined }>('suggestion')
+          const reportBox = suggest.getBoxGroup?.('report', wa.userJid)
+          if (reportBox) {
+            await wa.sendText(
+              reportBox,
+              [
+                `🚨 *Eskalasi Pasal 34 — SP ${nextSp} (Di Luar Wewenang Bot)*`,
+                `• *Grup:* \`${params.groupJid}\``,
+                `• *Member:* @${bare.split('@')[0]}`,
+                `• *Warn:* ${activeCount}/${limit}`,
+                `• *Alasan:* ${params.reason}`,
+                '• *Status:* Ditahan dengan mute 30 menit (tanpa auto-kick). Menunggu putusan Staf (hiatus 1 bulan / Ban & Reset Character).',
+              ].join('\n'),
+              { mentions: [params.targetJid] },
+            )
+          }
+        } catch {}
+      }
+
+      if (params.announceInGroup && wa) {
+        try {
+          await wa.sendText(
+            params.groupJid,
+            `🚨 @${bare.split('@')[0]} mencapai batas ${activeCount}/${limit} peringatan pada status *SP 2* → masuk *SP ${nextSp}* (di luar wewenang bot). Member di-mute 30 menit & dieskalasikan ke Staf.`,
+            { mentions: [params.targetJid] },
+          )
+        } catch {}
+      }
+
+      return { action: 'escalated_sp3', activeCount, limit, spLevel: nextSp, scheduleId: id }
+    }
+
+    // SP 1 or SP 2: Persist 7-day reentry schedule BEFORE kicking
+    const nextSp = currentSp + 1
+    const reentryAt = now + this.spBanDurationMs
+    const scheduleId = randomUUID()
+    this.transaction(() => {
+      this.database()
+        .prepare('INSERT INTO group_safety_sp_state (group_jid, target_bare_jid, sp_level, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(group_jid, target_bare_jid) DO UPDATE SET sp_level = excluded.sp_level, updated_at = excluded.updated_at')
+        .run(params.groupJid, bare, nextSp, now)
+      this.database()
+        .prepare("UPDATE group_safety_sp_schedules SET status = 'cancelled', completed_at = ?, note = 'superseded_by_new_sp' WHERE group_jid = ? AND target_bare_jid = ? AND status = 'scheduled'")
+        .run(now, params.groupJid, bare)
+      this.database()
+        .prepare("INSERT INTO group_safety_sp_schedules (id, group_jid, target_bare_jid, target_jid, sp_level, reason, kicked_at, reentry_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')")
+        .run(scheduleId, params.groupJid, bare, params.targetJid, nextSp, params.reason.slice(0, 240), now, reentryAt)
+    })
+
+    if (wa?.groupParticipantsUpdate) {
+      await wa.groupParticipantsUpdate(params.groupJid, [params.targetJid], 'remove')
+    }
+
+    if (params.announceInGroup && wa) {
+      try {
+        await wa.sendText(
+          params.groupJid,
+          `⚠️ [PASAL 34] @${bare.split('@')[0]} mencapai batas ${activeCount}/${limit} peringatan dan dikeluarkan dari grup (*SP ${nextSp}* — 7 hari, akan diproses masuk ulang otomatis).
+Alasan: ${params.reason}`,
+          { mentions: [params.targetJid] },
+        )
+      } catch {}
+    }
+
+    return { action: 'kicked_sp', activeCount, limit, spLevel: nextSp, reentryAt, scheduleId }
+  }
+
+  async recoverSpReentries(whatsappOverride?: WhatsAppPort): Promise<number> {
+    if (this.isRecoveringSp || !this.db?.open) return 0
+    const wa = whatsappOverride ?? this.whatsapp
+    if (!wa) return 0
+    this.isRecoveringSp = true
+    let processed = 0
+    try {
+      const now = this.clock()
+      const dueRows = this.database()
+        .prepare("SELECT * FROM group_safety_sp_schedules WHERE status = 'scheduled' AND reentry_at <= ? ORDER BY reentry_at ASC")
+        .all(now) as Array<Record<string, unknown>>
+
+      for (const raw of dueRows) {
+        const row = mapSpSchedule(raw)
+        // Reset active warnings for this user so they return cleanly at 0/5
+        this.database()
+          .prepare("UPDATE group_safety_warnings SET status = 'revoked', revoked_at = ?, revoked_by = 'sp-reentry-scheduler', revision = revision + 1 WHERE group_jid = ? AND target_jid = ? AND status = 'active'")
+          .run(now, row.groupJid, row.targetJid)
+
+        let added = false
+        let addStatus = ''
+        if (wa.groupParticipantsUpdate) {
+          try {
+            const results = await wa.groupParticipantsUpdate(row.groupJid, [row.targetJid], 'add')
+            const firstStatus = results?.[0]?.status
+            addStatus = firstStatus ?? 'ok'
+            if (!firstStatus || firstStatus === 'ok' || firstStatus === '200' || firstStatus === '409') {
+              added = true
+            }
+          } catch (err) {
+            addStatus = err instanceof Error ? err.message : 'add_error'
+          }
+        }
+
+        if (added) {
+          this.database()
+            .prepare("UPDATE group_safety_sp_schedules SET status = 'completed', completed_at = ?, note = 'auto_added' WHERE id = ?")
+            .run(now, row.id)
+          try {
+            await wa.sendText(
+              row.groupJid,
+              `🔓 Masa *SP ${row.spLevel}* (7 hari) untuk @${row.targetBareJid.split('@')[0]} telah selesai dan berhasil dimasukkan kembali. Peringatan aktif direset ke 0.`,
+              { mentions: [row.targetJid] },
+            )
+          } catch {}
+          processed += 1
+          continue
+        }
+
+        // Fallback when auto-add fails (e.g. WA 403/408 privacy): send DM invite link
+        let inviteLink: string | undefined
+        try {
+          inviteLink = (await wa.getGroupInviteLink?.(row.groupJid)) ?? this.officialOocInviteLink
+        } catch {
+          inviteLink = this.officialOocInviteLink
+        }
+        try {
+          const dmMsg = inviteLink
+            ? `🔓 Masa sanksi *SP ${row.spLevel}* (7 hari) kamu telah selesai. Karena pengaturan privasi/undangan WA mencegah penambahan otomatis, silakan masuk kembali lewat tautan berikut:
+${inviteLink}
+
+_(Catatan: status SP saat ini: SP ${row.spLevel}. Jika nanti mencapai SP 3, penanganan dialihkan ke Staf.)_`
+            : `🔓 Masa sanksi *SP ${row.spLevel}* (7 hari) kamu telah selesai, namun bot gagal mengirim undangan otomatis (${addStatus || '403'}). Silakan hubungi Staf untuk masuk kembali.`
+          await wa.sendText(row.targetJid, dmMsg)
+        } catch {}
+
+        this.database()
+          .prepare("UPDATE group_safety_sp_schedules SET status = 'completed', completed_at = ?, note = ? WHERE id = ?")
+          .run(now, `dm_invite_fallback:${addStatus || 'privacy'}`, row.id)
+        processed += 1
+      }
+    } finally {
+      this.isRecoveringSp = false
+    }
+    return processed
   }
 
   reportCase(groupJid: string, reporterJid: string, targetJid: string, ruleId: string, reason: string, evidenceMessageId?: string, evidenceText?: string, now = this.clock()): CaseReportResult {
@@ -497,6 +881,27 @@ export class GroupSafetyService implements Service {
         UNIQUE (case_id, appellant_jid)
       );
       CREATE INDEX IF NOT EXISTS idx_group_safety_appeals_case ON group_safety_appeals (case_id, created_at);
+      CREATE TABLE IF NOT EXISTS group_safety_sp_state (
+        group_jid TEXT NOT NULL,
+        target_bare_jid TEXT NOT NULL,
+        sp_level INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (group_jid, target_bare_jid)
+      );
+      CREATE TABLE IF NOT EXISTS group_safety_sp_schedules (
+        id TEXT PRIMARY KEY,
+        group_jid TEXT NOT NULL,
+        target_bare_jid TEXT NOT NULL,
+        target_jid TEXT NOT NULL,
+        sp_level INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        kicked_at INTEGER NOT NULL,
+        reentry_at INTEGER NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('scheduled', 'completed', 'cancelled', 'escalated')),
+        completed_at INTEGER,
+        note TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_group_safety_sp_due ON group_safety_sp_schedules (status, reentry_at);
     `)
   }
 
@@ -557,6 +962,22 @@ function mapCase(row: CaseRow): ModerationCaseRecord {
 
 function mapAppeal(row: AppealRow): AppealRecord {
   return { id: row.id, caseId: row.case_id, appellantJid: row.appellant_jid, reason: row.reason, createdAt: row.created_at }
+}
+
+function mapSpSchedule(row: Record<string, unknown>): SpScheduleRecord {
+  return {
+    id: String(row.id),
+    groupJid: String(row.group_jid),
+    targetBareJid: String(row.target_bare_jid),
+    targetJid: String(row.target_jid),
+    spLevel: Number(row.sp_level),
+    reason: String(row.reason),
+    kickedAt: Number(row.kicked_at),
+    reentryAt: Number(row.reentry_at),
+    status: String(row.status) as SpScheduleRecord['status'],
+    ...(row.completed_at == null ? {} : { completedAt: Number(row.completed_at) }),
+    ...(row.note == null ? {} : { note: String(row.note) }),
+  }
 }
 
 function validateGroupJid(value: string): void {

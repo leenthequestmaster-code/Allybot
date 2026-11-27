@@ -161,8 +161,9 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
               return
             }
           } catch {}
-          const warning = safetyService(commandContext).issueWarning(group, target, actor, reason)
-          const activeCount = safetyService(commandContext).countActiveWarnings(group, target)
+          const safety = safetyService(commandContext)
+          const warning = safety.issueWarning(group, target, actor, reason)
+          const activeCount = safety.countActiveWarnings(group, target)
 
           let limit = 3
           try {
@@ -172,16 +173,31 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
 
           if (activeCount >= limit) {
             try {
-              if (commandContext.whatsapp.groupParticipantsUpdate) {
-                await commandContext.whatsapp.groupParticipantsUpdate(group, [target], 'remove')
+              const thresholdRes = await safety.enforceWarnThreshold({
+                groupJid: group,
+                targetJid: target,
+                actorJid: actor,
+                reason,
+                limit,
+                whatsapp: commandContext.whatsapp,
+                announceInGroup: false,
+              })
+              if (thresholdRes.action === 'kicked_sp') {
+                await commandContext.reply(
+                  `⚠️ [WARN] @${target.split('@')[0]} mencapai batas ${activeCount}/${limit} peringatan dan dikeluarkan dari grup (SP ${thresholdRes.spLevel}, 7 hari → auto re-entry)!\nAlasan: ${reason}`,
+                  { mentions: [target] },
+                )
+                return
               }
-              await commandContext.reply(
-                `⚠️ [WARN] @${target.split('@')[0]} mencapai batas ${activeCount}/${limit} peringatan dan dikeluarkan dari grup!\nAlasan: ${reason}`,
-                { mentions: [target] },
-              )
-              return
+              if (thresholdRes.action === 'escalated_sp3') {
+                await commandContext.reply(
+                  `🚨 [WARN] @${target.split('@')[0]} mencapai batas ${activeCount}/${limit} peringatan pada status SP 2 → masuk *SP ${thresholdRes.spLevel}* (di luar wewenang bot, di-mute 30 menit & dieskalasikan ke Staf).`,
+                  { mentions: [target] },
+                )
+                return
+              }
             } catch (kickError) {
-              commandContext.logger.warn({ kickError }, 'failed to auto-kick member reaching warning limit')
+              commandContext.logger.warn({ kickError }, 'failed to enforce SP threshold on warning limit')
             }
           }
 
@@ -417,6 +433,79 @@ export function createGroupSafetyPlugin(whatsapp: WhatsAppPort): Plugin {
           const targetCase = findCaseByPrefix(safetyService(commandContext), group, id)
           const result = targetCase ? safetyService(commandContext).appealCase(group, targetCase.id, actor, reason) : undefined
           await commandContext.reply(result ? result.created ? `✅ Appeal dibuat untuk case ${result.record.id.slice(0, 8)}.` : `Appeal untuk case ${result.record.id.slice(0, 8)} sudah tercatat.` : 'Appeal ditolak: case tidak ditemukan, bukan milikmu, atau status belum dapat di-appeal.')
+        },
+      })
+
+      context.commands.register({
+        name: 'spstatus',
+        description: 'Cek status SP (Pasal 34) & jadwal re-entry member',
+        category: 'moderation',
+        hidden: true,
+        menuOrder: 13,
+        permission: permissionNames.groupAdmin,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext.message)
+          if (!group) {
+            await commandContext.reply('Command ini hanya dapat digunakan di dalam grup WhatsApp.')
+            return
+          }
+          const safety = safetyService(commandContext)
+          const target = commandContext.message.mentionedJids?.[0] ?? commandContext.message.quotedSenderJid
+          if (target) {
+            const state = safety.getSpState(group, target)
+            const active = safety.getActiveSpSchedule(group, target)
+            const warns = safety.countActiveWarnings(group, target)
+            const lines = [
+              `📋 *Status SP Pasal 34* — @${target.split('@')[0]}`,
+              `• Level SP: *SP ${state.spLevel}*`,
+              `• Warn aktif: *${warns}*`,
+              active
+                ? `• Jadwal re-entry: *${new Date(active.reentryAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB*`
+                : '• Jadwal re-entry: Tidak ada',
+            ]
+            await commandContext.reply(lines.join('\n'), { mentions: [target] })
+            return
+          }
+          const scheduled = safety.listSpSchedules(group, 'scheduled')
+          if (scheduled.length === 0) {
+            await commandContext.reply('Belum ada jadwal re-entry SP 1/SP 2 aktif di grup ini.')
+            return
+          }
+          const rows = scheduled.map(
+            (s) => `• @${s.targetBareJid.split('@')[0]} (SP ${s.spLevel}) → ${new Date(s.reentryAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`,
+          )
+          await commandContext.reply(['📋 *Antrean Re-Entry SP Pasal 34*', ...rows].join('\n'), {
+            mentions: scheduled.map((s) => s.targetJid),
+          })
+        },
+      })
+
+      context.commands.register({
+        name: 'cancelsp',
+        aliases: ['batalsp'],
+        description: 'Batalkan jadwal auto re-entry SP atau reset level SP member',
+        category: 'moderation',
+        hidden: true,
+        menuOrder: 14,
+        permission: permissionNames.groupAdmin,
+        handler: async (commandContext) => {
+          const group = requireGroup(commandContext.message)
+          if (!group) {
+            await commandContext.reply('Command ini hanya dapat digunakan di dalam grup WhatsApp.')
+            return
+          }
+          const target = commandContext.message.mentionedJids?.[0] ?? commandContext.message.quotedSenderJid
+          const actor = actorJid(commandContext.message, commandContext.whatsapp)
+          if (!target || !actor) {
+            await commandContext.reply(`Format: ${commandContext.prefix}cancelsp @member [reset]`)
+            return
+          }
+          const resetLevel = commandContext.args.some((a) => a.toLowerCase() === 'reset')
+          const res = safetyService(commandContext).cancelSpSchedule(group, target, actor, resetLevel)
+          await commandContext.reply(
+            `✅ Penjadwalan SP untuk @${target.split('@')[0]} dibatalkan (${res.cancelledCount} jadwal). Level SP saat ini: *SP ${res.spLevel}*.`,
+            { mentions: [target] },
+          )
         },
       })
 

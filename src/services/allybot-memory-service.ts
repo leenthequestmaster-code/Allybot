@@ -46,6 +46,28 @@ function canonicalJid(jid: string): string {
   return jid.trim().toLowerCase().replace(/:\d+(?=@)/u, '')
 }
 
+export const ALLOWED_AGENT_USER_SLOTS = new Set([
+  'nickname',
+  'city',
+  'timezone',
+  'preference',
+  'hobby',
+  'character_hint',
+  'language',
+])
+
+const PROMPT_INJECTION_VALUE_REGEX =
+  /(?:ignore\s+(?:all\s+)?previous|system\s+prompt|<\/?untrusted_chat_transcript>|assistant:|you\s+are\s+now|override\s+rules)/i
+
+export function isAllowedAgentSlotKey(slotKey: string): boolean {
+  const safe = slotKey.trim().toLowerCase().replace(/[^a-z0-9_:-]/g, '_')
+  return ALLOWED_AGENT_USER_SLOTS.has(safe)
+}
+
+export function isSuspiciousMemoryText(value: string): boolean {
+  return PROMPT_INJECTION_VALUE_REGEX.test(value)
+}
+
 export function hashMemoryKey(value: string): string {
   return createHash('sha256').update(canonicalJid(value)).digest('hex')
 }
@@ -175,7 +197,36 @@ export class AllybotMemoryService implements Service {
         group_jid TEXT PRIMARY KEY,
         last_locked_at_ms BIGINT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS allybot_memory.consolidation_state (
+        scope_key TEXT PRIMARY KEY,
+        scope_type TEXT NOT NULL CHECK (scope_type IN ('dm', 'group')),
+        last_consolidated_ms BIGINT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+
+      CREATE TABLE IF NOT EXISTS allybot_memory.faq_candidates (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        scope_key TEXT NOT NULL,
+        question TEXT NOT NULL,
+        answer_hint TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS idx_allybot_faq_candidates_status
+        ON allybot_memory.faq_candidates (status, created_at DESC);
     `)
+    try {
+      await this.sql.unsafe(`
+        CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        CREATE INDEX IF NOT EXISTS idx_allybot_episodic_trgm
+          ON allybot_memory.episodic_memories USING GIN (summary gin_trgm_ops);
+        CREATE INDEX IF NOT EXISTS idx_allybot_vault_trgm
+          ON allybot_memory.knowledge_vault USING GIN (content gin_trgm_ops);
+      `)
+    } catch {
+      // pg_trgm optional if DB role lacks extension privilege
+    }
     this.schemaReady = true
   }
 
@@ -221,11 +272,17 @@ export class AllybotMemoryService implements Service {
     }))
   }
 
-  async setUserSlot(senderJid: string, slotKey: string, slotValue: string, source = 'agent'): Promise<void> {
-    if (!this.sql) return
+  async setUserSlot(senderJid: string, slotKey: string, slotValue: string, source = 'agent'): Promise<boolean> {
+    if (!this.sql) return false
     const safeKey = slotKey.trim().toLowerCase().replace(/[^a-z0-9_:-]/g, '_').slice(0, 40)
     const safeVal = slotValue.trim().slice(0, 300)
-    if (!safeKey || !safeVal) return
+    if (!safeKey || !safeVal) return false
+    if ((source === 'agent' || source === 'consolidation') && !ALLOWED_AGENT_USER_SLOTS.has(safeKey)) {
+      return false
+    }
+    if (isSuspiciousMemoryText(safeVal)) {
+      return false
+    }
     const senderKey = hashMemoryKey(senderJid)
     await this.sql`
       INSERT INTO allybot_memory.user_memory_slots (sender_key, slot_key, slot_value, source, updated_at)
@@ -235,6 +292,7 @@ export class AllybotMemoryService implements Service {
         source = EXCLUDED.source,
         updated_at = now()
     `
+    return true
   }
 
   async searchKnowledgeVault(query: string, limit = 3): Promise<readonly VaultEntry[]> {
@@ -302,17 +360,28 @@ export class AllybotMemoryService implements Service {
     }))
   }
 
-  async searchEpisodic(scopeType: 'dm' | 'group', scopeJid: string, query: string, limit = 5): Promise<readonly EpisodicMemoryItem[]> {
+  async searchEpisodic(
+    scopeType: 'dm' | 'group',
+    scopeJid: string,
+    query: string,
+    limit = 5,
+    senderJid?: string,
+  ): Promise<readonly EpisodicMemoryItem[]> {
     if (!this.sql) return []
     const scopeKey = hashMemoryKey(scopeJid)
-    const cleanQuery = query.trim()
+    const senderKey = senderJid ? hashMemoryKey(senderJid) : null
+    const cleanQuery = query.trim().slice(0, 140)
+    const cappedLimit = Math.min(Math.max(limit, 1), 10)
     if (!cleanQuery) {
       const rows = await this.sql`
-        SELECT id, scope_type, summary, importance, created_at
+        SELECT id, scope_type, summary, importance, created_at,
+               (importance * 0.65
+                + EXP(-GREATEST(0, EXTRACT(EPOCH FROM (now() - last_reinforced_at))) / 1209600.0) * 0.25
+                + CASE WHEN ${senderKey}::text IS NOT NULL AND sender_key = ${senderKey} THEN 0.15 ELSE 0 END) AS score
         FROM allybot_memory.episodic_memories
         WHERE scope_type = ${scopeType} AND scope_key = ${scopeKey}
-        ORDER BY importance DESC, last_reinforced_at DESC
-        LIMIT ${Math.min(limit, 10)}
+        ORDER BY score DESC, last_reinforced_at DESC
+        LIMIT ${cappedLimit}
       `
       return rows.map((r) => ({
         id: String(r.id),
@@ -324,19 +393,152 @@ export class AllybotMemoryService implements Service {
     }
     const rows = await this.sql`
       SELECT id, scope_type, summary, importance, created_at,
-             ts_rank_cd(fts_vector, websearch_to_tsquery('simple', ${cleanQuery})) AS rank
+             (COALESCE(ts_rank_cd(fts_vector, websearch_to_tsquery('simple', ${cleanQuery})), 0) * 0.50
+              + COALESCE(similarity(summary, ${cleanQuery}), 0) * 0.30
+              + importance * 0.35
+              + EXP(-GREATEST(0, EXTRACT(EPOCH FROM (now() - last_reinforced_at))) / 1209600.0) * 0.15
+              + CASE WHEN ${senderKey}::text IS NOT NULL AND sender_key = ${senderKey} THEN 0.12 ELSE 0 END) AS score
       FROM allybot_memory.episodic_memories
       WHERE scope_type = ${scopeType} AND scope_key = ${scopeKey}
-        AND (fts_vector @@ websearch_to_tsquery('simple', ${cleanQuery}) OR summary ILIKE ${'%' + cleanQuery.slice(0, 60) + '%'})
-      ORDER BY rank DESC, importance DESC, last_reinforced_at DESC
-      LIMIT ${Math.min(limit, 10)}
+        AND (
+          fts_vector @@ websearch_to_tsquery('simple', ${cleanQuery})
+          OR summary ILIKE ${'%' + cleanQuery.slice(0, 60) + '%'}
+          OR similarity(summary, ${cleanQuery}) > 0.12
+        )
+      ORDER BY score DESC, last_reinforced_at DESC
+      LIMIT ${cappedLimit}
     `
-    return rows.map((r) => ({
+    if (rows.length > 0) {
+      return rows.map((r) => ({
+        id: String(r.id),
+        scopeType: String(r.scope_type),
+        summary: String(r.summary),
+        importance: Number(r.importance),
+        createdAt: new Date(String(r.created_at)).toISOString(),
+      }))
+    }
+    // Fallback to top recent high-importance episodic memories in the SAME scope only
+    const fallbackRows = await this.sql`
+      SELECT id, scope_type, summary, importance, created_at
+      FROM allybot_memory.episodic_memories
+      WHERE scope_type = ${scopeType} AND scope_key = ${scopeKey}
+      ORDER BY importance DESC, last_reinforced_at DESC
+      LIMIT ${Math.min(cappedLimit, 2)}
+    `
+    return fallbackRows.map((r) => ({
       id: String(r.id),
       scopeType: String(r.scope_type),
       summary: String(r.summary),
       importance: Number(r.importance),
       createdAt: new Date(String(r.created_at)).toISOString(),
+    }))
+  }
+
+  async saveEpisodicMemory(entry: {
+    readonly scopeType: 'dm' | 'group'
+    readonly scopeJid: string
+    readonly senderJid?: string
+    readonly summary: string
+    readonly importance?: number
+    readonly confidence?: number
+  }): Promise<string | undefined> {
+    if (!this.sql) return undefined
+    if (entry.scopeType !== 'dm' && entry.scopeType !== 'group') {
+      throw new Error('Episodic memory from chat must be scoped to dm or group')
+    }
+    const cleanSummary = entry.summary.trim().slice(0, 1200)
+    if (!cleanSummary || isSuspiciousMemoryText(cleanSummary)) return undefined
+    const scopeKey = hashMemoryKey(entry.scopeJid)
+    const senderKey = entry.senderJid ? hashMemoryKey(entry.senderJid) : null
+    const importance = Math.min(1, Math.max(0.1, entry.importance ?? 0.6))
+    const confidence = Math.min(1, Math.max(0.1, entry.confidence ?? 0.8))
+    const rows = await this.sql`
+      INSERT INTO allybot_memory.episodic_memories (scope_type, scope_key, sender_key, summary, importance, confidence)
+      VALUES (${entry.scopeType}, ${scopeKey}, ${senderKey}, ${cleanSummary}, ${importance}, ${confidence})
+      RETURNING id
+    `
+    return rows[0]?.id ? String(rows[0].id) : undefined
+  }
+
+  async reinforceEpisodicMemory(id: string): Promise<void> {
+    if (!this.sql || !id) return
+    try {
+      await this.sql`
+        UPDATE allybot_memory.episodic_memories
+        SET last_reinforced_at = now(),
+            importance = LEAST(1.0, importance + 0.05)
+        WHERE id = ${id}::uuid
+      `
+    } catch {
+      // fail-soft
+    }
+  }
+
+  async saveFaqCandidate(scopeJid: string, question: string, answerHint: string): Promise<boolean> {
+    if (!this.sql) return false
+    const q = question.trim().slice(0, 300)
+    const a = answerHint.trim().slice(0, 500)
+    if (!q || !a || isSuspiciousMemoryText(q) || isSuspiciousMemoryText(a)) return false
+    const scopeKey = hashMemoryKey(scopeJid)
+    await this.sql`
+      INSERT INTO allybot_memory.faq_candidates (scope_key, question, answer_hint, status)
+      VALUES (${scopeKey}, ${q}, ${a}, 'pending')
+    `
+    return true
+  }
+
+  async getConsolidationWatermark(scopeKey: string): Promise<number> {
+    if (!this.sql) return 0
+    const rows = await this.sql`
+      SELECT last_consolidated_ms
+      FROM allybot_memory.consolidation_state
+      WHERE scope_key = ${scopeKey}
+      LIMIT 1
+    `
+    return rows[0] ? Number(rows[0].last_consolidated_ms) : 0
+  }
+
+  async setConsolidationWatermark(scopeKey: string, scopeType: 'dm' | 'group', lastConsolidatedMs: number): Promise<void> {
+    if (!this.sql) return
+    await this.sql`
+      INSERT INTO allybot_memory.consolidation_state (scope_key, scope_type, last_consolidated_ms, updated_at)
+      VALUES (${scopeKey}, ${scopeType}, ${lastConsolidatedMs}, now())
+      ON CONFLICT (scope_key) DO UPDATE SET
+        last_consolidated_ms = GREATEST(allybot_memory.consolidation_state.last_consolidated_ms, EXCLUDED.last_consolidated_ms),
+        updated_at = now()
+    `
+  }
+
+  async listArchiveGroups(limit = 20): Promise<readonly string[]> {
+    if (!this.sql) return []
+    const rows = await this.sql`
+      SELECT group_jid
+      FROM allybot_memory.group_chat_archive
+      GROUP BY group_jid
+      ORDER BY MAX(timestamp_ms) DESC
+      LIMIT ${Math.min(Math.max(limit, 1), 50)}
+    `
+    return rows.map((r) => String(r.group_jid))
+  }
+
+  async getArchiveMessagesSince(groupJid: string, afterTimestampMs: number, limit = 150): Promise<readonly ArchiveChatRow[]> {
+    if (!this.sql) return []
+    const capped = Math.min(Math.max(limit, 1), 300)
+    const rows = await this.sql`
+      SELECT group_jid, message_id, sender_jid, push_name, text, quoted_message_id, timestamp_ms
+      FROM allybot_memory.group_chat_archive
+      WHERE group_jid = ${groupJid} AND timestamp_ms > ${afterTimestampMs}
+      ORDER BY timestamp_ms ASC
+      LIMIT ${capped}
+    `
+    return rows.map((r) => ({
+      groupJid: String(r.group_jid),
+      messageId: String(r.message_id),
+      senderJid: String(r.sender_jid),
+      pushName: String(r.push_name),
+      text: String(r.text),
+      ...(r.quoted_message_id ? { quotedMessageId: String(r.quoted_message_id) } : {}),
+      timestampMs: Number(r.timestamp_ms),
     }))
   }
 
