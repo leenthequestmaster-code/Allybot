@@ -275,7 +275,14 @@ export class FlowVideoProvider implements VideoProvider {
         // continue if settings already aligned
       }
 
-      // ── Step 3: Enter Prompt & Trigger Generation ────────────────
+      // ── Step 3: Capture Baseline Video Thumbnails & Trigger Generation ──
+      const baselineThumbSrcs: string[] = await page.evaluate(() =>
+        Array.from((globalThis as any).document.querySelectorAll('flow-video-tile img'))
+          .map((img: any) => img.getAttribute('src') ?? '')
+          .filter((src: string) => src.startsWith('http')),
+      )
+      const baselineThumbSet = new Set<string>(baselineThumbSrcs)
+
       const editor = page.locator('div.ProseMirror[role="textbox"], div.ProseMirror').first()
       await editor.waitFor({ state: 'visible', timeout: 10_000 })
       await editor.click()
@@ -290,10 +297,9 @@ export class FlowVideoProvider implements VideoProvider {
       await genBtn.waitFor({ state: 'visible', timeout: 5_000 })
       await genBtn.click()
 
-      // ── Step 4: Poll & Download Generated Video ──────────────────
+      // ── Step 4: Poll for NEW Video Tile & Download ──────────────────
       const startTime = Date.now()
       const maxWaitMs = options.timeoutMs ?? this.timeoutMs
-      let sawStopButton = false
 
       while (Date.now() - startTime < maxWaitMs) {
         await page.waitForTimeout(4_000)
@@ -307,24 +313,32 @@ export class FlowVideoProvider implements VideoProvider {
 
           if (capturedVideoUrl) break
 
+          // Find ONLY a newly generated flow-video-tile whose thumbnail is ready and not in baseline
+          const newTileIndex: number = await page.evaluate((known: string[]) => {
+            const knownSet = new Set(known)
+            const tiles = Array.from((globalThis as any).document.querySelectorAll('flow-video-tile'))
+            for (let i = 0; i < tiles.length; i++) {
+              const img = (tiles[i] as any).querySelector('img')
+              const src = img?.getAttribute('src') ?? ''
+              const ready = Boolean(img && img.complete && img.naturalWidth >= 100 && src.startsWith('http'))
+              if (ready && !knownSet.has(src)) return i
+            }
+            return -1
+          }, [...baselineThumbSet])
+
+          if (newTileIndex < 0) continue
+
           const stopVisible = await page.locator("button[aria-label='Hentikan']").first().isVisible().catch(() => false)
-          if (stopVisible) {
-            sawStopButton = true
-            continue
-          }
+          if (stopVisible) continue
 
-          if (!sawStopButton && Date.now() - startTime < 15_000) {
-            continue
-          }
-
-          const tile = page.locator('flow-video-tile').first()
+          const tile = page.locator('flow-video-tile').nth(newTileIndex)
           if (await tile.isVisible().catch(() => false)) {
-            await tile.click({ timeout: 2_000 }).catch(() => {})
+            await tile.click({ timeout: 3_000 }).catch(() => {})
             await page.waitForTimeout(2_000)
 
             const dlBtn = page.locator('button[aria-label="Download media"], button[aria-label*="Download"]').first()
             if (await dlBtn.isVisible().catch(() => false)) {
-              await dlBtn.click({ timeout: 2_000 }).catch(() => {})
+              await dlBtn.click({ timeout: 3_000 }).catch(() => {})
               await page.waitForTimeout(3_000)
             }
 
