@@ -698,7 +698,7 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
         | { sticker: Buffer; mimetype?: string; isAnimated?: boolean }
         | { image: Buffer; mimetype?: string; caption?: string }
         | { video: Buffer; mimetype?: string; caption?: string; gifPlayback?: boolean }
-        | { audio: Buffer; mimetype?: string; ptt?: boolean }
+        | { audio: Buffer; mimetype?: string; ptt?: boolean; waveform?: Uint8Array; seconds?: number }
         | { document: Buffer; mimetype: string; fileName?: string; caption?: string }
       switch (payload.kind) {
         case 'sticker':
@@ -732,11 +732,15 @@ export class WhatsAppConnection implements WhatsAppPort, NativeQuickReplyTranspo
               waveform = await generateWaveform(data)
             } catch {}
           }
+          const seconds = typeof payload.durationSeconds === 'number' && Number.isFinite(payload.durationSeconds) && payload.durationSeconds > 0
+            ? Math.round(payload.durationSeconds)
+            : undefined
           content = {
             audio: data,
             mimetype: mimeType,
             ...(payload.ptt !== undefined ? { ptt: payload.ptt } : {}),
             ...(waveform ? { waveform } : {}),
+            ...(seconds !== undefined ? { seconds } : {}),
           }
           break
         }

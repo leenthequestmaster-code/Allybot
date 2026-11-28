@@ -130,3 +130,28 @@ test('SendGate media semaphore limits concurrent media uploads to maxMediaInFlig
   await Promise.all([job1(), job2()])
   assert.deepEqual(events, ['job1:start', 'job1:end', 'job2:start', 'job2:end'])
 })
+
+test('WhatsApp adapter forwards rounded durationSeconds as seconds for audio payloads', async () => {
+  const sent = []
+  const connection = new WhatsAppConnection({}, {}, logger())
+  connection.socket = {
+    sendMessage: async (remoteJid, content) => {
+      sent.push({ remoteJid, content })
+      return { key: { id: 'audio-msg-1' } }
+    },
+  }
+  connection.status = 'connected'
+
+  await connection.sendMedia('628123456789@s.whatsapp.net', {
+    kind: 'audio',
+    data: new Uint8Array(600),
+    mimeType: 'audio/ogg; codecs=opus',
+    ptt: true,
+    waveform: new Uint8Array(64).fill(10),
+    durationSeconds: 3.7,
+  })
+
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].content.seconds, 4)
+  assert.equal(sent[0].content.ptt, true)
+})

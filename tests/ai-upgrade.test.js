@@ -391,3 +391,39 @@ test('!ai command has full parity with @Chlona: no robot headers, WhatsApp forma
 
   await app.stop()
 })
+
+test('AI mention handler swallows fallback sendText errors without throwing to EventBus', async () => {
+  const wa = new FakeWhatsApp()
+  wa.sendText = async () => {
+    throw new Error('socket transaction failed')
+  }
+  const app = new ApplicationFramework({ commandPrefix: '!', defaultCooldownMs: 0 }, logger, wa)
+  app.registerService(new AiMemoryService())
+  app.registerPlugin(
+    createAiPlugin({
+      whatsapp: wa,
+      transport: async () => {
+        throw new Error('upstream failure')
+      },
+      humanTypingDelayMs: 0,
+    }),
+  )
+  await app.start()
+
+  let frameworkErrorEmitted = false
+  app.events.on('framework.error', () => {
+    frameworkErrorEmitted = true
+  })
+
+  await wa.emitMessage({
+    id: 'msg-fail-safe',
+    remoteJid: '1203630000000001@g.us',
+    senderJid: '6281200000009@s.whatsapp.net',
+    text: 'Chlona tes error',
+    timestamp: Date.now(),
+    fromMe: false,
+  })
+
+  assert.equal(frameworkErrorEmitted, false)
+  await app.stop()
+})

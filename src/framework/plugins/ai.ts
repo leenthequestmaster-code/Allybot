@@ -588,6 +588,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
                   data: speech.audioData,
                   mimeType: speech.mimeType,
                   waveform: speech.waveform,
+                  durationSeconds: speech.durationSeconds,
                   ptt: true,
                 })
               } catch (err) {
@@ -893,6 +894,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
                 data: speech.audioData,
                 mimeType: speech.mimeType,
                 waveform: speech.waveform,
+                durationSeconds: speech.durationSeconds,
                 ptt: true,
               })
             } catch (err) {
@@ -903,7 +905,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           await whatsapp.sendText(message.remoteJid, formattedReply)
         } catch (error) {
           context.logger.warn({ errorName: error instanceof Error ? error.name : 'UnknownError' }, 'AI mention handler failed safely')
-          await whatsapp.sendText(message.remoteJid, safeFailureMessage(error))
+          await whatsapp.sendText(message.remoteJid, safeFailureMessage(error)).catch(() => {})
         } finally {
           clearInterval(presenceHeartbeat)
           await sendPresence('paused')
@@ -1015,6 +1017,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
                 data: speech.audioData,
                 mimeType: speech.mimeType,
                 waveform: speech.waveform,
+                durationSeconds: speech.durationSeconds,
                 ptt: true,
               })
             } else {
