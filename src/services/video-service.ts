@@ -260,7 +260,7 @@ export class FlowVideoProvider implements VideoProvider {
       }
 
       // ── Step 3: Enter Prompt & Trigger Generation ────────────────
-      const editor = page.locator('div.ProseMirror[aria-label*="Apa yang ingin Anda buat"]')
+      const editor = page.locator('div.ProseMirror[role="textbox"], div.ProseMirror').first()
       await editor.waitFor({ state: 'visible', timeout: 10_000 })
       await editor.click()
       await editor.fill(options.prompt)
