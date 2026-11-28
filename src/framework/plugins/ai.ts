@@ -189,6 +189,64 @@ async function deliverGeneratedImages(
   }
 }
 
+
+const RECENT_IMAGE_TTL_MS = 2 * 60 * 1000
+const MAX_MULTI_IMAGE_INPUTS = 4
+
+interface StagedImageEntry {
+  readonly message: CoreMessage
+  readonly at: number
+}
+
+const recentImagesByActor = new Map<string, StagedImageEntry[]>()
+
+function recordRecentImage(message: CoreMessage): void {
+  if (message.media?.kind !== 'image') return
+  const actor = `${message.remoteJid}::${message.senderJid ?? message.remoteJid}`
+  const now = Date.now()
+  const existing = (recentImagesByActor.get(actor) ?? []).filter((e) => now - e.at <= RECENT_IMAGE_TTL_MS && e.message.id !== message.id)
+  existing.push({ message, at: now })
+  recentImagesByActor.set(actor, existing.slice(-MAX_MULTI_IMAGE_INPUTS))
+}
+
+async function collectImageBuffers(commandContext: CommandContext): Promise<Buffer[]> {
+  const download = commandContext.whatsapp.downloadMedia
+  if (!download) return []
+
+  const buffers: Buffer[] = []
+  const seenIds = new Set<string>()
+  const msg = commandContext.message
+
+  if (msg.media?.kind === 'image') {
+    const dl = await download(msg, 'direct', { maxBytes: 15 * 1024 * 1024, timeoutMs: 30_000 })
+    buffers.push(Buffer.from(dl.data))
+    seenIds.add(msg.id)
+  }
+
+  if (msg.quotedMedia?.kind === 'image' && buffers.length < MAX_MULTI_IMAGE_INPUTS) {
+    const dl = await download(msg, 'quoted', { maxBytes: 15 * 1024 * 1024, timeoutMs: 30_000 })
+    buffers.push(Buffer.from(dl.data))
+    if (msg.quotedMessageId) seenIds.add(msg.quotedMessageId)
+  }
+
+  const actor = `${msg.remoteJid}::${msg.senderJid ?? msg.remoteJid}`
+  const now = Date.now()
+  const staged = (recentImagesByActor.get(actor) ?? []).filter((e) => now - e.at <= RECENT_IMAGE_TTL_MS)
+  recentImagesByActor.delete(actor)
+
+  for (const entry of staged) {
+    if (buffers.length >= MAX_MULTI_IMAGE_INPUTS) break
+    if (seenIds.has(entry.message.id)) continue
+    try {
+      const dl = await download(entry.message, 'direct', { maxBytes: 15 * 1024 * 1024, timeoutMs: 30_000 })
+      buffers.push(Buffer.from(dl.data))
+      seenIds.add(entry.message.id)
+    } catch {}
+  }
+
+  return buffers.slice(0, MAX_MULTI_IMAGE_INPUTS)
+}
+
 function extractImageSource(context: CommandContext): { descriptor: any; source: 'direct' | 'quoted' } | undefined {
   return extractImageSourceFromMessage(context.message)
 }
@@ -642,6 +700,9 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         const prefix = resolvePrefix(message)
         const isAudio = message.media?.kind === 'audio'
         const rawText = (message.text ?? '').trim()
+        if (message.media?.kind === 'image' && (!rawText || (!rawText.startsWith(prefix) && !rawText.startsWith(context.config.commandPrefix)))) {
+          recordRecentImage(message)
+        }
         if (!rawText && !isAudio) return
 
         // Ignore explicit prefixed commands (!menu, .ai, etc.) because CommandRegistry handles them
@@ -1181,10 +1242,10 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         menuOrder: 9,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
-          const selected = extractImageSource(commandContext)
+          const hasImmediateOrStaged = Boolean(extractImageSource(commandContext)) || recentImagesByActor.has(`${commandContext.message.remoteJid}::${commandContext.message.senderJid ?? commandContext.message.remoteJid}`)
           const instruction = commandContext.args.join(' ').trim()
 
-          if (!selected || !instruction || !commandContext.whatsapp.downloadMedia) {
+          if (!hasImmediateOrStaged || !instruction || !commandContext.whatsapp.downloadMedia) {
             await commandContext.reply(
               `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}i2i <instruksi perubahan>`
             )
@@ -1195,13 +1256,12 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           await commandContext.reply('Status: Diproses\nGambar sedang diproses.')
 
           try {
-            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
-              maxBytes: 15 * 1024 * 1024,
-              timeoutMs: 30_000,
-            })
+            const imageBuffers = await collectImageBuffers(commandContext)
+            if (imageBuffers.length === 0) throw new Error('NO_IMAGE')
             const wrapped = buildI2iPrompt(instruction)
             const result = await generateImageWithAi(wrapped.prompt, {
-              imageBuffer: Buffer.from(downloaded.data),
+              imageBuffer: imageBuffers[0],
+              imageBuffers,
               negativePrompt: wrapped.negativePrompt,
             })
 
@@ -1224,10 +1284,10 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         menuOrder: 10,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
-          const selected = extractImageSource(commandContext)
+          const hasImmediateOrStaged = Boolean(extractImageSource(commandContext)) || recentImagesByActor.has(`${commandContext.message.remoteJid}::${commandContext.message.senderJid ?? commandContext.message.remoteJid}`)
           const newBg = commandContext.args.join(' ').trim()
 
-          if (!selected || !newBg || !commandContext.whatsapp.downloadMedia) {
+          if (!hasImmediateOrStaged || !newBg || !commandContext.whatsapp.downloadMedia) {
             await commandContext.reply(
               `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}bgchange <latar baru>`
             )
@@ -1238,13 +1298,12 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           await commandContext.reply('Status: Diproses\nLatar belakang sedang diganti.')
 
           try {
-            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
-              maxBytes: 15 * 1024 * 1024,
-              timeoutMs: 30_000,
-            })
+            const imageBuffers = await collectImageBuffers(commandContext)
+            if (imageBuffers.length === 0) throw new Error('NO_IMAGE')
             const wrapped = buildBgChangePrompt(newBg)
             const result = await generateImageWithAi(wrapped.prompt, {
-              imageBuffer: Buffer.from(downloaded.data),
+              imageBuffer: imageBuffers[0],
+              imageBuffers,
               negativePrompt: wrapped.negativePrompt,
             })
 
@@ -1309,10 +1368,10 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         menuOrder: 12,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
-          const selected = extractImageSource(commandContext)
+          const hasImmediateOrStaged = Boolean(extractImageSource(commandContext)) || recentImagesByActor.has(`${commandContext.message.remoteJid}::${commandContext.message.senderJid ?? commandContext.message.remoteJid}`)
           const outfit = commandContext.args.join(' ').trim()
 
-          if (!selected || !outfit || !commandContext.whatsapp.downloadMedia) {
+          if (!hasImmediateOrStaged || !outfit || !commandContext.whatsapp.downloadMedia) {
             await commandContext.reply(
               `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}cosplay <deskripsi kostum>`
             )
@@ -1323,13 +1382,12 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           await commandContext.reply('Status: Diproses\nKostum gambar sedang diubah.')
 
           try {
-            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
-              maxBytes: 15 * 1024 * 1024,
-              timeoutMs: 30_000,
-            })
+            const imageBuffers = await collectImageBuffers(commandContext)
+            if (imageBuffers.length === 0) throw new Error('NO_IMAGE')
             const wrapped = buildCosplayPrompt(outfit)
             const result = await generateImageWithAi(wrapped.prompt, {
-              imageBuffer: Buffer.from(downloaded.data),
+              imageBuffer: imageBuffers[0],
+              imageBuffers,
               negativePrompt: wrapped.negativePrompt,
             })
 
@@ -1352,10 +1410,10 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         menuOrder: 13,
         cooldownMs: 5_000,
         handler: async (commandContext) => {
-          const selected = extractImageSource(commandContext)
+          const hasImmediateOrStaged = Boolean(extractImageSource(commandContext)) || recentImagesByActor.has(`${commandContext.message.remoteJid}::${commandContext.message.senderJid ?? commandContext.message.remoteJid}`)
           const style = commandContext.args.join(' ').trim() || 'artistic digital painting'
 
-          if (!selected || !commandContext.whatsapp.downloadMedia) {
+          if (!hasImmediateOrStaged || !commandContext.whatsapp.downloadMedia) {
             await commandContext.reply(
               `Status: Gagal\nFormat perintah:\nKirim atau balas gambar dengan:\n${commandContext.prefix}remix <arah gaya>`
             )
@@ -1366,13 +1424,12 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
           await commandContext.reply('Status: Diproses\nGaya gambar sedang digabungkan.')
 
           try {
-            const downloaded = await commandContext.whatsapp.downloadMedia(commandContext.message, selected.source, {
-              maxBytes: 15 * 1024 * 1024,
-              timeoutMs: 30_000,
-            })
+            const imageBuffers = await collectImageBuffers(commandContext)
+            if (imageBuffers.length === 0) throw new Error('NO_IMAGE')
             const wrapped = buildRemixPrompt(style)
             const result = await generateImageWithAi(wrapped.prompt, {
-              imageBuffer: Buffer.from(downloaded.data),
+              imageBuffer: imageBuffers[0],
+              imageBuffers,
               negativePrompt: wrapped.negativePrompt,
             })
 

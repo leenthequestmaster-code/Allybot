@@ -246,6 +246,7 @@ export interface GenerateImageOptions {
   readonly model?: string
   readonly timeoutMs?: number
   readonly imageBuffer?: Buffer
+  readonly imageBuffers?: readonly Buffer[]
   readonly negativePrompt?: string
 }
 
@@ -302,6 +303,7 @@ export async function generateImageWithAi(
       const flowResult = await generateFlowImage({
         prompt: effectivePrompt,
         imageBuffer: options.imageBuffer,
+        imageBuffers: options.imageBuffers,
         cookiesPath: options.flowCookiesPath,
         timeoutMs: Math.min(timeoutMs, 90_000),
       })

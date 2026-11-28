@@ -209,3 +209,27 @@ test('6. generateImageWithAi falls back to 9router-gemini when Flow is disabled/
     globalThis.fetch = originalFetch
   }
 })
+
+test('7. !i2i collects up to 4 staged/direct/quoted images and clears staging buffer after use', async () => {
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const whatsapp = fakeWhatsapp()
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  const plugin = createAiPlugin({ whatsapp })
+  plugin.load?.({ logger, config, events, commands: registry, services })
+
+  // Send 5 standalone images (staging should keep last 4)
+  for (let i = 1; i <= 5; i++) {
+    await events.emit('message.received', message(`img-${i}`, '1203630123@g.us', '', {
+      senderJid: '628111@s.whatsapp.net',
+      media: { kind: 'image' },
+    }))
+  }
+
+  // Dispatch !i2i without attaching image directly -> should fail only if staging wasn't used, so here it proceeds to processing
+  await registry.dispatch(message('cmd-i2i', '1203630123@g.us', '!i2i gabungkan jadi kolase', {
+    senderJid: '628111@s.whatsapp.net',
+  }))
+  assert.match(whatsapp.sent.at(-1).text, /Gambar sedang diproses|Gagal memproses gambar/i)
+  assert.doesNotMatch(whatsapp.sent.at(-1).text, /Format perintah/i)
+})

@@ -8,6 +8,7 @@ import sharp from 'sharp'
 export interface FlowImageOptions {
   readonly prompt: string
   readonly imageBuffer?: Buffer
+  readonly imageBuffers?: readonly Buffer[]
   readonly cookiesPath?: string
   readonly projectUrl?: string
   readonly timeoutMs?: number
@@ -80,47 +81,62 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     await page.locator('.glue-cookie-notification-bar__accept').first().click({ timeout: 2_000 }).catch(() => {})
     await page.waitForTimeout(400)
 
-    if (options.imageBuffer && options.imageBuffer.length > 0) {
-      tempImagePath = path.join(os.tmpdir(), `flow-i2i-${crypto.randomUUID()}.png`)
-      const pngBuffer = await sharp(options.imageBuffer).png().toBuffer()
-      fs.writeFileSync(tempImagePath, pngBuffer)
-
-      const addRefBtn = page
-        .locator("button[aria-label*='Tambahkan bahan ke kotak perintah']")
-        .first()
-      await addRefBtn.waitFor({ state: 'visible', timeout: 10_000 })
-      await addRefBtn.click()
-      await page.waitForTimeout(600)
-
-      const uploadBtn = page
-        .locator(".cdk-overlay-container :is(button, [role=menuitem]):has-text('Upload')")
-        .first()
-      await uploadBtn.waitFor({ state: 'visible', timeout: 8_000 })
-
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 10_000 }),
-        uploadBtn.click(),
-      ])
-      await fileChooser.setFiles(tempImagePath)
-      const uploadedName = path.basename(tempImagePath)
-      const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
-      await targetItem.waitFor({ state: 'visible', timeout: 12_000 }).catch(async () => {
-        await addRefBtn.click().catch(() => {})
-        await targetItem.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {})
-      })
-      if (await targetItem.isVisible().catch(() => false)) {
-        await targetItem.click()
-        await page.waitForTimeout(300)
-      } else {
-        throw new Error('UPLOAD_FAILED: Asset hasil upload tidak muncul di daftar media Flow.')
+    const refBuffers: Buffer[] = []
+    if (options.imageBuffers && options.imageBuffers.length > 0) {
+      for (const b of options.imageBuffers.slice(0, 4)) {
+        if (b && b.length > 0) refBuffers.push(b)
       }
-      const addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
-      await addToPromptBtn.waitFor({ state: 'visible', timeout: 6_000 })
-      await addToPromptBtn.click()
-      await page.waitForTimeout(400)
-      await page.keyboard.press('Escape').catch(() => {})
-      await page.waitForTimeout(200)
+    } else if (options.imageBuffer && options.imageBuffer.length > 0) {
+      refBuffers.push(options.imageBuffer)
     }
+
+    const tempImagePaths: string[] = []
+    try {
+      if (refBuffers.length > 0) {
+        const addRefBtn = page
+          .locator("button[aria-label*='Tambahkan bahan ke kotak perintah']")
+          .first()
+        await addRefBtn.waitFor({ state: 'visible', timeout: 10_000 })
+
+        for (const buf of refBuffers) {
+          const tmpPath = path.join(os.tmpdir(), `flow-i2i-${crypto.randomUUID()}.png`)
+          const pngBuffer = await sharp(buf).png().toBuffer()
+          fs.writeFileSync(tmpPath, pngBuffer)
+          tempImagePaths.push(tmpPath)
+
+          await addRefBtn.click()
+          await page.waitForTimeout(400)
+
+          const uploadBtn = page
+            .locator(".cdk-overlay-container :is(button, [role=menuitem]):has-text('Upload')")
+            .first()
+          await uploadBtn.waitFor({ state: 'visible', timeout: 8_000 })
+
+          const [fileChooser] = await Promise.all([
+            page.waitForEvent('filechooser', { timeout: 10_000 }),
+            uploadBtn.click(),
+          ])
+          await fileChooser.setFiles(tmpPath)
+          const uploadedName = path.basename(tmpPath)
+          const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
+          await targetItem.waitFor({ state: 'visible', timeout: 12_000 }).catch(async () => {
+            await addRefBtn.click().catch(() => {})
+            await targetItem.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {})
+          })
+          if (await targetItem.isVisible().catch(() => false)) {
+            await targetItem.click()
+            await page.waitForTimeout(250)
+          } else {
+            throw new Error('UPLOAD_FAILED: Asset hasil upload tidak muncul di daftar media Flow.')
+          }
+          const addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+          await addToPromptBtn.waitFor({ state: 'visible', timeout: 6_000 })
+          await addToPromptBtn.click()
+          await page.waitForTimeout(300)
+          await page.keyboard.press('Escape').catch(() => {})
+          await page.waitForTimeout(200)
+        }
+      }
 
     // Capture baseline src URLs (handles virtualized/capped tile lists cleanly)
     const baselineSrcs: string[] = await page.evaluate(() =>
@@ -133,9 +149,11 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     const editor = page.locator('div.ProseMirror[role="textbox"], div.ProseMirror').first()
     await editor.waitFor({ state: 'visible', timeout: 10_000 })
     await editor.click()
-    const directive = options.imageBuffer
-      ? `Using the uploaded reference image, ${options.prompt.trim()} (generate image with Nano Banana 2.1)`
-      : `${options.prompt.trim()} (generate image with Nano Banana 2.1)`
+    const directive = refBuffers.length > 1
+      ? `Using all ${refBuffers.length} uploaded reference images, ${options.prompt.trim()} (generate image with Nano Banana 2.1)`
+      : refBuffers.length === 1
+        ? `Using the uploaded reference image, ${options.prompt.trim()} (generate image with Nano Banana 2.1)`
+        : `${options.prompt.trim()} (generate image with Nano Banana 2.1)`
     await editor.fill(directive)
     await page.waitForTimeout(600)
 
@@ -210,6 +228,11 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     } catch {}
 
     return { images }
+    } finally {
+      for (const p of tempImagePaths) {
+        if (fs.existsSync(p)) fs.unlink(p, () => {})
+      }
+    }
   } finally {
     if (tempImagePath && fs.existsSync(tempImagePath)) {
       fs.unlink(tempImagePath, () => {})
