@@ -70,7 +70,8 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     page.setDefaultTimeout(timeoutMs)
 
     await page.goto(projectUrl, { waitUntil: 'networkidle', timeout: 45_000 }).catch(() => {})
-    await page.waitForTimeout(2_000)
+    await page.locator('div.ProseMirror').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+    await page.waitForTimeout(1_500)
 
     if (page.url().includes('/about')) {
       throw new Error('FLOW_AUTH_EXPIRED: Sesi login Google Flow telah berakhir.')
@@ -78,8 +79,6 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
 
     await page.locator('.glue-cookie-notification-bar__accept').first().click({ timeout: 2_000 }).catch(() => {})
     await page.waitForTimeout(400)
-
-    let baselineTileCount = await page.locator('flow-image-tile').count()
 
     if (options.imageBuffer && options.imageBuffer.length > 0) {
       tempImagePath = path.join(os.tmpdir(), `flow-i2i-${crypto.randomUUID()}.png`)
@@ -103,17 +102,25 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
         uploadBtn.click(),
       ])
       await fileChooser.setFiles(tempImagePath)
-      await page.waitForTimeout(4_500)
+      await page.waitForTimeout(5_000)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(500)
-
-      baselineTileCount = await page.locator('flow-image-tile').count()
     }
+
+    // Capture baseline src URLs (handles virtualized/capped tile lists cleanly)
+    const baselineSrcs: string[] = await page.evaluate(() =>
+      Array.from((globalThis as any).document.querySelectorAll('flow-image-tile img'))
+        .map((img: any) => img.getAttribute('src') ?? '')
+        .filter((s: string) => s.startsWith('http')),
+    )
+    const baselineSet = new Set<string>(baselineSrcs)
 
     const editor = page.locator('div.ProseMirror[role="textbox"], div.ProseMirror').first()
     await editor.waitFor({ state: 'visible', timeout: 10_000 })
     await editor.click()
-    const directive = `${options.prompt.trim()} (generate image with Nano Banana 2.1)`
+    const directive = options.imageBuffer
+      ? `Using the uploaded reference image, ${options.prompt.trim()} (generate image with Nano Banana 2.1)`
+      : `${options.prompt.trim()} (generate image with Nano Banana 2.1)`
     await editor.fill(directive)
     await page.waitForTimeout(600)
 
@@ -122,6 +129,7 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     await genBtn.click()
 
     const startTime = Date.now()
+    let sawStopButton = false
     let readyUrls: string[] = []
 
     while (Date.now() - startTime < timeoutMs) {
@@ -134,25 +142,28 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
         await approveBtn.click().catch(() => {})
       }
 
-      const currentCount = await page.locator('flow-image-tile').count()
-      const newCount = currentCount - baselineTileCount
-      if (newCount <= 0) continue
-
       const stopVisible = await page.locator("button[aria-label='Hentikan']").first().isVisible().catch(() => false)
+      if (stopVisible) {
+        sawStopButton = true
+        continue
+      }
 
-      const tileStates = await page.evaluate((count) => {
-        const tiles = Array.from((globalThis as any).document.querySelectorAll('flow-image-tile')).slice(0, count)
-        return tiles.map((tile: any) => {
-          const img = tile.querySelector('img')
-          const src = img?.getAttribute('src') ?? ''
-          const ready = Boolean(img && img.complete && img.naturalWidth >= 256 && src.startsWith('http'))
-          return { ready, src }
-        })
-      }, newCount)
+      // Wait until generation has started and finished
+      if (!sawStopButton && Date.now() - startTime < 9_000) {
+        continue
+      }
 
-      const validUrls = tileStates.filter((t) => t.ready).map((t) => t.src)
-      if (!stopVisible && validUrls.length > 0 && validUrls.length >= newCount) {
-        readyUrls = validUrls
+      const currentTiles: Array<{ src: string; ready: boolean }> = await page.evaluate(() =>
+        Array.from((globalThis as any).document.querySelectorAll('flow-image-tile img')).map((img: any) => {
+          const src = img.getAttribute('src') ?? ''
+          const ready = Boolean(img.complete && img.naturalWidth >= 256 && src.startsWith('http'))
+          return { src, ready }
+        }),
+      )
+
+      const newReadyUrls = currentTiles.filter((t) => t.ready && !baselineSet.has(t.src)).map((t) => t.src)
+      if (newReadyUrls.length > 0) {
+        readyUrls = newReadyUrls
         break
       }
     }
@@ -174,6 +185,14 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     if (images.length === 0) {
       throw new Error('FLOW_IMAGE_DOWNLOAD_FAILED: Gagal mengunduh hasil gambar dari Google Flow.')
     }
+
+    // Refresh cookies on disk silently
+    try {
+      const refreshed = normalizeFlowCookies(await context.cookies())
+      if (refreshed.length > 0) {
+        fs.writeFileSync(cookiesPath, JSON.stringify(refreshed, null, 2), { mode: 0o600 })
+      }
+    } catch {}
 
     return { images }
   } finally {

@@ -313,8 +313,8 @@ export async function generateImageWithAi(
           images: flowResult.images,
         }
       }
-    } catch {
-      // Fallback to 9Router /images/generations
+    } catch (flowErr) {
+      console.warn('[ai-handler] Flow Nano Banana primary failed, falling back to 9Router:', flowErr instanceof Error ? flowErr.message : 'UnknownError')
     }
   }
 
