@@ -158,3 +158,9 @@ test('Agent security helpers: untrusted transcript sanitizer, SSRF guard, single
   assert.ok(hits.length >= 1)
   assert.equal(hashMemoryKey('628111:2@s.whatsapp.net'), hashMemoryKey('628111@s.whatsapp.net'))
 })
+
+test('Flow Studio skill markdown exists in knowledge vault and is searchable', async () => {
+  const vault = new AllybotMemoryService()
+  const hits = await vault.searchKnowledgeVault('Flow Studio', 5)
+  assert.ok(hits.length >= 1 && hits.some((h) => /flow-studio|Flow Studio/i.test(JSON.stringify(h))), 'flow-studio-skill.md must be indexed in knowledge vault')
+})

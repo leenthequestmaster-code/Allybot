@@ -669,6 +669,37 @@ export class AllysseaAgentService implements Service {
           return { ok: true, executed: syntheticText }
         },
       }),
+
+      flow_studio: tool({
+        description: 'Buat atau edit gambar (T2I/I2I hingga 4 foto) maupun video (T2V/I2V, durasi 4-10 detik) di Voice & Bot Room atau DM. Dilarang di grup OOC.',
+        inputSchema: z.object({
+          mode: z.enum(['image', 'video']),
+          prompt: z.string().min(3).max(450),
+          durationSeconds: z.number().int().min(4).max(10).optional().default(8),
+        }),
+        execute: async ({ mode, prompt, durationSeconds }) => {
+          toolsCalled.push(`flow_studio:${mode}`)
+          if (!isFullBotRoom) {
+            return { ok: false, error: 'Pembuatan gambar dan video hanya diizinkan di Voice & Bot Room atau DM. Arahkan member ke Voice & Bot Room.' }
+          }
+          if (mediaToolDispatches >= 2) {
+            return { ok: false, error: 'Batas maksimal 2 aksi media per permintaan sudah tercapai.' }
+          }
+          const targetCmdName = mode === 'video' ? 'vid' : 'img'
+          const cmd = input.commands.get(targetCmdName)
+          if (!cmd) {
+            return { ok: false, error: `Command ${targetCmdName} tidak tersedia saat ini.` }
+          }
+          mediaToolDispatches += 1
+          const cleanPrompt = prompt.trim()
+          const syntheticText =
+            mode === 'video'
+              ? `${input.prefix}vid --dur=${durationSeconds} ${cleanPrompt}`
+              : `${input.prefix}img ${cleanPrompt}`
+          await input.commands.dispatch({ ...input.message, text: syntheticText })
+          return { ok: true, mode, durationSeconds: mode === 'video' ? durationSeconds : undefined, executed: syntheticText }
+        },
+      }),
     }
 
     const provider = createOpenAICompatible({
