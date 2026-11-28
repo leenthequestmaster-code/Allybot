@@ -1,3 +1,4 @@
+import { generateFlowImage } from './services/flow-image-service.js'
 import OpenAI from 'openai'
 import { buildPersonaSystemPrompt, DEFAULT_ALLY_PERSONA } from './services/ai-persona-engine.js'
 
@@ -251,7 +252,8 @@ export interface GenerateImageOptions {
 export interface GeneratedImageResult {
   readonly buffer: Buffer
   readonly mimeType: string
-  readonly source: '9router-gemini' | 'pollinations-flux'
+  readonly source: 'flow-nano-banana' | '9router-gemini'
+  readonly images?: readonly { readonly buffer: Buffer; readonly mimeType: string }[]
 }
 
 export function cleanImagePrompt(raw: string): string {
@@ -285,21 +287,42 @@ export function cleanImagePrompt(raw: string): string {
 
 export async function generateImageWithAi(
   prompt: string,
-  options: GenerateImageOptions = {},
+  options: GenerateImageOptions & { readonly flowEnabled?: boolean; readonly flowCookiesPath?: string } = {},
 ): Promise<GeneratedImageResult> {
   const rawPrompt = prompt.trim()
   if (!rawPrompt) throw new AiHandlerError('invalid_input', 'Prompt gambar tidak boleh kosong.')
 
   const cleanPrompt = cleanImagePrompt(rawPrompt)
   const effectivePrompt = options.negativePrompt ? `${cleanPrompt}. Avoid: ${options.negativePrompt}` : cleanPrompt
+  const timeoutMs = options.timeoutMs ?? 120_000
 
+  // 1. Primary: Google Flow (Nano Banana 2.1) — supports T2I, I2I, and multi-image output
+  if (options.flowEnabled !== false) {
+    try {
+      const flowResult = await generateFlowImage({
+        prompt: effectivePrompt,
+        imageBuffer: options.imageBuffer,
+        cookiesPath: options.flowCookiesPath,
+        timeoutMs: Math.min(timeoutMs, 90_000),
+      })
+      if (flowResult.images.length > 0) {
+        return {
+          buffer: flowResult.images[0].buffer,
+          mimeType: flowResult.images[0].mimeType,
+          source: 'flow-nano-banana',
+          images: flowResult.images,
+        }
+      }
+    } catch {
+      // Fallback to 9Router /images/generations
+    }
+  }
+
+  // 2. Fallback: 9Router / OpenAI-compatible /images/generations endpoint
   const apiKey = (options.apiKey ?? process.env.AI_API_KEY)?.trim()
   const baseUrl = options.baseUrl ?? process.env.AI_BASE_URL ?? AI_BASE_URL
   const model = options.model ?? process.env.AI_IMAGE_MODEL ?? 'ag/gemini-3.1-flash-image'
-  // Generous 120s timeout for high-resolution 1024x1024 generation during peak loads
-  const timeoutMs = options.timeoutMs ?? 120_000
 
-  // 1. Primary: 9Router / OpenAI-compatible /images/generations endpoint
   if (apiKey && baseUrl) {
     try {
       const controller = new AbortController()
@@ -331,45 +354,31 @@ export async function generateImageWithAi(
         const data: any = await res.json()
         const b64 = data.data?.[0]?.b64_json
         if (typeof b64 === 'string' && b64.length > 500) {
+          const buf = Buffer.from(b64, 'base64')
           return {
-            buffer: Buffer.from(b64, 'base64'),
+            buffer: buf,
             mimeType: 'image/png',
             source: '9router-gemini',
+            images: [{ buffer: buf, mimeType: 'image/png' }],
           }
         }
         const imgUrl = data.data?.[0]?.url
         if (typeof imgUrl === 'string' && imgUrl.startsWith('http')) {
           const dlRes = await fetch(imgUrl, { signal: AbortSignal.timeout(20_000) })
           if (dlRes.ok) {
+            const buf = Buffer.from(await dlRes.arrayBuffer())
             return {
-              buffer: Buffer.from(await dlRes.arrayBuffer()),
+              buffer: buf,
               mimeType: 'image/png',
               source: '9router-gemini',
+              images: [{ buffer: buf, mimeType: 'image/png' }],
             }
           }
         }
       }
-    } catch {
-      // Fallback to secondary provider
+    } catch (err) {
+      throw new AiHandlerError('provider_unavailable', `Gagal menghasilkan gambar: ${String(err)}`)
     }
-  }
-
-  // 2. Secondary Fallback: Pollinations.ai (using fast turboflux endpoint)
-  try {
-    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(effectivePrompt)}?width=1024&height=1024&nologo=true&seed=${Date.now()}`
-    const res = await fetch(fallbackUrl, { signal: AbortSignal.timeout(45_000) })
-    if (res.ok) {
-      const buffer = Buffer.from(await res.arrayBuffer())
-      if (buffer.length > 1000 && !buffer.slice(0, 100).toString('utf8').includes('FREE_LIMIT')) {
-        return {
-          buffer,
-          mimeType: 'image/jpeg',
-          source: 'pollinations-flux',
-        }
-      }
-    }
-  } catch (err) {
-    throw new AiHandlerError('provider_unavailable', `Gagal menghasilkan gambar: ${String(err)}`)
   }
 
   throw new AiHandlerError('provider_unavailable', 'Layanan generate gambar sedang sibuk atau timeout. Coba ulangi sebentar lagi ya~')

@@ -160,6 +160,35 @@ function extractImageSourceFromMessage(message: CoreMessage): { descriptor: any;
   return undefined
 }
 
+
+async function deliverGeneratedImages(
+  commandContext: CommandContext,
+  result: { buffer: Buffer; mimeType: string; images?: readonly { readonly buffer: Buffer; readonly mimeType: string }[] },
+  caption: string,
+): Promise<void> {
+  const imgs = result.images && result.images.length > 0 ? result.images : [{ buffer: result.buffer, mimeType: result.mimeType }]
+  if (imgs.length > 1 && commandContext.whatsapp.sendMediaAlbum) {
+    await commandContext.whatsapp.sendMediaAlbum(
+      commandContext.message.remoteJid,
+      imgs.map((img, idx) => ({
+        kind: 'image' as const,
+        data: new Uint8Array(img.buffer),
+        mimeType: img.mimeType,
+        ...(idx === 0 ? { caption } : {}),
+      })),
+    )
+    return
+  }
+  if (commandContext.whatsapp.sendMedia) {
+    await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
+      kind: 'image',
+      data: new Uint8Array(imgs[0].buffer),
+      mimeType: imgs[0].mimeType,
+      caption,
+    })
+  }
+}
+
 function extractImageSource(context: CommandContext): { descriptor: any; source: 'direct' | 'quoted' } | undefined {
   return extractImageSourceFromMessage(context.message)
 }
@@ -1056,13 +1085,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
           try {
             const result = await generateImageWithAi(prompt)
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nGambar selesai dibuat.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nGambar selesai dibuat.`)
               await commandContext.react('✅')
             }
           } catch (error) {
@@ -1097,13 +1121,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
           try {
             const result = await generateImageWithAi(wrapped.prompt, { negativePrompt: wrapped.negativePrompt })
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nGambar selesai dibuat.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nGambar selesai dibuat.`)
               await commandContext.react('✅')
             }
           } catch (error) {
@@ -1141,13 +1160,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
 
           try {
             const result = await generateImageWithAi(wrapped.prompt, { negativePrompt: wrapped.negativePrompt })
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nLogo selesai dibuat.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nLogo selesai dibuat.`)
               await commandContext.react('✅')
             }
           } catch (error) {
@@ -1191,13 +1205,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
               negativePrompt: wrapped.negativePrompt,
             })
 
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nGambar berhasil diubah.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nGambar berhasil diubah.`)
               await commandContext.react('✅')
             }
           } catch (error) {
@@ -1239,13 +1248,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
               negativePrompt: wrapped.negativePrompt,
             })
 
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nLatar belakang berhasil diganti.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nLatar belakang berhasil diganti.`)
               await commandContext.react('✅')
             }
           } catch (error) {
@@ -1286,13 +1290,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
               negativePrompt: wrapped.negativePrompt,
             })
 
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nGambar berhasil dijernihkan.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nGambar berhasil dijernihkan.`)
               await commandContext.react('✅')
             }
           } catch (error) {
@@ -1334,13 +1333,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
               negativePrompt: wrapped.negativePrompt,
             })
 
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nKostum berhasil diubah.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nKostum berhasil diubah.`)
               await commandContext.react('✅')
             }
           } catch (error) {
@@ -1382,13 +1376,8 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
               negativePrompt: wrapped.negativePrompt,
             })
 
-            if (commandContext.whatsapp.sendMedia) {
-              await commandContext.whatsapp.sendMedia(commandContext.message.remoteJid, {
-                kind: 'image',
-                data: new Uint8Array(result.buffer),
-                mimeType: result.mimeType,
-                caption: `Status: Berhasil\nGaya gambar berhasil digabungkan.`,
-              })
+            if (commandContext.whatsapp.sendMedia || commandContext.whatsapp.sendMediaAlbum) {
+              await deliverGeneratedImages(commandContext, result, `Status: Berhasil\nGaya gambar berhasil digabungkan.`)
               await commandContext.react('✅')
             }
           } catch (error) {

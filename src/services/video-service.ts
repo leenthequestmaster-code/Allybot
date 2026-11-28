@@ -4,6 +4,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
+import { normalizeFlowCookies } from './flow-image-service.js'
 
 function runFfmpegVideoCli(args: string[], inputBuffer: Buffer, isOpus = false): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -140,7 +141,7 @@ export class FlowVideoProvider implements VideoProvider {
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       })
-      await context.addCookies(cookies)
+      await context.addCookies(normalizeFlowCookies(cookies))
 
       const page: Page = await context.newPage()
       page.setDefaultTimeout(this.timeoutMs)
@@ -260,6 +261,7 @@ export class FlowVideoProvider implements VideoProvider {
       }
 
       // ── Step 3: Enter Prompt & Trigger Generation ────────────────
+      const initialVideoTiles = await page.locator('flow-video-tile').count()
       const editor = page.locator('div.ProseMirror[role="textbox"], div.ProseMirror').first()
       await editor.waitFor({ state: 'visible', timeout: 10_000 })
       await editor.click()
@@ -277,6 +279,14 @@ export class FlowVideoProvider implements VideoProvider {
       while (Date.now() - startTime < maxWaitMs) {
         await page.waitForTimeout(4_000)
         try {
+          const approveBtn = page
+            .locator("button:has-text('Selalu setujui di project'), button:has-text('Setujui')")
+            .first()
+          if (await approveBtn.isVisible().catch(() => false)) {
+            await approveBtn.click().catch(() => {})
+          }
+          const currentVideoTiles = await page.locator('flow-video-tile').count()
+          if (currentVideoTiles <= initialVideoTiles) continue
           const tile = page.locator('flow-video-tile').first()
           if (await tile.isVisible()) {
             await tile.click({ timeout: 2_000 })

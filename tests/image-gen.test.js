@@ -185,3 +185,27 @@ test('5. Image commands enforce standardized Status response on missing inputs',
   assert.match(whatsapp.sent[5].text, /Status: Gagal/i)
   assert.match(whatsapp.sent[5].text, /Kirim atau balas gambar dengan:\n!restore/i)
 })
+
+test('6. generateImageWithAi falls back to 9router-gemini when Flow is disabled/unavailable and never calls Pollinations', async () => {
+  const originalFetch = globalThis.fetch
+  const requestedUrls = []
+  globalThis.fetch = async (url) => {
+    requestedUrls.push(String(url))
+    return new Response(
+      JSON.stringify({ data: [{ b64_json: Buffer.alloc(600, 1).toString('base64') }] }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+  try {
+    const res = await generateImageWithAi('kucing oranye di taman', {
+      flowEnabled: false,
+      apiKey: 'test-key',
+      baseUrl: 'http://127.0.0.1:20128/v1',
+    })
+    assert.equal(res.source, '9router-gemini')
+    assert.equal(requestedUrls.some((u) => u.includes('pollinations')), false)
+    assert.equal(requestedUrls.some((u) => u.endsWith('/images/generations')), true)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
