@@ -103,8 +103,29 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
       ])
       await fileChooser.setFiles(tempImagePath)
       await page.waitForTimeout(5_000)
+
+      // Ensure the uploaded asset is explicitly attached to the prompt box
+      const uploadedName = path.basename(tempImagePath)
+      let addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+      if (!(await addToPromptBtn.isVisible().catch(() => false))) {
+        await addRefBtn.click().catch(() => {})
+        await page.waitForTimeout(800)
+        const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
+        if (await targetItem.isVisible().catch(() => false)) {
+          await targetItem.click().catch(() => {})
+          await page.waitForTimeout(400)
+        } else {
+          await page.locator('.cdk-overlay-container .asset-item').first().click().catch(() => {})
+          await page.waitForTimeout(400)
+        }
+        addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+      }
+      if (await addToPromptBtn.isVisible().catch(() => false)) {
+        await addToPromptBtn.click()
+        await page.waitForTimeout(600)
+      }
       await page.keyboard.press('Escape').catch(() => {})
-      await page.waitForTimeout(500)
+      await page.waitForTimeout(400)
     }
 
     // Capture baseline src URLs (handles virtualized/capped tile lists cleanly)
