@@ -5,6 +5,47 @@ export interface VideoPluginOptions {
   readonly videoService?: VideoService
 }
 
+
+export function parseVideoArgs(args: readonly string[]): {
+  readonly prompt: string
+  readonly durationSeconds: number
+  readonly invalidDurationError?: string
+} {
+  let durationSeconds = 8
+  const remaining: string[] = []
+
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i] ?? ''
+    let rawNum: string | undefined
+
+    const eqMatch = token.match(/^--?(?:dur|duration|d)=(\d+)$/i)
+    if (eqMatch) {
+      rawNum = eqMatch[1]
+    } else if (/^--?(?:dur|duration|d)$/i.test(token) && i + 1 < args.length && /^\d+$/.test(args[i + 1] ?? '')) {
+      rawNum = args[++i]
+    } else {
+      const suffixMatch = token.match(/^(\d+)(?:s|sec|dtk|detik)$/i)
+      if (suffixMatch) rawNum = suffixMatch[1]
+    }
+
+    if (rawNum !== undefined) {
+      const val = Number.parseInt(rawNum, 10)
+      if (!Number.isFinite(val) || val < 4 || val > 10) {
+        return {
+          prompt: '',
+          durationSeconds: 8,
+          invalidDurationError: 'Status: Gagal\nDurasi video harus antara 4 sampai 10 detik (contoh: !vid --dur=6 pemandangan senja).',
+        }
+      }
+      durationSeconds = val
+    } else {
+      remaining.push(token)
+    }
+  }
+
+  return { prompt: remaining.join(' ').trim(), durationSeconds }
+}
+
 function sourceVideo(context: CommandContext): { source: 'direct' | 'quoted'; kind: string } | undefined {
   if (context.message.media?.kind === 'video') return { source: 'direct', kind: 'video' }
   if (context.message.quotedMedia?.kind === 'video') return { source: 'quoted', kind: 'video' }
@@ -39,7 +80,13 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
         handler: async (cmdContext: CommandContext) => {
           const imgTarget = sourceImage(cmdContext)
           const mediaPort = whatsapp ?? cmdContext.whatsapp
-          const rawPrompt = cmdContext.args.join(' ').trim()
+          const parsedArgs = parseVideoArgs(cmdContext.args)
+          if (parsedArgs.invalidDurationError) {
+            await cmdContext.reply(parsedArgs.invalidDurationError)
+            return
+          }
+          const rawPrompt = parsedArgs.prompt
+          const durationSeconds = parsedArgs.durationSeconds
 
           if (imgTarget && mediaPort?.downloadMedia) {
             if (rawPrompt.length > 500) {
@@ -71,6 +118,7 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
               const result = await videoService.enqueue(senderJid, {
                 prompt: promptText,
                 model: 'omni-flash',
+                durationSeconds,
                 imageBuffer: Buffer.from(downloaded.data),
               })
 
@@ -138,6 +186,7 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
             const result = await videoService.enqueue(senderJid, {
               prompt: rawPrompt,
               model: 'veo-lite',
+              durationSeconds,
             })
 
             if (mediaPort?.sendMedia) {

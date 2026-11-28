@@ -54,6 +54,7 @@ export interface VideoGenerationOptions {
   readonly model?: 'veo-lite' | 'veo-fast' | 'omni-flash'
   readonly timeoutMs?: number
   readonly imageBuffer?: Buffer
+  readonly durationSeconds?: number
 }
 
 export interface VideoGenerationResult {
@@ -85,7 +86,7 @@ export class MockVideoProvider implements VideoProvider {
     return {
       buffer: dummyMp4,
       mimeType: 'video/mp4',
-      durationSeconds: 8,
+      durationSeconds: Math.min(10, Math.max(4, Math.round(options.durationSeconds ?? 8))),
       modelName: options.imageBuffer ? 'omni-flash' : (options.model ?? 'veo-lite'),
       fileName: `video-${Date.now()}.mp4`,
     }
@@ -170,6 +171,7 @@ export class FlowVideoProvider implements VideoProvider {
 
       // Dismiss cookie consent banner if present
       try {
+        await page.addStyleTag({ content: '.glue-cookie-notification-bar { display: none !important; pointer-events: none !important; }' }).catch(() => {})
         const agreeBtn = page.locator('.glue-cookie-notification-bar__accept')
         if (await agreeBtn.isVisible()) {
           await agreeBtn.click({ timeout: 3_000 })
@@ -281,9 +283,10 @@ export class FlowVideoProvider implements VideoProvider {
       const editor = page.locator('div.ProseMirror[role="textbox"], div.ProseMirror').first()
       await editor.waitFor({ state: 'visible', timeout: 10_000 })
       await editor.click()
+      const requestedDuration = Math.min(10, Math.max(4, Math.round(options.durationSeconds ?? 8)))
       const videoDirective = options.imageBuffer
-        ? `Using the uploaded reference image, ${options.prompt.trim()} (generate an 8-second video with Omni 1.1 Flash)`
-        : `${options.prompt.trim()} (generate an 8-second video)`
+        ? `Using the uploaded reference image, ${options.prompt.trim()} (generate a ${requestedDuration}-second video with Omni 1.1 Flash)`
+        : `${options.prompt.trim()} (generate a ${requestedDuration}-second video)`
       await editor.fill(videoDirective)
       await page.waitForTimeout(800)
 
@@ -361,10 +364,24 @@ export class FlowVideoProvider implements VideoProvider {
         throw new Error('INVALID_OUTPUT: Format file video yang diterima tidak valid.')
       }
 
+      let actualDuration = requestedDuration
+      try {
+        const tmpProbe = path.join(os.tmpdir(), `vid-probe-${crypto.randomUUID()}.mp4`)
+        fs.writeFileSync(tmpProbe, buffer)
+        try {
+          const { execFileSync } = await import('node:child_process')
+          const out = execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', tmpProbe], { encoding: 'utf8', timeout: 5000 }).trim()
+          const parsed = Number.parseFloat(out)
+          if (Number.isFinite(parsed) && parsed > 0) actualDuration = Math.round(parsed)
+        } finally {
+          fs.unlink(tmpProbe, () => {})
+        }
+      } catch {}
+
       return {
         buffer,
         mimeType: 'video/mp4',
-        durationSeconds: 8,
+        durationSeconds: actualDuration,
         modelName: options.model ?? 'veo-lite',
         fileName: `video-${Date.now()}.mp4`,
       }

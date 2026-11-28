@@ -311,3 +311,36 @@ test('10. !vid and !omnivid alias handle Image-to-Video animation from image med
   assert.match(whatsapp.media[0].payload.caption, /Video dari gambar berhasil dibuat/i)
   assert.doesNotMatch(whatsapp.media[0].payload.caption, /\b(veo|gemini|google|flow)\b/i)
 })
+
+test('11. !vid supports custom duration 4-10s via flags and rejects out-of-range durations', async () => {
+  const events = new EventBus(logger)
+  const services = new ServiceRegistry(logger)
+  const whatsapp = fakeWhatsapp()
+  const registry = new CommandRegistry(config, logger, whatsapp, services, events)
+  const videoService = new VideoService({
+    provider: new MockVideoProvider(),
+    cooldownMs: 0,
+    dailyLimit: 10,
+  })
+  services.register(videoService)
+  const plugin = createVideoPlugin(whatsapp, { videoService })
+  plugin.load?.({ logger, config, events, commands: registry, services })
+
+  // Out of range (<4)
+  await registry.dispatch(message('m-dur-low', 'u1@s.whatsapp.net', '!vid --dur=2 kucing menari'))
+  assert.match(whatsapp.sent.at(-1).text, /4 sampai 10 detik/i)
+
+  // Out of range (>10)
+  await registry.dispatch(message('m-dur-high', 'u2@s.whatsapp.net', '!vid 15s kucing menari'))
+  assert.match(whatsapp.sent.at(-1).text, /4 sampai 10 detik/i)
+
+  // Valid 4s T2V
+  await registry.dispatch(message('m-dur-4', 'u3@s.whatsapp.net', '!vid --dur=4 ombak laut tenang saat fajar'))
+  assert.match(whatsapp.media.at(-1).payload.caption, /Durasi: 4 detik/i)
+
+  // Valid 10s I2V
+  await registry.dispatch(message('m-dur-10', 'u4@s.whatsapp.net', '!vid 10s gerakkan rambut pelan', {
+    media: { kind: 'image' },
+  }))
+  assert.match(whatsapp.media.at(-1).payload.caption, /Durasi: 10 detik/i)
+})

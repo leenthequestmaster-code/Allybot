@@ -1132,6 +1132,7 @@ export function createAiPlugin(options: AiPluginOptions = {}): Plugin {
         ],
         description: 'Membuat atau mengedit gambar dari teks maupun hingga 4 foto referensi',
         category: 'tools',
+        scope: 'both',
         menuOrder: 6,
         cooldownMs: 5_000,
         handler: async (commandContext) => {

@@ -78,7 +78,8 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
       throw new Error('FLOW_AUTH_EXPIRED: Sesi login Google Flow telah berakhir.')
     }
 
-    await page.locator('.glue-cookie-notification-bar__accept').first().click({ timeout: 2_000 }).catch(() => {})
+    await page.addStyleTag({ content: '.glue-cookie-notification-bar { display: none !important; pointer-events: none !important; }' }).catch(() => {})
+    await page.locator('.glue-cookie-notification-bar__accept').first().click({ timeout: 1_500 }).catch(() => {})
     await page.waitForTimeout(400)
 
     const refBuffers: Buffer[] = []
