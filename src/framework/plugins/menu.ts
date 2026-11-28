@@ -331,8 +331,7 @@ const CATEGORY_SUB_GROUPS: Record<string, readonly SubCategoryDef[]> = {
       title: 'Artificial Intelligence',
       commands: [
         'ai', 'ally', 'tanya', 'translate', 'summarize', 'aidetection', 'tts', 'suara',
-        'text2img', 'draw', 'buatgambar', 't2i', 'anime', 'logo',
-        'i2i', 'bgchange', 'restore', 'cosplay', 'charedit', 'remix',
+        'img', 'draw', 'text2img', 'i2i', 'anime', 'logo', 'bgchange', 'restore', 'cosplay', 'remix',
         'img2text', 'ocr',
       ],
     },

@@ -75,15 +75,15 @@ test('2. matchNaturalLanguageCommand routes drawing and painting requests to tex
   const dummyMsg = { id: 'm1', remoteJid: 'chat@s.whatsapp.net', timestamp: Date.now(), fromMe: false }
 
   const res1 = matchNaturalLanguageCommand('gambarin kucing lucu di luar angkasa', dummyMsg)
-  assert.equal(res1?.commandName, 'text2img')
+  assert.equal(res1?.commandName, 'img')
   assert.equal(res1?.argsText, 'kucing lucu di luar angkasa')
 
   const res2 = matchNaturalLanguageCommand('tolong buatkan gambar pemandangan pantai sore hari', dummyMsg)
-  assert.equal(res2?.commandName, 'text2img')
+  assert.equal(res2?.commandName, 'img')
   assert.equal(res2?.argsText, 'pemandangan pantai sore hari')
 
   const res3 = matchNaturalLanguageCommand('lukiskan robot cyberpunk yang keren', dummyMsg)
-  assert.equal(res3?.commandName, 'text2img')
+  assert.equal(res3?.commandName, 'img')
   assert.equal(res3?.argsText, 'robot cyberpunk yang keren')
 })
 
@@ -138,7 +138,7 @@ test('4. AI Plugin registers image commands without leaking model names', () => 
   const plugin = createAiPlugin({ whatsapp })
   plugin.load?.({ logger, config, events, commands: registry, services })
 
-  const registeredImageCmds = ['text2img', 'anime', 'logo', 'i2i', 'bgchange', 'restore', 'cosplay', 'remix']
+  const registeredImageCmds = ['img', 'text2img', 'anime', 'logo', 'i2i', 'bgchange', 'restore', 'cosplay', 'remix']
   for (const cmd of registeredImageCmds) {
     const def = registry.get(cmd)
     assert.ok(def, `Command !${cmd} must be registered`)
@@ -155,35 +155,22 @@ test('5. Image commands enforce standardized Status response on missing inputs',
   const plugin = createAiPlugin({ whatsapp })
   plugin.load?.({ logger, config, events, commands: registry, services })
 
-  // 1. !text2img with empty prompt
-  await registry.dispatch(message('m-1', '1203630123@g.us', '!text2img'))
+  // 1. !img with empty prompt and no image
+  await registry.dispatch(message('m-1', '1203630123@g.us', '!img', { senderJid: '6281@s.whatsapp.net' }))
   assert.match(whatsapp.sent[0].text, /Status: Gagal/i)
-  assert.match(whatsapp.sent[0].text, /Format perintah:\n!draw <deskripsi gambar>/i)
+  assert.match(whatsapp.sent[0].text, /!img <deskripsi>/i)
 
-  // 2. !anime with empty prompt
-  await registry.dispatch(message('m-2', '1203630123@g.us', '!anime'))
+  // 2. !anime alias with empty prompt
+  await registry.dispatch(message('m-2', '1203630123@g.us', '!anime', { senderJid: '6282@s.whatsapp.net' }))
   assert.match(whatsapp.sent[1].text, /Status: Gagal/i)
-  assert.match(whatsapp.sent[1].text, /Format perintah:\n!anime <deskripsi>/i)
 
-  // 3. !logo with empty prompt
-  await registry.dispatch(message('m-3', '1203630123@g.us', '!logo'))
+  // 3. !logo alias with empty prompt
+  await registry.dispatch(message('m-3', '1203630123@g.us', '!logo', { senderJid: '6283@s.whatsapp.net' }))
   assert.match(whatsapp.sent[2].text, /Status: Gagal/i)
-  assert.match(whatsapp.sent[2].text, /Format perintah:\n!logo <nama brand>/i)
 
-  // 4. !i2i without image
-  await registry.dispatch(message('m-4', '1203630123@g.us', '!i2i ubah rambut jadi pirang'))
+  // 4. !bgchange alias without image fails cleanly
+  await registry.dispatch(message('m-4', '1203630123@g.us', '!bgchange', { senderJid: '6284@s.whatsapp.net' }))
   assert.match(whatsapp.sent[3].text, /Status: Gagal/i)
-  assert.match(whatsapp.sent[3].text, /Kirim atau balas gambar dengan:\n!i2i/i)
-
-  // 5. !bgchange without image
-  await registry.dispatch(message('m-5', '1203630123@g.us', '!bgchange pantai'))
-  assert.match(whatsapp.sent[4].text, /Status: Gagal/i)
-  assert.match(whatsapp.sent[4].text, /Kirim atau balas gambar dengan:\n!bgchange/i)
-
-  // 6. !restore without image
-  await registry.dispatch(message('m-6', '1203630123@g.us', '!restore'))
-  assert.match(whatsapp.sent[5].text, /Status: Gagal/i)
-  assert.match(whatsapp.sent[5].text, /Kirim atau balas gambar dengan:\n!restore/i)
 })
 
 test('6. generateImageWithAi falls back to 9router-gemini when Flow is disabled/unavailable and never calls Pollinations', async () => {

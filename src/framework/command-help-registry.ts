@@ -253,11 +253,11 @@ export const COMMAND_HELP_MAP: Readonly<Record<string, CommandHelpEntry>> = {
     examples: ['!tts Selamat pagi semuanya, semoga hari kalian menyenangkan'],
     type: 'Q',
   },
-  text2img: {
+  img: {
     summary: 'Buat gambar ilustrasi baru dari kalimat deskripsi',
     description: 'Rancang lukisan dan gambar ilustrasi orisinal secara otomatis hanya dengan menjelaskan wujud objeknya.',
-    usage: 'Format: !text2img <kalimat penggambaran objek>',
-    examples: ['!text2img kucing kecil memakai topi jerami santai di tepi pantai'],
+    usage: 'Format: !img <kalimat penggambaran objek>',
+    examples: ['!img kucing kecil memakai topi jerami santai di tepi pantai'],
     type: 'C',
   },
 

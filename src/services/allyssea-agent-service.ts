@@ -42,7 +42,7 @@ const BLOCKED_COMMANDS_IN_AGENT = new Set([
 
 const BOT_ROOM_MEDIA_COMMANDS = new Set([
   's', 'sticker', 'toimg', 'brat', 'brats', 'qc', 'iqc', 'iqcs', 'smeme',
-  'removebg', 'hd', 'text2img', 'img2text', 'ocr', 'play', 'spotify', 'lirik',
+  'removebg', 'hd', 'img', 'img2text', 'ocr', 'play', 'spotify', 'lirik',
   'dl', 'ig', 'fb', 'x', 'tw', 'threads', 'th', 'sc', 'yts', 'tts', 'translate',
 ])
 
@@ -642,7 +642,7 @@ export class AllysseaAgentService implements Service {
       }),
 
       dispatch_bot_tool: tool({
-        description: 'Jalankan command media/musik/utilitas Allybot di Voice & Bot Room atau DM (mis. brat, qc, play, lirik, sticker, text2img). Dilarang di grup OOC.',
+        description: 'Jalankan command media/musik/utilitas Allybot di Voice & Bot Room atau DM (mis. brat, qc, play, lirik, sticker, img). Dilarang di grup OOC.',
         inputSchema: z.object({
           commandName: z.string().min(1).max(32),
           argsText: z.string().max(300).default(''),

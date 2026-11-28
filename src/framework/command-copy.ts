@@ -99,7 +99,7 @@ const COMMAND_COPY: Readonly<Record<string, string>> = {
   translate: 'Terjemahkan kalimat ke berbagai bahasa.',
   summarize: 'Buat rangkuman padat dari teks atau artikel panjang.',
   tts: 'Ubah tulisan menjadi suara rekaman voice note.',
-  text2img: 'Buat ilustrasi gambar dari deskripsi teks.',
+  img: 'Buat atau edit gambar dari teks maupun hingga 4 foto referensi.',
   img2text: 'Ekstrak dan baca teks tulisan dari gambar.',
   sticker: 'Ubah foto atau video pendek menjadi stiker WhatsApp.',
   s: 'Ubah foto atau video pendek menjadi stiker WhatsApp.',
