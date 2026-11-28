@@ -27,31 +27,97 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
         context.services.get<VideoService>('video') ??
         new VideoService()
 
-      // ── 1. Pembuatan Video dari Teks (!vid) ───────────────────────────
+      // ── 1. Pembuatan Video dari Teks atau Gambar (!vid / !omnivid) ───────
       context.commands.register({
         name: 'vid',
-        aliases: ['video'],
-        description: 'Membuat video dari deskripsi teks',
+        aliases: ['video', 'omnivid', 'i2v', 'vidomni'],
+        description: 'Membuat video dari teks atau gambar',
         category: 'tools',
         scope: 'both',
         menuOrder: 15,
         cooldownMs: 15_000,
         handler: async (cmdContext: CommandContext) => {
+          const imgTarget = sourceImage(cmdContext)
+          const mediaPort = whatsapp ?? cmdContext.whatsapp
           const rawPrompt = cmdContext.args.join(' ').trim()
+
+          if (imgTarget && mediaPort?.downloadMedia) {
+            if (rawPrompt.length > 500) {
+              await cmdContext.reply(
+                'Status: Gagal\nDeskripsi terlalu panjang. Maksimal 500 karakter.',
+              )
+              return
+            }
+
+            const promptText = rawPrompt || 'Gerakkan objek secara alami dan halus'
+            const senderJid = cmdContext.message.senderJid ?? cmdContext.message.remoteJid
+            const quota = videoService.checkQuota(senderJid)
+            if (!quota.allowed) {
+              await cmdContext.reply(quota.reason ?? 'Status: Gagal\nBatas kuota pembuatan video tercapai.')
+              return
+            }
+
+            await cmdContext.react('⏳')
+            await cmdContext.reply(
+              'Status: Diproses\nGambar sedang diunggah dan diproses menjadi video.',
+            )
+
+            try {
+              const downloaded = await mediaPort.downloadMedia(cmdContext.message, imgTarget.source, {
+                maxBytes: 15 * 1024 * 1024,
+                timeoutMs: 30_000,
+              })
+
+              const result = await videoService.enqueue(senderJid, {
+                prompt: promptText,
+                model: 'omni-flash',
+                imageBuffer: Buffer.from(downloaded.data),
+              })
+
+              if (mediaPort.sendMedia) {
+                await mediaPort.sendMedia(cmdContext.message.remoteJid, {
+                  kind: 'video',
+                  data: result.buffer,
+                  mimeType: result.mimeType,
+                  fileName: result.fileName,
+                  caption:
+                    'Status: Berhasil\n' +
+                    'Video dari gambar berhasil dibuat.\n' +
+                    `Durasi: ${result.durationSeconds} detik`,
+                })
+                await cmdContext.react('✅')
+              } else {
+                await cmdContext.reply('Status: Gagal\nLayanan pengiriman media sedang tidak tersedia.')
+              }
+            } catch (error) {
+              cmdContext.logger.error(
+                { errorName: error instanceof Error ? error.name : 'UnknownError' },
+                'Image to video animation failed',
+              )
+              await cmdContext.react('❌')
+              await cmdContext.reply(
+                'Status: Gagal\n' +
+                'Gagal memproses gambar menjadi video. Pastikan format gambar valid dan coba lagi.',
+              )
+            }
+            return
+          }
+
           if (!rawPrompt || rawPrompt.length < 5) {
             await cmdContext.reply(
-              `Status: Gagal\n` +
-              `Format perintah:\n` +
-              `${cmdContext.prefix}vid <deskripsi>\n\n` +
-              `Contoh:\n` +
-              `${cmdContext.prefix}vid pemandangan pegunungan saat fajar`
+              'Status: Gagal\n' +
+              'Format perintah:\n' +
+              `${cmdContext.prefix}vid <deskripsi> (teks ke video)\n` +
+              `• Kirim/balas gambar dengan ${cmdContext.prefix}vid [deskripsi gerakan] (gambar ke video)\n\n` +
+              'Contoh:\n' +
+              `${cmdContext.prefix}vid pemandangan pegunungan saat fajar`,
             )
             return
           }
 
           if (rawPrompt.length > 500) {
             await cmdContext.reply(
-              `Status: Gagal\nDeskripsi terlalu panjang. Maksimal 500 karakter.`
+              'Status: Gagal\nDeskripsi terlalu panjang. Maksimal 500 karakter.',
             )
             return
           }
@@ -59,13 +125,13 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
           const senderJid = cmdContext.message.senderJid ?? cmdContext.message.remoteJid
           const quota = videoService.checkQuota(senderJid)
           if (!quota.allowed) {
-            await cmdContext.reply(quota.reason ?? `Status: Gagal\nBatas kuota pembuatan video tercapai.`)
+            await cmdContext.reply(quota.reason ?? 'Status: Gagal\nBatas kuota pembuatan video tercapai.')
             return
           }
 
           await cmdContext.react('⏳')
           await cmdContext.reply(
-            `Status: Diproses\nVideo sedang dibuat. Estimasi selesai dalam 1 menit.`
+            'Status: Diproses\nVideo sedang dibuat. Estimasi selesai dalam 1 menit.',
           )
 
           try {
@@ -74,7 +140,6 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
               model: 'veo-lite',
             })
 
-            const mediaPort = whatsapp ?? cmdContext.whatsapp
             if (mediaPort?.sendMedia) {
               await mediaPort.sendMedia(cmdContext.message.remoteJid, {
                 kind: 'video',
@@ -82,13 +147,13 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
                 mimeType: result.mimeType,
                 fileName: result.fileName,
                 caption:
-                  `Status: Berhasil\n` +
-                  `Video selesai dibuat.\n` +
+                  'Status: Berhasil\n' +
+                  'Video selesai dibuat.\n' +
                   `Durasi: ${result.durationSeconds} detik`,
               })
               await cmdContext.react('✅')
             } else {
-              await cmdContext.reply(`Status: Gagal\nLayanan pengiriman media sedang tidak tersedia.`)
+              await cmdContext.reply('Status: Gagal\nLayanan pengiriman media sedang tidak tersedia.')
             }
           } catch (error) {
             cmdContext.logger.error(
@@ -97,83 +162,8 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
             )
             await cmdContext.react('❌')
             await cmdContext.reply(
-              `Status: Gagal\n` +
-              `Pembuatan video tidak dapat diproses saat ini. Silakan coba beberapa saat lagi.`
-            )
-          }
-        },
-      })
-
-      // ── 2. Pembuatan Video dari Gambar (!omnivid / !i2v) ───────────────
-      context.commands.register({
-        name: 'omnivid',
-        aliases: ['i2v', 'vidomni'],
-        description: 'Mengubah gambar menjadi video',
-        category: 'tools',
-        scope: 'both',
-        menuOrder: 16,
-        cooldownMs: 15_000,
-        handler: async (cmdContext: CommandContext) => {
-          const imgTarget = sourceImage(cmdContext)
-          const mediaPort = whatsapp ?? cmdContext.whatsapp
-
-          if (!imgTarget || !mediaPort?.downloadMedia) {
-            await cmdContext.reply(
-              `Status: Gagal\n` +
-              `Format perintah:\n` +
-              `Kirim gambar atau balas foto dengan:\n` +
-              `${cmdContext.prefix}omnivid <deskripsi gerakan>`
-            )
-            return
-          }
-
-          const rawPrompt = cmdContext.args.join(' ').trim() || 'Gerakkan objek secara alami dan halus'
-          const senderJid = cmdContext.message.senderJid ?? cmdContext.message.remoteJid
-          const quota = videoService.checkQuota(senderJid)
-          if (!quota.allowed) {
-            await cmdContext.reply(quota.reason ?? `Status: Gagal\nBatas kuota pembuatan video tercapai.`)
-            return
-          }
-
-          await cmdContext.react('⏳')
-          await cmdContext.reply(
-            `Status: Diproses\nGambar sedang diunggah dan diproses menjadi video.`
-          )
-
-          try {
-            const downloaded = await mediaPort.downloadMedia(cmdContext.message, imgTarget.source, {
-              maxBytes: 15 * 1024 * 1024,
-              timeoutMs: 30_000,
-            })
-
-            const result = await videoService.enqueue(senderJid, {
-              prompt: rawPrompt,
-              model: 'omni-flash',
-              imageBuffer: Buffer.from(downloaded.data),
-            })
-
-            if (mediaPort.sendMedia) {
-              await mediaPort.sendMedia(cmdContext.message.remoteJid, {
-                kind: 'video',
-                data: result.buffer,
-                mimeType: result.mimeType,
-                fileName: result.fileName,
-                caption:
-                  `Status: Berhasil\n` +
-                  `Video dari gambar berhasil dibuat.\n` +
-                  `Durasi: ${result.durationSeconds} detik`,
-              })
-              await cmdContext.react('✅')
-            }
-          } catch (error) {
-            cmdContext.logger.error(
-              { errorName: error instanceof Error ? error.name : 'UnknownError' },
-              'Image to video animation failed',
-            )
-            await cmdContext.react('❌')
-            await cmdContext.reply(
-              `Status: Gagal\n` +
-              `Gagal memproses gambar menjadi video. Pastikan format gambar valid dan coba lagi.`
+              'Status: Gagal\n' +
+              'Pembuatan video tidak dapat diproses saat ini. Silakan coba beberapa saat lagi.',
             )
           }
         },
@@ -457,8 +447,7 @@ export function createVideoPlugin(whatsapp?: WhatsAppPort, options: VideoPluginO
           await cmdContext.reply(
             `Status: Berhasil\n` +
             `Daftar perintah video:\n` +
-            `• ${cmdContext.prefix}vid <deskripsi> - Membuat video dari teks\n` +
-            `• ${cmdContext.prefix}omnivid <gerakan> - Mengubah gambar menjadi video\n` +
+            `• ${cmdContext.prefix}vid <deskripsi> - Membuat video dari teks atau gambar\n` +
             `• ${cmdContext.prefix}vcompress - Mengecilkan ukuran video\n` +
             `• ${cmdContext.prefix}vtrim <mulai> [selesai] - Memotong durasi video\n` +
             `• ${cmdContext.prefix}vspeed <angka>x - Mengatur kecepatan video\n` +

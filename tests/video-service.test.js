@@ -114,7 +114,7 @@ test('3. VideoService daily quota decrement and exhaustion rejection', async () 
   assert.match(q2.reason ?? '', /Batas harian 2 video telah tercapai/i)
 })
 
-test('4. VideoPlugin registers commands !vid, !omnivid, and editing commands without model names', async () => {
+test('4. VideoPlugin registers unified !vid (with !omnivid alias) and editing commands without model names', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -136,7 +136,7 @@ test('4. VideoPlugin registers commands !vid, !omnivid, and editing commands wit
   assert.ok(registry.get('vidmodels'))
 
   // Verify description purity (zero AI model name leak)
-  for (const cmdName of ['vid', 'omnivid', 'vcompress', 'vtrim', 'vspeed', 'vmute', 'vvn']) {
+  for (const cmdName of ['vid', 'vcompress', 'vtrim', 'vspeed', 'vmute', 'vvn']) {
     const desc = registry.get(cmdName)?.description ?? ''
     assert.doesNotMatch(desc, /\b(veo|gemini|google|flow)\b/i)
   }
@@ -276,7 +276,7 @@ test('9. Native FFmpeg video transformations execute cleanly on valid media', as
   assert.ok(trimmed.length > 0)
 })
 
-test('10. !omnivid handles Image-to-Video animation from image media with standardized format', async () => {
+test('10. !vid and !omnivid alias handle Image-to-Video animation from image media with standardized format', async () => {
   const events = new EventBus(logger)
   const services = new ServiceRegistry(logger)
   const whatsapp = fakeWhatsapp()
@@ -292,13 +292,13 @@ test('10. !omnivid handles Image-to-Video animation from image media with standa
   plugin.load?.({ logger, config, events, commands: registry, services })
 
   // 1. Rejects if no image is present
-  await registry.dispatch(message('m-10', 'user-no-img@s.whatsapp.net', '!omnivid buat tersenyum'))
+  await registry.dispatch(message('m-10', 'user-no-img@s.whatsapp.net', '!vid'))
   assert.match(whatsapp.sent[0].text, /Status: Gagal/i)
-  assert.match(whatsapp.sent[0].text, /Kirim gambar atau balas foto/i)
+  assert.match(whatsapp.sent[0].text, /gambar ke video/i)
   assert.doesNotMatch(whatsapp.sent[0].text, /\b(veo|gemini|google|flow)\b/i)
 
   // 2. Succeeds when image is present
-  const msgWithImage = message('m-11', 'user-with-img@s.whatsapp.net', '!omnivid buat tersenyum ramah', {
+  const msgWithImage = message('m-11', 'user-with-img@s.whatsapp.net', '!vid buat tersenyum ramah', {
     media: { kind: 'image' }
   })
   await registry.dispatch(msgWithImage)
