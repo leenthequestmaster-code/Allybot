@@ -103,24 +103,21 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
       ])
       await fileChooser.setFiles(tempImagePath)
       const uploadedName = path.basename(tempImagePath)
-      let addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
-      await addToPromptBtn.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {})
-      if (!(await addToPromptBtn.isVisible().catch(() => false))) {
+      const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
+      await targetItem.waitFor({ state: 'visible', timeout: 12_000 }).catch(async () => {
         await addRefBtn.click().catch(() => {})
-        const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
-        await targetItem.waitFor({ state: 'visible', timeout: 6_000 }).catch(() => {})
-        if (await targetItem.isVisible().catch(() => false)) {
-          await targetItem.click().catch(() => {})
-        } else {
-          await page.locator('.cdk-overlay-container .asset-item').first().click().catch(() => {})
-        }
-        addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
-        await addToPromptBtn.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {})
-      }
-      if (await addToPromptBtn.isVisible().catch(() => false)) {
-        await addToPromptBtn.click()
+        await targetItem.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {})
+      })
+      if (await targetItem.isVisible().catch(() => false)) {
+        await targetItem.click()
         await page.waitForTimeout(300)
+      } else {
+        throw new Error('UPLOAD_FAILED: Asset hasil upload tidak muncul di daftar media Flow.')
       }
+      const addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+      await addToPromptBtn.waitFor({ state: 'visible', timeout: 6_000 })
+      await addToPromptBtn.click()
+      await page.waitForTimeout(400)
       await page.keyboard.press('Escape').catch(() => {})
       await page.waitForTimeout(200)
     }
