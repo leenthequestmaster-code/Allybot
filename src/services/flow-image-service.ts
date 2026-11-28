@@ -69,9 +69,9 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     const page = await context.newPage()
     page.setDefaultTimeout(timeoutMs)
 
-    await page.goto(projectUrl, { waitUntil: 'networkidle', timeout: 45_000 }).catch(() => {})
-    await page.locator('div.ProseMirror').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
-    await page.waitForTimeout(1_500)
+    await page.goto(projectUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
+    await page.locator('div.ProseMirror').first().waitFor({ state: 'visible', timeout: 25_000 })
+    await page.waitForTimeout(500)
 
     if (page.url().includes('/about')) {
       throw new Error('FLOW_AUTH_EXPIRED: Sesi login Google Flow telah berakhir.')
@@ -102,30 +102,27 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
         uploadBtn.click(),
       ])
       await fileChooser.setFiles(tempImagePath)
-      await page.waitForTimeout(5_000)
-
-      // Ensure the uploaded asset is explicitly attached to the prompt box
       const uploadedName = path.basename(tempImagePath)
       let addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+      await addToPromptBtn.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {})
       if (!(await addToPromptBtn.isVisible().catch(() => false))) {
         await addRefBtn.click().catch(() => {})
-        await page.waitForTimeout(800)
         const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
+        await targetItem.waitFor({ state: 'visible', timeout: 6_000 }).catch(() => {})
         if (await targetItem.isVisible().catch(() => false)) {
           await targetItem.click().catch(() => {})
-          await page.waitForTimeout(400)
         } else {
           await page.locator('.cdk-overlay-container .asset-item').first().click().catch(() => {})
-          await page.waitForTimeout(400)
         }
         addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+        await addToPromptBtn.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {})
       }
       if (await addToPromptBtn.isVisible().catch(() => false)) {
         await addToPromptBtn.click()
-        await page.waitForTimeout(600)
+        await page.waitForTimeout(300)
       }
       await page.keyboard.press('Escape').catch(() => {})
-      await page.waitForTimeout(400)
+      await page.waitForTimeout(200)
     }
 
     // Capture baseline src URLs (handles virtualized/capped tile lists cleanly)
@@ -154,7 +151,7 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
     let readyUrls: string[] = []
 
     while (Date.now() - startTime < timeoutMs) {
-      await page.waitForTimeout(3_000)
+      await page.waitForTimeout(1_500)
 
       const approveBtn = page
         .locator("[role='radio']:not(.read-only):has-text('Selalu setujui di project'), [role='radio']:not(.read-only):has-text('Setujui')")
@@ -170,7 +167,7 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
       }
 
       // Wait until generation has started and finished
-      if (!sawStopButton && Date.now() - startTime < 9_000) {
+      if (!sawStopButton && Date.now() - startTime < 5_000) {
         continue
       }
 

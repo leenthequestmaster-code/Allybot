@@ -158,9 +158,9 @@ export class FlowVideoProvider implements VideoProvider {
         }
       })
 
-      await page.goto(this.projectUrl, { waitUntil: 'networkidle', timeout: 45_000 }).catch(() => {})
-      await page.locator('div.ProseMirror').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
-      await page.waitForTimeout(1_500)
+      await page.goto(this.projectUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 })
+      await page.locator('div.ProseMirror').first().waitFor({ state: 'visible', timeout: 25_000 })
+      await page.waitForTimeout(500)
 
       // Check if redirected to landing/about page (auth expired)
       const currentUrl = page.url()
@@ -208,29 +208,27 @@ export class FlowVideoProvider implements VideoProvider {
             ])
 
             await fileChooser.setFiles(tempImagePath)
-            await page.waitForTimeout(5_000)
-
             const uploadedName = path.basename(tempImagePath)
             let addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+            await addToPromptBtn.waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {})
             if (!(await addToPromptBtn.isVisible().catch(() => false))) {
               await addMediaBtn.click().catch(() => {})
-              await page.waitForTimeout(800)
               const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
+              await targetItem.waitFor({ state: 'visible', timeout: 6_000 }).catch(() => {})
               if (await targetItem.isVisible().catch(() => false)) {
                 await targetItem.click().catch(() => {})
-                await page.waitForTimeout(400)
               } else {
                 await page.locator('.cdk-overlay-container .asset-item').first().click().catch(() => {})
-                await page.waitForTimeout(400)
               }
               addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+              await addToPromptBtn.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {})
             }
             if (await addToPromptBtn.isVisible().catch(() => false)) {
               await addToPromptBtn.click()
-              await page.waitForTimeout(600)
+              await page.waitForTimeout(300)
             }
             await page.keyboard.press('Escape').catch(() => {})
-            await page.waitForTimeout(400)
+            await page.waitForTimeout(200)
 
             uploadSuccess = true
             break
@@ -302,7 +300,7 @@ export class FlowVideoProvider implements VideoProvider {
       const maxWaitMs = options.timeoutMs ?? this.timeoutMs
 
       while (Date.now() - startTime < maxWaitMs) {
-        await page.waitForTimeout(4_000)
+        await page.waitForTimeout(2_000)
         try {
           const approveBtn = page
             .locator("[role='radio']:not(.read-only):has-text('Selalu setujui di project'), [role='radio']:not(.read-only):has-text('Setujui')")
@@ -334,12 +332,13 @@ export class FlowVideoProvider implements VideoProvider {
           const tile = page.locator('flow-video-tile').nth(newTileIndex)
           if (await tile.isVisible().catch(() => false)) {
             await tile.click({ timeout: 3_000 }).catch(() => {})
-            await page.waitForTimeout(2_000)
-
             const dlBtn = page.locator('button[aria-label="Download media"], button[aria-label*="Download"]').first()
+            await dlBtn.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {})
             if (await dlBtn.isVisible().catch(() => false)) {
               await dlBtn.click({ timeout: 3_000 }).catch(() => {})
-              await page.waitForTimeout(3_000)
+              for (let w = 0; w < 10 && !capturedVideoUrl; w++) {
+                await page.waitForTimeout(300)
+              }
             }
 
             if (capturedVideoUrl) {
