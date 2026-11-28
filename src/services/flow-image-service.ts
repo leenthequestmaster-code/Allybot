@@ -86,7 +86,7 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
       fs.writeFileSync(tempImagePath, pngBuffer)
 
       const addRefBtn = page
-        .locator("button[aria-label*='Tambahkan bahan ke kotak perintah'], button[aria-label*='Menu tambahkan media']")
+        .locator("button[aria-label*='Tambahkan bahan ke kotak perintah']")
         .first()
       await addRefBtn.waitFor({ state: 'visible', timeout: 10_000 })
       await addRefBtn.click()
@@ -157,10 +157,10 @@ export async function generateFlowImage(options: FlowImageOptions): Promise<Flow
       await page.waitForTimeout(3_000)
 
       const approveBtn = page
-        .locator("button:has-text('Selalu setujui di project'), button:has-text('Setujui')")
+        .locator("[role='radio']:not(.read-only):has-text('Selalu setujui di project'), [role='radio']:not(.read-only):has-text('Setujui')")
         .first()
       if (await approveBtn.isVisible().catch(() => false)) {
-        await approveBtn.click().catch(() => {})
+        await approveBtn.click({ force: true }).catch(() => {})
       }
 
       const stopVisible = await page.locator("button[aria-label='Hentikan']").first().isVisible().catch(() => false)

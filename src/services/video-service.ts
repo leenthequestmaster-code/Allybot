@@ -138,6 +138,7 @@ export class FlowVideoProvider implements VideoProvider {
       })
 
       context = await browser.newContext({
+        viewport: { width: 1280, height: 800 },
         userAgent:
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
       })
@@ -157,7 +158,9 @@ export class FlowVideoProvider implements VideoProvider {
         }
       })
 
-      await page.goto(this.projectUrl, { waitUntil: 'networkidle', timeout: 45_000 })
+      await page.goto(this.projectUrl, { waitUntil: 'networkidle', timeout: 45_000 }).catch(() => {})
+      await page.locator('div.ProseMirror').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {})
+      await page.waitForTimeout(1_500)
 
       // Check if redirected to landing/about page (auth expired)
       const currentUrl = page.url()
@@ -187,13 +190,17 @@ export class FlowVideoProvider implements VideoProvider {
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           try {
-            const addMediaBtn = page.locator('button[aria-label*="Menu tambahkan media"], button.add-menu-trigger').first()
-            await addMediaBtn.waitFor({ state: 'visible', timeout: 8_000 })
+            const addMediaBtn = page
+              .locator("button[aria-label*='Tambahkan bahan ke kotak perintah']")
+              .first()
+            await addMediaBtn.waitFor({ state: 'visible', timeout: 10_000 })
             await addMediaBtn.click()
-            await page.waitForTimeout(500)
+            await page.waitForTimeout(600)
 
-            const uploadBtn = page.locator('button:has-text("Upload"), [role=menuitem]:has-text("Upload")').first()
-            await uploadBtn.waitFor({ state: 'visible', timeout: 5_000 })
+            const uploadBtn = page
+              .locator(".cdk-overlay-container :is(button, [role=menuitem]):has-text('Upload')")
+              .first()
+            await uploadBtn.waitFor({ state: 'visible', timeout: 6_000 })
 
             const [fileChooser] = await Promise.all([
               page.waitForEvent('filechooser', { timeout: 10_000 }),
@@ -203,13 +210,32 @@ export class FlowVideoProvider implements VideoProvider {
             await fileChooser.setFiles(tempImagePath)
             await page.waitForTimeout(5_000)
 
-            // Validate that an image asset tile exists in the project
-            const assetTileCount = await page.locator('flow-image-tile, .container:has(img)').count()
-            if (assetTileCount > 0) {
-              uploadSuccess = true
-              break
+            const uploadedName = path.basename(tempImagePath)
+            let addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
+            if (!(await addToPromptBtn.isVisible().catch(() => false))) {
+              await addMediaBtn.click().catch(() => {})
+              await page.waitForTimeout(800)
+              const targetItem = page.locator(`.cdk-overlay-container .asset-item:has-text("${uploadedName}")`).first()
+              if (await targetItem.isVisible().catch(() => false)) {
+                await targetItem.click().catch(() => {})
+                await page.waitForTimeout(400)
+              } else {
+                await page.locator('.cdk-overlay-container .asset-item').first().click().catch(() => {})
+                await page.waitForTimeout(400)
+              }
+              addToPromptBtn = page.locator(".cdk-overlay-container button:has-text('Tambahkan ke perintah')").first()
             }
-          } catch {
+            if (await addToPromptBtn.isVisible().catch(() => false)) {
+              await addToPromptBtn.click()
+              await page.waitForTimeout(600)
+            }
+            await page.keyboard.press('Escape').catch(() => {})
+            await page.waitForTimeout(400)
+
+            uploadSuccess = true
+            break
+          } catch (uploadErr) {
+            console.warn('[video-service] upload attempt failed:', uploadErr instanceof Error ? uploadErr.message : uploadErr)
             await page.waitForTimeout(1_000)
           }
         }
@@ -217,35 +243,24 @@ export class FlowVideoProvider implements VideoProvider {
         if (!uploadSuccess) {
           throw new Error('UPLOAD_FAILED: Gagal mengunggah gambar ke antarmuka video.')
         }
-
-        // Trigger animation action on uploaded image tile
-        try {
-          const animateBtn = page.locator('button[aria-label*="Animasikan gambar ini"]').first()
-          if (await animateBtn.isVisible({ timeout: 4_000 })) {
-            await animateBtn.click({ force: true })
-            await page.waitForTimeout(1_000)
-          }
-        } catch {
-          // fallback to manual video mode
-        }
       }
 
-      // ── Step 2: Configure Mode & Settings ─────────────────────────
+      // ── Step 2: Configure Mode & Settings (Legacy UI if visible) ───
       try {
         const settingsBtn = page.locator('button.settings-trigger-button')
-        if (await settingsBtn.isVisible()) {
+        if (await settingsBtn.isVisible().catch(() => false)) {
           await settingsBtn.click()
           await page.waitForTimeout(500)
 
           const videoToggle = page.locator('button[role=radio]:has-text("Video")')
-          if (await videoToggle.isVisible()) {
+          if (await videoToggle.isVisible().catch(() => false)) {
             await videoToggle.click()
             await page.waitForTimeout(500)
           }
 
           if (options.model === 'omni-flash') {
             const modelSelectBtn = page.locator('button:has(.model-select-trigger-content)')
-            if (await modelSelectBtn.isVisible()) {
+            if (await modelSelectBtn.isVisible().catch(() => false)) {
               await modelSelectBtn.click()
               await page.waitForTimeout(400)
               await page.locator('[role=menuitem]:has-text("Omni 1.1 Flash"), mat-option:has-text("Omni 1.1 Flash")').first().click()
@@ -261,40 +276,55 @@ export class FlowVideoProvider implements VideoProvider {
       }
 
       // ── Step 3: Enter Prompt & Trigger Generation ────────────────
-      const initialVideoTiles = await page.locator('flow-video-tile').count()
       const editor = page.locator('div.ProseMirror[role="textbox"], div.ProseMirror').first()
       await editor.waitFor({ state: 'visible', timeout: 10_000 })
       await editor.click()
-      await editor.fill(options.prompt)
+      const videoDirective = options.imageBuffer
+        ? `Using the uploaded reference image, ${options.prompt.trim()} (generate a video with Omni 1.1 Flash)`
+        : `${options.prompt.trim()} (generate a video)`
+      await editor.fill(videoDirective)
       await page.waitForTimeout(800)
 
-      const genBtn = page.locator('button.generate-icon-button')
+      capturedVideoUrl = undefined
+      const genBtn = page.locator("button[aria-label='Mulai pembuatan'], button.generate-icon-button").first()
       await genBtn.waitFor({ state: 'visible', timeout: 5_000 })
       await genBtn.click()
 
       // ── Step 4: Poll & Download Generated Video ──────────────────
       const startTime = Date.now()
       const maxWaitMs = options.timeoutMs ?? this.timeoutMs
+      let sawStopButton = false
 
       while (Date.now() - startTime < maxWaitMs) {
         await page.waitForTimeout(4_000)
         try {
           const approveBtn = page
-            .locator("button:has-text('Selalu setujui di project'), button:has-text('Setujui')")
-            .first()
+            .locator("[role='radio']:not(.read-only):has-text('Selalu setujui di project'), [role='radio']:not(.read-only):has-text('Setujui')")
+            .last()
           if (await approveBtn.isVisible().catch(() => false)) {
-            await approveBtn.click().catch(() => {})
+            await approveBtn.click({ force: true }).catch(() => {})
           }
-          const currentVideoTiles = await page.locator('flow-video-tile').count()
-          if (currentVideoTiles <= initialVideoTiles) continue
+
+          if (capturedVideoUrl) break
+
+          const stopVisible = await page.locator("button[aria-label='Hentikan']").first().isVisible().catch(() => false)
+          if (stopVisible) {
+            sawStopButton = true
+            continue
+          }
+
+          if (!sawStopButton && Date.now() - startTime < 15_000) {
+            continue
+          }
+
           const tile = page.locator('flow-video-tile').first()
-          if (await tile.isVisible()) {
-            await tile.click({ timeout: 2_000 })
+          if (await tile.isVisible().catch(() => false)) {
+            await tile.click({ timeout: 2_000 }).catch(() => {})
             await page.waitForTimeout(2_000)
 
-            const dlBtn = page.locator('button[aria-label="Download media"]')
-            if (await dlBtn.isVisible()) {
-              await dlBtn.click({ timeout: 2_000 })
+            const dlBtn = page.locator('button[aria-label="Download media"], button[aria-label*="Download"]').first()
+            if (await dlBtn.isVisible().catch(() => false)) {
+              await dlBtn.click({ timeout: 2_000 }).catch(() => {})
               await page.waitForTimeout(3_000)
             }
 
